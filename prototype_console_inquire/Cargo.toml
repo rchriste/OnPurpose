@@ -1,0 +1,7 @@
+[package]
+name = "on_purpose_prototype_console_inquire"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+inquire = "0.6.0" #inquire is for building interactive prompts in terminals

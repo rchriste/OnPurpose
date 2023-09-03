@@ -1,0 +1,5 @@
+[workspace]
+
+members = [
+    "prototype_console_inquire"
+]
