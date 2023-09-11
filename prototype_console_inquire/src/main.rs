@@ -25,6 +25,26 @@ fn find_parents<'a>(item: &Item<'a>, linkage: &'a Vec<Linkage<'a>>) -> Vec<&'a I
     }).collect()
 }
 
+enum InquireBulletListSelection<'a> {
+    BulletItem(InquireBulletListItem<'a>),
+    Capture
+}
+
+impl<'a> Display for InquireBulletListSelection<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InquireBulletListSelection::BulletItem(bullet_item) => bullet_item.fmt(f),
+            InquireBulletListSelection::Capture => write!(f, "🗬  Capture 🗭"),
+        }
+    }
+}
+
+impl<'a> From<InquireBulletListItem<'a>> for InquireBulletListSelection<'a> {
+    fn from(value: InquireBulletListItem<'a>) -> Self {
+        InquireBulletListSelection::BulletItem(value)
+    }
+}
+
 struct InquireBulletListItem<'a> {
     bullet_item: &'a NextStepItem,
     parents: Vec<&'a Item<'a>>,
@@ -45,14 +65,17 @@ impl Display for InquireBulletListItem<'_> {
 }
 
 impl<'a> InquireBulletListItem<'a> {
-    fn create_list(next_step_nodes: &'a Vec<NextStepNode<'a>>) -> Vec<InquireBulletListItem<'a>>
+    fn create_list(next_step_nodes: &'a Vec<NextStepNode<'a>>) -> Vec<InquireBulletListSelection<'a>>
     {
-        next_step_nodes.iter().map(|x| {
+        let mut result = Vec::with_capacity(next_step_nodes.capacity() + 1);
+        result.extend(next_step_nodes.iter().map(|x| {
             InquireBulletListItem {
                 bullet_item: x.next_step_item,
                 parents: create_next_step_parents(&x),
-            }
-        }).collect()
+            }.into()
+        }));
+        result.push(InquireBulletListSelection::Capture);
+        result
     }
 }
 
