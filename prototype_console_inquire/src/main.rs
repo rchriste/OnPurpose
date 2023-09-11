@@ -1,86 +1,21 @@
+pub mod base_data;
+mod node;
+mod test_data;
+mod bullet_list;
+
 use std::fmt::Display;
 
+use base_data::{NextStepItem, Linkage, Item};
 use inquire::Select;
+use node::{NextStepNode, GrowingNode};
 
-#[derive(PartialEq, Eq)]
-struct NextStepItem {
-    summary: String,
-}
-
-/// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
-#[derive(PartialEq, Eq)]
-struct ReviewItem {
-    summary: String,
-}
-
-/// Could have a reason_type with options for Commitment, Maintenance, or Value
-#[derive(PartialEq, Eq)]
-struct ReasonItem {
-    summary: String,
-}
-
-struct Linkage<'a> {
-    smaller: Item<'a>,
-    parent: Item<'a>,
-}
-
-struct GrowingNode<'a> {
-    item: &'a Item<'a>,
-    larger: Vec<GrowingNode<'a>>,
-}
-
-struct NextStepNode<'a> {
-    next_step_item: &'a NextStepItem,
-    larger: Vec<GrowingNode<'a>>
-}
-
-#[derive(PartialEq, Eq)]
-enum Item<'a> {
-    NextStepItem(&'a NextStepItem),
-    ReviewItem(&'a ReviewItem),
-    ReasonItem(&'a ReasonItem)
-}
-
-fn create_next_step_nodes<'a>(next_steps: &'a Vec<NextStepItem>, linkage: &'a Vec<Linkage<'a>>) -> Vec<NextStepNode<'a>>
-{
-    next_steps.iter().filter_map(|x| {
-        if !is_covered(&x, &linkage) {
-            Some(create_next_step_node(x, &linkage))
-        } else { None }
-    }).collect()
-}
+use crate::{node::create_next_step_nodes, test_data::create_items, test_data::create_linkage};
 
 fn is_covered(next_step_item: &NextStepItem, linkage: &Vec<Linkage<'_>>) -> bool {
     let next_step_item = Item::NextStepItem(&next_step_item);
     linkage.iter().any(|x| x.parent == next_step_item)
 }
 
-fn create_next_step_node<'a>(next_step: &'a NextStepItem, linkage: &'a Vec<Linkage<'a>>) -> NextStepNode<'a>
-{
-    let item = Item::NextStepItem(&next_step);
-    let parents = find_parents(&item, &linkage);
-    let larger = create_growing_nodes(parents, &linkage);
-
-    NextStepNode {
-        next_step_item: &next_step,
-        larger
-    }
-}
-
-fn create_growing_nodes<'a>(items: Vec<&'a Item<'a>>, linkage: &'a Vec<Linkage<'a>>) -> Vec<GrowingNode<'a>>
-{
-    items.iter().map(|x| create_growing_node(x, &linkage)).collect()
-}
-
-fn create_growing_node<'a>(item: &'a Item<'a>, linkage: &'a Vec<Linkage<'a>>) -> GrowingNode<'a>
-{
-    let parents = find_parents(item, &linkage);
-    let larger = create_growing_nodes(parents, linkage);
-    GrowingNode {
-        item,
-        larger
-    }
-}
 
 fn find_parents<'a>(item: &Item<'a>, linkage: &'a Vec<Linkage<'a>>) -> Vec<&'a Item<'a>>
 {
@@ -150,79 +85,10 @@ fn main() {
     println!("This is the console prototype using the inquire package");
     println!("Version {}", CARGO_PKG_VERSION.unwrap_or("UNKNOWN"));
 
-    let next_steps = vec![
-        NextStepItem {
-            summary: String::from("Clean Dometic")
-        },
-        NextStepItem {
-            summary: String::from("Fill out SafeAccess Health & Safety Invitation for RustConf 2023")
-        },
-        NextStepItem {
-            summary: String::from("Get a Covid vaccine")
-        },
-    ];
+    let test_data = create_items();
+    let linkage = create_linkage(&test_data);
 
-    let review_items = vec![
-        ReviewItem {
-            summary: String::from("Go camping")
-        },
-        ReviewItem {
-            summary: String::from("After")
-        },
-
-        ReviewItem {
-            summary: String::from("Attend Rust conference")
-        },
-        ReviewItem {
-            summary: String::from("Prepare")
-        }
-    ];
-
-    let reason_items = vec![
-        ReasonItem {
-            summary: String::from("Family Trips")
-        },
-        ReasonItem {
-            summary: String::from("On-Purpose")
-        }
-    ];
-
-    let linkage = vec![
-        //NEXT STEPS
-        Linkage {
-            parent: Item::NextStepItem(&next_steps[1]),
-            smaller: Item::NextStepItem(&next_steps[2]),
-        },
-        //NEXT STEPS to REVIEW ITEMS
-        Linkage {
-            parent: Item::ReviewItem(&review_items[1]),
-            smaller: Item::NextStepItem(&next_steps[0]),
-        },
-        Linkage {
-            parent: Item::ReviewItem(&review_items[0]),
-            smaller: Item::ReviewItem(&review_items[1])
-        },
-        Linkage {
-            parent: Item::ReviewItem(&review_items[2]),
-            smaller: Item::ReviewItem(&review_items[3]),
-        },
-        Linkage {
-            parent: Item::ReviewItem(&review_items[3]),
-            smaller: Item::NextStepItem(&next_steps[1]),
-        },
-        //REVIEW STEPS to REASONS
-        Linkage {
-            parent: Item::ReasonItem(&reason_items[0]),
-            smaller: Item::ReviewItem(&review_items[0]),
-        },
-        Linkage {
-            parent: Item::ReasonItem(&reason_items[1]),
-            smaller: Item::ReviewItem(&review_items[2]),
-        },
-    ];
-
-
-    let next_step_nodes = create_next_step_nodes(&next_steps, &linkage);
+    let next_step_nodes = create_next_step_nodes(&test_data.next_steps, &linkage);
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 
