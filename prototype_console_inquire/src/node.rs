@@ -1,4 +1,4 @@
-use crate::base_data::{Item, NextStepItem, Linkage};
+use crate::base_data::{Item, NextStepItem, LinkageWithReferences};
 
 pub struct GrowingNode<'a> {
     pub item: &'a Item<'a>,
@@ -23,7 +23,7 @@ pub struct NextStepNode<'a> {
     pub larger: Vec<GrowingNode<'a>>
 }
 
-pub fn create_next_step_nodes<'a>(next_steps: &'a Vec<NextStepItem>, linkage: &'a Vec<Linkage<'a>>) -> Vec<NextStepNode<'a>>
+pub fn create_next_step_nodes<'a>(next_steps: &'a Vec<NextStepItem>, linkage: &'a Vec<LinkageWithReferences<'a>>) -> Vec<NextStepNode<'a>>
 {
     next_steps.iter().filter_map(|x| {
         if !x.is_covered(&linkage) {
@@ -32,7 +32,7 @@ pub fn create_next_step_nodes<'a>(next_steps: &'a Vec<NextStepItem>, linkage: &'
     }).collect()
 }
 
-pub fn create_next_step_node<'a>(next_step: &'a NextStepItem, linkage: &'a Vec<Linkage<'a>>) -> NextStepNode<'a>
+pub fn create_next_step_node<'a>(next_step: &'a NextStepItem, linkage: &'a Vec<LinkageWithReferences<'a>>) -> NextStepNode<'a>
 {
     let item = Item::NextStepItem(&next_step);
     let parents = item.find_parents(&linkage);
@@ -44,12 +44,12 @@ pub fn create_next_step_node<'a>(next_step: &'a NextStepItem, linkage: &'a Vec<L
     }
 }
 
-pub fn create_growing_nodes<'a>(items: Vec<&'a Item<'a>>, linkage: &'a Vec<Linkage<'a>>) -> Vec<GrowingNode<'a>>
+pub fn create_growing_nodes<'a>(items: Vec<&'a Item<'a>>, linkage: &'a Vec<LinkageWithReferences<'a>>) -> Vec<GrowingNode<'a>>
 {
     items.iter().map(|x| create_growing_node(x, &linkage)).collect()
 }
 
-pub fn create_growing_node<'a>(item: &'a Item<'a>, linkage: &'a Vec<Linkage<'a>>) -> GrowingNode<'a>
+pub fn create_growing_node<'a>(item: &'a Item<'a>, linkage: &'a Vec<LinkageWithReferences<'a>>) -> GrowingNode<'a>
 {
     let parents = item.find_parents(&linkage);
     let larger = create_growing_nodes(parents, linkage);

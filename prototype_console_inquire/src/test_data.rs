@@ -1,13 +1,41 @@
-use surrealdb::{engine::any::Any, Surreal};
+use surrealdb::{engine::any::Any, Surreal, opt::RecordId};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::{NextStepItem, ReviewItem, ReasonItem, Linkage, Item};
+use crate::base_data::{NextStepItem, ReviewItem, ReasonItem, LinkageWithReferences, LinkageWithRecordIds, Item};
 
 
 pub struct TestData {
     pub next_steps: Vec<NextStepItem>,
     pub review_items: Vec<ReviewItem>,
     pub reason_items: Vec<ReasonItem>,
+}
+
+impl TestData {
+    pub fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<Item<'a>>
+    {
+        if let Some(found) = self.next_steps.iter().find(|x| {
+            match x.get_id() {
+                Some(v) => v == record_id,
+                None => false
+            }
+        }) {
+            Some(Item::NextStepItem(found))
+        } else if let Some(found) = self.review_items.iter().find(|x| {
+            match x.get_id() {
+                Some(v) => v == record_id,
+                None => false
+            }
+        }) {
+            Some(Item::ReviewItem(found))
+        } else if let Some(found) = self.reason_items.iter().find(|x| {
+            match x.get_id() {
+                Some(v) => v == record_id,
+                None => false
+            }
+        }) {
+            Some(Item::ReasonItem(found))
+        } else { None }
+    }
 }
 
 pub fn create_items() -> TestData
@@ -91,41 +119,52 @@ pub async fn upload_test_data_to_surrealdb(test_data: TestData, db: &Surreal<Any
     }
 }
 
-pub fn create_linkage<'a>(test_data: &'a TestData) -> Vec<Linkage<'a>>
+pub fn create_linkage<'a>(test_data: &'a TestData) -> Vec<LinkageWithReferences<'a>>
 {
     let linkage = vec![
         //NEXT STEPS
-        Linkage {
+        LinkageWithReferences {
             parent: Item::NextStepItem(&test_data.next_steps[1]),
             smaller: Item::NextStepItem(&test_data.next_steps[2]),
         },
         //NEXT STEPS to REVIEW ITEMS
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReviewItem(&test_data.review_items[1]),
             smaller: Item::NextStepItem(&test_data.next_steps[0]),
         },
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReviewItem(&test_data.review_items[0]),
             smaller: Item::ReviewItem(&test_data.review_items[1])
         },
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReviewItem(&test_data.review_items[2]),
             smaller: Item::ReviewItem(&test_data.review_items[3]),
         },
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReviewItem(&test_data.review_items[3]),
             smaller: Item::NextStepItem(&test_data.next_steps[1]),
         },
         //REVIEW STEPS to REASONS
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReasonItem(&test_data.reason_items[0]),
             smaller: Item::ReviewItem(&test_data.review_items[0]),
         },
-        Linkage {
+        LinkageWithReferences {
             parent: Item::ReasonItem(&test_data.reason_items[1]),
             smaller: Item::ReviewItem(&test_data.review_items[2]),
         },
     ];
 
     linkage
+}
+
+pub async fn upload_linkage_to_surrealdb<'a>(linkage: Vec<LinkageWithReferences<'a>>, db: &Surreal<Any>) -> Vec<LinkageWithRecordIds>
+{
+    let mut result = Vec::with_capacity(linkage.capacity());
+    for with_references in linkage.into_iter() {
+        let with_record_ids: LinkageWithRecordIds = with_references.into();
+        let r = with_record_ids.create(&db).await.unwrap();
+        result.extend(r.into_iter());
+    }
+    result
 }
