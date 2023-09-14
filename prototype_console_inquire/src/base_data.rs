@@ -1,5 +1,11 @@
-#[derive(PartialEq, Eq)]
+use serde::{Serialize, Deserialize};
+use surrealdb::sql::Thing;
+use surrealdb_extra::table::Table;
+
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[table(name = "next_step_item")]
 pub struct NextStepItem {
+    pub id: Option<Thing>,
     pub summary: String,
 }
 
@@ -10,18 +16,19 @@ impl NextStepItem {
     }
 }
 
-
-
-
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[table(name = "review_item")]
 pub struct ReviewItem {
+    pub id: Option<Thing>,
     pub summary: String,
 }
 
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[table(name = "reason_item")]
 pub struct ReasonItem {
+    pub id: Option<Thing>,
     pub summary: String,
 }
 

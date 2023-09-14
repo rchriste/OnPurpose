@@ -6,8 +6,9 @@ mod bullet_list;
 use base_data::Item;
 use inquire::Select;
 use node::NextStepNode;
+use surrealdb::engine::any::connect;
 
-use crate::{node::create_next_step_nodes, test_data::create_items, test_data::create_linkage, bullet_list::InquireBulletListItem};
+use crate::{node::create_next_step_nodes, test_data::{create_items, upload_test_data_to_surrealdb}, test_data::create_linkage, bullet_list::InquireBulletListItem};
 
 //I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
 fn create_next_step_parents<'a>(item: &'a NextStepNode<'a>) -> Vec<&'a Item<'a>>
@@ -29,9 +30,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("This is the console prototype using the inquire package");
     println!("Version {}", CARGO_PKG_VERSION.unwrap_or("UNKNOWN"));
 
-    let test_data = create_items();
-    let linkage = create_linkage(&test_data);
+    let db = connect("mem://").await.unwrap();
+    db.use_ns("OnPurpose").use_db("Russ").await.unwrap();
 
+    let test_data = create_items();
+    let test_data = upload_test_data_to_surrealdb(test_data, &db).await;
+    let linkage = create_linkage(&test_data);
     let next_step_nodes = create_next_step_nodes(&test_data.next_steps, &linkage);
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
