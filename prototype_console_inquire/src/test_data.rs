@@ -1,4 +1,4 @@
-use surrealdb::{engine::any::Any, Surreal, opt::RecordId};
+use surrealdb::{Surreal, opt::RecordId};
 use surrealdb_extra::table::Table;
 
 use crate::base_data::{NextStepItem, ReviewItem, ReasonItem, LinkageWithReferences, LinkageWithRecordIds, Item};
@@ -89,7 +89,7 @@ pub fn create_items() -> TestData
     TestData { next_steps, review_items, reason_items }
 }
 
-pub async fn upload_test_data_to_surrealdb(test_data: TestData, db: &Surreal<Any>) -> TestData
+pub async fn upload_test_data_to_surrealdb<T: surrealdb::Connection>(test_data: TestData, db: &Surreal<T>) -> TestData
 {
     let mut next_steps_surreal = Vec::with_capacity(test_data.next_steps.capacity());
     for x in test_data.next_steps.into_iter()
@@ -158,7 +158,7 @@ pub fn create_linkage<'a>(test_data: &'a TestData) -> Vec<LinkageWithReferences<
     linkage
 }
 
-pub async fn upload_linkage_to_surrealdb<'a>(linkage: Vec<LinkageWithReferences<'a>>, db: &Surreal<Any>) -> Vec<LinkageWithRecordIds>
+pub async fn upload_linkage_to_surrealdb<'a, T: surrealdb::Connection>(linkage: Vec<LinkageWithReferences<'a>>, db: &Surreal<T>) -> Vec<LinkageWithRecordIds>
 {
     let mut result = Vec::with_capacity(linkage.capacity());
     for with_references in linkage.into_iter() {
