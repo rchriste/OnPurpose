@@ -2,6 +2,7 @@ pub mod base_data;
 mod node;
 mod test_data;
 mod bullet_list;
+mod surrealdb_layer;
 
 use base_data::Item;
 use inquire::Select;
@@ -10,10 +11,8 @@ use surrealdb::engine::any::connect;
 
 use crate::{
     node::create_next_step_nodes, 
-    test_data::{create_items, upload_test_data_to_surrealdb, upload_linkage_to_surrealdb}, 
-    test_data::create_linkage, 
     bullet_list::InquireBulletListItem, 
-    base_data::convert_linkage_with_record_ids_to_references
+    base_data::convert_linkage_with_record_ids_to_references, surrealdb_layer::load_data_from_surrealdb
 };
 
 //I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
@@ -39,10 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = connect("file:://~/.on_purpose.db").await?;
     db.use_ns("OnPurpose").use_db("Russ").await.unwrap();
 
-    let test_data = create_items();
-    let test_data = upload_test_data_to_surrealdb(test_data, &db).await;
-    let linkage = create_linkage(&test_data);
-    let linkage = upload_linkage_to_surrealdb(linkage, &db).await;
+    let (test_data, linkage) = load_data_from_surrealdb(&db).await;
     let linkage = convert_linkage_with_record_ids_to_references(&linkage, &test_data);
 
     let next_step_nodes = create_next_step_nodes(&test_data.next_steps, &linkage);

@@ -38,57 +38,7 @@ impl TestData {
     }
 }
 
-pub fn create_items() -> TestData
-{
-    let next_steps = vec![
-        NextStepItem {
-            id: None,
-            summary: String::from("Clean Dometic")
-        },
-        NextStepItem {
-            id: None,
-            summary: String::from("Fill out SafeAccess Health & Safety Invitation for RustConf 2023")
-        },
-        NextStepItem {
-            id: None,
-            summary: String::from("Get a Covid vaccine")
-        },
-    ];
-
-    let review_items = vec![
-        ReviewItem {
-            id: None,
-            summary: String::from("Go camping")
-        },
-        ReviewItem {
-            id: None,
-            summary: String::from("After")
-        },
-
-        ReviewItem {
-            id: None,
-            summary: String::from("Attend Rust conference")
-        },
-        ReviewItem {
-            id: None,
-            summary: String::from("Prepare")
-        }
-    ];
-
-    let reason_items = vec![
-        ReasonItem {
-            id: None,
-            summary: String::from("Family Trips")
-        },
-        ReasonItem {
-            id: None,
-            summary: String::from("On-Purpose")
-        }
-    ];
-
-    TestData { next_steps, review_items, reason_items }
-}
-
+#[allow(dead_code)]
 pub async fn upload_test_data_to_surrealdb<T: surrealdb::Connection>(test_data: TestData, db: &Surreal<T>) -> TestData
 {
     let mut next_steps_surreal = Vec::with_capacity(test_data.next_steps.capacity());
@@ -119,45 +69,7 @@ pub async fn upload_test_data_to_surrealdb<T: surrealdb::Connection>(test_data: 
     }
 }
 
-pub fn create_linkage<'a>(test_data: &'a TestData) -> Vec<LinkageWithReferences<'a>>
-{
-    let linkage = vec![
-        //NEXT STEPS
-        LinkageWithReferences {
-            parent: Item::NextStepItem(&test_data.next_steps[1]),
-            smaller: Item::NextStepItem(&test_data.next_steps[2]),
-        },
-        //NEXT STEPS to REVIEW ITEMS
-        LinkageWithReferences {
-            parent: Item::ReviewItem(&test_data.review_items[1]),
-            smaller: Item::NextStepItem(&test_data.next_steps[0]),
-        },
-        LinkageWithReferences {
-            parent: Item::ReviewItem(&test_data.review_items[0]),
-            smaller: Item::ReviewItem(&test_data.review_items[1])
-        },
-        LinkageWithReferences {
-            parent: Item::ReviewItem(&test_data.review_items[2]),
-            smaller: Item::ReviewItem(&test_data.review_items[3]),
-        },
-        LinkageWithReferences {
-            parent: Item::ReviewItem(&test_data.review_items[3]),
-            smaller: Item::NextStepItem(&test_data.next_steps[1]),
-        },
-        //REVIEW STEPS to REASONS
-        LinkageWithReferences {
-            parent: Item::ReasonItem(&test_data.reason_items[0]),
-            smaller: Item::ReviewItem(&test_data.review_items[0]),
-        },
-        LinkageWithReferences {
-            parent: Item::ReasonItem(&test_data.reason_items[1]),
-            smaller: Item::ReviewItem(&test_data.review_items[2]),
-        },
-    ];
-
-    linkage
-}
-
+#[allow(dead_code)]
 pub async fn upload_linkage_to_surrealdb<'a, T: surrealdb::Connection>(linkage: Vec<LinkageWithReferences<'a>>, db: &Surreal<T>) -> Vec<LinkageWithRecordIds>
 {
     let mut result = Vec::with_capacity(linkage.capacity());
