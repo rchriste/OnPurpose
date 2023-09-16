@@ -4,6 +4,7 @@ use surrealdb_extra::table::Table;
 use crate::base_data::{NextStepItem, ReviewItem, ReasonItem, LinkageWithReferences, LinkageWithRecordIds, Item};
 
 
+#[derive(Clone, Debug)]
 pub struct TestData {
     pub next_steps: Vec<NextStepItem>,
     pub review_items: Vec<ReviewItem>,

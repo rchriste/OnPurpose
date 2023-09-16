@@ -26,7 +26,7 @@ pub struct NextStepNode<'a> {
 pub fn create_next_step_nodes<'a>(next_steps: &'a Vec<NextStepItem>, linkage: &'a Vec<LinkageWithReferences<'a>>) -> Vec<NextStepNode<'a>>
 {
     next_steps.iter().filter_map(|x| {
-        if !x.is_covered(&linkage) {
+        if !x.is_covered(&linkage) && !x.is_finished() {
             Some(create_next_step_node(x, &linkage))
         } else { None }
     }).collect()

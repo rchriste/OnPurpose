@@ -1,25 +1,33 @@
 use serde::{Serialize, Deserialize};
-use surrealdb::{sql::Thing, opt::RecordId};
+use surrealdb::{sql::{Thing, Datetime}, opt::RecordId};
 use surrealdb_extra::table::Table;
 
 use crate::test_data::TestData;
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "next_step_item")]
 pub struct NextStepItem {
     pub id: Option<Thing>,
     pub summary: String,
+    pub finished: Option<Datetime>,
 }
 
 impl NextStepItem {
-    pub fn is_covered(self: &NextStepItem, linkage: &Vec<LinkageWithReferences<'_>>) -> bool {
+    pub fn is_covered(&self, linkage: &Vec<LinkageWithReferences<'_>>) -> bool {
         let next_step_item = Item::NextStepItem(&self);
         linkage.iter().any(|x| x.parent == next_step_item)
+    }
+
+    pub fn is_finished(&self) -> bool {
+        match self.finished {
+            Some(_) => true,
+            None => false,
+        }
     }
 }
 
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "review_item")]
 pub struct ReviewItem {
     pub id: Option<Thing>,
@@ -27,7 +35,7 @@ pub struct ReviewItem {
 }
 
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "reason_item")]
 pub struct ReasonItem {
     pub id: Option<Thing>,
@@ -39,7 +47,7 @@ pub struct LinkageWithReferences<'a> {
     pub parent: Item<'a>,
 }
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "linkage")]
 pub struct LinkageWithRecordIds {
     pub id: Option<Thing>,
@@ -66,6 +74,15 @@ pub fn convert_linkage_with_record_ids_to_references<'a>(linkage_with_record_ids
             parent: test_data.lookup_from_record_id(&x.parent).unwrap()
         }
     ).collect()
+}
+
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
+#[table(name = "processed_text")]
+pub struct ProcessedText {
+    pub id: Option<Thing>,
+    pub text: String,
+    pub when_written: Datetime,
+    pub for_item: RecordId,
 }
 
 #[derive(PartialEq, Eq)]
@@ -107,4 +124,11 @@ impl<'a> Item<'a> {
             Item::ReasonItem(reason_item) => &reason_item.id,
         }
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum ItemOwning {
+    NextStepItem(NextStepItem),
+    ReviewItem(ReviewItem),
+    ReasonItem(ReasonItem)
 }
