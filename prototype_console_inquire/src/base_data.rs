@@ -12,6 +12,12 @@ pub struct NextStepItem {
     pub finished: Option<Datetime>,
 }
 
+impl From<NextStepItem> for Option<Thing> {
+    fn from(value: NextStepItem) -> Self {
+        value.id
+    }
+}
+
 impl NextStepItem {
     pub fn is_covered(&self, linkage: &Vec<LinkageWithReferences<'_>>) -> bool {
         let next_step_item = Item::NextStepItem(&self);
@@ -34,12 +40,24 @@ pub struct ReviewItem {
     pub summary: String,
 }
 
+impl From<ReviewItem> for Option<Thing> {
+    fn from(value: ReviewItem) -> Self {
+        value.id
+    }
+}
+
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "reason_item")]
 pub struct ReasonItem {
     pub id: Option<Thing>,
     pub summary: String,
+}
+
+impl From<ReasonItem> for Option<Thing> {
+    fn from(value: ReasonItem) -> Self {
+        value.id
+    }
 }
 
 pub struct LinkageWithReferences<'a> {
@@ -131,4 +149,60 @@ pub enum ItemOwning {
     NextStepItem(NextStepItem),
     ReviewItem(ReviewItem),
     ReasonItem(ReasonItem)
+}
+
+impl From<NextStepItem> for ItemOwning {
+    fn from(value: NextStepItem) -> Self {
+        Self::NextStepItem(value)
+    }
+}
+
+impl From<ReviewItem> for ItemOwning {
+    fn from(value: ReviewItem) -> Self {
+        Self::ReviewItem(value)
+    }
+}
+
+impl From<ReasonItem> for ItemOwning {
+    fn from(value: ReasonItem) -> Self {
+        Self::ReasonItem(value)
+    }
+}
+
+impl From<ItemOwning> for Option<Thing> {
+    fn from(value: ItemOwning) -> Self {
+        match value {
+            ItemOwning::NextStepItem(i) => i.into(),
+            ItemOwning::ReviewItem(i) => i.into(),
+            ItemOwning::ReasonItem(i) => i.into(),
+        }
+    }
+}
+
+impl<'a> From<Item<'a>> for ItemOwning {
+    fn from(value: Item<'a>) -> Self {
+        match value {
+            Item::NextStepItem(i) => i.into(),
+            Item::ReviewItem(i) => i.into(),
+            Item::ReasonItem(i) => i.into(),
+        }
+    }
+}
+
+impl From<&NextStepItem> for ItemOwning {
+    fn from(value: &NextStepItem) -> Self {
+        ItemOwning::NextStepItem(value.clone())
+    }
+}
+
+impl From<&ReviewItem> for ItemOwning {
+    fn from(value: &ReviewItem) -> Self {
+        ItemOwning::ReviewItem(value.clone())
+    }
+}
+
+impl From<&ReasonItem> for ItemOwning {
+    fn from(value: &ReasonItem) -> Self {
+        ItemOwning::ReasonItem(value.clone())
+    }
 }

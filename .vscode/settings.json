@@ -3,6 +3,7 @@
         "binutils",
         "chrono",
         "Datetime",
+        "neurodiverse",
         "oneshoot",
         "oneshot",
         "protobuf",

@@ -58,3 +58,22 @@ pub fn create_growing_node<'a>(item: &'a Item<'a>, linkage: &'a Vec<LinkageWithR
         larger
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn newly_captured_items_are_shown_in_next_steps() {
+        todo!()
+    }
+
+    #[test]
+    fn items_disappear_from_next_steps_after_they_are_covered() {
+        todo!()
+    }
+
+    #[test]
+    fn items_return_to_next_steps_after_they_are_uncovered() {
+        todo!()
+    }
+}
