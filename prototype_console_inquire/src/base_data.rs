@@ -21,7 +21,9 @@ impl From<NextStepItem> for Option<Thing> {
 impl NextStepItem {
     pub fn is_covered(&self, linkage: &Vec<LinkageWithReferences<'_>>) -> bool {
         let next_step_item = Item::NextStepItem(&self);
-        linkage.iter().any(|x| x.parent == next_step_item)
+        let mut covered_by = linkage.iter().filter(|x| x.parent == next_step_item);
+        //Now see if the items that are covering are finished or active
+        covered_by.any(|x| !x.smaller.is_finished())
     }
 
     pub fn is_finished(&self) -> bool {
@@ -38,11 +40,21 @@ impl NextStepItem {
 pub struct ReviewItem {
     pub id: Option<Thing>,
     pub summary: String,
+    pub finished: Option<Datetime>,
 }
 
 impl From<ReviewItem> for Option<Thing> {
     fn from(value: ReviewItem) -> Self {
         value.id
+    }
+}
+
+impl ReviewItem {
+    pub fn is_finished(&self) -> bool {
+        match self.finished {
+            Some(_) => true,
+            None => false,
+        }
     }
 }
 
@@ -52,11 +64,21 @@ impl From<ReviewItem> for Option<Thing> {
 pub struct ReasonItem {
     pub id: Option<Thing>,
     pub summary: String,
+    pub finished: Option<Datetime>,
 }
 
 impl From<ReasonItem> for Option<Thing> {
     fn from(value: ReasonItem) -> Self {
         value.id
+    }
+}
+
+impl ReasonItem {
+    pub fn is_finished(&self) -> bool {
+        match self.finished {
+            Some(_) => true,
+            None => false,
+        }
     }
 }
 
@@ -110,6 +132,24 @@ pub enum Item<'a> {
     ReasonItem(&'a ReasonItem)
 }
 
+impl<'a> From<&'a NextStepItem> for Item<'a> {
+    fn from(value: &'a NextStepItem) -> Self {
+        Item::NextStepItem(value)
+    }
+}
+
+impl<'a> From<&'a ReviewItem> for Item<'a> {
+    fn from(value: &'a ReviewItem) -> Self {
+        Item::ReviewItem(value)
+    }
+}
+
+impl<'a> From<&'a ReasonItem> for Item<'a> {
+    fn from(value: &'a ReasonItem) -> Self {
+        Item::ReasonItem(value)
+    }
+}
+
 impl<'a> Item<'a> {
     pub fn from_next_step(next_step_item: &'a NextStepItem) -> Item<'a>
     {
@@ -140,6 +180,15 @@ impl<'a> Item<'a> {
             Item::NextStepItem(next_step) => &next_step.id,
             Item::ReviewItem(review_item) => &review_item.id,
             Item::ReasonItem(reason_item) => &reason_item.id,
+        }
+    }
+
+    pub fn is_finished(&'a self) -> bool 
+    {
+        match self {
+            Item::NextStepItem(i) => i.is_finished(),
+            Item::ReviewItem(i) => i.is_finished(),
+            Item::ReasonItem(i) => i.is_finished(),
         }
     }
 }
