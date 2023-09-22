@@ -10,6 +10,7 @@ pub enum DataLayerCommands {
     AddUserProcessedText(String, NextStepItem),
     FinishNextStepItem(NextStepItem),
     NewNextStep(String),
+    CoverItemWithANewNextStep(ItemOwning, String),
     CoverItemWithQuestion(ItemOwning, String),
 }
 
@@ -27,6 +28,7 @@ pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Recei
             Some(DataLayerCommands::AddUserProcessedText(processed_text, for_item)) => add_user_processed_text(processed_text, for_item, &db).await,
             Some(DataLayerCommands::FinishNextStepItem(next_step_item)) => finish_text_step_item(next_step_item, &db).await,
             Some(DataLayerCommands::NewNextStep(next_step_text)) => new_next_step(next_step_text, &db).await,
+            Some(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover, new_next_step_text, )) => cover_item_with_new_next_step(item_to_cover, new_next_step_text, &db).await,
             Some(DataLayerCommands::CoverItemWithQuestion(item, question)) => cover_item_with_question(item, question, &db).await,
             None => { return } //Channel closed, time to shutdown down, exit
         }
@@ -68,14 +70,22 @@ async fn new_next_step(next_step_text: String, db: &Surreal<Any>) {
 }
 
 async fn cover_item_with_question(item: ItemOwning, question: String, db: &Surreal<Any>) {
-    let question = NextStepItem {
+    //For now covering an item with a question is the same implementation as just covering with a next step so just call into that
+    cover_item_with_new_next_step(item, question, db).await
+}
+
+async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_next_step_text: String, db: &Surreal<Any>) {
+    //Note that both of these things should really be happening inside of a single transaction but I don't know how to do that
+    //easily so just do this for now.
+
+    let new_next_step = NextStepItem {
         id: None,
-        summary: question,
+        summary: new_next_step_text,
         finished: None,
     }.create(&db).await.unwrap().into_iter().next().unwrap();
 
-    let smaller_option: Option<Thing> = question.into();
-    let parent_option: Option<Thing> = item.into();
+    let smaller_option: Option<Thing> = new_next_step.into();
+    let parent_option: Option<Thing> = item_to_cover.into();
     LinkageWithRecordIds {
         id: None,
         smaller: smaller_option.unwrap(),
