@@ -58,19 +58,19 @@ impl Hope {
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "reason_item")]
-pub struct ReasonItem {
+pub struct Reason {
     pub id: Option<Thing>,
     pub summary: String,
     pub finished: Option<Datetime>,
 }
 
-impl From<ReasonItem> for Option<Thing> {
-    fn from(value: ReasonItem) -> Self {
+impl From<Reason> for Option<Thing> {
+    fn from(value: Reason) -> Self {
         value.id
     }
 }
 
-impl ReasonItem {
+impl Reason {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
@@ -135,7 +135,7 @@ pub struct ProcessedText {
 pub enum Item<'a> {
     ToDo(&'a ToDo),
     Hope(&'a Hope),
-    ReasonItem(&'a ReasonItem),
+    Reason(&'a Reason),
 }
 
 impl<'a> From<&'a ToDo> for Item<'a> {
@@ -150,9 +150,9 @@ impl<'a> From<&'a Hope> for Item<'a> {
     }
 }
 
-impl<'a> From<&'a ReasonItem> for Item<'a> {
-    fn from(value: &'a ReasonItem) -> Self {
-        Item::ReasonItem(value)
+impl<'a> From<&'a Reason> for Item<'a> {
+    fn from(value: &'a Reason) -> Self {
+        Item::Reason(value)
     }
 }
 
@@ -161,12 +161,12 @@ impl<'a> Item<'a> {
         Item::ToDo(to_do)
     }
 
-    pub fn from_review_item(review_item: &'a Hope) -> Item<'a> {
-        Item::Hope(review_item)
+    pub fn from_hope(hope: &'a Hope) -> Item<'a> {
+        Item::Hope(hope)
     }
 
-    pub fn from_reason_item(reason_item: &'a ReasonItem) -> Item<'a> {
-        Item::ReasonItem(reason_item)
+    pub fn from_reason_item(reason: &'a Reason) -> Item<'a> {
+        Item::Reason(reason)
     }
 
     pub fn find_parents(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
@@ -186,7 +186,7 @@ impl<'a> Item<'a> {
         match self {
             Item::ToDo(to_do) => &to_do.id,
             Item::Hope(hope) => &hope.id,
-            Item::ReasonItem(reason_item) => &reason_item.id,
+            Item::Reason(reason_item) => &reason_item.id,
         }
     }
 
@@ -194,7 +194,7 @@ impl<'a> Item<'a> {
         match self {
             Item::ToDo(i) => i.is_finished(),
             Item::Hope(i) => i.is_finished(),
-            Item::ReasonItem(i) => i.is_finished(),
+            Item::Reason(i) => i.is_finished(),
         }
     }
 }
@@ -203,7 +203,7 @@ impl<'a> Item<'a> {
 pub enum ItemOwning {
     ToDo(ToDo),
     Hope(Hope),
-    ReasonItem(ReasonItem),
+    Reason(Reason),
 }
 
 impl From<ToDo> for ItemOwning {
@@ -218,9 +218,9 @@ impl From<Hope> for ItemOwning {
     }
 }
 
-impl From<ReasonItem> for ItemOwning {
-    fn from(value: ReasonItem) -> Self {
-        Self::ReasonItem(value)
+impl From<Reason> for ItemOwning {
+    fn from(value: Reason) -> Self {
+        Self::Reason(value)
     }
 }
 
@@ -229,7 +229,7 @@ impl From<ItemOwning> for Option<Thing> {
         match value {
             ItemOwning::ToDo(i) => i.into(),
             ItemOwning::Hope(i) => i.into(),
-            ItemOwning::ReasonItem(i) => i.into(),
+            ItemOwning::Reason(i) => i.into(),
         }
     }
 }
@@ -239,7 +239,7 @@ impl<'a> From<Item<'a>> for ItemOwning {
         match value {
             Item::ToDo(i) => i.into(),
             Item::Hope(i) => i.into(),
-            Item::ReasonItem(i) => i.into(),
+            Item::Reason(i) => i.into(),
         }
     }
 }
@@ -256,8 +256,8 @@ impl From<&Hope> for ItemOwning {
     }
 }
 
-impl From<&ReasonItem> for ItemOwning {
-    fn from(value: &ReasonItem) -> Self {
-        ItemOwning::ReasonItem(value.clone())
+impl From<&Reason> for ItemOwning {
+    fn from(value: &Reason) -> Self {
+        ItemOwning::Reason(value.clone())
     }
 }

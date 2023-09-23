@@ -1,13 +1,13 @@
 use surrealdb::{opt::RecordId, Surreal};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::{Hope, Item, LinkageWithRecordIds, LinkageWithReferences, ReasonItem, ToDo};
+use crate::base_data::{Hope, Item, LinkageWithRecordIds, LinkageWithReferences, Reason, ToDo};
 
 #[derive(Clone, Debug)]
 pub struct TestData {
     pub next_steps: Vec<ToDo>,
     pub review_items: Vec<Hope>,
-    pub reason_items: Vec<ReasonItem>,
+    pub reason_items: Vec<Reason>,
 }
 
 impl TestData {
@@ -29,7 +29,7 @@ impl TestData {
                     Some(v) => v == record_id,
                     None => false,
                 })
-                .map(Item::ReasonItem)
+                .map(Item::Reason)
         }
     }
 }

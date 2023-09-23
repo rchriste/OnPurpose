@@ -20,7 +20,7 @@ impl Display for InquireBulletListItem<'_> {
             match item {
                 Item::ToDo(to_do) => write!(f, "⬅ 🪜  {}", &to_do.summary)?,
                 Item::Hope(review) => write!(f, "⬅ 🧠 {}", &review.summary)?,
-                Item::ReasonItem(reason) => write!(f, "⬅ 🎁 {}", &reason.summary)?,
+                Item::Reason(reason) => write!(f, "⬅ 🎁 {}", &reason.summary)?,
             }
         }
         Ok(())
