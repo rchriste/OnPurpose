@@ -1,14 +1,12 @@
 use surrealdb::{opt::RecordId, Surreal};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::{
-    Item, LinkageWithRecordIds, LinkageWithReferences, ReasonItem, ReviewItem, ToDo,
-};
+use crate::base_data::{Hope, Item, LinkageWithRecordIds, LinkageWithReferences, ReasonItem, ToDo};
 
 #[derive(Clone, Debug)]
 pub struct TestData {
     pub next_steps: Vec<ToDo>,
-    pub review_items: Vec<ReviewItem>,
+    pub review_items: Vec<Hope>,
     pub reason_items: Vec<ReasonItem>,
 }
 
@@ -23,7 +21,7 @@ impl TestData {
             Some(v) => v == record_id,
             None => false,
         }) {
-            Some(Item::ReviewItem(found))
+            Some(Item::Hope(found))
         } else {
             self.reason_items
                 .iter()

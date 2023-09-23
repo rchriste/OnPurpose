@@ -37,19 +37,19 @@ impl ToDo {
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "review_item")]
-pub struct ReviewItem {
+pub struct Hope {
     pub id: Option<Thing>,
     pub summary: String,
     pub finished: Option<Datetime>,
 }
 
-impl From<ReviewItem> for Option<Thing> {
-    fn from(value: ReviewItem) -> Self {
+impl From<Hope> for Option<Thing> {
+    fn from(value: Hope) -> Self {
         value.id
     }
 }
 
-impl ReviewItem {
+impl Hope {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
@@ -134,7 +134,7 @@ pub struct ProcessedText {
 #[derive(PartialEq, Eq)]
 pub enum Item<'a> {
     ToDo(&'a ToDo),
-    ReviewItem(&'a ReviewItem),
+    Hope(&'a Hope),
     ReasonItem(&'a ReasonItem),
 }
 
@@ -144,9 +144,9 @@ impl<'a> From<&'a ToDo> for Item<'a> {
     }
 }
 
-impl<'a> From<&'a ReviewItem> for Item<'a> {
-    fn from(value: &'a ReviewItem) -> Self {
-        Item::ReviewItem(value)
+impl<'a> From<&'a Hope> for Item<'a> {
+    fn from(value: &'a Hope) -> Self {
+        Item::Hope(value)
     }
 }
 
@@ -161,8 +161,8 @@ impl<'a> Item<'a> {
         Item::ToDo(to_do)
     }
 
-    pub fn from_review_item(review_item: &'a ReviewItem) -> Item<'a> {
-        Item::ReviewItem(review_item)
+    pub fn from_review_item(review_item: &'a Hope) -> Item<'a> {
+        Item::Hope(review_item)
     }
 
     pub fn from_reason_item(reason_item: &'a ReasonItem) -> Item<'a> {
@@ -185,7 +185,7 @@ impl<'a> Item<'a> {
     pub fn get_id(&'a self) -> &'a Option<Thing> {
         match self {
             Item::ToDo(to_do) => &to_do.id,
-            Item::ReviewItem(review_item) => &review_item.id,
+            Item::Hope(hope) => &hope.id,
             Item::ReasonItem(reason_item) => &reason_item.id,
         }
     }
@@ -193,7 +193,7 @@ impl<'a> Item<'a> {
     pub fn is_finished(&'a self) -> bool {
         match self {
             Item::ToDo(i) => i.is_finished(),
-            Item::ReviewItem(i) => i.is_finished(),
+            Item::Hope(i) => i.is_finished(),
             Item::ReasonItem(i) => i.is_finished(),
         }
     }
@@ -202,7 +202,7 @@ impl<'a> Item<'a> {
 #[derive(PartialEq, Eq)]
 pub enum ItemOwning {
     ToDo(ToDo),
-    ReviewItem(ReviewItem),
+    Hope(Hope),
     ReasonItem(ReasonItem),
 }
 
@@ -212,9 +212,9 @@ impl From<ToDo> for ItemOwning {
     }
 }
 
-impl From<ReviewItem> for ItemOwning {
-    fn from(value: ReviewItem) -> Self {
-        Self::ReviewItem(value)
+impl From<Hope> for ItemOwning {
+    fn from(value: Hope) -> Self {
+        Self::Hope(value)
     }
 }
 
@@ -228,7 +228,7 @@ impl From<ItemOwning> for Option<Thing> {
     fn from(value: ItemOwning) -> Self {
         match value {
             ItemOwning::ToDo(i) => i.into(),
-            ItemOwning::ReviewItem(i) => i.into(),
+            ItemOwning::Hope(i) => i.into(),
             ItemOwning::ReasonItem(i) => i.into(),
         }
     }
@@ -238,7 +238,7 @@ impl<'a> From<Item<'a>> for ItemOwning {
     fn from(value: Item<'a>) -> Self {
         match value {
             Item::ToDo(i) => i.into(),
-            Item::ReviewItem(i) => i.into(),
+            Item::Hope(i) => i.into(),
             Item::ReasonItem(i) => i.into(),
         }
     }
@@ -250,9 +250,9 @@ impl From<&ToDo> for ItemOwning {
     }
 }
 
-impl From<&ReviewItem> for ItemOwning {
-    fn from(value: &ReviewItem) -> Self {
-        ItemOwning::ReviewItem(value.clone())
+impl From<&Hope> for ItemOwning {
+    fn from(value: &Hope) -> Self {
+        ItemOwning::Hope(value.clone())
     }
 }
 

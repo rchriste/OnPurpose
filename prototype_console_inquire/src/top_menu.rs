@@ -22,13 +22,12 @@ impl Display for TopMenuSelection {
             TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope   🗭"),
             TopMenuSelection::ViewHopes => write!(f, "👁 🙏 View Hopes     👁"),
             TopMenuSelection::CaptureReason => write!(f, "🗬 🎯 Capture Reason 🗭"),
-            TopMenuSelection::ViewReasons => write!(f, "👁 🎯 View Reasons   👁")
+            TopMenuSelection::ViewReasons => write!(f, "👁 🎯 View Reasons   👁"),
         }
     }
 }
 
-fn make_list() -> Vec<TopMenuSelection>
-{
+fn make_list() -> Vec<TopMenuSelection> {
     vec![
         TopMenuSelection::CaptureToDo,
         TopMenuSelection::ViewToDos,

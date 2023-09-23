@@ -11,7 +11,7 @@ use tokio::sync::{
 };
 
 use crate::{
-    base_data::{ItemOwning, LinkageWithRecordIds, ProcessedText, ReasonItem, ReviewItem, ToDo},
+    base_data::{Hope, ItemOwning, LinkageWithRecordIds, ProcessedText, ReasonItem, ToDo},
     test_data::TestData,
 };
 
@@ -92,7 +92,7 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> (TestData, Vec<Linka
     (
         TestData {
             next_steps: ToDo::get_all(db).await.unwrap(),
-            review_items: ReviewItem::get_all(db).await.unwrap(),
+            review_items: Hope::get_all(db).await.unwrap(),
             reason_items: ReasonItem::get_all(db).await.unwrap(),
         },
         LinkageWithRecordIds::get_all(db).await.unwrap(),
