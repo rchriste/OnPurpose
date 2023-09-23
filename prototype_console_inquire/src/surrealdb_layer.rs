@@ -1,6 +1,6 @@
-use surrealdb::{Surreal, engine::any::{Any, connect}, sql::Thing};
+use surrealdb::{Surreal, engine::any::{Any, connect, IntoEndpoint}, sql::Thing};
 use surrealdb_extra::table::Table;
-use tokio::sync::{mpsc::Receiver, oneshot};
+use tokio::sync::{mpsc::{Receiver, Sender}, oneshot::{self, error::RecvError}};
 use chrono::Local;
 
 use crate::{test_data::TestData, base_data::{LinkageWithRecordIds, ReviewItem, ReasonItem, NextStepItem, ProcessedText, ItemOwning}};
@@ -8,14 +8,31 @@ use crate::{test_data::TestData, base_data::{LinkageWithRecordIds, ReviewItem, R
 pub enum DataLayerCommands {
     SendRawData(oneshot::Sender<(TestData, Vec<LinkageWithRecordIds>)>),
     AddUserProcessedText(String, NextStepItem),
+    #[allow(dead_code)] //This can be removed after this is used beyond the unit tests
+    GetProcessedText(NextStepItem, oneshot::Sender<Vec<ProcessedText>>),
     FinishNextStepItem(NextStepItem),
     NewNextStep(String),
     CoverItemWithANewNextStep(ItemOwning, String),
-    CoverItemWithQuestion(ItemOwning, String),
+    CoverItemWithAQuestion(ItemOwning, String),
 }
 
-pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>) {
-    let db = connect("file:://~/.on_purpose.db").await.unwrap();
+impl DataLayerCommands {
+    pub async fn get_raw_data(sender: &Sender<DataLayerCommands>) -> Result<(TestData, Vec<LinkageWithRecordIds>), RecvError> {
+        let (raw_data_sender, raw_data_receiver) = oneshot::channel();
+        sender.send(DataLayerCommands::SendRawData(raw_data_sender)).await.unwrap();
+        raw_data_receiver.await
+    }
+
+    #[allow(dead_code)] //Remove after this is used beyond the unit tests
+    pub async fn get_processed_text(sender: &Sender<DataLayerCommands>, for_item: NextStepItem) -> Result<Vec<ProcessedText>, RecvError> {
+        let (processed_text_tx, processed_text_rx) = oneshot::channel();
+        sender.send(DataLayerCommands::GetProcessedText(for_item, processed_text_tx)).await.unwrap();
+        processed_text_rx.await
+    }
+}
+
+pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>, endpoint: impl IntoEndpoint) {
+    let db = connect(endpoint).await.unwrap();
     db.use_ns("OnPurpose").use_db("Russ").await.unwrap();
 
     loop {
@@ -26,10 +43,11 @@ pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Recei
                 oneshot.send((test_data, linkage)).unwrap();
             },
             Some(DataLayerCommands::AddUserProcessedText(processed_text, for_item)) => add_user_processed_text(processed_text, for_item, &db).await,
+            Some(DataLayerCommands::GetProcessedText(for_item, send_response_here)) => get_processed_text(for_item, send_response_here, &db).await,
             Some(DataLayerCommands::FinishNextStepItem(next_step_item)) => finish_text_step_item(next_step_item, &db).await,
             Some(DataLayerCommands::NewNextStep(next_step_text)) => new_next_step(next_step_text, &db).await,
             Some(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover, new_next_step_text, )) => cover_item_with_new_next_step(item_to_cover, new_next_step_text, &db).await,
-            Some(DataLayerCommands::CoverItemWithQuestion(item, question)) => cover_item_with_question(item, question, &db).await,
+            Some(DataLayerCommands::CoverItemWithAQuestion(item, question)) => cover_item_with_question(item, question, &db).await,
             None => { return } //Channel closed, time to shutdown down, exit
         }
     }
@@ -54,6 +72,17 @@ pub async fn add_user_processed_text(processed_text: String, for_item: NextStepI
         for_item: for_item.id.unwrap()
     };
     data.create(db).await.unwrap();
+}
+
+pub async fn get_processed_text(for_item: NextStepItem, send_response_here: oneshot::Sender<Vec<ProcessedText>>, db: &Surreal<Any>) {
+    let mut query_result = db.query("SELECT * FROM processed_text WHERE for_item = $for_item")
+    .bind(("for_item", for_item.id))
+    .await
+    .unwrap();
+
+    let processed_text: Vec<ProcessedText> = query_result.take(0).unwrap();
+
+    send_response_here.send(processed_text).unwrap();
 }
 
 pub async fn finish_text_step_item(mut finish_this: NextStepItem, db: &Surreal<Any>) {
@@ -91,4 +120,168 @@ async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_next_step_
         smaller: smaller_option.unwrap(),
         parent: parent_option.unwrap(),
     }.create(&db).await.unwrap().first().unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn data_starts_empty() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(test_data.next_steps.len(), 0);
+        assert_eq!(test_data.reason_items.len(), 0);
+        assert_eq!(test_data.review_items.len(), 0);
+        assert_eq!(linkage.len(), 0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn add_new_todo() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(test_data.next_steps.len(), 1);
+        assert_eq!(linkage.len(), 0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn add_user_processed_text() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+
+        let (test_data, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        let next_step = test_data.next_steps.first().unwrap();
+        let processed_text = DataLayerCommands::get_processed_text(&sender, next_step.clone()).await.unwrap();
+
+        assert!(processed_text.is_empty());
+
+        sender.send(DataLayerCommands::AddUserProcessedText("Some user processed text".into(), next_step.clone())).await.unwrap();
+
+        let (processed_text_tx, processed_text_rx) = oneshot::channel();
+        let next_step = test_data.next_steps.first().unwrap();
+        sender.send(DataLayerCommands::GetProcessedText(next_step.clone(), processed_text_tx)).await.unwrap();
+
+        let processed_text = processed_text_rx.await.unwrap();
+        assert!(!processed_text.is_empty());
+        assert_eq!("Some user processed text", processed_text.first().unwrap().text);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn finish_item() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(test_data.next_steps.len(), 1);
+        let next_step_item = test_data.next_steps.iter().next().unwrap();
+        assert_eq!(next_step_item.is_finished(), false);
+        assert_eq!(linkage.len(), 0);
+
+        sender.send(DataLayerCommands::FinishNextStepItem(next_step_item.clone())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(test_data.next_steps.len(), 1);
+        let next_step_item = test_data.next_steps.iter().next().unwrap();
+        assert_eq!(next_step_item.is_finished(), true);
+        assert_eq!(linkage.len(), 0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cover_item_with_a_new_next_step() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        sender.send(DataLayerCommands::NewNextStep("Item to be covered".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, test_data.next_steps.len());
+        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
+        let item_to_cover = test_data.next_steps.iter().next().unwrap();
+
+        sender.send(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover.into(), "Covering item".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, test_data.next_steps.len());
+        assert_eq!(1, linkage.len()); //expect one item to be is covered
+        let covering = linkage.first().unwrap();
+        let item_that_should_be_covered = test_data.next_steps.iter().find(|x| x.summary == "Item to be covered").unwrap();
+        let item_that_should_cover = test_data.next_steps.iter().find(|x| x.summary == "Covering item").unwrap();
+        assert_eq!(item_that_should_be_covered.id.as_ref().unwrap(), &covering.parent);
+        assert_eq!(item_that_should_cover.id.as_ref().unwrap(), &covering.smaller);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cover_item_with_a_question() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle = tokio::spawn(async move {
+            data_storage_start_and_run(receiver, "mem://").await
+        });
+
+        sender.send(DataLayerCommands::NewNextStep("Item to be covered".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, test_data.next_steps.len());
+        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
+        let item_to_cover = test_data.next_steps.iter().next().unwrap();
+
+        sender.send(DataLayerCommands::CoverItemWithAQuestion(item_to_cover.into(), "Covering item".into())).await.unwrap();
+
+        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, test_data.next_steps.len());
+        assert_eq!(1, linkage.len()); //expect one item to be is covered
+        let covering = linkage.first().unwrap();
+        let item_that_should_be_covered = test_data.next_steps.iter().find(|x| x.summary == "Item to be covered").unwrap();
+        let item_that_should_cover = test_data.next_steps.iter().find(|x| x.summary == "Covering item").unwrap();
+        assert_eq!(item_that_should_be_covered.id.as_ref().unwrap(), &covering.parent);
+        assert_eq!(item_that_should_cover.id.as_ref().unwrap(), &covering.smaller);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
 }

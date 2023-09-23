@@ -44,6 +44,6 @@ pub async fn cover_bullet_item(item_to_cover: NextStepItem, send_to_data_storage
 
 async fn cover_with_question(item_to_cover: NextStepItem, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let question = Text::new("Enter Question").prompt().unwrap();
-    send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithQuestion(item_to_cover.into(), question)).await.unwrap()
+    send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithAQuestion(item_to_cover.into(), question)).await.unwrap()
 }
 

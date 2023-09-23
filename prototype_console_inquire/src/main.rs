@@ -8,7 +8,7 @@ mod top_menu;
 use base_data::Item;
 use inquire::{Select, InquireError};
 use node::NextStepNode;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 
 use crate::{
     node::create_next_step_nodes, 
@@ -40,12 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_to_data_storage_layer_tx, have_data_storage_layer_use_to_receive_rx) = mpsc::channel(commands_in_flight_limit);
 
     let data_storage_join_handle = tokio::spawn(async move {
-        data_storage_start_and_run(have_data_storage_layer_use_to_receive_rx).await
+        data_storage_start_and_run(have_data_storage_layer_use_to_receive_rx, "file:://~/.on_purpose.db").await
     });
 
-    let (next_step_nodes_tx, next_step_nodes_rx) = oneshot::channel();
-    send_to_data_storage_layer_tx.send(DataLayerCommands::SendRawData(next_step_nodes_tx)).await.unwrap();
-    let (test_data, linkage) = next_step_nodes_rx.await.unwrap();
+    let (test_data, linkage) = DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx).await.unwrap();
 
     let linkage = convert_linkage_with_record_ids_to_references(&linkage, &test_data);
 
