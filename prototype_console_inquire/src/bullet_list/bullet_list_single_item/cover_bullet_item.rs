@@ -31,8 +31,8 @@ fn create_list() -> Vec<CoverBulletItem> {
     ]
 }
 
-pub async fn cover_bullet_item(
-    item_to_cover: ToDo,
+pub async fn cover_bullet_item<'a>(
+    item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let choices = create_list();
@@ -52,8 +52,8 @@ pub async fn cover_bullet_item(
     }
 }
 
-async fn cover_with_question(
-    item_to_cover: ToDo,
+async fn cover_with_question<'a>(
+    item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let question = Text::new("Enter Question ⍠").prompt().unwrap();

@@ -6,7 +6,8 @@ use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::ToDo, bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
+    base_data::SurrealItem,
+    bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -54,19 +55,19 @@ pub async fn present_bullet_list_item_selected(
 }
 
 async fn process_and_finish_bullet_item(
-    to_do: ToDo,
+    item: SurrealItem,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
     send_to_data_storage_layer
-        .send(DataLayerCommands::AddUserProcessedText(
+        .send(DataLayerCommands::AddProcessedText(
             user_processed_text,
-            to_do.clone(),
+            item.clone(),
         ))
         .await
         .unwrap();
     send_to_data_storage_layer
-        .send(DataLayerCommands::FinishToDo(to_do))
+        .send(DataLayerCommands::FinishItem(item))
         .await
         .unwrap();
 }

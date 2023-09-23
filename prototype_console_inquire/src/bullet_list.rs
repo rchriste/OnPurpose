@@ -3,33 +3,42 @@ pub mod bullet_list_single_item;
 use std::fmt::Display;
 
 use crate::{
-    base_data::{Item, ToDo},
+    base_data::{ItemType, SurrealItem, ToDo},
     create_next_step_parents,
     node::ToDoNode,
 };
 
 pub struct InquireBulletListItem<'a> {
-    bullet_item: &'a ToDo, //TODO: This should be ToDoOrQuestion
-    parents: Vec<&'a Item<'a>>,
+    bullet_item: &'a ToDo<'a>, //TODO: This should be ToDoOrQuestion
+    parents: Vec<&'a SurrealItem>,
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} ", self.bullet_item.summary)?;
         for item in &self.parents {
-            match item {
-                Item::ToDo(to_do) => write!(f, "⬅ 🪜  {}", &to_do.summary)?,
-                Item::Hope(review) => write!(f, "⬅ 🧠 {}", &review.summary)?,
-                Item::Reason(reason) => write!(f, "⬅ 🎁 {}", &reason.summary)?,
+            match item.item_type {
+                ItemType::ToDo => write!(f, "⬅ 🪜  ")?,
+                ItemType::Hope => write!(f, "⬅ 🧠 ")?,
+                ItemType::Reason => write!(f, "⬅ 🎁 ")?,
+                ItemType::Question => todo!(),
             }
+            write!(f, "{}", item.summary)?;
         }
         Ok(())
     }
 }
 
-impl<'a> From<InquireBulletListItem<'a>> for ToDo {
+impl<'a> From<InquireBulletListItem<'a>> for ToDo<'a> {
     fn from(value: InquireBulletListItem<'a>) -> Self {
         value.bullet_item.clone()
+    }
+}
+
+impl<'a> From<InquireBulletListItem<'a>> for SurrealItem {
+    fn from(value: InquireBulletListItem<'a>) -> Self {
+        let surreal_item: &SurrealItem = value.bullet_item.into();
+        surreal_item.clone()
     }
 }
 

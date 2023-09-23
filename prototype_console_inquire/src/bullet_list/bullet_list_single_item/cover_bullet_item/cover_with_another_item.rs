@@ -26,8 +26,8 @@ fn create_list() -> Vec<AnotherItem> {
     vec![AnotherItem::NewNextStep, AnotherItem::ExistingNextStep]
 }
 
-pub(crate) async fn cover_with_another_item(
-    item_to_cover: ToDo,
+pub(crate) async fn cover_with_another_item<'a>(
+    item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let choices = create_list();
@@ -41,8 +41,8 @@ pub(crate) async fn cover_with_another_item(
     }
 }
 
-async fn cover_with_new_next_step(
-    item_to_cover: ToDo,
+async fn cover_with_new_next_step<'a>(
+    item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let new_next_step_text = Text::new("Enter New Covering Next Step ⍠")

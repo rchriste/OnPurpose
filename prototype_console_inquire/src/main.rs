@@ -2,16 +2,15 @@ pub mod base_data;
 mod bullet_list;
 mod node;
 mod surrealdb_layer;
-mod test_data;
 mod top_menu;
 
-use base_data::Item;
+use base_data::SurrealItem;
 use inquire::{InquireError, Select};
 use node::ToDoNode;
 use tokio::sync::mpsc;
 
 use crate::{
-    base_data::convert_linkage_with_record_ids_to_references,
+    base_data::{convert_linkage_with_record_ids_to_references, SurrealItemVecExtensions},
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
@@ -21,8 +20,8 @@ use crate::{
 };
 
 //I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
-fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
-    let mut result: Vec<&'a Item<'a>> = Vec::default();
+fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a SurrealItem> {
+    let mut result = Vec::default();
     for i in item.larger.iter() {
         result.push(i.item);
         let parents = i.create_growing_parents();
@@ -51,13 +50,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    let (test_data, linkage) = DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
+    let (items, linkage) = DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
         .await
         .unwrap();
 
-    let linkage = convert_linkage_with_record_ids_to_references(&linkage, &test_data);
+    let linkage = convert_linkage_with_record_ids_to_references(&linkage, &items);
 
-    let next_step_nodes = create_to_do_nodes(&test_data.next_steps, &linkage);
+    let to_dos = &items.filter_just_to_dos();
+    let next_step_nodes = create_to_do_nodes(to_dos, &linkage);
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 

@@ -5,26 +5,138 @@ use surrealdb::{
 };
 use surrealdb_extra::table::Table;
 
-use crate::test_data::TestData;
-
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "next_step_item")]
-pub struct ToDo {
+#[table(name = "item")]
+pub struct SurrealItem {
     pub id: Option<Thing>,
     pub summary: String,
     pub finished: Option<Datetime>,
+    pub item_type: ItemType,
 }
 
-impl From<ToDo> for Option<Thing> {
-    fn from(value: ToDo) -> Self {
+impl From<SurrealItem> for Option<Thing> {
+    fn from(value: SurrealItem) -> Self {
         value.id
     }
 }
 
-impl ToDo {
+impl<'a> From<ToDo<'a>> for SurrealItem {
+    fn from(value: ToDo) -> Self {
+        value.surreal_item.clone()
+    }
+}
+
+pub trait SurrealItemVecExtensions {
+    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a SurrealItem>;
+    fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
+    fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
+    fn filter_just_reasons(&self) -> Vec<Reason<'_>>;
+}
+
+impl SurrealItemVecExtensions for [SurrealItem] {
+    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a SurrealItem> {
+        self.iter().find(|x| match x.get_id() {
+            Some(v) => v == record_id,
+            None => false,
+        })
+    }
+
+    fn filter_just_to_dos(&self) -> Vec<ToDo<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == ItemType::ToDo {
+                    Some(ToDo {
+                        id: &x.id,
+                        summary: &x.summary,
+                        finished: &x.finished,
+                        surreal_item: x,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == ItemType::Hope {
+                    Some(Hope {
+                        id: &x.id,
+                        summary: &x.summary,
+                        finished: &x.finished,
+                        surreal_item: x,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_reasons(&self) -> Vec<Reason<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == ItemType::Reason {
+                    Some(Reason {
+                        id: &x.id,
+                        summary: &x.summary,
+                        finished: &x.finished,
+                        surreal_item: x,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl SurrealItem {
+    pub fn is_finished(&self) -> bool {
+        self.finished.is_some()
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub enum ItemType {
+    Question,
+    ToDo,
+    Hope,
+    Reason,
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct ToDo<'a> {
+    pub id: &'a Option<Thing>,
+    pub summary: &'a String,
+    pub finished: &'a Option<Datetime>,
+    surreal_item: &'a SurrealItem,
+}
+
+impl<'a> From<ToDo<'a>> for &'a Option<Thing> {
+    fn from(value: ToDo<'a>) -> Self {
+        value.id
+    }
+}
+
+impl<'a> From<&ToDo<'a>> for &'a SurrealItem {
+    fn from(value: &ToDo<'a>) -> Self {
+        value.surreal_item
+    }
+}
+
+impl<'a> PartialEq<SurrealItem> for ToDo<'a> {
+    fn eq(&self, other: &SurrealItem) -> bool {
+        //TODO: Add a static assert to notice if more fields are added to the ToDo<'a> struct
+        self.id == &other.id && self.summary == &other.summary && self.finished == &other.finished
+    }
+}
+
+impl<'a> ToDo<'a> {
     pub fn is_covered(&self, linkage: &[LinkageWithReferences<'_>]) -> bool {
-        let next_step_item = Item::ToDo(self);
-        let mut covered_by = linkage.iter().filter(|x| x.parent == next_step_item);
+        let mut covered_by = linkage.iter().filter(|x| self == x.parent);
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
     }
@@ -35,50 +147,50 @@ impl ToDo {
 }
 
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "review_item")]
-pub struct Hope {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub finished: Option<Datetime>,
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Hope<'a> {
+    pub id: &'a Option<Thing>,
+    pub summary: &'a String,
+    pub finished: &'a Option<Datetime>,
+    surreal_item: &'a SurrealItem,
 }
 
-impl From<Hope> for Option<Thing> {
+impl<'a> From<Hope<'a>> for Option<Thing> {
     fn from(value: Hope) -> Self {
-        value.id
+        value.id.clone()
     }
 }
 
-impl Hope {
+impl<'a> Hope<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 }
 
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "reason_item")]
-pub struct Reason {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub finished: Option<Datetime>,
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Reason<'a> {
+    pub id: &'a Option<Thing>,
+    pub summary: &'a String,
+    pub finished: &'a Option<Datetime>,
+    surreal_item: &'a SurrealItem,
 }
 
-impl From<Reason> for Option<Thing> {
-    fn from(value: Reason) -> Self {
-        value.id
+impl<'a> From<Reason<'a>> for Option<Thing> {
+    fn from(value: Reason<'a>) -> Self {
+        value.id.clone()
     }
 }
 
-impl Reason {
+impl<'a> Reason<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 }
 
 pub struct LinkageWithReferences<'a> {
-    pub smaller: Item<'a>,
-    pub parent: Item<'a>,
+    pub smaller: &'a SurrealItem,
+    pub parent: &'a SurrealItem,
 }
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
@@ -111,13 +223,13 @@ impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
 
 pub fn convert_linkage_with_record_ids_to_references<'a>(
     linkage_with_record_ids: &[LinkageWithRecordIds],
-    test_data: &'a TestData,
+    items: &'a [SurrealItem],
 ) -> Vec<LinkageWithReferences<'a>> {
     linkage_with_record_ids
         .iter()
         .map(|x| LinkageWithReferences {
-            smaller: test_data.lookup_from_record_id(&x.smaller).unwrap(),
-            parent: test_data.lookup_from_record_id(&x.parent).unwrap(),
+            smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
+            parent: items.lookup_from_record_id(&x.parent).unwrap(),
         })
         .collect()
 }
@@ -133,26 +245,44 @@ pub struct ProcessedText {
 
 #[derive(PartialEq, Eq)]
 pub enum Item<'a> {
-    ToDo(&'a ToDo),
-    Hope(&'a Hope),
-    Reason(&'a Reason),
+    ToDo(&'a ToDo<'a>),
+    Hope(&'a Hope<'a>),
+    Reason(&'a Reason<'a>),
 }
 
-impl<'a> From<&'a ToDo> for Item<'a> {
+impl<'a> From<&'a ToDo<'a>> for Item<'a> {
     fn from(value: &'a ToDo) -> Self {
         Item::ToDo(value)
     }
 }
 
-impl<'a> From<&'a Hope> for Item<'a> {
+impl<'a> From<&'a Hope<'a>> for Item<'a> {
     fn from(value: &'a Hope) -> Self {
         Item::Hope(value)
     }
 }
 
-impl<'a> From<&'a Reason> for Item<'a> {
+impl<'a> From<&'a Reason<'a>> for Item<'a> {
     fn from(value: &'a Reason) -> Self {
         Item::Reason(value)
+    }
+}
+
+impl SurrealItem {
+    pub fn find_parents<'a>(
+        &self,
+        linkage: &'a [LinkageWithReferences<'a>],
+    ) -> Vec<&'a SurrealItem> {
+        linkage
+            .iter()
+            .filter_map(|x| {
+                if x.smaller == self {
+                    Some(x.parent)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
@@ -169,24 +299,11 @@ impl<'a> Item<'a> {
         Item::Reason(reason)
     }
 
-    pub fn find_parents(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
-        linkage
-            .iter()
-            .filter_map(|x| {
-                if &x.smaller == self {
-                    Some(&x.parent)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
     pub fn get_id(&'a self) -> &'a Option<Thing> {
         match self {
-            Item::ToDo(to_do) => &to_do.id,
-            Item::Hope(hope) => &hope.id,
-            Item::Reason(reason_item) => &reason_item.id,
+            Item::ToDo(to_do) => to_do.id,
+            Item::Hope(hope) => hope.id,
+            Item::Reason(reason_item) => reason_item.id,
         }
     }
 
@@ -196,68 +313,5 @@ impl<'a> Item<'a> {
             Item::Hope(i) => i.is_finished(),
             Item::Reason(i) => i.is_finished(),
         }
-    }
-}
-
-#[derive(PartialEq, Eq)]
-pub enum ItemOwning {
-    ToDo(ToDo),
-    Hope(Hope),
-    Reason(Reason),
-}
-
-impl From<ToDo> for ItemOwning {
-    fn from(value: ToDo) -> Self {
-        Self::ToDo(value)
-    }
-}
-
-impl From<Hope> for ItemOwning {
-    fn from(value: Hope) -> Self {
-        Self::Hope(value)
-    }
-}
-
-impl From<Reason> for ItemOwning {
-    fn from(value: Reason) -> Self {
-        Self::Reason(value)
-    }
-}
-
-impl From<ItemOwning> for Option<Thing> {
-    fn from(value: ItemOwning) -> Self {
-        match value {
-            ItemOwning::ToDo(i) => i.into(),
-            ItemOwning::Hope(i) => i.into(),
-            ItemOwning::Reason(i) => i.into(),
-        }
-    }
-}
-
-impl<'a> From<Item<'a>> for ItemOwning {
-    fn from(value: Item<'a>) -> Self {
-        match value {
-            Item::ToDo(i) => i.into(),
-            Item::Hope(i) => i.into(),
-            Item::Reason(i) => i.into(),
-        }
-    }
-}
-
-impl From<&ToDo> for ItemOwning {
-    fn from(value: &ToDo) -> Self {
-        ItemOwning::ToDo(value.clone())
-    }
-}
-
-impl From<&Hope> for ItemOwning {
-    fn from(value: &Hope) -> Self {
-        ItemOwning::Hope(value.clone())
-    }
-}
-
-impl From<&Reason> for ItemOwning {
-    fn from(value: &Reason) -> Self {
-        ItemOwning::Reason(value.clone())
     }
 }
