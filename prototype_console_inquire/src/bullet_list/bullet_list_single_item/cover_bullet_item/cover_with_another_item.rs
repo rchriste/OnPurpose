@@ -3,7 +3,7 @@ use std::fmt::Display;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::{base_data::NextStepItem, surrealdb_layer::DataLayerCommands};
+use crate::{base_data::ToDo, surrealdb_layer::DataLayerCommands};
 
 enum AnotherItem {
     //Eventually it would be nice if the new and existing could be combined into one UI control where you just type and
@@ -29,7 +29,7 @@ fn create_list() -> Vec<AnotherItem> {
     ]
 }
 
-pub(crate) async fn cover_with_another_item(item_to_cover: NextStepItem, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn cover_with_another_item(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let choices = create_list();
 
     let selection = Select::new("Select one", choices).prompt().unwrap();
@@ -39,8 +39,8 @@ pub(crate) async fn cover_with_another_item(item_to_cover: NextStepItem, send_to
     }
 }
 
-async fn cover_with_new_next_step(item_to_cover: NextStepItem, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+async fn cover_with_new_next_step(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let new_next_step_text = Text::new("Enter New Covering Next Step ⍠").prompt().unwrap();
 
-    send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover.into(), new_next_step_text)).await.unwrap();
+    send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithANewToDo(item_to_cover.into(), new_next_step_text)).await.unwrap();
 }

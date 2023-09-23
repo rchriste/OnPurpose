@@ -5,7 +5,7 @@ use std::fmt::Display;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::{base_data::NextStepItem, surrealdb_layer::DataLayerCommands};
+use crate::{base_data::ToDo, surrealdb_layer::DataLayerCommands};
 
 
 enum CoverBulletItem {
@@ -32,7 +32,7 @@ fn create_list() -> Vec<CoverBulletItem> {
     ]
 }
 
-pub async fn cover_bullet_item(item_to_cover: NextStepItem, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub async fn cover_bullet_item(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let choices = create_list();
     let selection = Select::new("Select one", choices).prompt().unwrap();
     match selection {
@@ -42,7 +42,7 @@ pub async fn cover_bullet_item(item_to_cover: NextStepItem, send_to_data_storage
     }
 }
 
-async fn cover_with_question(item_to_cover: NextStepItem, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+async fn cover_with_question(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let question = Text::new("Enter Question").prompt().unwrap();
     send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithAQuestion(item_to_cover.into(), question)).await.unwrap()
 }

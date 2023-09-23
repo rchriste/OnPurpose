@@ -3,16 +3,16 @@ use surrealdb_extra::table::Table;
 use tokio::sync::{mpsc::{Receiver, Sender}, oneshot::{self, error::RecvError}};
 use chrono::Local;
 
-use crate::{test_data::TestData, base_data::{LinkageWithRecordIds, ReviewItem, ReasonItem, NextStepItem, ProcessedText, ItemOwning}};
+use crate::{test_data::TestData, base_data::{LinkageWithRecordIds, ReviewItem, ReasonItem, ToDo, ProcessedText, ItemOwning}};
 
 pub enum DataLayerCommands {
     SendRawData(oneshot::Sender<(TestData, Vec<LinkageWithRecordIds>)>),
-    AddUserProcessedText(String, NextStepItem),
+    AddUserProcessedText(String, ToDo), //TODO: Rename to AddProcessedText
     #[allow(dead_code)] //This can be removed after this is used beyond the unit tests
-    GetProcessedText(NextStepItem, oneshot::Sender<Vec<ProcessedText>>),
-    FinishNextStepItem(NextStepItem),
-    NewNextStep(String),
-    CoverItemWithANewNextStep(ItemOwning, String),
+    GetProcessedText(ToDo, oneshot::Sender<Vec<ProcessedText>>),
+    FinishToDo(ToDo),
+    NewToDo(String),
+    CoverItemWithANewToDo(ItemOwning, String),
     CoverItemWithAQuestion(ItemOwning, String),
 }
 
@@ -24,7 +24,7 @@ impl DataLayerCommands {
     }
 
     #[allow(dead_code)] //Remove after this is used beyond the unit tests
-    pub async fn get_processed_text(sender: &Sender<DataLayerCommands>, for_item: NextStepItem) -> Result<Vec<ProcessedText>, RecvError> {
+    pub async fn get_processed_text(sender: &Sender<DataLayerCommands>, for_item: ToDo) -> Result<Vec<ProcessedText>, RecvError> {
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
         sender.send(DataLayerCommands::GetProcessedText(for_item, processed_text_tx)).await.unwrap();
         processed_text_rx.await
@@ -44,9 +44,9 @@ pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Recei
             },
             Some(DataLayerCommands::AddUserProcessedText(processed_text, for_item)) => add_user_processed_text(processed_text, for_item, &db).await,
             Some(DataLayerCommands::GetProcessedText(for_item, send_response_here)) => get_processed_text(for_item, send_response_here, &db).await,
-            Some(DataLayerCommands::FinishNextStepItem(next_step_item)) => finish_text_step_item(next_step_item, &db).await,
-            Some(DataLayerCommands::NewNextStep(next_step_text)) => new_next_step(next_step_text, &db).await,
-            Some(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover, new_next_step_text, )) => cover_item_with_new_next_step(item_to_cover, new_next_step_text, &db).await,
+            Some(DataLayerCommands::FinishToDo(to_do)) => finish_text_step_item(to_do, &db).await,
+            Some(DataLayerCommands::NewToDo(to_do_text)) => new_to_do(to_do_text, &db).await,
+            Some(DataLayerCommands::CoverItemWithANewToDo(item_to_cover, new_to_do_text, )) => cover_item_with_new_next_step(item_to_cover, new_to_do_text, &db).await,
             Some(DataLayerCommands::CoverItemWithAQuestion(item, question)) => cover_item_with_question(item, question, &db).await,
             None => { return } //Channel closed, time to shutdown down, exit
         }
@@ -56,7 +56,7 @@ pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Recei
 pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> (TestData, Vec<LinkageWithRecordIds>) {
     (
         TestData {
-            next_steps: NextStepItem::get_all(db).await.unwrap(),
+            next_steps: ToDo::get_all(db).await.unwrap(),
             review_items: ReviewItem::get_all(db).await.unwrap(),
             reason_items: ReasonItem::get_all(db).await.unwrap(),
         },
@@ -64,7 +64,7 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> (TestData, Vec<Linka
     )
 }
 
-pub async fn add_user_processed_text(processed_text: String, for_item: NextStepItem, db: &Surreal<Any>) {
+pub async fn add_user_processed_text(processed_text: String, for_item: ToDo, db: &Surreal<Any>) {
     let data = ProcessedText {
         id: None,
         text: processed_text,
@@ -74,7 +74,7 @@ pub async fn add_user_processed_text(processed_text: String, for_item: NextStepI
     data.create(db).await.unwrap();
 }
 
-pub async fn get_processed_text(for_item: NextStepItem, send_response_here: oneshot::Sender<Vec<ProcessedText>>, db: &Surreal<Any>) {
+pub async fn get_processed_text(for_item: ToDo, send_response_here: oneshot::Sender<Vec<ProcessedText>>, db: &Surreal<Any>) {
     let mut query_result = db.query("SELECT * FROM processed_text WHERE for_item = $for_item")
     .bind(("for_item", for_item.id))
     .await
@@ -85,15 +85,15 @@ pub async fn get_processed_text(for_item: NextStepItem, send_response_here: ones
     send_response_here.send(processed_text).unwrap();
 }
 
-pub async fn finish_text_step_item(mut finish_this: NextStepItem, db: &Surreal<Any>) {
+pub async fn finish_text_step_item(mut finish_this: ToDo, db: &Surreal<Any>) {
     finish_this.finished = Some(Local::now().naive_utc().and_utc().into());
     finish_this.update(db).await.unwrap(); 
 }
 
-async fn new_next_step(next_step_text: String, db: &Surreal<Any>) {
-    NextStepItem {
+async fn new_to_do(to_do_text: String, db: &Surreal<Any>) {
+    ToDo {
         id: None,
-        summary: next_step_text,
+        summary: to_do_text,
         finished: None,
     }.create(db).await.unwrap();
 }
@@ -103,17 +103,17 @@ async fn cover_item_with_question(item: ItemOwning, question: String, db: &Surre
     cover_item_with_new_next_step(item, question, db).await
 }
 
-async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_next_step_text: String, db: &Surreal<Any>) {
+async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_to_do_text: String, db: &Surreal<Any>) {
     //Note that both of these things should really be happening inside of a single transaction but I don't know how to do that
     //easily so just do this for now.
 
-    let new_next_step = NextStepItem {
+    let new_to_do = ToDo {
         id: None,
-        summary: new_next_step_text,
+        summary: new_to_do_text,
         finished: None,
     }.create(db).await.unwrap().into_iter().next().unwrap();
 
-    let smaller_option: Option<Thing> = new_next_step.into();
+    let smaller_option: Option<Thing> = new_to_do.into();
     let parent_option: Option<Thing> = item_to_cover.into();
     LinkageWithRecordIds {
         id: None,
@@ -153,7 +153,7 @@ mod tests {
             data_storage_start_and_run(receiver, "mem://").await
         });
 
-        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+        sender.send(DataLayerCommands::NewToDo("New next step".into())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -171,7 +171,7 @@ mod tests {
             data_storage_start_and_run(receiver, "mem://").await
         });
 
-        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+        sender.send(DataLayerCommands::NewToDo("New next step".into())).await.unwrap();
 
         let (test_data, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -201,7 +201,7 @@ mod tests {
             data_storage_start_and_run(receiver, "mem://").await
         });
 
-        sender.send(DataLayerCommands::NewNextStep("New next step".into())).await.unwrap();
+        sender.send(DataLayerCommands::NewToDo("New next step".into())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(next_step_item.is_finished(), false);
         assert_eq!(linkage.len(), 0);
 
-        sender.send(DataLayerCommands::FinishNextStepItem(next_step_item.clone())).await.unwrap();
+        sender.send(DataLayerCommands::FinishToDo(next_step_item.clone())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -230,7 +230,7 @@ mod tests {
             data_storage_start_and_run(receiver, "mem://").await
         });
 
-        sender.send(DataLayerCommands::NewNextStep("Item to be covered".into())).await.unwrap();
+        sender.send(DataLayerCommands::NewToDo("Item to be covered".into())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(0, linkage.len()); //length of zero means nothing is covered
         let item_to_cover = test_data.next_steps.iter().next().unwrap();
 
-        sender.send(DataLayerCommands::CoverItemWithANewNextStep(item_to_cover.into(), "Covering item".into())).await.unwrap();
+        sender.send(DataLayerCommands::CoverItemWithANewToDo(item_to_cover.into(), "Covering item".into())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
@@ -261,7 +261,7 @@ mod tests {
             data_storage_start_and_run(receiver, "mem://").await
         });
 
-        sender.send(DataLayerCommands::NewNextStep("Item to be covered".into())).await.unwrap();
+        sender.send(DataLayerCommands::NewToDo("Item to be covered".into())).await.unwrap();
 
         let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 

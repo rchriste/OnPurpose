@@ -6,21 +6,21 @@ use crate::test_data::TestData;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "next_step_item")]
-pub struct NextStepItem {
+pub struct ToDo {
     pub id: Option<Thing>,
     pub summary: String,
     pub finished: Option<Datetime>,
 }
 
-impl From<NextStepItem> for Option<Thing> {
-    fn from(value: NextStepItem) -> Self {
+impl From<ToDo> for Option<Thing> {
+    fn from(value: ToDo) -> Self {
         value.id
     }
 }
 
-impl NextStepItem {
+impl ToDo {
     pub fn is_covered(&self, linkage: &[LinkageWithReferences<'_>]) -> bool {
-        let next_step_item = Item::NextStepItem(self);
+        let next_step_item = Item::ToDo(self);
         let mut covered_by = linkage.iter().filter(|x| x.parent == next_step_item);
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
@@ -118,14 +118,14 @@ pub struct ProcessedText {
 
 #[derive(PartialEq, Eq)]
 pub enum Item<'a> {
-    NextStepItem(&'a NextStepItem),
+    ToDo(&'a ToDo),
     ReviewItem(&'a ReviewItem),
     ReasonItem(&'a ReasonItem)
 }
 
-impl<'a> From<&'a NextStepItem> for Item<'a> {
-    fn from(value: &'a NextStepItem) -> Self {
-        Item::NextStepItem(value)
+impl<'a> From<&'a ToDo> for Item<'a> {
+    fn from(value: &'a ToDo) -> Self {
+        Item::ToDo(value)
     }
 }
 
@@ -142,9 +142,9 @@ impl<'a> From<&'a ReasonItem> for Item<'a> {
 }
 
 impl<'a> Item<'a> {
-    pub fn from_next_step(next_step_item: &'a NextStepItem) -> Item<'a>
+    pub fn from_to_do(to_do: &'a ToDo) -> Item<'a>
     {
-        Item::NextStepItem(next_step_item)
+        Item::ToDo(to_do)
     }
 
     pub fn from_review_item(review_item: &'a ReviewItem) -> Item<'a>
@@ -168,7 +168,7 @@ impl<'a> Item<'a> {
     pub fn get_id(&'a self) -> &'a Option<Thing>
     {
         match self {
-            Item::NextStepItem(next_step) => &next_step.id,
+            Item::ToDo(to_do) => &to_do.id,
             Item::ReviewItem(review_item) => &review_item.id,
             Item::ReasonItem(reason_item) => &reason_item.id,
         }
@@ -177,7 +177,7 @@ impl<'a> Item<'a> {
     pub fn is_finished(&'a self) -> bool 
     {
         match self {
-            Item::NextStepItem(i) => i.is_finished(),
+            Item::ToDo(i) => i.is_finished(),
             Item::ReviewItem(i) => i.is_finished(),
             Item::ReasonItem(i) => i.is_finished(),
         }
@@ -186,14 +186,14 @@ impl<'a> Item<'a> {
 
 #[derive(PartialEq, Eq)]
 pub enum ItemOwning {
-    NextStepItem(NextStepItem),
+    ToDo(ToDo),
     ReviewItem(ReviewItem),
     ReasonItem(ReasonItem)
 }
 
-impl From<NextStepItem> for ItemOwning {
-    fn from(value: NextStepItem) -> Self {
-        Self::NextStepItem(value)
+impl From<ToDo> for ItemOwning {
+    fn from(value: ToDo) -> Self {
+        Self::ToDo(value)
     }
 }
 
@@ -212,7 +212,7 @@ impl From<ReasonItem> for ItemOwning {
 impl From<ItemOwning> for Option<Thing> {
     fn from(value: ItemOwning) -> Self {
         match value {
-            ItemOwning::NextStepItem(i) => i.into(),
+            ItemOwning::ToDo(i) => i.into(),
             ItemOwning::ReviewItem(i) => i.into(),
             ItemOwning::ReasonItem(i) => i.into(),
         }
@@ -222,16 +222,16 @@ impl From<ItemOwning> for Option<Thing> {
 impl<'a> From<Item<'a>> for ItemOwning {
     fn from(value: Item<'a>) -> Self {
         match value {
-            Item::NextStepItem(i) => i.into(),
+            Item::ToDo(i) => i.into(),
             Item::ReviewItem(i) => i.into(),
             Item::ReasonItem(i) => i.into(),
         }
     }
 }
 
-impl From<&NextStepItem> for ItemOwning {
-    fn from(value: &NextStepItem) -> Self {
-        ItemOwning::NextStepItem(value.clone())
+impl From<&ToDo> for ItemOwning {
+    fn from(value: &ToDo) -> Self {
+        ItemOwning::ToDo(value.clone())
     }
 }
 
