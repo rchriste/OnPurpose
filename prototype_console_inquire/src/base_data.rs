@@ -1,5 +1,8 @@
-use serde::{Serialize, Deserialize};
-use surrealdb::{sql::{Thing, Datetime}, opt::RecordId};
+use serde::{Deserialize, Serialize};
+use surrealdb::{
+    opt::RecordId,
+    sql::{Datetime, Thing},
+};
 use surrealdb_extra::table::Table;
 
 use crate::test_data::TestData;
@@ -88,23 +91,35 @@ pub struct LinkageWithRecordIds {
 
 impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
     fn from(value: LinkageWithReferences<'a>) -> Self {
-        LinkageWithRecordIds { 
-            id: None, 
-            smaller: value.smaller.get_id().as_ref().expect("Should already be in the DB").clone(), 
-            parent: value.parent.get_id().as_ref().expect("Should already be in the DB").clone()
+        LinkageWithRecordIds {
+            id: None,
+            smaller: value
+                .smaller
+                .get_id()
+                .as_ref()
+                .expect("Should already be in the DB")
+                .clone(),
+            parent: value
+                .parent
+                .get_id()
+                .as_ref()
+                .expect("Should already be in the DB")
+                .clone(),
         }
     }
 }
 
-pub fn convert_linkage_with_record_ids_to_references<'a>(linkage_with_record_ids: &[LinkageWithRecordIds], test_data: &'a TestData) -> Vec<LinkageWithReferences<'a>>
-{
-    linkage_with_record_ids.iter().map(|x|
-        LinkageWithReferences 
-        { 
-            smaller: test_data.lookup_from_record_id(&x.smaller).unwrap(), 
-            parent: test_data.lookup_from_record_id(&x.parent).unwrap()
-        }
-    ).collect()
+pub fn convert_linkage_with_record_ids_to_references<'a>(
+    linkage_with_record_ids: &[LinkageWithRecordIds],
+    test_data: &'a TestData,
+) -> Vec<LinkageWithReferences<'a>> {
+    linkage_with_record_ids
+        .iter()
+        .map(|x| LinkageWithReferences {
+            smaller: test_data.lookup_from_record_id(&x.smaller).unwrap(),
+            parent: test_data.lookup_from_record_id(&x.parent).unwrap(),
+        })
+        .collect()
 }
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
@@ -120,7 +135,7 @@ pub struct ProcessedText {
 pub enum Item<'a> {
     ToDo(&'a ToDo),
     ReviewItem(&'a ReviewItem),
-    ReasonItem(&'a ReasonItem)
+    ReasonItem(&'a ReasonItem),
 }
 
 impl<'a> From<&'a ToDo> for Item<'a> {
@@ -142,31 +157,32 @@ impl<'a> From<&'a ReasonItem> for Item<'a> {
 }
 
 impl<'a> Item<'a> {
-    pub fn from_to_do(to_do: &'a ToDo) -> Item<'a>
-    {
+    pub fn from_to_do(to_do: &'a ToDo) -> Item<'a> {
         Item::ToDo(to_do)
     }
 
-    pub fn from_review_item(review_item: &'a ReviewItem) -> Item<'a>
-    {
+    pub fn from_review_item(review_item: &'a ReviewItem) -> Item<'a> {
         Item::ReviewItem(review_item)
     }
 
-    pub fn from_reason_item(reason_item: &'a ReasonItem) -> Item<'a>
-    {
+    pub fn from_reason_item(reason_item: &'a ReasonItem) -> Item<'a> {
         Item::ReasonItem(reason_item)
     }
 
-    pub fn find_parents(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>>
-    {
-        linkage.iter().filter_map(|x| {
-            if &x.smaller == self { Some(&x.parent) }
-            else { None }
-        }).collect()
+    pub fn find_parents(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
+        linkage
+            .iter()
+            .filter_map(|x| {
+                if &x.smaller == self {
+                    Some(&x.parent)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
-    pub fn get_id(&'a self) -> &'a Option<Thing>
-    {
+    pub fn get_id(&'a self) -> &'a Option<Thing> {
         match self {
             Item::ToDo(to_do) => &to_do.id,
             Item::ReviewItem(review_item) => &review_item.id,
@@ -174,8 +190,7 @@ impl<'a> Item<'a> {
         }
     }
 
-    pub fn is_finished(&'a self) -> bool 
-    {
+    pub fn is_finished(&'a self) -> bool {
         match self {
             Item::ToDo(i) => i.is_finished(),
             Item::ReviewItem(i) => i.is_finished(),
@@ -188,7 +203,7 @@ impl<'a> Item<'a> {
 pub enum ItemOwning {
     ToDo(ToDo),
     ReviewItem(ReviewItem),
-    ReasonItem(ReasonItem)
+    ReasonItem(ReasonItem),
 }
 
 impl From<ToDo> for ItemOwning {

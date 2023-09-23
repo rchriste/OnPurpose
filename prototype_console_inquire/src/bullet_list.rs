@@ -2,7 +2,11 @@ pub mod bullet_list_single_item;
 
 use std::fmt::Display;
 
-use crate::{base_data::{ToDo, Item}, node::ToDoNode, create_next_step_parents};
+use crate::{
+    base_data::{Item, ToDo},
+    create_next_step_parents,
+    node::ToDoNode,
+};
 
 pub struct InquireBulletListItem<'a> {
     bullet_item: &'a ToDo, //TODO: This should be ToDoOrQuestion
@@ -30,14 +34,11 @@ impl<'a> From<InquireBulletListItem<'a>> for ToDo {
 }
 
 impl<'a> InquireBulletListItem<'a> {
-    pub fn create_list(next_step_nodes: &'a Vec<ToDoNode<'a>>) -> Vec<InquireBulletListItem<'a>>
-    {
+    pub fn create_list(next_step_nodes: &'a Vec<ToDoNode<'a>>) -> Vec<InquireBulletListItem<'a>> {
         let mut result = Vec::with_capacity(next_step_nodes.capacity());
-        result.extend(next_step_nodes.iter().map(|x| {
-            InquireBulletListItem {
-                bullet_item: x.to_do,
-                parents: create_next_step_parents(x),
-            }
+        result.extend(next_step_nodes.iter().map(|x| InquireBulletListItem {
+            bullet_item: x.to_do,
+            parents: create_next_step_parents(x),
         }));
         result
     }

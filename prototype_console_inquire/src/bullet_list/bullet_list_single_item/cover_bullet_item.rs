@@ -7,11 +7,10 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{base_data::ToDo, surrealdb_layer::DataLayerCommands};
 
-
 enum CoverBulletItem {
     AnotherItem,
     Question,
-    Event
+    Event,
 }
 
 impl Display for CoverBulletItem {
@@ -28,22 +27,41 @@ fn create_list() -> Vec<CoverBulletItem> {
     vec![
         CoverBulletItem::AnotherItem,
         CoverBulletItem::Question,
-        CoverBulletItem::Event
+        CoverBulletItem::Event,
     ]
 }
 
-pub async fn cover_bullet_item(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub async fn cover_bullet_item(
+    item_to_cover: ToDo,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
     let choices = create_list();
     let selection = Select::new("Select one", choices).prompt().unwrap();
     match selection {
-        CoverBulletItem::AnotherItem => cover_with_another_item::cover_with_another_item(item_to_cover, send_to_data_storage_layer).await,
-        CoverBulletItem::Question => cover_with_question(item_to_cover, send_to_data_storage_layer).await,
+        CoverBulletItem::AnotherItem => {
+            cover_with_another_item::cover_with_another_item(
+                item_to_cover,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
+        CoverBulletItem::Question => {
+            cover_with_question(item_to_cover, send_to_data_storage_layer).await
+        }
         CoverBulletItem::Event => todo!(),
     }
 }
 
-async fn cover_with_question(item_to_cover: ToDo, send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+async fn cover_with_question(
+    item_to_cover: ToDo,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
     let question = Text::new("Enter Question").prompt().unwrap();
-    send_to_data_storage_layer.send(DataLayerCommands::CoverItemWithAQuestion(item_to_cover.into(), question)).await.unwrap()
+    send_to_data_storage_layer
+        .send(DataLayerCommands::CoverItemWithAQuestion(
+            item_to_cover.into(),
+            question,
+        ))
+        .await
+        .unwrap()
 }
-
