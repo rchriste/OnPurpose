@@ -19,18 +19,15 @@ impl From<NextStepItem> for Option<Thing> {
 }
 
 impl NextStepItem {
-    pub fn is_covered(&self, linkage: &Vec<LinkageWithReferences<'_>>) -> bool {
-        let next_step_item = Item::NextStepItem(&self);
+    pub fn is_covered(&self, linkage: &[LinkageWithReferences<'_>]) -> bool {
+        let next_step_item = Item::NextStepItem(self);
         let mut covered_by = linkage.iter().filter(|x| x.parent == next_step_item);
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
     }
 
     pub fn is_finished(&self) -> bool {
-        match self.finished {
-            Some(_) => true,
-            None => false,
-        }
+        self.finished.is_some()
     }
 }
 
@@ -51,10 +48,7 @@ impl From<ReviewItem> for Option<Thing> {
 
 impl ReviewItem {
     pub fn is_finished(&self) -> bool {
-        match self.finished {
-            Some(_) => true,
-            None => false,
-        }
+        self.finished.is_some()
     }
 }
 
@@ -75,10 +69,7 @@ impl From<ReasonItem> for Option<Thing> {
 
 impl ReasonItem {
     pub fn is_finished(&self) -> bool {
-        match self.finished {
-            Some(_) => true,
-            None => false,
-        }
+        self.finished.is_some()
     }
 }
 
@@ -105,7 +96,7 @@ impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
     }
 }
 
-pub fn convert_linkage_with_record_ids_to_references<'a>(linkage_with_record_ids: &Vec<LinkageWithRecordIds>, test_data: &'a TestData) -> Vec<LinkageWithReferences<'a>>
+pub fn convert_linkage_with_record_ids_to_references<'a>(linkage_with_record_ids: &[LinkageWithRecordIds], test_data: &'a TestData) -> Vec<LinkageWithReferences<'a>>
 {
     linkage_with_record_ids.iter().map(|x|
         LinkageWithReferences 
@@ -166,7 +157,7 @@ impl<'a> Item<'a> {
         Item::ReasonItem(reason_item)
     }
 
-    pub fn find_parents(&self, linkage: &'a Vec<LinkageWithReferences<'a>>) -> Vec<&'a Item<'a>>
+    pub fn find_parents(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>>
     {
         linkage.iter().filter_map(|x| {
             if &x.smaller == self { Some(&x.parent) }

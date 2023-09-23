@@ -56,11 +56,11 @@ pub async fn data_storage_start_and_run(mut data_storage_layer_receive_rx: Recei
 pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> (TestData, Vec<LinkageWithRecordIds>) {
     (
         TestData {
-            next_steps: NextStepItem::get_all(&db).await.unwrap(),
-            review_items: ReviewItem::get_all(&db).await.unwrap(),
-            reason_items: ReasonItem::get_all(&db).await.unwrap(),
+            next_steps: NextStepItem::get_all(db).await.unwrap(),
+            review_items: ReviewItem::get_all(db).await.unwrap(),
+            reason_items: ReasonItem::get_all(db).await.unwrap(),
         },
-        LinkageWithRecordIds::get_all(&db).await.unwrap()
+        LinkageWithRecordIds::get_all(db).await.unwrap()
     )
 }
 
@@ -111,7 +111,7 @@ async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_next_step_
         id: None,
         summary: new_next_step_text,
         finished: None,
-    }.create(&db).await.unwrap().into_iter().next().unwrap();
+    }.create(db).await.unwrap().into_iter().next().unwrap();
 
     let smaller_option: Option<Thing> = new_next_step.into();
     let parent_option: Option<Thing> = item_to_cover.into();
@@ -119,7 +119,7 @@ async fn cover_item_with_new_next_step(item_to_cover: ItemOwning, new_next_step_
         id: None,
         smaller: smaller_option.unwrap(),
         parent: parent_option.unwrap(),
-    }.create(&db).await.unwrap().first().unwrap();
+    }.create(db).await.unwrap().first().unwrap();
 }
 
 #[cfg(test)]

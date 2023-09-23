@@ -28,14 +28,12 @@ impl TestData {
             }
         }) {
             Some(Item::ReviewItem(found))
-        } else if let Some(found) = self.reason_items.iter().find(|x| {
+        } else { self.reason_items.iter().find(|x| {
             match x.get_id() {
                 Some(v) => v == record_id,
                 None => false
             }
-        }) {
-            Some(Item::ReasonItem(found))
-        } else { None }
+        }).map(Item::ReasonItem) }
     }
 }
 
@@ -45,21 +43,21 @@ pub async fn upload_test_data_to_surrealdb<T: surrealdb::Connection>(test_data: 
     let mut next_steps_surreal = Vec::with_capacity(test_data.next_steps.capacity());
     for x in test_data.next_steps.into_iter()
     {
-        let r = x.create(&db).await.unwrap();
+        let r = x.create(db).await.unwrap();
         next_steps_surreal.extend(r.into_iter());
     }
 
     let mut review_items_surreal = Vec::with_capacity(test_data.review_items.capacity());
     for x in test_data.review_items.into_iter()
     {
-        let r = x.create(&db).await.unwrap();
+        let r = x.create(db).await.unwrap();
         review_items_surreal.extend(r.into_iter());
     }
 
     let mut reason_items_surreal = Vec::with_capacity(test_data.reason_items.capacity());
     for x in test_data.reason_items.into_iter()
     {
-        let r = x.create(&db).await.unwrap();
+        let r = x.create(db).await.unwrap();
         reason_items_surreal.extend(r.into_iter());
     }
 
@@ -76,7 +74,7 @@ pub async fn upload_linkage_to_surrealdb<'a, T: surrealdb::Connection>(linkage: 
     let mut result = Vec::with_capacity(linkage.capacity());
     for with_references in linkage.into_iter() {
         let with_record_ids: LinkageWithRecordIds = with_references.into();
-        let r = with_record_ids.create(&db).await.unwrap();
+        let r = with_record_ids.create(db).await.unwrap();
         result.extend(r.into_iter());
     }
     result

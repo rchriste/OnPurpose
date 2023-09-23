@@ -36,7 +36,7 @@ impl<'a> InquireBulletListItem<'a> {
         result.extend(next_step_nodes.iter().map(|x| {
             InquireBulletListItem {
                 bullet_item: x.next_step_item,
-                parents: create_next_step_parents(&x),
+                parents: create_next_step_parents(x),
             }
         }));
         result

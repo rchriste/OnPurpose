@@ -21,7 +21,7 @@ fn create_next_step_parents<'a>(item: &'a NextStepNode<'a>) -> Vec<&'a Item<'a>>
 {
     let mut result: Vec<&'a Item<'a>> = Vec::default();
     for i in item.larger.iter() {
-        result.push(&i.item);
+        result.push(i.item);
         let parents = i.create_growing_parents();
         result.extend(parents.iter());
     }
