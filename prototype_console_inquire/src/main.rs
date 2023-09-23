@@ -51,15 +51,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 
-    let selected = Select::new("Select one", inquire_bullet_list).prompt();
+    if !inquire_bullet_list.is_empty() {
+        let selected = Select::new("Select one", inquire_bullet_list).prompt();
 
-    match selected {
-        Ok(selected) => present_bullet_list_item_selected(selected, &send_to_data_storage_layer_tx).await,
-        Err(err) => match err {
-            InquireError::OperationCanceled => present_top_menu(&send_to_data_storage_layer_tx).await,
-            _ => panic!("Unexpected InquireError of {}", err)
-        }
-    };
+        match selected {
+            Ok(selected) => present_bullet_list_item_selected(selected, &send_to_data_storage_layer_tx).await,
+            Err(err) => match err {
+                InquireError::OperationCanceled => present_top_menu(&send_to_data_storage_layer_tx).await,
+                _ => panic!("Unexpected InquireError of {}", err)
+            }
+        };    
+    } else {
+        println!("To Do List is Empty, falling back to main menu");
+        present_top_menu(&send_to_data_storage_layer_tx).await
+    }
 
     drop(send_to_data_storage_layer_tx);
 
