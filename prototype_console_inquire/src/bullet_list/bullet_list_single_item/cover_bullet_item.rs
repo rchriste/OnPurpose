@@ -56,7 +56,7 @@ async fn cover_with_question(
     item_to_cover: ToDo,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let question = Text::new("Enter Question").prompt().unwrap();
+    let question = Text::new("Enter Question ⍠").prompt().unwrap();
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithAQuestion(
             item_to_cover.into(),

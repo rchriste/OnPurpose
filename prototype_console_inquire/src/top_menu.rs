@@ -27,7 +27,7 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
 }
 
 async fn capture_to_do(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let new_next_step_text = Text::new("Enter To Do").prompt().unwrap();
+    let new_next_step_text = Text::new("Enter To Do ⍠").prompt().unwrap();
 
     send_to_data_storage_layer
         .send(DataLayerCommands::NewToDo(new_next_step_text))
