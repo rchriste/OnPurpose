@@ -11,3 +11,4 @@ surrealdb = { version = "1.0.0", features = ["kv-mem", "kv-rocksdb"] } #Added so
 surrealdb_extra = "0.4.0" #Added because I think using this for table definitions might save me time
 serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.31"
+async-recursion = "1.0.5"

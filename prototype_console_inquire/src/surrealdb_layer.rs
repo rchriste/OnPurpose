@@ -19,6 +19,8 @@ pub enum DataLayerCommands {
     GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
     FinishItem(SurrealItem),
     NewToDo(String),
+    NewHope(String),
+    NewReason(String),
     CoverItemWithANewToDo(SurrealItem, String),
     CoverItemWithAQuestion(SurrealItem, String),
 }
@@ -74,6 +76,8 @@ pub async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
             Some(DataLayerCommands::NewToDo(to_do_text)) => new_to_do(to_do_text, &db).await,
+            Some(DataLayerCommands::NewHope(hope_text)) => new_hope(hope_text, &db).await,
+            Some(DataLayerCommands::NewReason(reason_text)) => new_reason(reason_text, &db).await,
             Some(DataLayerCommands::CoverItemWithANewToDo(item_to_cover, new_to_do_text)) => {
                 cover_item_with_new_next_step(item_to_cover, new_to_do_text, &db).await
             }
@@ -132,6 +136,30 @@ async fn new_to_do(to_do_text: String, db: &Surreal<Any>) {
         summary: to_do_text,
         finished: None,
         item_type: ItemType::ToDo,
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
+async fn new_hope(hope_text: String, db: &Surreal<Any>) {
+    SurrealItem {
+        id: None,
+        summary: hope_text,
+        finished: None,
+        item_type: ItemType::Hope,
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
+async fn new_reason(reason_text: String, db: &Surreal<Any>) {
+    SurrealItem {
+        id: None,
+        summary: reason_text,
+        finished: None,
+        item_type: ItemType::Reason,
     }
     .create(db)
     .await
@@ -214,6 +242,48 @@ mod tests {
 
         assert_eq!(items.len(), 1);
         assert_eq!(ItemType::ToDo, items.first().unwrap().item_type);
+        assert_eq!(linkage.len(), 0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn add_new_hope() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewHope("New hope".into()))
+            .await
+            .unwrap();
+
+        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(items.len(), 1);
+        assert_eq!(ItemType::Hope, items.first().unwrap().item_type);
+        assert_eq!(linkage.len(), 0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn add_new_reason() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewReason("New reason".into()))
+            .await
+            .unwrap();
+
+        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(items.len(), 1);
+        assert_eq!(ItemType::Reason, items.first().unwrap().item_type);
         assert_eq!(linkage.len(), 0);
 
         drop(sender);

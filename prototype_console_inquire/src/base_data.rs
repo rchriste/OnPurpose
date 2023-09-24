@@ -97,6 +97,35 @@ impl SurrealItem {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
+
+    pub fn covered_by<'a>(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
+        linkage
+            .iter()
+            .filter_map(|x| {
+                if x.parent == self {
+                    Some(x.smaller)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn who_am_i_covering<'a>(
+        &self,
+        linkage: &[LinkageWithReferences<'a>],
+    ) -> Vec<&'a SurrealItem> {
+        linkage
+            .iter()
+            .filter_map(|x| {
+                if x.smaller == self {
+                    Some(x.parent)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
@@ -161,9 +190,29 @@ impl<'a> From<Hope<'a>> for Option<Thing> {
     }
 }
 
+impl PartialEq<Hope<'_>> for SurrealItem {
+    fn eq(&self, other: &Hope<'_>) -> bool {
+        self == other.surreal_item
+    }
+}
+
+impl PartialEq<SurrealItem> for Hope<'_> {
+    fn eq(&self, other: &SurrealItem) -> bool {
+        self.surreal_item == other
+    }
+}
+
 impl<'a> Hope<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
+    }
+
+    pub fn covered_by(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
+        self.surreal_item.covered_by(linkage)
+    }
+
+    pub fn who_am_i_covering(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
+        self.surreal_item.who_am_i_covering(linkage)
     }
 }
 

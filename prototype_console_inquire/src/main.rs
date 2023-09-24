@@ -1,5 +1,6 @@
 pub mod base_data;
 mod bullet_list;
+mod mentally_resident;
 mod node;
 mod surrealdb_layer;
 mod top_menu;
