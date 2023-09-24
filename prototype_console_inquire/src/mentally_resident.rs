@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use inquire::{InquireError, Select};
+use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -33,6 +33,18 @@ impl<'a> Display for MentallyResidentItem<'a> {
 impl<'a> From<&'a HopeNode<'a>> for MentallyResidentItem<'a> {
     fn from(value: &'a HopeNode<'a>) -> Self {
         MentallyResidentItem { hope_node: value }
+    }
+}
+
+impl<'a> From<MentallyResidentItem<'a>> for &'a SurrealItem {
+    fn from(value: MentallyResidentItem<'a>) -> Self {
+        value.hope_node.into()
+    }
+}
+
+impl<'a> From<&'a MentallyResidentItem<'a>> for &'a SurrealItem {
+    fn from(value: &'a MentallyResidentItem) -> Self {
+        value.hope_node.into()
     }
 }
 
@@ -89,6 +101,18 @@ struct HopeNode<'a> {
     pub towards_motivation_chain: Vec<&'a SurrealItem>,
 }
 
+impl<'a> From<&'a HopeNode<'a>> for &'a Hope<'a> {
+    fn from(value: &HopeNode<'a>) -> Self {
+        value.hope
+    }
+}
+
+impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
+    fn from(value: &'a HopeNode<'a>) -> Self {
+        value.hope.into()
+    }
+}
+
 #[async_recursion]
 pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let (items, linkage) = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
@@ -106,8 +130,8 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
         let selected = Select::new("Select one", inquire_list).prompt();
 
         match selected {
-            Ok(_) => {
-                todo!()
+            Ok(selected) => {
+                present_hope_selected_menu(selected.into(), send_to_data_storage_layer).await;
             }
             Err(err) => match err {
                 InquireError::OperationCanceled => {
@@ -120,4 +144,92 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
         println!("Hope List is Empty, falling back to main menu.");
         present_top_menu(send_to_data_storage_layer).await
     }
+}
+
+enum HopeSelectedMenuItem {
+    AddToDo,
+    CoverWithMilestone,
+}
+
+impl Display for HopeSelectedMenuItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HopeSelectedMenuItem::AddToDo => write!(f, "Add to do"),
+            HopeSelectedMenuItem::CoverWithMilestone => write!(f, "Cover with milestone"),
+        }
+    }
+}
+
+impl HopeSelectedMenuItem {
+    fn create_list() -> Vec<HopeSelectedMenuItem> {
+        vec![Self::AddToDo, Self::CoverWithMilestone]
+    }
+}
+
+async fn present_hope_selected_menu(
+    hope_selected: &SurrealItem,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let list = HopeSelectedMenuItem::create_list();
+
+    let selection = Select::new("Select one", list).prompt().unwrap();
+    match selection {
+        HopeSelectedMenuItem::AddToDo => {
+            present_add_to_do(hope_selected, send_to_data_storage_layer).await
+        }
+        HopeSelectedMenuItem::CoverWithMilestone => todo!(),
+    }
+}
+
+enum AddToDoMenuItem {
+    NewToDo,
+    ExistingToDo,
+}
+
+impl Display for AddToDoMenuItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddToDoMenuItem::NewToDo => write!(f, "New To Do"),
+            AddToDoMenuItem::ExistingToDo => write!(f, "Existing To Do"),
+        }
+    }
+}
+
+impl AddToDoMenuItem {
+    fn create_list() -> Vec<AddToDoMenuItem> {
+        vec![Self::NewToDo, Self::ExistingToDo]
+    }
+}
+
+async fn present_add_to_do(
+    hope_to_cover: &SurrealItem,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let list = AddToDoMenuItem::create_list();
+
+    let selection = Select::new("Select one", list).prompt().unwrap();
+
+    match selection {
+        AddToDoMenuItem::NewToDo => {
+            present_new_to_do(hope_to_cover, send_to_data_storage_layer).await
+        }
+        AddToDoMenuItem::ExistingToDo => todo!(),
+    }
+}
+
+async fn present_new_to_do(
+    hope_to_cover: &SurrealItem,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let new_hope_text = Text::new("Enter To Do (i.e. Next Step) ⍠")
+        .prompt()
+        .unwrap();
+
+    send_to_data_storage_layer
+        .send(DataLayerCommands::CoverItemWithANewToDo(
+            hope_to_cover.clone(),
+            new_hope_text,
+        ))
+        .await
+        .unwrap();
 }

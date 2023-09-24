@@ -190,6 +190,12 @@ impl<'a> From<Hope<'a>> for Option<Thing> {
     }
 }
 
+impl<'a> From<&'a Hope<'a>> for &'a SurrealItem {
+    fn from(value: &'a Hope<'a>) -> Self {
+        value.surreal_item
+    }
+}
+
 impl PartialEq<Hope<'_>> for SurrealItem {
     fn eq(&self, other: &Hope<'_>) -> bool {
         self == other.surreal_item
