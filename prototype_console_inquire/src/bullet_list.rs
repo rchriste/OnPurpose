@@ -3,14 +3,14 @@ pub mod bullet_list_single_item;
 use std::fmt::Display;
 
 use crate::{
-    base_data::{ItemType, SurrealItem, ToDo},
+    base_data::{Item, ItemType, SurrealItem, ToDo},
     create_next_step_parents,
     node::ToDoNode,
 };
 
 pub struct InquireBulletListItem<'a> {
     bullet_item: &'a ToDo<'a>, //TODO: This should be ToDoOrQuestion
-    parents: Vec<&'a SurrealItem>,
+    parents: Vec<&'a Item<'a>>,
 }
 
 impl Display for InquireBulletListItem<'_> {

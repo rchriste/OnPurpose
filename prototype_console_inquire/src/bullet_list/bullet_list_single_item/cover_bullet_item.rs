@@ -124,14 +124,28 @@ impl RequirementMenuItem {
 }
 
 async fn cover_with_requirement<'a>(
-    _item_to_cover: ToDo<'a>,
-    _send_to_data_storage_layer: &Sender<DataLayerCommands>,
+    item_to_cover: ToDo<'a>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = RequirementMenuItem::create_list();
 
     let selection = Select::new("Select one", list).prompt().unwrap();
 
     match selection {
-        RequirementMenuItem::NotSunday => todo!(),
+        RequirementMenuItem::NotSunday => {
+            set_requirement_not_sunday(item_to_cover, send_to_data_storage_layer).await
+        }
     }
+}
+
+async fn set_requirement_not_sunday(
+    item_to_get_requirement: ToDo<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    send_to_data_storage_layer
+        .send(DataLayerCommands::AddRequirementNotSunday(
+            item_to_get_requirement.into(),
+        ))
+        .await
+        .unwrap()
 }

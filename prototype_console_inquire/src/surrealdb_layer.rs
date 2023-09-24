@@ -10,10 +10,18 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::base_data::{ItemType, LinkageWithRecordIds, ProcessedText, SurrealItem};
+use crate::base_data::{
+    ItemType, LinkageWithRecordIds, ProcessedText, RequirementType, SurrealItem, SurrealRequirement,
+};
 
 pub enum DataLayerCommands {
-    SendRawData(oneshot::Sender<(Vec<SurrealItem>, Vec<LinkageWithRecordIds>)>),
+    SendRawData(
+        oneshot::Sender<(
+            Vec<SurrealItem>,
+            Vec<LinkageWithRecordIds>,
+            Vec<SurrealRequirement>,
+        )>,
+    ),
     AddProcessedText(String, SurrealItem),
     #[allow(dead_code)] //This can be removed after this is used beyond the unit tests
     GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
@@ -23,12 +31,20 @@ pub enum DataLayerCommands {
     NewReason(String),
     CoverItemWithANewToDo(SurrealItem, String),
     CoverItemWithAQuestion(SurrealItem, String),
+    AddRequirementNotSunday(SurrealItem),
 }
 
 impl DataLayerCommands {
     pub async fn get_raw_data(
         sender: &Sender<DataLayerCommands>,
-    ) -> Result<(Vec<SurrealItem>, Vec<LinkageWithRecordIds>), RecvError> {
+    ) -> Result<
+        (
+            Vec<SurrealItem>,
+            Vec<LinkageWithRecordIds>,
+            Vec<SurrealRequirement>,
+        ),
+        RecvError,
+    > {
         let (raw_data_sender, raw_data_receiver) = oneshot::channel();
         sender
             .send(DataLayerCommands::SendRawData(raw_data_sender))
@@ -65,8 +81,8 @@ pub async fn data_storage_start_and_run(
         let received = data_storage_layer_receive_rx.recv().await;
         match received {
             Some(DataLayerCommands::SendRawData(oneshot)) => {
-                let (items, linkage) = load_data_from_surrealdb(&db).await;
-                oneshot.send((items, linkage)).unwrap();
+                let (items, linkage, requirements) = load_data_from_surrealdb(&db).await;
+                oneshot.send((items, linkage, requirements)).unwrap();
             }
             Some(DataLayerCommands::AddProcessedText(processed_text, for_item)) => {
                 add_processed_text(processed_text, for_item, &db).await
@@ -84,6 +100,9 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::CoverItemWithAQuestion(item, question)) => {
                 cover_item_with_question(item, question, &db).await
             }
+            Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
+                add_requirement_not_sunday(add_requirement_to_this, &db).await
+            }
             None => return, //Channel closed, time to shutdown down, exit
         }
     }
@@ -91,10 +110,18 @@ pub async fn data_storage_start_and_run(
 
 pub async fn load_data_from_surrealdb(
     db: &Surreal<Any>,
-) -> (Vec<SurrealItem>, Vec<LinkageWithRecordIds>) {
+) -> (
+    Vec<SurrealItem>,
+    Vec<LinkageWithRecordIds>,
+    Vec<SurrealRequirement>,
+) {
+    let all_items = SurrealItem::get_all(db);
+    let all_coverings = LinkageWithRecordIds::get_all(db);
+    let all_requirements = SurrealRequirement::get_all(db);
     (
-        SurrealItem::get_all(db).await.unwrap(),
-        LinkageWithRecordIds::get_all(db).await.unwrap(),
+        all_items.await.unwrap(),
+        all_coverings.await.unwrap(),
+        all_requirements.await.unwrap(),
     )
 }
 
@@ -201,14 +228,25 @@ async fn cover_item_with_new_next_step(
     }
     .create(db)
     .await
-    .unwrap()
-    .first()
+    .unwrap();
+}
+
+async fn add_requirement_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
+    SurrealRequirement {
+        id: None,
+        requirement_for: item.id.unwrap(),
+        requirement_type: RequirementType::NotSunday,
+    }
+    .create(db)
+    .await
     .unwrap();
 }
 
 #[cfg(test)]
 mod tests {
     use tokio::sync::mpsc;
+
+    use crate::base_data::SurrealItemVecExtensions;
 
     use super::*;
 
@@ -218,10 +256,12 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, requirements) =
+            DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(items.len(), 0);
-        assert_eq!(linkage.len(), 0);
+        assert!(items.is_empty());
+        assert!(linkage.is_empty());
+        assert!(requirements.is_empty());
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -238,7 +278,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(items.len(), 1);
         assert_eq!(ItemType::ToDo, items.first().unwrap().item_type);
@@ -259,7 +299,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(items.len(), 1);
         assert_eq!(ItemType::Hope, items.first().unwrap().item_type);
@@ -280,7 +320,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(items.len(), 1);
         assert_eq!(ItemType::Reason, items.first().unwrap().item_type);
@@ -301,7 +341,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, _, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         let item = items.first().unwrap();
         let processed_text = DataLayerCommands::get_processed_text(&sender, item.clone())
@@ -350,7 +390,9 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, requirements) =
+            DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let items = items.make_items(&requirements);
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
@@ -358,11 +400,13 @@ mod tests {
         assert_eq!(linkage.len(), 0);
 
         sender
-            .send(DataLayerCommands::FinishItem(next_step_item.clone()))
+            .send(DataLayerCommands::FinishItem(next_step_item.clone().into()))
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, requirements) =
+            DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let items = items.make_items(&requirements);
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
@@ -384,7 +428,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(1, items.len());
         assert_eq!(0, linkage.len()); //length of zero means nothing is covered
@@ -398,7 +442,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(2, items.len());
         assert_eq!(1, linkage.len()); //expect one item to be is covered
@@ -432,7 +476,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(1, test_data.len());
         assert_eq!(0, linkage.len()); //length of zero means nothing is covered
@@ -446,7 +490,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(2, test_data.len());
         assert_eq!(1, linkage.len()); //expect one item to be is covered
@@ -466,6 +510,46 @@ mod tests {
         assert_eq!(
             item_that_should_cover.id.as_ref().unwrap(),
             &covering.smaller
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cover_item_with_the_requirement_not_sunday() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewToDo("Item to get requirement".into()))
+            .await
+            .unwrap();
+
+        let (items, _, requirements) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, items.len());
+        assert!(requirements.is_empty());
+
+        sender
+            .send(DataLayerCommands::AddRequirementNotSunday(
+                items.into_iter().next().unwrap(),
+            ))
+            .await
+            .unwrap();
+
+        let (items, _, requirements) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, items.len());
+        assert_eq!(1, requirements.len());
+        assert_eq!(
+            RequirementType::NotSunday,
+            requirements.first().unwrap().requirement_type
+        );
+        assert_eq!(
+            items.first().unwrap().id.as_ref().unwrap(),
+            &requirements.first().unwrap().requirement_for
         );
 
         drop(sender);

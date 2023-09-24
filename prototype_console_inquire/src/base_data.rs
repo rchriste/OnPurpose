@@ -1,3 +1,4 @@
+use chrono::{DateTime, Datelike, Local};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
     opt::RecordId,
@@ -14,6 +15,65 @@ pub struct SurrealItem {
     pub item_type: ItemType,
 }
 
+pub trait SurrealItemVecExtensions {
+    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>>;
+}
+
+impl SurrealItemVecExtensions for [SurrealItem] {
+    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>> {
+        self.iter().map(|x| x.make_item(requirements)).collect()
+    }
+}
+
+impl SurrealItem {
+    pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Item<'a> {
+        let my_requirements = requirements
+            .iter()
+            .filter(|x| {
+                &x.requirement_for
+                    == self
+                        .id
+                        .as_ref()
+                        .expect("Item should already be in the database and have an id")
+            })
+            .collect();
+
+        Item {
+            id: self
+                .id
+                .as_ref()
+                .expect("Item should already be in the database and have an id"),
+            summary: &self.summary,
+            finished: &self.finished,
+            item_type: &self.item_type,
+            requirements: my_requirements,
+            surreal_item: self,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Item<'a> {
+    pub id: &'a Thing,
+    pub summary: &'a String,
+    pub finished: &'a Option<Datetime>,
+    pub item_type: &'a ItemType,
+    pub requirements: Vec<&'a SurrealRequirement>,
+    surreal_item: &'a SurrealItem,
+}
+
+impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
+    fn from(value: &Item<'a>) -> Self {
+        value.surreal_item
+    }
+}
+
+impl From<Item<'_>> for SurrealItem {
+    fn from(value: Item<'_>) -> Self {
+        value.surreal_item.clone()
+    }
+}
+
 impl From<SurrealItem> for Option<Thing> {
     fn from(value: SurrealItem) -> Self {
         value.id
@@ -21,35 +81,32 @@ impl From<SurrealItem> for Option<Thing> {
 }
 
 impl<'a> From<ToDo<'a>> for SurrealItem {
-    fn from(value: ToDo) -> Self {
-        value.surreal_item.clone()
+    fn from(value: ToDo<'a>) -> Self {
+        value.item.surreal_item.clone()
     }
 }
 
-pub trait SurrealItemVecExtensions {
-    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a SurrealItem>;
+pub trait ItemVecExtensions {
+    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
     fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
     fn filter_just_reasons(&self) -> Vec<Reason<'_>>;
 }
 
-impl SurrealItemVecExtensions for [SurrealItem] {
-    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a SurrealItem> {
-        self.iter().find(|x| match x.get_id() {
-            Some(v) => v == record_id,
-            None => false,
-        })
+impl<'b> ItemVecExtensions for [Item<'b>] {
+    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
+        self.iter().find(|x| x.id == record_id)
     }
 
     fn filter_just_to_dos(&self) -> Vec<ToDo<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == ItemType::ToDo {
+                if x.item_type == &ItemType::ToDo {
                     Some(ToDo {
-                        id: &x.id,
-                        summary: &x.summary,
-                        finished: &x.finished,
-                        surreal_item: x,
+                        id: x.id,
+                        summary: x.summary,
+                        finished: x.finished,
+                        item: x,
                     })
                 } else {
                     None
@@ -61,12 +118,12 @@ impl SurrealItemVecExtensions for [SurrealItem] {
     fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == ItemType::Hope {
+                if x.item_type == &ItemType::Hope {
                     Some(Hope {
-                        id: &x.id,
-                        summary: &x.summary,
-                        finished: &x.finished,
-                        surreal_item: x,
+                        id: x.id,
+                        summary: x.summary,
+                        finished: x.finished,
+                        item: x,
                     })
                 } else {
                     None
@@ -78,12 +135,12 @@ impl SurrealItemVecExtensions for [SurrealItem] {
     fn filter_just_reasons(&self) -> Vec<Reason<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == ItemType::Reason {
+                if x.item_type == &ItemType::Reason {
                     Some(Reason {
-                        id: &x.id,
-                        summary: &x.summary,
-                        finished: &x.finished,
-                        surreal_item: x,
+                        id: x.id,
+                        summary: x.summary,
+                        finished: x.finished,
+                        item: x,
                     })
                 } else {
                     None
@@ -93,12 +150,12 @@ impl SurrealItemVecExtensions for [SurrealItem] {
     }
 }
 
-impl SurrealItem {
+impl<'b> Item<'b> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 
-    pub fn covered_by<'a>(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
+    pub fn covered_by<'a>(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
         linkage
             .iter()
             .filter_map(|x| {
@@ -114,7 +171,7 @@ impl SurrealItem {
     pub fn who_am_i_covering<'a>(
         &self,
         linkage: &[LinkageWithReferences<'a>],
-    ) -> Vec<&'a SurrealItem> {
+    ) -> Vec<&'a Item<'a>> {
         linkage
             .iter()
             .filter_map(|x| {
@@ -138,13 +195,13 @@ pub enum ItemType {
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ToDo<'a> {
-    pub id: &'a Option<Thing>,
+    pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
-    surreal_item: &'a SurrealItem,
+    item: &'a Item<'a>,
 }
 
-impl<'a> From<ToDo<'a>> for &'a Option<Thing> {
+impl<'a> From<ToDo<'a>> for &'a Thing {
     fn from(value: ToDo<'a>) -> Self {
         value.id
     }
@@ -152,14 +209,26 @@ impl<'a> From<ToDo<'a>> for &'a Option<Thing> {
 
 impl<'a> From<&ToDo<'a>> for &'a SurrealItem {
     fn from(value: &ToDo<'a>) -> Self {
-        value.surreal_item
+        value.item.into()
     }
 }
 
-impl<'a> PartialEq<SurrealItem> for ToDo<'a> {
-    fn eq(&self, other: &SurrealItem) -> bool {
+impl<'a> From<&ToDo<'a>> for &'a Item<'a> {
+    fn from(value: &ToDo<'a>) -> Self {
+        value.item
+    }
+}
+
+impl<'a> From<ToDo<'a>> for Item<'a> {
+    fn from(value: ToDo<'a>) -> Self {
+        value.item.clone()
+    }
+}
+
+impl<'a> PartialEq<Item<'a>> for ToDo<'a> {
+    fn eq(&self, other: &Item<'a>) -> bool {
         //TODO: Add a static assert to notice if more fields are added to the ToDo<'a> struct
-        self.id == &other.id && self.summary == &other.summary && self.finished == &other.finished
+        self.id == other.id && self.summary == other.summary && self.finished == other.finished
     }
 }
 
@@ -173,18 +242,28 @@ impl<'a> ToDo<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
+
+    pub fn is_requirements_met(&self, date: &DateTime<Local>) -> bool {
+        !self
+            .item
+            .requirements
+            .iter()
+            .any(|x| match x.requirement_type {
+                RequirementType::NotSunday => date.weekday().num_days_from_sunday() == 0,
+            })
+    }
 }
 
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Hope<'a> {
-    pub id: &'a Option<Thing>,
+    pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
-    surreal_item: &'a SurrealItem,
+    item: &'a Item<'a>,
 }
 
-impl<'a> From<Hope<'a>> for Option<Thing> {
+impl<'a> From<Hope<'a>> for Thing {
     fn from(value: Hope) -> Self {
         value.id.clone()
     }
@@ -192,19 +271,19 @@ impl<'a> From<Hope<'a>> for Option<Thing> {
 
 impl<'a> From<&'a Hope<'a>> for &'a SurrealItem {
     fn from(value: &'a Hope<'a>) -> Self {
-        value.surreal_item
+        value.item.into()
     }
 }
 
-impl PartialEq<Hope<'_>> for SurrealItem {
+impl PartialEq<Hope<'_>> for Item<'_> {
     fn eq(&self, other: &Hope<'_>) -> bool {
-        self == other.surreal_item
+        self == other.item
     }
 }
 
-impl PartialEq<SurrealItem> for Hope<'_> {
-    fn eq(&self, other: &SurrealItem) -> bool {
-        self.surreal_item == other
+impl PartialEq<Item<'_>> for Hope<'_> {
+    fn eq(&self, other: &Item) -> bool {
+        self.item == other
     }
 }
 
@@ -213,25 +292,25 @@ impl<'a> Hope<'a> {
         self.finished.is_some()
     }
 
-    pub fn covered_by(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
-        self.surreal_item.covered_by(linkage)
+    pub fn covered_by(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
+        self.item.covered_by(linkage)
     }
 
-    pub fn who_am_i_covering(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a SurrealItem> {
-        self.surreal_item.who_am_i_covering(linkage)
+    pub fn who_am_i_covering(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
+        self.item.who_am_i_covering(linkage)
     }
 }
 
 /// Could have a reason_type with options for Commitment, Maintenance, or Value
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Reason<'a> {
-    pub id: &'a Option<Thing>,
+    pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
-    surreal_item: &'a SurrealItem,
+    item: &'a Item<'a>,
 }
 
-impl<'a> From<Reason<'a>> for Option<Thing> {
+impl<'a> From<Reason<'a>> for Thing {
     fn from(value: Reason<'a>) -> Self {
         value.id.clone()
     }
@@ -244,10 +323,11 @@ impl<'a> Reason<'a> {
 }
 
 pub struct LinkageWithReferences<'a> {
-    pub smaller: &'a SurrealItem,
-    pub parent: &'a SurrealItem,
+    pub smaller: &'a Item<'a>,
+    pub parent: &'a Item<'a>,
 }
 
+//TODO: Rename to SurrealCoverings and table name "coverings"
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "linkage")]
 pub struct LinkageWithRecordIds {
@@ -260,25 +340,15 @@ impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
     fn from(value: LinkageWithReferences<'a>) -> Self {
         LinkageWithRecordIds {
             id: None,
-            smaller: value
-                .smaller
-                .get_id()
-                .as_ref()
-                .expect("Should already be in the DB")
-                .clone(),
-            parent: value
-                .parent
-                .get_id()
-                .as_ref()
-                .expect("Should already be in the DB")
-                .clone(),
+            smaller: value.smaller.id.clone(),
+            parent: value.parent.id.clone(),
         }
     }
 }
 
 pub fn convert_linkage_with_record_ids_to_references<'a>(
     linkage_with_record_ids: &[LinkageWithRecordIds],
-    items: &'a [SurrealItem],
+    items: &'a [Item<'a>],
 ) -> Vec<LinkageWithReferences<'a>> {
     linkage_with_record_ids
         .iter()
@@ -298,36 +368,8 @@ pub struct ProcessedText {
     pub for_item: RecordId,
 }
 
-#[derive(PartialEq, Eq)]
-pub enum Item<'a> {
-    ToDo(&'a ToDo<'a>),
-    Hope(&'a Hope<'a>),
-    Reason(&'a Reason<'a>),
-}
-
-impl<'a> From<&'a ToDo<'a>> for Item<'a> {
-    fn from(value: &'a ToDo) -> Self {
-        Item::ToDo(value)
-    }
-}
-
-impl<'a> From<&'a Hope<'a>> for Item<'a> {
-    fn from(value: &'a Hope) -> Self {
-        Item::Hope(value)
-    }
-}
-
-impl<'a> From<&'a Reason<'a>> for Item<'a> {
-    fn from(value: &'a Reason) -> Self {
-        Item::Reason(value)
-    }
-}
-
-impl SurrealItem {
-    pub fn find_parents<'a>(
-        &self,
-        linkage: &'a [LinkageWithReferences<'a>],
-    ) -> Vec<&'a SurrealItem> {
+impl Item<'_> {
+    pub fn find_parents<'a>(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
         linkage
             .iter()
             .filter_map(|x| {
@@ -341,32 +383,34 @@ impl SurrealItem {
     }
 }
 
-impl<'a> Item<'a> {
-    pub fn from_to_do(to_do: &'a ToDo) -> Item<'a> {
-        Item::ToDo(to_do)
-    }
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
+#[table(name = "requirements")]
+pub struct SurrealRequirement {
+    pub id: Option<Thing>,
+    pub requirement_for: RecordId,
+    pub requirement_type: RequirementType,
+}
 
-    pub fn from_hope(hope: &'a Hope) -> Item<'a> {
-        Item::Hope(hope)
-    }
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub enum RequirementType {
+    NotSunday,
+}
 
-    pub fn from_reason_item(reason: &'a Reason) -> Item<'a> {
-        Item::Reason(reason)
-    }
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Requirement<'a> {
+    pub requirement_for: &'a SurrealItem,
+    pub requirement_type: &'a RequirementType,
+    surreal_requirement: &'a SurrealRequirement,
+}
 
-    pub fn get_id(&'a self) -> &'a Option<Thing> {
-        match self {
-            Item::ToDo(to_do) => to_do.id,
-            Item::Hope(hope) => hope.id,
-            Item::Reason(reason_item) => reason_item.id,
-        }
+impl<'a> From<&Requirement<'a>> for &'a SurrealRequirement {
+    fn from(value: &Requirement<'a>) -> Self {
+        value.surreal_requirement
     }
+}
 
-    pub fn is_finished(&'a self) -> bool {
-        match self {
-            Item::ToDo(i) => i.is_finished(),
-            Item::Hope(i) => i.is_finished(),
-            Item::Reason(i) => i.is_finished(),
-        }
+impl<'a> From<Requirement<'a>> for &'a SurrealRequirement {
+    fn from(value: Requirement<'a>) -> Self {
+        value.surreal_requirement
     }
 }

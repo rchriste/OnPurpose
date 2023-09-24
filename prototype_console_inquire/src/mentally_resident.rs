@@ -6,8 +6,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
-        convert_linkage_with_record_ids_to_references, Hope, LinkageWithReferences, SurrealItem,
-        SurrealItemVecExtensions,
+        convert_linkage_with_record_ids_to_references, Hope, Item, ItemVecExtensions,
+        LinkageWithReferences, SurrealItem, SurrealItemVecExtensions,
     },
     surrealdb_layer::DataLayerCommands,
     top_menu::present_top_menu,
@@ -72,7 +72,7 @@ fn create_hope_node<'a>(hope: &'a Hope<'a>, linkage: &[LinkageWithReferences<'a>
 fn calculate_next_steps<'a>(
     hope: &Hope<'a>,
     linkage: &[LinkageWithReferences<'a>],
-) -> Vec<&'a SurrealItem> {
+) -> Vec<&'a Item<'a>> {
     let covered_by = hope.covered_by(linkage);
     covered_by
         .into_iter()
@@ -90,15 +90,15 @@ fn calculate_next_steps<'a>(
 fn build_towards_motivation_chain<'a>(
     hope: &Hope<'a>,
     linkage: &[LinkageWithReferences<'a>],
-) -> Vec<&'a SurrealItem> {
+) -> Vec<&'a Item<'a>> {
     let who_i_am_covering = hope.who_am_i_covering(linkage);
     who_i_am_covering.into_iter().map(|_| todo!()).collect()
 }
 
 struct HopeNode<'a> {
     pub hope: &'a Hope<'a>,
-    pub next_steps: Vec<&'a SurrealItem>,
-    pub towards_motivation_chain: Vec<&'a SurrealItem>,
+    pub next_steps: Vec<&'a Item<'a>>,
+    pub towards_motivation_chain: Vec<&'a Item<'a>>,
 }
 
 impl<'a> From<&'a HopeNode<'a>> for &'a Hope<'a> {
@@ -115,10 +115,12 @@ impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
 
 #[async_recursion]
 pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let (items, linkage) = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
-        .await
-        .unwrap();
+    let (items, linkage, requirements) =
+        DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+            .await
+            .unwrap();
 
+    let items = items.make_items(&requirements);
     let linkage = convert_linkage_with_record_ids_to_references(&linkage, &items);
 
     let hopes = &items.filter_just_hopes();

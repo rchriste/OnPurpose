@@ -5,13 +5,16 @@ mod node;
 mod surrealdb_layer;
 mod top_menu;
 
-use base_data::SurrealItem;
+use base_data::Item;
+use chrono::Local;
 use inquire::{InquireError, Select};
 use node::ToDoNode;
 use tokio::sync::mpsc;
 
 use crate::{
-    base_data::{convert_linkage_with_record_ids_to_references, SurrealItemVecExtensions},
+    base_data::{
+        convert_linkage_with_record_ids_to_references, ItemVecExtensions, SurrealItemVecExtensions,
+    },
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
@@ -21,7 +24,7 @@ use crate::{
 };
 
 //I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
-fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a SurrealItem> {
+fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
     let mut result = Vec::default();
     for i in item.larger.iter() {
         result.push(i.item);
@@ -51,14 +54,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    let (items, linkage) = DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
-        .await
-        .unwrap();
+    let (items, linkage, requirements) =
+        DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
+            .await
+            .unwrap();
 
+    let items = items.make_items(&requirements);
     let linkage = convert_linkage_with_record_ids_to_references(&linkage, &items);
 
     let to_dos = &items.filter_just_to_dos();
-    let next_step_nodes = create_to_do_nodes(to_dos, &linkage);
+    let current_date_time = Local::now();
+    let next_step_nodes = create_to_do_nodes(to_dos, &linkage, &current_date_time);
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 
@@ -79,6 +85,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("To Do List is Empty, falling back to main menu");
         present_top_menu(&send_to_data_storage_layer_tx).await
+    }
+
+    if data_storage_join_handle.is_finished() {
+        println!("Data Storage Layer closed early, unexpectedly");
     }
 
     drop(send_to_data_storage_layer_tx);
