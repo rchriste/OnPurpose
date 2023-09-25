@@ -6,8 +6,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
-        convert_linkage_with_record_ids_to_references, Hope, Item, ItemVecExtensions,
-        LinkageWithReferences, SurrealItem, SurrealItemVecExtensions,
+        Covering, Hope, Item, ItemVecExtensions, SurrealCoveringVecExtensions, SurrealItem,
+        SurrealItemVecExtensions,
     },
     surrealdb_layer::DataLayerCommands,
     top_menu::present_top_menu,
@@ -54,30 +54,27 @@ impl<'a> MentallyResidentItem<'a> {
     }
 }
 
-fn create_hope_nodes<'a>(
-    hopes: &'a [Hope<'a>],
-    linkage: &[LinkageWithReferences<'a>],
-) -> Vec<HopeNode<'a>> {
-    hopes.iter().map(|x| create_hope_node(x, linkage)).collect()
+fn create_hope_nodes<'a>(hopes: &'a [Hope<'a>], coverings: &[Covering<'a>]) -> Vec<HopeNode<'a>> {
+    hopes
+        .iter()
+        .map(|x| create_hope_node(x, coverings))
+        .collect()
 }
 
-fn create_hope_node<'a>(hope: &'a Hope<'a>, linkage: &[LinkageWithReferences<'a>]) -> HopeNode<'a> {
+fn create_hope_node<'a>(hope: &'a Hope<'a>, coverings: &[Covering<'a>]) -> HopeNode<'a> {
     HopeNode {
         hope,
-        next_steps: calculate_next_steps(hope, linkage),
-        towards_motivation_chain: build_towards_motivation_chain(hope, linkage),
+        next_steps: calculate_next_steps(hope, coverings),
+        towards_motivation_chain: build_towards_motivation_chain(hope, coverings),
     }
 }
 
-fn calculate_next_steps<'a>(
-    hope: &Hope<'a>,
-    linkage: &[LinkageWithReferences<'a>],
-) -> Vec<&'a Item<'a>> {
-    let covered_by = hope.covered_by(linkage);
+fn calculate_next_steps<'a>(hope: &Hope<'a>, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+    let covered_by = hope.covered_by(coverings);
     covered_by
         .into_iter()
         .flat_map(|x| {
-            let covered_by = x.covered_by(linkage);
+            let covered_by = x.covered_by(coverings);
             if covered_by.is_empty() {
                 vec![x]
             } else {
@@ -89,9 +86,9 @@ fn calculate_next_steps<'a>(
 
 fn build_towards_motivation_chain<'a>(
     hope: &Hope<'a>,
-    linkage: &[LinkageWithReferences<'a>],
+    coverings: &[Covering<'a>],
 ) -> Vec<&'a Item<'a>> {
-    let who_i_am_covering = hope.who_am_i_covering(linkage);
+    let who_i_am_covering = hope.who_am_i_covering(coverings);
     who_i_am_covering.into_iter().map(|_| todo!()).collect()
 }
 
@@ -115,16 +112,16 @@ impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
 
 #[async_recursion]
 pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let (items, linkage, requirements) =
+    let (items, coverings, requirements) =
         DataLayerCommands::get_raw_data(send_to_data_storage_layer)
             .await
             .unwrap();
 
     let items = items.make_items(&requirements);
-    let linkage = convert_linkage_with_record_ids_to_references(&linkage, &items);
+    let coverings = coverings.make_covering(&items);
 
     let hopes = &items.filter_just_hopes();
-    let hope_nodes = create_hope_nodes(hopes, &linkage);
+    let hope_nodes = create_hope_nodes(hopes, &coverings);
 
     let inquire_list = MentallyResidentItem::create_list(&hope_nodes);
 

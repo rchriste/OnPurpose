@@ -12,9 +12,7 @@ use node::ToDoNode;
 use tokio::sync::mpsc;
 
 use crate::{
-    base_data::{
-        convert_linkage_with_record_ids_to_references, ItemVecExtensions, SurrealItemVecExtensions,
-    },
+    base_data::{ItemVecExtensions, SurrealCoveringVecExtensions, SurrealItemVecExtensions},
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
@@ -54,17 +52,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    let (items, linkage, requirements) =
+    let (items, coverings, requirements) =
         DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
             .await
             .unwrap();
 
     let items = items.make_items(&requirements);
-    let linkage = convert_linkage_with_record_ids_to_references(&linkage, &items);
+    let coverings = coverings.make_covering(&items);
 
     let to_dos = &items.filter_just_to_dos();
     let current_date_time = Local::now();
-    let next_step_nodes = create_to_do_nodes(to_dos, &linkage, &current_date_time);
+    let next_step_nodes = create_to_do_nodes(to_dos, &coverings, &current_date_time);
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 

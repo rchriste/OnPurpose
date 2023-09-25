@@ -11,14 +11,14 @@ use tokio::sync::{
 };
 
 use crate::base_data::{
-    ItemType, LinkageWithRecordIds, ProcessedText, RequirementType, SurrealItem, SurrealRequirement,
+    ItemType, ProcessedText, RequirementType, SurrealCovering, SurrealItem, SurrealRequirement,
 };
 
 pub enum DataLayerCommands {
     SendRawData(
         oneshot::Sender<(
             Vec<SurrealItem>,
-            Vec<LinkageWithRecordIds>,
+            Vec<SurrealCovering>,
             Vec<SurrealRequirement>,
         )>,
     ),
@@ -40,7 +40,7 @@ impl DataLayerCommands {
     ) -> Result<
         (
             Vec<SurrealItem>,
-            Vec<LinkageWithRecordIds>,
+            Vec<SurrealCovering>,
             Vec<SurrealRequirement>,
         ),
         RecvError,
@@ -112,11 +112,11 @@ pub async fn load_data_from_surrealdb(
     db: &Surreal<Any>,
 ) -> (
     Vec<SurrealItem>,
-    Vec<LinkageWithRecordIds>,
+    Vec<SurrealCovering>,
     Vec<SurrealRequirement>,
 ) {
     let all_items = SurrealItem::get_all(db);
-    let all_coverings = LinkageWithRecordIds::get_all(db);
+    let all_coverings = SurrealCovering::get_all(db);
     let all_requirements = SurrealRequirement::get_all(db);
     (
         all_items.await.unwrap(),
@@ -221,7 +221,7 @@ async fn cover_item_with_new_next_step(
 
     let smaller_option: Option<Thing> = new_to_do.into();
     let parent_option: Option<Thing> = item_to_cover.into();
-    LinkageWithRecordIds {
+    SurrealCovering {
         id: None,
         smaller: smaller_option.unwrap(),
         parent: parent_option.unwrap(),

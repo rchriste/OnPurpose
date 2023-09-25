@@ -155,8 +155,8 @@ impl<'b> Item<'b> {
         self.finished.is_some()
     }
 
-    pub fn covered_by<'a>(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
-        linkage
+    pub fn covered_by<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+        coverings
             .iter()
             .filter_map(|x| {
                 if x.parent == self {
@@ -168,11 +168,8 @@ impl<'b> Item<'b> {
             .collect()
     }
 
-    pub fn who_am_i_covering<'a>(
-        &self,
-        linkage: &[LinkageWithReferences<'a>],
-    ) -> Vec<&'a Item<'a>> {
-        linkage
+    pub fn who_am_i_covering<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+        coverings
             .iter()
             .filter_map(|x| {
                 if x.smaller == self {
@@ -227,14 +224,13 @@ impl<'a> From<ToDo<'a>> for Item<'a> {
 
 impl<'a> PartialEq<Item<'a>> for ToDo<'a> {
     fn eq(&self, other: &Item<'a>) -> bool {
-        //TODO: Add a static assert to notice if more fields are added to the ToDo<'a> struct
-        self.id == other.id && self.summary == other.summary && self.finished == other.finished
+        self.item == other
     }
 }
 
 impl<'a> ToDo<'a> {
-    pub fn is_covered(&self, linkage: &[LinkageWithReferences<'_>]) -> bool {
-        let mut covered_by = linkage.iter().filter(|x| self == x.parent);
+    pub fn is_covered(&self, coverings: &[Covering<'_>]) -> bool {
+        let mut covered_by = coverings.iter().filter(|x| self == x.parent);
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
     }
@@ -292,12 +288,12 @@ impl<'a> Hope<'a> {
         self.finished.is_some()
     }
 
-    pub fn covered_by(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
-        self.item.covered_by(linkage)
+    pub fn covered_by(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+        self.item.covered_by(coverings)
     }
 
-    pub fn who_am_i_covering(&self, linkage: &[LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
-        self.item.who_am_i_covering(linkage)
+    pub fn who_am_i_covering(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+        self.item.who_am_i_covering(coverings)
     }
 }
 
@@ -322,23 +318,22 @@ impl<'a> Reason<'a> {
     }
 }
 
-pub struct LinkageWithReferences<'a> {
+pub struct Covering<'a> {
     pub smaller: &'a Item<'a>,
     pub parent: &'a Item<'a>,
 }
 
-//TODO: Rename to SurrealCoverings and table name "coverings"
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "linkage")]
-pub struct LinkageWithRecordIds {
+#[table(name = "coverings")]
+pub struct SurrealCovering {
     pub id: Option<Thing>,
     pub smaller: RecordId,
     pub parent: RecordId,
 }
 
-impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
-    fn from(value: LinkageWithReferences<'a>) -> Self {
-        LinkageWithRecordIds {
+impl<'a> From<Covering<'a>> for SurrealCovering {
+    fn from(value: Covering<'a>) -> Self {
+        SurrealCovering {
             id: None,
             smaller: value.smaller.id.clone(),
             parent: value.parent.id.clone(),
@@ -346,17 +341,19 @@ impl<'a> From<LinkageWithReferences<'a>> for LinkageWithRecordIds {
     }
 }
 
-pub fn convert_linkage_with_record_ids_to_references<'a>(
-    linkage_with_record_ids: &[LinkageWithRecordIds],
-    items: &'a [Item<'a>],
-) -> Vec<LinkageWithReferences<'a>> {
-    linkage_with_record_ids
-        .iter()
-        .map(|x| LinkageWithReferences {
-            smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
-            parent: items.lookup_from_record_id(&x.parent).unwrap(),
-        })
-        .collect()
+pub trait SurrealCoveringVecExtensions {
+    fn make_covering<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>>;
+}
+
+impl SurrealCoveringVecExtensions for Vec<SurrealCovering> {
+    fn make_covering<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+        self.iter()
+            .map(|x| Covering {
+                smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
+                parent: items.lookup_from_record_id(&x.parent).unwrap(),
+            })
+            .collect()
+    }
 }
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
@@ -369,7 +366,7 @@ pub struct ProcessedText {
 }
 
 impl Item<'_> {
-    pub fn find_parents<'a>(&self, linkage: &'a [LinkageWithReferences<'a>]) -> Vec<&'a Item<'a>> {
+    pub fn find_parents<'a>(&self, linkage: &'a [Covering<'a>]) -> Vec<&'a Item<'a>> {
         linkage
             .iter()
             .filter_map(|x| {
