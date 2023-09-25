@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct InquireBulletListItem<'a> {
-    bullet_item: &'a ToDo<'a>, //TODO: This should be ToDoOrQuestion
+    bullet_item: &'a ToDo<'a>,
     parents: Vec<&'a Item<'a>>,
 }
 
