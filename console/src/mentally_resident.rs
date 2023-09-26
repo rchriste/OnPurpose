@@ -146,14 +146,14 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
 }
 
 enum HopeSelectedMenuItem {
-    AddToDo,
+    CoverWithToDo,
     CoverWithMilestone,
 }
 
 impl Display for HopeSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HopeSelectedMenuItem::AddToDo => write!(f, "Add to do"),
+            HopeSelectedMenuItem::CoverWithToDo => write!(f, "Cover with to do"),
             HopeSelectedMenuItem::CoverWithMilestone => write!(f, "Cover with milestone"),
         }
     }
@@ -161,7 +161,7 @@ impl Display for HopeSelectedMenuItem {
 
 impl HopeSelectedMenuItem {
     fn create_list() -> Vec<HopeSelectedMenuItem> {
-        vec![Self::AddToDo, Self::CoverWithMilestone]
+        vec![Self::CoverWithToDo, Self::CoverWithMilestone]
     }
 }
 
@@ -173,7 +173,7 @@ async fn present_hope_selected_menu(
 
     let selection = Select::new("Select one", list).prompt().unwrap();
     match selection {
-        HopeSelectedMenuItem::AddToDo => {
+        HopeSelectedMenuItem::CoverWithToDo => {
             present_add_to_do(hope_selected, send_to_data_storage_layer).await
         }
         HopeSelectedMenuItem::CoverWithMilestone => todo!(),
