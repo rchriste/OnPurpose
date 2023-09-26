@@ -8,6 +8,8 @@
         "oneshoot",
         "oneshot",
         "protobuf",
+        "rocksdb",
+        "serde",
         "surrealdb"
     ]
 }

@@ -146,22 +146,22 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
 }
 
 enum HopeSelectedMenuItem {
-    CoverWithToDo,
+    CoverWithNextStep,
     CoverWithMilestone,
 }
 
 impl Display for HopeSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HopeSelectedMenuItem::CoverWithToDo => write!(f, "Cover with to do"),
-            HopeSelectedMenuItem::CoverWithMilestone => write!(f, "Cover with milestone"),
+            HopeSelectedMenuItem::CoverWithNextStep => write!(f, "Cover with next step (To Do)"),
+            HopeSelectedMenuItem::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
         }
     }
 }
 
 impl HopeSelectedMenuItem {
     fn create_list() -> Vec<HopeSelectedMenuItem> {
-        vec![Self::CoverWithToDo, Self::CoverWithMilestone]
+        vec![Self::CoverWithNextStep, Self::CoverWithMilestone]
     }
 }
 
@@ -173,46 +173,46 @@ async fn present_hope_selected_menu(
 
     let selection = Select::new("Select one", list).prompt().unwrap();
     match selection {
-        HopeSelectedMenuItem::CoverWithToDo => {
-            present_add_to_do(hope_selected, send_to_data_storage_layer).await
+        HopeSelectedMenuItem::CoverWithNextStep => {
+            present_add_next_step(hope_selected, send_to_data_storage_layer).await
         }
-        HopeSelectedMenuItem::CoverWithMilestone => todo!(),
+        HopeSelectedMenuItem::CoverWithMilestone => present_add_milestone().await,
     }
 }
 
-enum AddToDoMenuItem {
+enum AddNextStepMenuItem {
     NewToDo,
     ExistingToDo,
 }
 
-impl Display for AddToDoMenuItem {
+impl Display for AddNextStepMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AddToDoMenuItem::NewToDo => write!(f, "New To Do"),
-            AddToDoMenuItem::ExistingToDo => write!(f, "Existing To Do"),
+            AddNextStepMenuItem::NewToDo => write!(f, "New To Do"),
+            AddNextStepMenuItem::ExistingToDo => write!(f, "Existing To Do"),
         }
     }
 }
 
-impl AddToDoMenuItem {
-    fn create_list() -> Vec<AddToDoMenuItem> {
+impl AddNextStepMenuItem {
+    fn create_list() -> Vec<Self> {
         vec![Self::NewToDo, Self::ExistingToDo]
     }
 }
 
-async fn present_add_to_do(
+async fn present_add_next_step(
     hope_to_cover: &SurrealItem,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = AddToDoMenuItem::create_list();
+    let list = AddNextStepMenuItem::create_list();
 
     let selection = Select::new("Select one", list).prompt().unwrap();
 
     match selection {
-        AddToDoMenuItem::NewToDo => {
+        AddNextStepMenuItem::NewToDo => {
             present_new_to_do(hope_to_cover, send_to_data_storage_layer).await
         }
-        AddToDoMenuItem::ExistingToDo => todo!(),
+        AddNextStepMenuItem::ExistingToDo => todo!(),
     }
 }
 
@@ -231,4 +231,9 @@ async fn present_new_to_do(
         ))
         .await
         .unwrap();
+}
+
+async fn present_add_milestone()
+{
+    todo!()
 }

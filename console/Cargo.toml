@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 inquire = { version = "0.6.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
 tokio = { version = "1.32.0", features = ["full"] } #Added so I can use Surreal DB
-futures = "0.3" #Recommended by the offical Rust Async book for async programming
+futures = "0.3" #Recommended by the official Rust Async book for async programming
 surrealdb = { version = "1.0.0", features = ["kv-mem", "kv-rocksdb"] } #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
 surrealdb_extra = "0.4.0" #Added because I think using this for table definitions might save me time
 serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
