@@ -17,8 +17,8 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️  Capture To Do  🗭"),
-            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️  View To Dos    👁"),
+            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do  🗭"),
+            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos    👁"),
             TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope   🗭"),
             TopMenuSelection::ViewHopes => write!(f, "👁 🙏 View Hopes     👁"),
             TopMenuSelection::CaptureReason => write!(f, "🗬 🎯 Capture Reason 🗭"),

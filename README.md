@@ -54,5 +54,9 @@ apt-get -y install \
 ```
 Otherwise see the following for instructions - https://github.com/surrealdb/surrealdb/blob/main/doc/BUILDING.md
 
+# Using OnPurpose with Windows Terminal
+In order for the Emoji and Unicode char to display properly you need to enable the new "Altlas" rendering engine. Go to Settings -> Rendering -> Engine and turn on `Use the new Text Render ("AtlasEngine")`
+
+
 # Platforms
 As of this very moment I am writing a text based Linux CLI app that I am running inside the Windows Subsystem for Linux (WSL). At some point I expect that I will need tighter integration into the Windows platform and when that time comes I plan on switching over to being a Windows CLI app. When I get around to adding Phone support my current intensions are to focus on the Android platform. When the time comes I do also plan on investigating the idea of being a locally installed Web App compiled to Web Assembly.
