@@ -2,5 +2,5 @@
 resolver = "2"
 
 members = [
-    "prototype_console_inquire"
+    "console"
 ]
