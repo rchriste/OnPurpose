@@ -10,19 +10,19 @@ enum TopMenuSelection {
     ViewToDos,
     CaptureHope,
     ViewHopes,
-    CaptureReason,
-    ViewReasons,
+    CaptureMotivation,
+    ViewMotivations,
 }
 
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do  🗭"),
-            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos    👁"),
-            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope   🗭"),
-            TopMenuSelection::ViewHopes => write!(f, "👁 🙏 View Hopes     👁"),
-            TopMenuSelection::CaptureReason => write!(f, "🗬 🎯 Capture Reason 🗭"),
-            TopMenuSelection::ViewReasons => write!(f, "👁 🎯 View Reasons   👁"),
+            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do      🗭"),
+            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos        👁"),
+            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope       🗭"),
+            TopMenuSelection::ViewHopes => write!(f, "👁 🙏 View Hopes         👁"),
+            TopMenuSelection::CaptureMotivation => write!(f, "🗬 🎯 Capture Motivation 🗭"),
+            TopMenuSelection::ViewMotivations => write!(f, "👁 🎯 View Motivations   👁"),
         }
     }
 }
@@ -33,8 +33,8 @@ fn make_list() -> Vec<TopMenuSelection> {
         TopMenuSelection::ViewToDos,
         TopMenuSelection::CaptureHope,
         TopMenuSelection::ViewHopes,
-        TopMenuSelection::CaptureReason,
-        TopMenuSelection::ViewReasons,
+        TopMenuSelection::CaptureMotivation,
+        TopMenuSelection::ViewMotivations,
     ]
 }
 
@@ -47,8 +47,8 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
         TopMenuSelection::ViewToDos => view_to_dos().await,
-        TopMenuSelection::CaptureReason => capture_reason(send_to_data_storage_layer).await,
-        TopMenuSelection::ViewReasons => view_reasons().await,
+        TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
+        TopMenuSelection::ViewMotivations => view_motivations().await,
     }
 }
 
@@ -74,15 +74,15 @@ async fn view_to_dos() {
     todo!()
 }
 
-async fn capture_reason(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let new_reason_text = Text::new("Enter Reason ⍠").prompt().unwrap();
+async fn capture_motivation(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let summary_text = Text::new("Enter Motivation ⍠").prompt().unwrap();
 
     send_to_data_storage_layer
-        .send(DataLayerCommands::NewReason(new_reason_text))
+        .send(DataLayerCommands::NewMotivation(summary_text))
         .await
         .unwrap();
 }
 
-async fn view_reasons() {
+async fn view_motivations() {
     todo!()
 }

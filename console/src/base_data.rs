@@ -90,7 +90,7 @@ pub trait ItemVecExtensions {
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
     fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
-    fn filter_just_reasons(&self) -> Vec<Reason<'_>>;
+    fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
 }
 
 impl<'b> ItemVecExtensions for [Item<'b>] {
@@ -132,11 +132,11 @@ impl<'b> ItemVecExtensions for [Item<'b>] {
             .collect()
     }
 
-    fn filter_just_reasons(&self) -> Vec<Reason<'_>> {
+    fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == &ItemType::Reason {
-                    Some(Reason {
+                if x.item_type == &ItemType::Motivation {
+                    Some(Motivation {
                         id: x.id,
                         summary: x.summary,
                         finished: x.finished,
@@ -187,7 +187,7 @@ pub enum ItemType {
     Question,
     ToDo,
     Hope,
-    Reason,
+    Motivation,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -305,23 +305,22 @@ impl<'a> Hope<'a> {
     }
 }
 
-/// Could have a reason_type with options for Commitment (do it because the outcome of doing it is wanted), Obligation (do it because the consequence of not doing it is bad), or Value
+/// Could have a motivation_type with options for Commitment (do it because the outcome of doing it is wanted), Obligation (do it because the consequence of not doing it is bad), or Value
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Reason<'a> {
-    //TODO: Should rename to Motivation
+pub struct Motivation<'a> {
     pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
     item: &'a Item<'a>,
 }
 
-impl<'a> From<Reason<'a>> for Thing {
-    fn from(value: Reason<'a>) -> Self {
+impl<'a> From<Motivation<'a>> for Thing {
+    fn from(value: Motivation<'a>) -> Self {
         value.id.clone()
     }
 }
 
-impl<'a> Reason<'a> {
+impl<'a> Motivation<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
