@@ -295,11 +295,20 @@ impl<'a> Hope<'a> {
     pub fn who_am_i_covering(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
         self.item.who_am_i_covering(coverings)
     }
+
+    pub fn get_surreal_item(&self) -> &'a SurrealItem {
+        self.item.surreal_item
+    }
+
+    pub fn get_item(&self) -> &'a Item<'a> {
+        self.item
+    }
 }
 
-/// Could have a reason_type with options for Commitment, Maintenance, or Value
+/// Could have a reason_type with options for Commitment (do it because the outcome of doing it is wanted), Obligation (do it because the consequence of not doing it is bad), or Value
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Reason<'a> {
+    //TODO: Should rename to Motivation
     pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,

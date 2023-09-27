@@ -23,10 +23,16 @@ impl<'a> Display for MentallyResidentItem<'a> {
             write!(f, "[NEEDS NEXT STEP] ")?;
         }
         write!(f, "{}", self.hope_node.hope.summary)?;
-        if !self.hope_node.towards_motivation_chain.is_empty() {
-            todo!()
+        for i in self.hope_node.towards_motivation_chain.iter() {
+            write!(f, " ⬅  {}", i.summary)?;
         }
         Ok(())
+    }
+}
+
+impl<'a> From<MentallyResidentItem<'a>> for &'a Hope<'a> {
+    fn from(value: MentallyResidentItem<'a>) -> Self {
+        value.hope_node.hope
     }
 }
 
@@ -65,7 +71,7 @@ fn create_hope_node<'a>(hope: &'a Hope<'a>, coverings: &[Covering<'a>]) -> HopeN
     HopeNode {
         hope,
         next_steps: calculate_next_steps(hope, coverings),
-        towards_motivation_chain: build_towards_motivation_chain(hope, coverings),
+        towards_motivation_chain: build_towards_motivation_chain(hope.get_item(), coverings),
     }
 }
 
@@ -85,11 +91,18 @@ fn calculate_next_steps<'a>(hope: &Hope<'a>, coverings: &[Covering<'a>]) -> Vec<
 }
 
 fn build_towards_motivation_chain<'a>(
-    hope: &Hope<'a>,
+    item: &Item<'a>,
     coverings: &[Covering<'a>],
 ) -> Vec<&'a Item<'a>> {
-    let who_i_am_covering = hope.who_am_i_covering(coverings);
-    who_i_am_covering.into_iter().map(|_| todo!()).collect()
+    let who_i_am_covering = item.who_am_i_covering(coverings);
+    who_i_am_covering
+        .into_iter()
+        .flat_map(|x| {
+            let mut v = vec![x];
+            v.extend(build_towards_motivation_chain(x, coverings));
+            v
+        })
+        .collect()
 }
 
 struct HopeNode<'a> {
@@ -166,7 +179,7 @@ impl HopeSelectedMenuItem {
 }
 
 async fn present_hope_selected_menu(
-    hope_selected: &SurrealItem,
+    hope_selected: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = HopeSelectedMenuItem::create_list();
@@ -176,7 +189,9 @@ async fn present_hope_selected_menu(
         HopeSelectedMenuItem::CoverWithNextStep => {
             present_add_next_step(hope_selected, send_to_data_storage_layer).await
         }
-        HopeSelectedMenuItem::CoverWithMilestone => present_add_milestone().await,
+        HopeSelectedMenuItem::CoverWithMilestone => {
+            present_add_milestone(hope_selected, send_to_data_storage_layer).await
+        }
     }
 }
 
@@ -201,7 +216,7 @@ impl AddNextStepMenuItem {
 }
 
 async fn present_add_next_step(
-    hope_to_cover: &SurrealItem,
+    hope_to_cover: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = AddNextStepMenuItem::create_list();
@@ -217,7 +232,7 @@ async fn present_add_next_step(
 }
 
 async fn present_new_to_do(
-    hope_to_cover: &SurrealItem,
+    hope_to_cover: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let new_hope_text = Text::new("Enter To Do (i.e. Next Step) ⍠")
@@ -226,14 +241,64 @@ async fn present_new_to_do(
 
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithANewToDo(
-            hope_to_cover.clone(),
+            hope_to_cover.get_surreal_item().clone(),
             new_hope_text,
         ))
         .await
         .unwrap();
 }
 
-async fn present_add_milestone()
-{
+enum AddMilestoneMenuItem {
+    NewMilestone,
+    ExistingMilestone,
+}
+
+impl Display for AddMilestoneMenuItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddMilestoneMenuItem::NewMilestone => write!(f, "New Milestone"),
+            AddMilestoneMenuItem::ExistingMilestone => write!(f, "Existing Milestone"),
+        }
+    }
+}
+
+impl AddMilestoneMenuItem {
+    fn make_list() -> Vec<Self> {
+        vec![Self::NewMilestone, Self::ExistingMilestone]
+    }
+}
+
+async fn present_add_milestone(
+    selected_hope: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let list = AddMilestoneMenuItem::make_list();
+
+    let selection = Select::new("Select one", list).prompt().unwrap();
+
+    match selection {
+        AddMilestoneMenuItem::NewMilestone => {
+            cover_hope_with_new_milestone(selected_hope, send_to_data_storage_layer).await
+        }
+        AddMilestoneMenuItem::ExistingMilestone => cover_hope_with_existing_milestone().await,
+    }
+}
+
+async fn cover_hope_with_new_milestone(
+    existing_hope: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let new_milestone_text = Text::new("Enter milestone (Hope) ⍠").prompt().unwrap();
+
+    send_to_data_storage_layer
+        .send(DataLayerCommands::CoverItemWithANewMilestone(
+            existing_hope.get_surreal_item().clone(),
+            new_milestone_text,
+        ))
+        .await
+        .unwrap();
+}
+
+async fn cover_hope_with_existing_milestone() {
     todo!()
 }

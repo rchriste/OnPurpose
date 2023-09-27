@@ -30,7 +30,8 @@ pub enum DataLayerCommands {
     NewHope(String),
     NewReason(String),
     CoverItemWithANewToDo(SurrealItem, String),
-    CoverItemWithAQuestion(SurrealItem, String),
+    CoverItemWithANewQuestion(SurrealItem, String),
+    CoverItemWithANewMilestone(SurrealItem, String),
     AddRequirementNotSunday(SurrealItem),
 }
 
@@ -95,11 +96,15 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::NewHope(hope_text)) => new_hope(hope_text, &db).await,
             Some(DataLayerCommands::NewReason(reason_text)) => new_reason(reason_text, &db).await,
             Some(DataLayerCommands::CoverItemWithANewToDo(item_to_cover, new_to_do_text)) => {
-                cover_item_with_new_next_step(item_to_cover, new_to_do_text, &db).await
+                cover_item_with_a_new_next_step(item_to_cover, new_to_do_text, &db).await
             }
-            Some(DataLayerCommands::CoverItemWithAQuestion(item, question)) => {
-                cover_item_with_question(item, question, &db).await
+            Some(DataLayerCommands::CoverItemWithANewQuestion(item, question)) => {
+                cover_item_with_a_new_question(item, question, &db).await
             }
+            Some(DataLayerCommands::CoverItemWithANewMilestone(
+                item_to_cover,
+                new_milestone_text,
+            )) => cover_item_with_a_new_milestone(item_to_cover, new_milestone_text, &db).await,
             Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
                 add_requirement_not_sunday(add_requirement_to_this, &db).await
             }
@@ -193,12 +198,12 @@ async fn new_reason(reason_text: String, db: &Surreal<Any>) {
     .unwrap();
 }
 
-async fn cover_item_with_question(item: SurrealItem, question: String, db: &Surreal<Any>) {
+async fn cover_item_with_a_new_question(item: SurrealItem, question: String, db: &Surreal<Any>) {
     //For now covering an item with a question is the same implementation as just covering with a next step so just call into that
-    cover_item_with_new_next_step(item, question, db).await
+    cover_item_with_a_new_next_step(item, question, db).await
 }
 
-async fn cover_item_with_new_next_step(
+async fn cover_item_with_a_new_next_step(
     item_to_cover: SurrealItem,
     new_to_do_text: String,
     db: &Surreal<Any>,
@@ -223,8 +228,40 @@ async fn cover_item_with_new_next_step(
     let parent_option: Option<Thing> = item_to_cover.into();
     SurrealCovering {
         id: None,
-        smaller: smaller_option.unwrap(),
-        parent: parent_option.unwrap(),
+        smaller: smaller_option.expect("Should already be in the database"),
+        parent: parent_option.expect("Should already be in the database"),
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
+async fn cover_item_with_a_new_milestone(
+    item_to_cover: SurrealItem,
+    milestone_text: String,
+    db: &Surreal<Any>,
+) {
+    //This would be best done as a single transaction but I am not quite sure how to do that so do it separate for now
+
+    let new_milestone = SurrealItem {
+        id: None,
+        summary: milestone_text,
+        finished: None,
+        item_type: ItemType::Hope,
+    }
+    .create(db)
+    .await
+    .unwrap()
+    .into_iter()
+    .next()
+    .unwrap();
+
+    let smaller_option: Option<Thing> = new_milestone.into();
+    let parent_option: Option<Thing> = item_to_cover.into();
+    SurrealCovering {
+        id: None,
+        smaller: smaller_option.expect("Should already be in the database"),
+        parent: parent_option.expect("Should already be in the database"),
     }
     .create(db)
     .await
@@ -483,7 +520,7 @@ mod tests {
         let item_to_cover = test_data.first().unwrap();
 
         sender
-            .send(DataLayerCommands::CoverItemWithAQuestion(
+            .send(DataLayerCommands::CoverItemWithANewQuestion(
                 item_to_cover.clone(),
                 "Covering item".into(),
             ))
@@ -502,6 +539,57 @@ mod tests {
         let item_that_should_cover = test_data
             .iter()
             .find(|x| x.summary == "Covering item")
+            .unwrap();
+        assert_eq!(
+            item_that_should_be_covered.id.as_ref().unwrap(),
+            &covering.parent
+        );
+        assert_eq!(
+            item_that_should_cover.id.as_ref().unwrap(),
+            &covering.smaller
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cover_item_with_a_new_milestone() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewHope("Hope to be covered".into()))
+            .await
+            .unwrap();
+
+        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, test_data.len());
+        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
+        let item_to_cover = test_data.first().unwrap();
+
+        sender
+            .send(DataLayerCommands::CoverItemWithANewMilestone(
+                item_to_cover.clone(),
+                "Covering milestone".into(),
+            ))
+            .await
+            .unwrap();
+
+        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, test_data.len());
+        assert_eq!(1, linkage.len()); //expect one item to be is covered
+        let covering = linkage.first().unwrap();
+        let item_that_should_be_covered = test_data
+            .iter()
+            .find(|x| x.summary == "Hope to be covered")
+            .unwrap();
+        let item_that_should_cover = test_data
+            .iter()
+            .find(|x| x.summary == "Covering milestone")
             .unwrap();
         assert_eq!(
             item_that_should_be_covered.id.as_ref().unwrap(),
