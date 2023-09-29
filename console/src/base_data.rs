@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Datelike, Local, Utc};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
     opt::RecordId,
@@ -229,10 +229,22 @@ impl<'a> PartialEq<Item<'a>> for ToDo<'a> {
 }
 
 impl<'a> ToDo<'a> {
-    pub fn is_covered(&self, coverings: &[Covering<'_>]) -> bool {
+    pub fn is_covered(
+        &self,
+        coverings: &[Covering<'_>],
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
         let mut covered_by = coverings.iter().filter(|x| self == x.parent);
         //Now see if the items that are covering are finished or active
-        covered_by.any(|x| !x.smaller.is_finished())
+        let is_covered_by_another_item = covered_by.any(|x| !x.smaller.is_finished());
+
+        let mut covered_by_date_time = coverings_until_date_time
+            .iter()
+            .filter(|x| self == x.cover_this);
+        let is_covered_by_date_time_active = covered_by_date_time.any(|x| now < &x.until);
+
+        is_covered_by_another_item || is_covered_by_date_time_active
     }
 
     pub fn is_finished(&self) -> bool {
@@ -247,6 +259,10 @@ impl<'a> ToDo<'a> {
             .any(|x| match x.requirement_type {
                 RequirementType::NotSunday => date.weekday().num_days_from_sunday() == 0,
             })
+    }
+
+    pub fn get_surreal_item(&self) -> &'a SurrealItem {
+        self.item.surreal_item
     }
 }
 
@@ -350,11 +366,11 @@ impl<'a> From<Covering<'a>> for SurrealCovering {
 }
 
 pub trait SurrealCoveringVecExtensions {
-    fn make_covering<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>>;
+    fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>>;
 }
 
 impl SurrealCoveringVecExtensions for Vec<SurrealCovering> {
-    fn make_covering<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+    fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
         self.iter()
             .map(|x| Covering {
                 smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
@@ -362,6 +378,45 @@ impl SurrealCoveringVecExtensions for Vec<SurrealCovering> {
             })
             .collect()
     }
+}
+
+/// The purpose of this struct is to record Items that should be covered for a certain amount of time or until
+/// an exact date_time
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
+#[table(name = "coverings_until_datetime")]
+pub struct SurrealCoveringUntilDatetime {
+    pub id: Option<Thing>,
+    pub cover_this: RecordId,
+    pub until: Datetime,
+}
+
+pub trait SurrealCoveringUntilDatetimeVecExtensions {
+    fn make_coverings_until_date_time<'a>(
+        &'a self,
+        items: &'a [Item<'a>],
+    ) -> Vec<CoveringUntilDateTime<'a>>;
+}
+
+impl SurrealCoveringUntilDatetimeVecExtensions for Vec<SurrealCoveringUntilDatetime> {
+    fn make_coverings_until_date_time<'a>(
+        &'a self,
+        items: &'a [Item<'a>],
+    ) -> Vec<CoveringUntilDateTime<'a>> {
+        self.iter()
+            .map(|x| {
+                let until_utc: DateTime<Utc> = x.until.clone().into();
+                CoveringUntilDateTime {
+                    cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
+                    until: until_utc.into(),
+                }
+            })
+            .collect()
+    }
+}
+
+pub struct CoveringUntilDateTime<'a> {
+    pub cover_this: &'a Item<'a>,
+    pub until: DateTime<Local>,
 }
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]

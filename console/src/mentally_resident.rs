@@ -80,12 +80,9 @@ fn calculate_next_steps<'a>(hope: &Hope<'a>, coverings: &[Covering<'a>]) -> Vec<
     covered_by
         .into_iter()
         .flat_map(|x| {
-            let covered_by = x.covered_by(coverings);
-            if covered_by.is_empty() {
-                vec![x]
-            } else {
-                todo!()
-            }
+            let mut covered_by = vec![x];
+            covered_by.extend(x.covered_by(coverings));
+            covered_by
         })
         .collect()
 }
@@ -125,13 +122,14 @@ impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
 
 #[async_recursion]
 pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let (items, coverings, requirements) =
-        DataLayerCommands::get_raw_data(send_to_data_storage_layer)
-            .await
-            .unwrap();
+    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
 
-    let items = items.make_items(&requirements);
-    let coverings = coverings.make_covering(&items);
+    let items = surreal_tables
+        .surreal_items
+        .make_items(&surreal_tables.surreal_requirements);
+    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
 
     let hopes = &items.filter_just_hopes();
     let hope_nodes = create_hope_nodes(hopes, &coverings);

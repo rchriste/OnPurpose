@@ -2,6 +2,8 @@ mod cover_with_another_item;
 
 use std::fmt::Display;
 
+use chrono::{DateTime, Local};
+use duration_str::parse;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
@@ -76,32 +78,38 @@ async fn cover_with_question<'a>(
 
 enum EventMenuItem {
     UntilAnExactDateTime,
+    ForAnAmountOfTime,
 }
 
 impl Display for EventMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EventMenuItem::UntilAnExactDateTime => write!(f, "Until an exact date & time"),
+            Self::UntilAnExactDateTime => write!(f, "Until an exact date & time"),
+            Self::ForAnAmountOfTime => write!(f, "For an amount of time"),
         }
     }
 }
 
 impl EventMenuItem {
     fn create_list() -> Vec<EventMenuItem> {
-        vec![Self::UntilAnExactDateTime]
+        vec![Self::UntilAnExactDateTime, Self::ForAnAmountOfTime]
     }
 }
 
 async fn cover_with_event<'a>(
-    _item_to_cover: ToDo<'a>,
-    _send_to_data_storage_layer: &Sender<DataLayerCommands>,
+    item_to_cover: ToDo<'a>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = EventMenuItem::create_list();
 
     let selection = Select::new("Select one", list).prompt().unwrap();
 
     match selection {
-        EventMenuItem::UntilAnExactDateTime => todo!(),
+        EventMenuItem::UntilAnExactDateTime => cover_until_an_exact_date_time().await,
+        EventMenuItem::ForAnAmountOfTime => {
+            cover_for_an_amount_of_time(Local::now(), item_to_cover, send_to_data_storage_layer)
+                .await
+        }
     }
 }
 
@@ -148,4 +156,25 @@ async fn set_requirement_not_sunday(
         ))
         .await
         .unwrap()
+}
+
+async fn cover_until_an_exact_date_time() {
+    todo!()
+}
+
+async fn cover_for_an_amount_of_time<'a>(
+    now: DateTime<Local>,
+    item_to_cover: ToDo<'a>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let wait_string = Text::new("Cover for how long?").prompt().unwrap();
+    let wait_duration = parse(&wait_string).unwrap();
+    let wait_until = now + wait_duration;
+    send_to_data_storage_layer
+        .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
+            item_to_cover.get_surreal_item().clone(),
+            wait_until.into(),
+        ))
+        .await
+        .unwrap();
 }

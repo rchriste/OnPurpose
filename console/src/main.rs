@@ -12,7 +12,10 @@ use node::ToDoNode;
 use tokio::sync::mpsc;
 
 use crate::{
-    base_data::{ItemVecExtensions, SurrealCoveringVecExtensions, SurrealItemVecExtensions},
+    base_data::{
+        ItemVecExtensions, SurrealCoveringUntilDatetimeVecExtensions, SurrealCoveringVecExtensions,
+        SurrealItemVecExtensions,
+    },
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
@@ -52,17 +55,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    let (items, coverings, requirements) =
-        DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
-            .await
-            .unwrap();
+    let surreal_tables = DataLayerCommands::get_raw_data(&send_to_data_storage_layer_tx)
+        .await
+        .unwrap();
 
-    let items = items.make_items(&requirements);
-    let coverings = coverings.make_covering(&items);
+    let items = surreal_tables
+        .surreal_items
+        .make_items(&surreal_tables.surreal_requirements);
+    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
+    let coverings_until_date_time = surreal_tables
+        .surreal_coverings_until_date_time
+        .make_coverings_until_date_time(&items);
 
     let to_dos = &items.filter_just_to_dos();
     let current_date_time = Local::now();
-    let next_step_nodes = create_to_do_nodes(to_dos, &coverings, &current_date_time);
+    let next_step_nodes = create_to_do_nodes(
+        to_dos,
+        &coverings,
+        &coverings_until_date_time,
+        &current_date_time,
+    );
 
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 

@@ -12,5 +12,7 @@ surrealdb_extra = "0.4.0" #Added because I think using this for table definition
 serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.31"
 async-recursion = "1.0.5"
+duration-str = "0.7.0" #So I can parse the amount of time to wait
+
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term

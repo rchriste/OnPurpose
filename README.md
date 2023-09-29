@@ -16,7 +16,7 @@ Have a list of things to do and cover that to the next step. To do's tie back to
 
 ### Other uses of Covering
 
-Can cover item by another item and can cover an item by a watcher that watches.  
+Can cover item by another item and can cover an item by a watcher that watches. With a rethink date if the covered item doesn't complete by then.
 
 ### Picking what to do, acting with awareness, and in context
 

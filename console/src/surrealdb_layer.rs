@@ -1,4 +1,4 @@
-use chrono::Local;
+use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     sql::Thing,
@@ -11,17 +11,20 @@ use tokio::sync::{
 };
 
 use crate::base_data::{
-    ItemType, ProcessedText, RequirementType, SurrealCovering, SurrealItem, SurrealRequirement,
+    ItemType, ProcessedText, RequirementType, SurrealCovering, SurrealCoveringUntilDatetime,
+    SurrealItem, SurrealRequirement,
 };
 
+#[derive(Debug)]
+pub struct SurrealTables {
+    pub surreal_items: Vec<SurrealItem>,
+    pub surreal_coverings: Vec<SurrealCovering>,
+    pub surreal_requirements: Vec<SurrealRequirement>,
+    pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
+}
+
 pub enum DataLayerCommands {
-    SendRawData(
-        oneshot::Sender<(
-            Vec<SurrealItem>,
-            Vec<SurrealCovering>,
-            Vec<SurrealRequirement>,
-        )>,
-    ),
+    SendRawData(oneshot::Sender<SurrealTables>),
     AddProcessedText(String, SurrealItem),
     #[allow(dead_code)] //This can be removed after this is used beyond the unit tests
     GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
@@ -32,20 +35,14 @@ pub enum DataLayerCommands {
     CoverItemWithANewToDo(SurrealItem, String),
     CoverItemWithANewQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
+    CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddRequirementNotSunday(SurrealItem),
 }
 
 impl DataLayerCommands {
     pub async fn get_raw_data(
         sender: &Sender<DataLayerCommands>,
-    ) -> Result<
-        (
-            Vec<SurrealItem>,
-            Vec<SurrealCovering>,
-            Vec<SurrealRequirement>,
-        ),
-        RecvError,
-    > {
+    ) -> Result<SurrealTables, RecvError> {
         let (raw_data_sender, raw_data_receiver) = oneshot::channel();
         sender
             .send(DataLayerCommands::SendRawData(raw_data_sender))
@@ -82,8 +79,8 @@ pub async fn data_storage_start_and_run(
         let received = data_storage_layer_receive_rx.recv().await;
         match received {
             Some(DataLayerCommands::SendRawData(oneshot)) => {
-                let (items, linkage, requirements) = load_data_from_surrealdb(&db).await;
-                oneshot.send((items, linkage, requirements)).unwrap();
+                let surreal_tables = load_data_from_surrealdb(&db).await;
+                oneshot.send(surreal_tables).unwrap();
             }
             Some(DataLayerCommands::AddProcessedText(processed_text, for_item)) => {
                 add_processed_text(processed_text, for_item, &db).await
@@ -94,7 +91,9 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
             Some(DataLayerCommands::NewToDo(to_do_text)) => new_to_do(to_do_text, &db).await,
             Some(DataLayerCommands::NewHope(hope_text)) => new_hope(hope_text, &db).await,
-            Some(DataLayerCommands::NewMotivation(summary_text)) => new_motivation(summary_text, &db).await,
+            Some(DataLayerCommands::NewMotivation(summary_text)) => {
+                new_motivation(summary_text, &db).await
+            }
             Some(DataLayerCommands::CoverItemWithANewToDo(item_to_cover, new_to_do_text)) => {
                 cover_item_with_a_new_next_step(item_to_cover, new_to_do_text, &db).await
             }
@@ -105,6 +104,9 @@ pub async fn data_storage_start_and_run(
                 item_to_cover,
                 new_milestone_text,
             )) => cover_item_with_a_new_milestone(item_to_cover, new_milestone_text, &db).await,
+            Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
+                cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
+            }
             Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
                 add_requirement_not_sunday(add_requirement_to_this, &db).await
             }
@@ -113,21 +115,17 @@ pub async fn data_storage_start_and_run(
     }
 }
 
-pub async fn load_data_from_surrealdb(
-    db: &Surreal<Any>,
-) -> (
-    Vec<SurrealItem>,
-    Vec<SurrealCovering>,
-    Vec<SurrealRequirement>,
-) {
+pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
     let all_requirements = SurrealRequirement::get_all(db);
-    (
-        all_items.await.unwrap(),
-        all_coverings.await.unwrap(),
-        all_requirements.await.unwrap(),
-    )
+    let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
+    SurrealTables {
+        surreal_items: all_items.await.unwrap(),
+        surreal_coverings: all_coverings.await.unwrap(),
+        surreal_requirements: all_requirements.await.unwrap(),
+        surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
+    }
 }
 
 pub async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
@@ -268,6 +266,21 @@ async fn cover_item_with_a_new_milestone(
     .unwrap();
 }
 
+async fn cover_item_until_an_exact_date_time(
+    item_to_cover: SurrealItem,
+    cover_until: DateTime<Utc>,
+    db: &Surreal<Any>,
+) {
+    SurrealCoveringUntilDatetime {
+        id: None,
+        cover_this: item_to_cover.id.expect("Should already be in database"),
+        until: cover_until.into(),
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
 async fn add_requirement_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
     SurrealRequirement {
         id: None,
@@ -293,12 +306,12 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let (items, linkage, requirements) =
-            DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert!(items.is_empty());
-        assert!(linkage.is_empty());
-        assert!(requirements.is_empty());
+        assert!(surreal_tables.surreal_items.is_empty());
+        assert!(surreal_tables.surreal_coverings.is_empty());
+        assert!(surreal_tables.surreal_requirements.is_empty());
+        assert!(surreal_tables.surreal_coverings_until_date_time.is_empty());
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -315,11 +328,14 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(items.len(), 1);
-        assert_eq!(ItemType::ToDo, items.first().unwrap().item_type);
-        assert_eq!(linkage.len(), 0);
+        assert_eq!(surreal_tables.surreal_items.len(), 1);
+        assert_eq!(
+            ItemType::ToDo,
+            surreal_tables.surreal_items.first().unwrap().item_type
+        );
+        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -336,11 +352,14 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(items.len(), 1);
-        assert_eq!(ItemType::Hope, items.first().unwrap().item_type);
-        assert_eq!(linkage.len(), 0);
+        assert_eq!(surreal_tables.surreal_items.len(), 1);
+        assert_eq!(
+            ItemType::Hope,
+            surreal_tables.surreal_items.first().unwrap().item_type
+        );
+        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -357,11 +376,14 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(items.len(), 1);
-        assert_eq!(ItemType::Motivation, items.first().unwrap().item_type);
-        assert_eq!(linkage.len(), 0);
+        assert_eq!(surreal_tables.surreal_items.len(), 1);
+        assert_eq!(
+            ItemType::Motivation,
+            surreal_tables.surreal_items.first().unwrap().item_type
+        );
+        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -378,9 +400,9 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, _, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        let item = items.first().unwrap();
+        let item = surreal_tables.surreal_items.first().unwrap();
         let processed_text = DataLayerCommands::get_processed_text(&sender, item.clone())
             .await
             .unwrap();
@@ -396,7 +418,7 @@ mod tests {
             .unwrap();
 
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
-        let next_step = items.first().unwrap();
+        let next_step = surreal_tables.surreal_items.first().unwrap();
         sender
             .send(DataLayerCommands::GetProcessedText(
                 next_step.clone(),
@@ -427,28 +449,30 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, requirements) =
-            DataLayerCommands::get_raw_data(&sender).await.unwrap();
-        let items = items.make_items(&requirements);
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let items = surreal_tables
+            .surreal_items
+            .make_items(&surreal_tables.surreal_requirements);
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
         assert_eq!(next_step_item.is_finished(), false);
-        assert_eq!(linkage.len(), 0);
+        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         sender
             .send(DataLayerCommands::FinishItem(next_step_item.clone().into()))
             .await
             .unwrap();
 
-        let (items, linkage, requirements) =
-            DataLayerCommands::get_raw_data(&sender).await.unwrap();
-        let items = items.make_items(&requirements);
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let items = surreal_tables
+            .surreal_items
+            .make_items(&surreal_tables.surreal_requirements);
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
         assert_eq!(next_step_item.is_finished(), true);
-        assert_eq!(linkage.len(), 0);
+        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -465,11 +489,11 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(1, items.len());
-        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
-        let item_to_cover = items.first().unwrap();
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
+        let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
         sender
             .send(DataLayerCommands::CoverItemWithANewToDo(
@@ -479,16 +503,21 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(2, items.len());
-        assert_eq!(1, linkage.len()); //expect one item to be is covered
-        let covering = linkage.first().unwrap();
-        let item_that_should_be_covered = items
+        assert_eq!(2, surreal_tables.surreal_items.len());
+        assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
+        let covering = surreal_tables.surreal_coverings.first().unwrap();
+        let item_that_should_be_covered = surreal_tables
+            .surreal_items
             .iter()
             .find(|x| x.summary == "Item to be covered")
             .unwrap();
-        let item_that_should_cover = items.iter().find(|x| x.summary == "Covering item").unwrap();
+        let item_that_should_cover = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Covering item")
+            .unwrap();
         assert_eq!(
             item_that_should_be_covered.id.as_ref().unwrap(),
             &covering.parent
@@ -513,11 +542,11 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(1, test_data.len());
-        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
-        let item_to_cover = test_data.first().unwrap();
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
+        let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
         sender
             .send(DataLayerCommands::CoverItemWithANewQuestion(
@@ -527,16 +556,18 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(2, test_data.len());
-        assert_eq!(1, linkage.len()); //expect one item to be is covered
-        let covering = linkage.first().unwrap();
-        let item_that_should_be_covered = test_data
+        assert_eq!(2, surreal_tables.surreal_items.len());
+        assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
+        let covering = surreal_tables.surreal_coverings.first().unwrap();
+        let item_that_should_be_covered = surreal_tables
+            .surreal_items
             .iter()
             .find(|x| x.summary == "Item to be covered")
             .unwrap();
-        let item_that_should_cover = test_data
+        let item_that_should_cover = surreal_tables
+            .surreal_items
             .iter()
             .find(|x| x.summary == "Covering item")
             .unwrap();
@@ -564,11 +595,11 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(1, test_data.len());
-        assert_eq!(0, linkage.len()); //length of zero means nothing is covered
-        let item_to_cover = test_data.first().unwrap();
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
+        let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
         sender
             .send(DataLayerCommands::CoverItemWithANewMilestone(
@@ -578,16 +609,18 @@ mod tests {
             .await
             .unwrap();
 
-        let (test_data, linkage, _) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(2, test_data.len());
-        assert_eq!(1, linkage.len()); //expect one item to be is covered
-        let covering = linkage.first().unwrap();
-        let item_that_should_be_covered = test_data
+        assert_eq!(2, surreal_tables.surreal_items.len());
+        assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
+        let covering = surreal_tables.surreal_coverings.first().unwrap();
+        let item_that_should_be_covered = surreal_tables
+            .surreal_items
             .iter()
             .find(|x| x.summary == "Hope to be covered")
             .unwrap();
-        let item_that_should_cover = test_data
+        let item_that_should_cover = surreal_tables
+            .surreal_items
             .iter()
             .find(|x| x.summary == "Covering milestone")
             .unwrap();
@@ -605,6 +638,65 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cover_item_until_an_exact_date_time() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewToDo("Item to get covered".into()))
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert!(surreal_tables.surreal_coverings_until_date_time.is_empty());
+
+        let cover_until: chrono::DateTime<Utc> = Utc::now();
+        sender
+            .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
+                surreal_tables.surreal_items.into_iter().next().unwrap(),
+                cover_until.clone().into(),
+            ))
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert_eq!(1, surreal_tables.surreal_coverings_until_date_time.len());
+        assert_eq!(
+            surreal_tables
+                .surreal_items
+                .first()
+                .unwrap()
+                .id
+                .as_ref()
+                .unwrap(),
+            &surreal_tables
+                .surreal_coverings_until_date_time
+                .first()
+                .unwrap()
+                .cover_this
+        );
+        assert_eq!(
+            cover_until,
+            surreal_tables
+                .surreal_coverings_until_date_time
+                .first()
+                .as_ref()
+                .unwrap()
+                .until
+                .clone()
+                .into()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn cover_item_with_the_requirement_not_sunday() {
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
@@ -615,29 +707,43 @@ mod tests {
             .await
             .unwrap();
 
-        let (items, _, requirements) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(1, items.len());
-        assert!(requirements.is_empty());
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert!(surreal_tables.surreal_requirements.is_empty());
 
         sender
             .send(DataLayerCommands::AddRequirementNotSunday(
-                items.into_iter().next().unwrap(),
+                surreal_tables.surreal_items.into_iter().next().unwrap(),
             ))
             .await
             .unwrap();
 
-        let (items, _, requirements) = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
-        assert_eq!(1, items.len());
-        assert_eq!(1, requirements.len());
+        assert_eq!(1, surreal_tables.surreal_items.len());
+        assert_eq!(1, surreal_tables.surreal_requirements.len());
         assert_eq!(
             RequirementType::NotSunday,
-            requirements.first().unwrap().requirement_type
+            surreal_tables
+                .surreal_requirements
+                .first()
+                .unwrap()
+                .requirement_type
         );
         assert_eq!(
-            items.first().unwrap().id.as_ref().unwrap(),
-            &requirements.first().unwrap().requirement_for
+            surreal_tables
+                .surreal_items
+                .first()
+                .unwrap()
+                .id
+                .as_ref()
+                .unwrap(),
+            &surreal_tables
+                .surreal_requirements
+                .first()
+                .unwrap()
+                .requirement_for
         );
 
         drop(sender);
