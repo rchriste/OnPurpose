@@ -26,7 +26,6 @@ pub struct SurrealTables {
 pub enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
     AddProcessedText(String, SurrealItem),
-    #[allow(dead_code)] //This can be removed after this is used beyond the unit tests
     GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
     FinishItem(SurrealItem),
     NewToDo(String),

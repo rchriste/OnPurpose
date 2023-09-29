@@ -79,7 +79,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 
     if !inquire_bullet_list.is_empty() {
-        let selected = Select::new("Select one", inquire_bullet_list).prompt();
+        let selected = Select::new("Select one", inquire_bullet_list)
+            .with_page_size(30)
+            .prompt();
 
         match selected {
             Ok(selected) => {

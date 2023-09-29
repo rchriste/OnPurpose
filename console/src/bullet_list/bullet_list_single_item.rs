@@ -59,13 +59,17 @@ async fn process_and_finish_bullet_item(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
-    send_to_data_storage_layer
-        .send(DataLayerCommands::AddProcessedText(
-            user_processed_text,
-            item.clone(),
-        ))
-        .await
-        .unwrap();
+
+    if !user_processed_text.is_empty() {
+        send_to_data_storage_layer
+            .send(DataLayerCommands::AddProcessedText(
+                user_processed_text,
+                item.clone(),
+            ))
+            .await
+            .unwrap();
+    }
+
     send_to_data_storage_layer
         .send(DataLayerCommands::FinishItem(item))
         .await

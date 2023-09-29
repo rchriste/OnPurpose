@@ -137,7 +137,9 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
     let inquire_list = MentallyResidentItem::create_list(&hope_nodes);
 
     if !inquire_list.is_empty() {
-        let selected = Select::new("Select one", inquire_list).prompt();
+        let selected = Select::new("Select one", inquire_list)
+            .with_page_size(30)
+            .prompt();
 
         match selected {
             Ok(selected) => {
