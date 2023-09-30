@@ -63,7 +63,13 @@ impl<'a> MentallyResidentItem<'a> {
 fn create_hope_nodes<'a>(hopes: &'a [Hope<'a>], coverings: &[Covering<'a>]) -> Vec<HopeNode<'a>> {
     hopes
         .iter()
-        .map(|x| create_hope_node(x, coverings))
+        .filter_map(|x| {
+            if !x.is_covered_by_another_hope(coverings) {
+                Some(create_hope_node(x, coverings))
+            } else {
+                None
+            }
+        })
         .collect()
 }
 

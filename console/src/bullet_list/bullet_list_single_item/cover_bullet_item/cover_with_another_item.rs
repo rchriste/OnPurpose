@@ -37,7 +37,9 @@ pub(crate) async fn cover_with_another_item<'a>(
         AnotherItem::NewNextStep => {
             cover_with_new_next_step(item_to_cover, send_to_data_storage_layer).await
         }
-        AnotherItem::ExistingNextStep => todo!(),
+        AnotherItem::ExistingNextStep => {
+            cover_with_existing_next_step(item_to_cover, send_to_data_storage_layer).await
+        }
     }
 }
 
@@ -56,4 +58,11 @@ async fn cover_with_new_next_step<'a>(
         ))
         .await
         .unwrap();
+}
+
+async fn cover_with_existing_next_step(
+    _item_to_cover: ToDo<'_>,
+    _send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    todo!()
 }

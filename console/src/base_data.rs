@@ -155,6 +155,33 @@ impl<'b> Item<'b> {
         self.finished.is_some()
     }
 
+    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
+        let mut covered_by = coverings.iter().filter(|x| self == x.parent);
+        //Now see if the items that are covering are finished or active
+        covered_by.any(|x| !x.smaller.is_finished())
+    }
+
+    pub fn is_covered_by_date_time(
+        &self,
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
+        let mut covered_by_date_time = coverings_until_date_time
+            .iter()
+            .filter(|x| self == x.cover_this);
+        covered_by_date_time.any(|x| now < &x.until)
+    }
+
+    pub fn is_covered(
+        &self,
+        coverings: &[Covering<'_>],
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
+        self.is_covered_by_another_item(coverings)
+            || self.is_covered_by_date_time(coverings_until_date_time, now)
+    }
+
     pub fn covered_by<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
         coverings
             .iter()
@@ -229,22 +256,27 @@ impl<'a> PartialEq<Item<'a>> for ToDo<'a> {
 }
 
 impl<'a> ToDo<'a> {
+    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
+        self.item.is_covered_by_another_item(coverings)
+    }
+
+    pub fn is_covered_by_date_time(
+        &self,
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
+        self.item
+            .is_covered_by_date_time(coverings_until_date_time, now)
+    }
+
     pub fn is_covered(
         &self,
         coverings: &[Covering<'_>],
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
         now: &DateTime<Local>,
     ) -> bool {
-        let mut covered_by = coverings.iter().filter(|x| self == x.parent);
-        //Now see if the items that are covering are finished or active
-        let is_covered_by_another_item = covered_by.any(|x| !x.smaller.is_finished());
-
-        let mut covered_by_date_time = coverings_until_date_time
-            .iter()
-            .filter(|x| self == x.cover_this);
-        let is_covered_by_date_time_active = covered_by_date_time.any(|x| now < &x.until);
-
-        is_covered_by_another_item || is_covered_by_date_time_active
+        self.item
+            .is_covered(coverings, coverings_until_date_time, now)
     }
 
     pub fn is_finished(&self) -> bool {
@@ -302,6 +334,37 @@ impl PartialEq<Item<'_>> for Hope<'_> {
 impl<'a> Hope<'a> {
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
+    }
+
+    pub fn is_covered_by_another_hope(&self, coverings: &[Covering<'_>]) -> bool {
+        let mut covered_by = coverings
+            .iter()
+            .filter(|x| self == x.parent && x.smaller.item_type == &ItemType::Hope && !x.smaller.is_finished());
+        //Now see if the items that are covering are finished or active
+        covered_by.any(|x| !x.smaller.is_finished())
+    }
+
+    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
+        self.item.is_covered_by_another_item(coverings)
+    }
+
+    pub fn is_covered_by_date_time(
+        &self,
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
+        self.item
+            .is_covered_by_date_time(coverings_until_date_time, now)
+    }
+
+    pub fn is_covered(
+        &self,
+        coverings: &[Covering<'_>],
+        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        now: &DateTime<Local>,
+    ) -> bool {
+        self.item
+            .is_covered(coverings, coverings_until_date_time, now)
     }
 
     pub fn covered_by(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
