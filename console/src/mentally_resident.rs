@@ -64,7 +64,7 @@ fn create_hope_nodes<'a>(hopes: &'a [Hope<'a>], coverings: &[Covering<'a>]) -> V
     hopes
         .iter()
         .filter_map(|x| {
-            if !x.is_covered_by_another_hope(coverings) {
+            if !x.is_covered_by_another_hope(coverings) && !x.is_finished() {
                 Some(create_hope_node(x, coverings))
             } else {
                 None
