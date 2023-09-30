@@ -186,7 +186,7 @@ impl<'b> Item<'b> {
         coverings
             .iter()
             .filter_map(|x| {
-                if x.parent == self {
+                if x.parent == self && !x.smaller.is_finished() {
                     Some(x.smaller)
                 } else {
                     None
@@ -337,9 +337,9 @@ impl<'a> Hope<'a> {
     }
 
     pub fn is_covered_by_another_hope(&self, coverings: &[Covering<'_>]) -> bool {
-        let mut covered_by = coverings
-            .iter()
-            .filter(|x| self == x.parent && x.smaller.item_type == &ItemType::Hope && !x.smaller.is_finished());
+        let mut covered_by = coverings.iter().filter(|x| {
+            self == x.parent && x.smaller.item_type == &ItemType::Hope && !x.smaller.is_finished()
+        });
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
     }

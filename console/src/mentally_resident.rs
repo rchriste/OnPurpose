@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use inquire::{InquireError, Select, Text};
+use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -167,20 +167,26 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
 enum HopeSelectedMenuItem {
     CoverWithNextStep,
     CoverWithMilestone,
+    ProcessAndFinish,
 }
 
 impl Display for HopeSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HopeSelectedMenuItem::CoverWithNextStep => write!(f, "Cover with next step (To Do)"),
-            HopeSelectedMenuItem::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
+            Self::CoverWithNextStep => write!(f, "Cover with next step (To Do)"),
+            Self::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
+            Self::ProcessAndFinish => write!(f, "Process and Finish"),
         }
     }
 }
 
 impl HopeSelectedMenuItem {
     fn create_list() -> Vec<HopeSelectedMenuItem> {
-        vec![Self::CoverWithNextStep, Self::CoverWithMilestone]
+        vec![
+            Self::CoverWithNextStep,
+            Self::CoverWithMilestone,
+            Self::ProcessAndFinish,
+        ]
     }
 }
 
@@ -197,6 +203,9 @@ async fn present_hope_selected_menu(
         }
         HopeSelectedMenuItem::CoverWithMilestone => {
             present_add_milestone(hope_selected, send_to_data_storage_layer).await
+        }
+        HopeSelectedMenuItem::ProcessAndFinish => {
+            process_and_finish_hope(hope_selected, send_to_data_storage_layer).await
         }
     }
 }
@@ -301,6 +310,29 @@ async fn cover_hope_with_new_milestone(
             existing_hope.get_surreal_item().clone(),
             new_milestone_text,
         ))
+        .await
+        .unwrap();
+}
+
+async fn process_and_finish_hope(
+    selected_hope: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let user_processed_text = Editor::new("Process text").prompt().unwrap();
+
+    let surreal_item = selected_hope.get_surreal_item();
+    if !user_processed_text.is_empty() {
+        send_to_data_storage_layer
+            .send(DataLayerCommands::AddProcessedText(
+                user_processed_text,
+                surreal_item.clone(),
+            ))
+            .await
+            .unwrap();
+    }
+
+    send_to_data_storage_layer
+        .send(DataLayerCommands::FinishItem(surreal_item.clone()))
         .await
         .unwrap();
 }
