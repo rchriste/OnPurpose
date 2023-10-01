@@ -49,6 +49,7 @@ pub enum DataLayerCommands {
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddRequirementNotSunday(SurrealItem),
     UpdateHopePermanence(SurrealSpecificToHope, Permanence),
+    UpdateItemSummary(SurrealItem, String),
 }
 
 impl DataLayerCommands {
@@ -124,6 +125,9 @@ pub async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, permanence)) => {
                 update_hope_permanence(specific_to_hope, permanence, &db).await
+            }
+            Some(DataLayerCommands::UpdateItemSummary(item, new_summary)) => {
+                update_item_summary(item, new_summary, &db).await
             }
             None => return, //Channel closed, time to shutdown down, exit
         }
@@ -337,6 +341,16 @@ async fn update_hope_permanence(
         //Create record
         surreal_specific_to_hope.create(db).await.unwrap();
     }
+}
+
+async fn update_item_summary(
+    mut item_to_update: SurrealItem,
+    new_summary: String,
+    db: &Surreal<Any>,
+) {
+    item_to_update.summary = new_summary;
+
+    item_to_update.update(db).await.unwrap();
 }
 
 #[cfg(test)]

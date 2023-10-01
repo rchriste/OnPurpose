@@ -2,7 +2,7 @@ mod cover_bullet_item;
 
 use std::fmt::Display;
 
-use inquire::{Editor, InquireError, Select};
+use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -15,13 +15,15 @@ use super::InquireBulletListItem;
 enum BulletListSingleItemSelection {
     ProcessAndFinish,
     Cover,
+    EditSummary,
 }
 
 impl Display for BulletListSingleItemSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BulletListSingleItemSelection::ProcessAndFinish => write!(f, "Process & Finish 📕"),
-            BulletListSingleItemSelection::Cover => write!(f, "Cover ⼍"),
+            Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
+            Self::Cover => write!(f, "Cover ⼍"),
+            Self::EditSummary => write!(f, "Edit Summary"),
         }
     }
 }
@@ -30,6 +32,7 @@ fn create_list() -> Vec<BulletListSingleItemSelection> {
     vec![
         BulletListSingleItemSelection::ProcessAndFinish,
         BulletListSingleItemSelection::Cover,
+        BulletListSingleItemSelection::EditSummary,
     ]
 }
 
@@ -47,6 +50,9 @@ pub async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::Cover) => {
             cover_bullet_item(menu_for.into(), send_to_data_storage_layer).await
+        }
+        Ok(BulletListSingleItemSelection::EditSummary) => {
+            edit_item_summary(menu_for.into(), send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => (), //Nothing to do we just want to return to the bullet list
         Err(err) => panic!("Unexpected {}", err),
@@ -73,4 +79,15 @@ async fn process_and_finish_bullet_item(
         .send(DataLayerCommands::FinishItem(item))
         .await
         .unwrap();
+}
+
+async fn edit_item_summary(
+    item_to_cover: SurrealItem,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
+    send_to_data_storage_layer
+        .send(DataLayerCommands::UpdateItemSummary(item_to_cover, new_summary))
+        .await
+        .unwrap()
 }
