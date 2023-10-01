@@ -6,51 +6,15 @@ use surrealdb::{
 };
 use surrealdb_extra::table::Table;
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "item")]
-pub struct SurrealItem {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub finished: Option<Datetime>,
-    pub item_type: ItemType,
-}
-
-pub trait SurrealItemVecExtensions {
-    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>>;
-}
-
-impl SurrealItemVecExtensions for [SurrealItem] {
-    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>> {
-        self.iter().map(|x| x.make_item(requirements)).collect()
-    }
-}
-
-impl SurrealItem {
-    pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Item<'a> {
-        let my_requirements = requirements
-            .iter()
-            .filter(|x| {
-                &x.requirement_for
-                    == self
-                        .id
-                        .as_ref()
-                        .expect("Item should already be in the database and have an id")
-            })
-            .collect();
-
-        Item {
-            id: self
-                .id
-                .as_ref()
-                .expect("Item should already be in the database and have an id"),
-            summary: &self.summary,
-            finished: &self.finished,
-            item_type: &self.item_type,
-            requirements: my_requirements,
-            surreal_item: self,
-        }
-    }
-}
+use crate::surrealdb_layer::{
+    surreal_covering::SurrealCovering,
+    surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
+    surreal_item::SurrealItem,
+    surreal_requirement::{RequirementType, SurrealRequirement},
+    surreal_specific_to_hope::{
+        Permanence, Staging, SurrealSpecificToHope, SurrealSpecificToHopes,
+    },
+};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Item<'a> {
@@ -59,7 +23,7 @@ pub struct Item<'a> {
     pub finished: &'a Option<Datetime>,
     pub item_type: &'a ItemType,
     pub requirements: Vec<&'a SurrealRequirement>,
-    surreal_item: &'a SurrealItem,
+    pub surreal_item: &'a SurrealItem,
 }
 
 impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
@@ -89,7 +53,10 @@ impl<'a> From<ToDo<'a>> for SurrealItem {
 pub trait ItemVecExtensions {
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
-    fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
+    fn filter_just_hopes<'a>(
+        &'a self,
+        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
+    ) -> Vec<Hope<'a>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
 }
 
@@ -115,21 +82,28 @@ impl<'b> ItemVecExtensions for [Item<'b>] {
             .collect()
     }
 
-    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::Hope {
-                    Some(Hope {
-                        id: x.id,
-                        summary: x.summary,
-                        finished: x.finished,
-                        item: x,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_hopes<'a>(
+        &'a self,
+        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
+    ) -> Vec<Hope<'a>> {
+        //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
+        let mut just_hopes = Vec::default();
+        for x in self.iter() {
+            if x.item_type == &ItemType::Hope {
+                let hope_specific: Option<&SurrealSpecificToHope> =
+                    surreal_specific_to_hopes.get_by_id(x.id);
+                let hope_specific = hope_specific.unwrap().clone(); //TODO: Figure out how to use borrow rather than clone()
+                let hope = Hope {
+                    id: x.id,
+                    summary: x.summary,
+                    finished: x.finished,
+                    item: x,
+                    hope_specific,
+                };
+                just_hopes.push(hope);
+            }
+        }
+        just_hopes
     }
 
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
@@ -304,6 +278,7 @@ pub struct Hope<'a> {
     pub id: &'a Thing,
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
+    pub hope_specific: SurrealSpecificToHope,
     item: &'a Item<'a>,
 }
 
@@ -332,6 +307,19 @@ impl PartialEq<Item<'_>> for Hope<'_> {
 }
 
 impl<'a> Hope<'a> {
+    pub fn is_mentally_resident(&self) -> bool {
+        self.hope_specific.staging == Staging::MentallyResident
+    }
+
+    pub fn is_project(&self) -> bool {
+        self.hope_specific.permanence == Permanence::Project
+            && self.hope_specific.staging == Staging::MentallyResident
+    }
+
+    pub fn is_maintenance(&self) -> bool {
+        self.hope_specific.permanence == Permanence::Maintenance
+    }
+
     pub fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
@@ -410,24 +398,6 @@ pub struct Covering<'a> {
     pub parent: &'a Item<'a>,
 }
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "coverings")]
-pub struct SurrealCovering {
-    pub id: Option<Thing>,
-    pub smaller: RecordId,
-    pub parent: RecordId,
-}
-
-impl<'a> From<Covering<'a>> for SurrealCovering {
-    fn from(value: Covering<'a>) -> Self {
-        SurrealCovering {
-            id: None,
-            smaller: value.smaller.id.clone(),
-            parent: value.parent.id.clone(),
-        }
-    }
-}
-
 pub trait SurrealCoveringVecExtensions {
     fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>>;
 }
@@ -441,16 +411,6 @@ impl SurrealCoveringVecExtensions for Vec<SurrealCovering> {
             })
             .collect()
     }
-}
-
-/// The purpose of this struct is to record Items that should be covered for a certain amount of time or until
-/// an exact date_time
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "coverings_until_datetime")]
-pub struct SurrealCoveringUntilDatetime {
-    pub id: Option<Thing>,
-    pub cover_this: RecordId,
-    pub until: Datetime,
 }
 
 pub trait SurrealCoveringUntilDatetimeVecExtensions {
@@ -504,19 +464,6 @@ impl Item<'_> {
             })
             .collect()
     }
-}
-
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "requirements")]
-pub struct SurrealRequirement {
-    pub id: Option<Thing>,
-    pub requirement_for: RecordId,
-    pub requirement_type: RequirementType,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum RequirementType {
-    NotSunday,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]

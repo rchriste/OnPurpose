@@ -79,10 +79,13 @@ mod tests {
     use chrono::{Local, Utc};
     use surrealdb::sql::Datetime;
 
-    use crate::base_data::{
-        ItemType, ItemVecExtensions, RequirementType, SurrealCoveringUntilDatetime,
-        SurrealCoveringUntilDatetimeVecExtensions, SurrealItem, SurrealItemVecExtensions,
-        SurrealRequirement,
+    use crate::{
+        base_data::{ItemType, ItemVecExtensions, SurrealCoveringUntilDatetimeVecExtensions},
+        surrealdb_layer::{
+            surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
+            surreal_item::{SurrealItem, SurrealItemVecExtensions},
+            surreal_requirement::{RequirementType, SurrealRequirement},
+        },
     };
 
     use super::*;

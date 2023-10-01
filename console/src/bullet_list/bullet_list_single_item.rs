@@ -6,9 +6,8 @@ use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::SurrealItem,
     bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands},
 };
 
 use super::InquireBulletListItem;
@@ -40,7 +39,7 @@ pub async fn present_bullet_list_item_selected(
 ) {
     let list = create_list();
 
-    let selection = Select::new("Select one", list).prompt();
+    let selection = Select::new("", list).prompt();
 
     match selection {
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
@@ -55,7 +54,7 @@ pub async fn present_bullet_list_item_selected(
 }
 
 async fn process_and_finish_bullet_item(
-    item: SurrealItem,
+    item: SurrealItem, //TODO: Switch this over to Item<'_>
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();

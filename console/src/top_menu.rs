@@ -3,13 +3,17 @@ use std::fmt::Display;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::{mentally_resident::view_hopes, surrealdb_layer::DataLayerCommands};
+use crate::{
+    mentally_resident::{view_maintenance_hopes, view_project_hopes},
+    surrealdb_layer::DataLayerCommands,
+};
 
 enum TopMenuSelection {
     CaptureToDo,
     ViewToDos,
     CaptureHope,
-    ViewHopes,
+    ViewProjectHopes,
+    ViewMaintenanceHopes,
     CaptureMotivation,
     ViewMotivations,
 }
@@ -17,35 +21,50 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do      🗭"),
-            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos        👁"),
-            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope       🗭"),
-            TopMenuSelection::ViewHopes => write!(f, "👁 🙏 View Hopes         👁"),
-            TopMenuSelection::CaptureMotivation => write!(f, "🗬 🎯 Capture Motivation 🗭"),
-            TopMenuSelection::ViewMotivations => write!(f, "👁 🎯 View Motivations   👁"),
+            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do                   🗭"),
+            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos                     👁"),
+            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope                    🗭"),
+            TopMenuSelection::ViewProjectHopes => {
+                write!(f, "👁 🙏 View Project Hopes     🏗️        👁")
+            }
+            TopMenuSelection::ViewMaintenanceHopes => {
+                write!(f, "👁 🙏 View Maintenance Hopes 🔁       👁")
+            }
+            TopMenuSelection::CaptureMotivation => {
+                write!(f, "🗬 🎯 Capture Motivation              🗭")
+            }
+            TopMenuSelection::ViewMotivations => {
+                write!(f, "👁 🎯 View Motivations                👁")
+            }
         }
     }
 }
 
-fn make_list() -> Vec<TopMenuSelection> {
-    vec![
-        TopMenuSelection::CaptureToDo,
-        TopMenuSelection::ViewToDos,
-        TopMenuSelection::CaptureHope,
-        TopMenuSelection::ViewHopes,
-        TopMenuSelection::CaptureMotivation,
-        TopMenuSelection::ViewMotivations,
-    ]
+impl TopMenuSelection {
+    fn make_list() -> Vec<TopMenuSelection> {
+        vec![
+            TopMenuSelection::CaptureToDo,
+            TopMenuSelection::ViewToDos,
+            TopMenuSelection::CaptureHope,
+            TopMenuSelection::ViewProjectHopes,
+            TopMenuSelection::ViewMaintenanceHopes,
+            TopMenuSelection::CaptureMotivation,
+            TopMenuSelection::ViewMotivations,
+        ]
+    }
 }
 
 pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let top_menu = make_list();
+    let top_menu = TopMenuSelection::make_list();
 
-    let selection = Select::new("Select one", top_menu).prompt().unwrap();
+    let selection = Select::new("", top_menu).prompt().unwrap();
     match selection {
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
-        TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
+        TopMenuSelection::ViewProjectHopes => view_project_hopes(send_to_data_storage_layer).await,
+        TopMenuSelection::ViewMaintenanceHopes => {
+            view_maintenance_hopes(send_to_data_storage_layer).await
+        }
         TopMenuSelection::ViewToDos => view_to_dos().await,
         TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
         TopMenuSelection::ViewMotivations => view_motivations().await,

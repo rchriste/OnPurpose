@@ -1,3 +1,9 @@
+pub mod surreal_covering;
+pub mod surreal_covering_until_date_time;
+pub mod surreal_item;
+pub mod surreal_requirement;
+pub mod surreal_specific_to_hope;
+
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
@@ -10,14 +16,20 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::base_data::{
-    ItemType, ProcessedText, RequirementType, SurrealCovering, SurrealCoveringUntilDatetime,
-    SurrealItem, SurrealRequirement,
+use crate::base_data::{ItemType, ProcessedText};
+
+use self::{
+    surreal_covering::SurrealCovering,
+    surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
+    surreal_item::SurrealItem,
+    surreal_requirement::{RequirementType, SurrealRequirement},
+    surreal_specific_to_hope::{Permanence, SurrealSpecificToHope},
 };
 
 #[derive(Debug)]
 pub struct SurrealTables {
     pub surreal_items: Vec<SurrealItem>,
+    pub surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
     pub surreal_coverings: Vec<SurrealCovering>,
     pub surreal_requirements: Vec<SurrealRequirement>,
     pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
@@ -36,6 +48,7 @@ pub enum DataLayerCommands {
     CoverItemWithANewMilestone(SurrealItem, String),
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddRequirementNotSunday(SurrealItem),
+    UpdateHopePermanence(SurrealSpecificToHope, Permanence),
 }
 
 impl DataLayerCommands {
@@ -109,21 +122,40 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
                 add_requirement_not_sunday(add_requirement_to_this, &db).await
             }
+            Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, permanence)) => {
+                update_hope_permanence(specific_to_hope, permanence, &db).await
+            }
             None => return, //Channel closed, time to shutdown down, exit
         }
     }
 }
 
 pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
+    let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
     let all_requirements = SurrealRequirement::get_all(db);
     let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
+    let all_items = all_items.await.unwrap();
+    let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
+    let all_specific_to_hopes = all_items
+        .iter()
+        .map(|x| {
+            match all_specific_to_hopes
+                .iter()
+                .find(|y| x.id.as_ref().expect("In DB") == &y.for_item)
+            {
+                Some(s) => s.clone(),
+                None => SurrealSpecificToHope::new_defaults(x.id.as_ref().expect("In DB").clone()),
+            }
+        })
+        .collect();
     SurrealTables {
-        surreal_items: all_items.await.unwrap(),
+        surreal_items: all_items,
         surreal_coverings: all_coverings.await.unwrap(),
         surreal_requirements: all_requirements.await.unwrap(),
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
+        surreal_specific_to_hopes: all_specific_to_hopes,
     }
 }
 
@@ -291,11 +323,27 @@ async fn add_requirement_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
     .unwrap();
 }
 
+async fn update_hope_permanence(
+    mut surreal_specific_to_hope: SurrealSpecificToHope,
+    new_permanence: Permanence,
+    db: &Surreal<Any>,
+) {
+    surreal_specific_to_hope.permanence = new_permanence;
+
+    if surreal_specific_to_hope.id.is_some() {
+        //Update
+        surreal_specific_to_hope.update(db).await.unwrap();
+    } else {
+        //Create record
+        surreal_specific_to_hope.create(db).await.unwrap();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tokio::sync::mpsc;
 
-    use crate::base_data::SurrealItemVecExtensions;
+    use crate::surrealdb_layer::surreal_item::SurrealItemVecExtensions;
 
     use super::*;
 

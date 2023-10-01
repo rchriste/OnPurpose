@@ -43,7 +43,7 @@ pub async fn cover_bullet_item<'a>(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let choices = CoverBulletItem::create_list();
-    let selection = Select::new("Select one", choices).prompt().unwrap();
+    let selection = Select::new("", choices).prompt().unwrap();
     match selection {
         CoverBulletItem::AnotherItem => {
             cover_with_another_item::cover_with_another_item(
@@ -102,7 +102,7 @@ async fn cover_with_event<'a>(
 ) {
     let list = EventMenuItem::create_list();
 
-    let selection = Select::new("Select one", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt().unwrap();
 
     match selection {
         EventMenuItem::UntilAnExactDateTime => cover_until_an_exact_date_time().await,
@@ -137,7 +137,7 @@ async fn cover_with_requirement<'a>(
 ) {
     let list = RequirementMenuItem::create_list();
 
-    let selection = Select::new("Select one", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt().unwrap();
 
     match selection {
         RequirementMenuItem::NotSunday => {

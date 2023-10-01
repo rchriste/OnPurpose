@@ -5,19 +5,20 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        Covering, Hope, Item, ItemVecExtensions, SurrealCoveringVecExtensions, SurrealItem,
-        SurrealItemVecExtensions,
+    base_data::{Covering, Hope, Item, ItemVecExtensions, SurrealCoveringVecExtensions},
+    surrealdb_layer::{
+        surreal_item::{SurrealItem, SurrealItemVecExtensions},
+        surreal_specific_to_hope::Permanence,
+        DataLayerCommands,
     },
-    surrealdb_layer::DataLayerCommands,
     top_menu::present_top_menu,
 };
 
-struct MentallyResidentItem<'a> {
+struct ProjectHopeItem<'a> {
     pub hope_node: &'a HopeNode<'a>,
 }
 
-impl<'a> Display for MentallyResidentItem<'a> {
+impl<'a> Display for ProjectHopeItem<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.hope_node.next_steps.is_empty() {
             write!(f, "[NEEDS NEXT STEP] ")?;
@@ -30,32 +31,32 @@ impl<'a> Display for MentallyResidentItem<'a> {
     }
 }
 
-impl<'a> From<MentallyResidentItem<'a>> for &'a Hope<'a> {
-    fn from(value: MentallyResidentItem<'a>) -> Self {
+impl<'a> From<ProjectHopeItem<'a>> for &'a Hope<'a> {
+    fn from(value: ProjectHopeItem<'a>) -> Self {
         value.hope_node.hope
     }
 }
 
-impl<'a> From<&'a HopeNode<'a>> for MentallyResidentItem<'a> {
+impl<'a> From<&'a HopeNode<'a>> for ProjectHopeItem<'a> {
     fn from(value: &'a HopeNode<'a>) -> Self {
-        MentallyResidentItem { hope_node: value }
+        ProjectHopeItem { hope_node: value }
     }
 }
 
-impl<'a> From<MentallyResidentItem<'a>> for &'a SurrealItem {
-    fn from(value: MentallyResidentItem<'a>) -> Self {
+impl<'a> From<ProjectHopeItem<'a>> for &'a SurrealItem {
+    fn from(value: ProjectHopeItem<'a>) -> Self {
         value.hope_node.into()
     }
 }
 
-impl<'a> From<&'a MentallyResidentItem<'a>> for &'a SurrealItem {
-    fn from(value: &'a MentallyResidentItem) -> Self {
+impl<'a> From<&'a ProjectHopeItem<'a>> for &'a SurrealItem {
+    fn from(value: &'a ProjectHopeItem) -> Self {
         value.hope_node.into()
     }
 }
 
-impl<'a> MentallyResidentItem<'a> {
-    fn create_list<'b>(hope_nodes: &'b [HopeNode<'b>]) -> Vec<MentallyResidentItem<'b>> {
+impl<'a> ProjectHopeItem<'a> {
+    fn create_list<'b>(hope_nodes: &'b [HopeNode<'b>]) -> Vec<ProjectHopeItem<'b>> {
         hope_nodes.iter().map(|x| x.into()).collect()
     }
 }
@@ -126,8 +127,18 @@ impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
     }
 }
 
+impl<'a> HopeNode<'a> {
+    pub fn is_maintenance(&self) -> bool {
+        self.hope.is_maintenance()
+    }
+
+    pub fn is_project(&self) -> bool {
+        self.hope.is_project()
+    }
+}
+
 #[async_recursion]
-pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub async fn view_project_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -137,15 +148,20 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
         .make_items(&surreal_tables.surreal_requirements);
     let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
 
-    let hopes = &items.filter_just_hopes();
-    let hope_nodes = create_hope_nodes(hopes, &coverings);
+    let hopes: Vec<Hope<'_>> = items
+        .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
+        .into_iter()
+        .filter(|x| x.is_project())
+        .collect();
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings)
+        .into_iter()
+        .filter(|x| x.is_project())
+        .collect();
 
-    let inquire_list = MentallyResidentItem::create_list(&hope_nodes);
+    let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
     if !inquire_list.is_empty() {
-        let selected = Select::new("Select one", inquire_list)
-            .with_page_size(30)
-            .prompt();
+        let selected = Select::new("", inquire_list).with_page_size(30).prompt();
 
         match selected {
             Ok(selected) => {
@@ -164,28 +180,99 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
     }
 }
 
-enum HopeSelectedMenuItem {
+enum MaintenanceHopeItem<'a> {
+    MaintenanceHope(&'a HopeNode<'a>),
+}
+
+impl Display for MaintenanceHopeItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MaintenanceHope(hope_node) => {
+                if hope_node.next_steps.is_empty() {
+                    write!(f, "[NEEDS NEXT STEP] ")?;
+                }
+                write!(f, "{}", hope_node.hope.summary)?;
+                for i in hope_node.towards_motivation_chain.iter() {
+                    write!(f, " ⬅  {}", i.summary)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl<'a> MaintenanceHopeItem<'a> {
+    fn create_list(hope_nodes: &'a [HopeNode<'a>]) -> Vec<MaintenanceHopeItem<'a>> {
+        hope_nodes
+            .iter()
+            .map(MaintenanceHopeItem::MaintenanceHope)
+            .collect()
+    }
+}
+
+#[async_recursion]
+pub async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
+
+    let items = surreal_tables
+        .surreal_items
+        .make_items(&surreal_tables.surreal_requirements);
+    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
+
+    let hopes: Vec<Hope<'_>> = items
+        .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
+        .into_iter()
+        .filter(|x| x.is_maintenance())
+        .collect();
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings)
+        .into_iter()
+        .filter(|x| x.is_maintenance())
+        .collect();
+
+    let list = MaintenanceHopeItem::create_list(&hope_nodes);
+
+    if !list.is_empty() {
+        let selected = Select::new("", list).prompt();
+        match selected {
+            Ok(MaintenanceHopeItem::MaintenanceHope(_hope_node)) => todo!(),
+            Err(InquireError::OperationCanceled) => {
+                present_top_menu(send_to_data_storage_layer).await
+            }
+            Err(err) => panic!("{}", err),
+        }
+    } else {
+        println!("Maintenance List is empty, falling back to main menu.");
+        present_top_menu(send_to_data_storage_layer).await
+    }
+}
+
+enum ProjectHopeSelectedMenuItem {
     CoverWithNextStep,
     CoverWithMilestone,
     ProcessAndFinish,
+    SwitchToMaintenanceHope,
 }
 
-impl Display for HopeSelectedMenuItem {
+impl Display for ProjectHopeSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CoverWithNextStep => write!(f, "Cover with next step (To Do)"),
             Self::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
             Self::ProcessAndFinish => write!(f, "Process and Finish"),
+            Self::SwitchToMaintenanceHope => write!(f, "Switch to a maintenance Hope"),
         }
     }
 }
 
-impl HopeSelectedMenuItem {
-    fn create_list() -> Vec<HopeSelectedMenuItem> {
+impl ProjectHopeSelectedMenuItem {
+    fn create_list() -> Vec<ProjectHopeSelectedMenuItem> {
         vec![
             Self::CoverWithNextStep,
             Self::CoverWithMilestone,
             Self::ProcessAndFinish,
+            Self::SwitchToMaintenanceHope,
         ]
     }
 }
@@ -194,19 +281,26 @@ async fn present_hope_selected_menu(
     hope_selected: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = HopeSelectedMenuItem::create_list();
+    let list = ProjectHopeSelectedMenuItem::create_list();
 
-    let selection = Select::new("Select one", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt();
     match selection {
-        HopeSelectedMenuItem::CoverWithNextStep => {
+        Ok(ProjectHopeSelectedMenuItem::CoverWithNextStep) => {
             present_add_next_step(hope_selected, send_to_data_storage_layer).await
         }
-        HopeSelectedMenuItem::CoverWithMilestone => {
+        Ok(ProjectHopeSelectedMenuItem::CoverWithMilestone) => {
             present_add_milestone(hope_selected, send_to_data_storage_layer).await
         }
-        HopeSelectedMenuItem::ProcessAndFinish => {
+        Ok(ProjectHopeSelectedMenuItem::ProcessAndFinish) => {
             process_and_finish_hope(hope_selected, send_to_data_storage_layer).await
         }
+        Ok(ProjectHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
+            switch_to_maintenance_hope(hope_selected, send_to_data_storage_layer).await
+        }
+        Err(InquireError::OperationCanceled) => {
+            view_project_hopes(send_to_data_storage_layer).await
+        }
+        Err(err) => panic!("{}", err),
     }
 }
 
@@ -236,7 +330,7 @@ async fn present_add_next_step(
 ) {
     let list = AddNextStepMenuItem::create_list();
 
-    let selection = Select::new("Select one", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt().unwrap();
 
     match selection {
         AddNextStepMenuItem::NewToDo => {
@@ -289,7 +383,7 @@ async fn present_add_milestone(
 ) {
     let list = AddMilestoneMenuItem::make_list();
 
-    let selection = Select::new("Select one", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt().unwrap();
 
     match selection {
         AddMilestoneMenuItem::NewMilestone => {
@@ -333,6 +427,19 @@ async fn process_and_finish_hope(
 
     send_to_data_storage_layer
         .send(DataLayerCommands::FinishItem(surreal_item.clone()))
+        .await
+        .unwrap();
+}
+
+async fn switch_to_maintenance_hope(
+    selected_hope: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    send_to_data_storage_layer
+        .send(DataLayerCommands::UpdateHopePermanence(
+            selected_hope.hope_specific.clone(),
+            Permanence::Maintenance,
+        ))
         .await
         .unwrap();
 }

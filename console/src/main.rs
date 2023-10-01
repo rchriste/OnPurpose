@@ -14,13 +14,14 @@ use tokio::sync::mpsc;
 use crate::{
     base_data::{
         ItemVecExtensions, SurrealCoveringUntilDatetimeVecExtensions, SurrealCoveringVecExtensions,
-        SurrealItemVecExtensions,
     },
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
     node::create_to_do_nodes,
-    surrealdb_layer::{data_storage_start_and_run, DataLayerCommands},
+    surrealdb_layer::{
+        data_storage_start_and_run, surreal_item::SurrealItemVecExtensions, DataLayerCommands,
+    },
     top_menu::present_top_menu,
 };
 
@@ -79,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let inquire_bullet_list = InquireBulletListItem::create_list(&next_step_nodes);
 
     if !inquire_bullet_list.is_empty() {
-        let selected = Select::new("Select one", inquire_bullet_list)
+        let selected = Select::new("", inquire_bullet_list)
             .with_page_size(30)
             .prompt();
 

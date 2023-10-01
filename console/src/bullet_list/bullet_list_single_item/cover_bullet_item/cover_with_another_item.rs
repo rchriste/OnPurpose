@@ -32,7 +32,7 @@ pub(crate) async fn cover_with_another_item<'a>(
 ) {
     let choices = create_list();
 
-    let selection = Select::new("Select one", choices).prompt().unwrap();
+    let selection = Select::new("", choices).prompt().unwrap();
     match selection {
         AnotherItem::NewNextStep => {
             cover_with_new_next_step(item_to_cover, send_to_data_storage_layer).await
