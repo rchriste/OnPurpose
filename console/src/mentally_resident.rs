@@ -11,7 +11,7 @@ use crate::{
         surreal_specific_to_hope::Permanence,
         DataLayerCommands,
     },
-    top_menu::present_top_menu,
+    top_menu::present_top_menu, update_item_summary,
 };
 
 struct ProjectHopeItem<'a> {
@@ -253,6 +253,7 @@ enum ProjectHopeSelectedMenuItem {
     CoverWithMilestone,
     ProcessAndFinish,
     SwitchToMaintenanceHope,
+    UpdateSummary,
 }
 
 impl Display for ProjectHopeSelectedMenuItem {
@@ -262,6 +263,7 @@ impl Display for ProjectHopeSelectedMenuItem {
             Self::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
             Self::ProcessAndFinish => write!(f, "Process and Finish"),
             Self::SwitchToMaintenanceHope => write!(f, "Switch to a maintenance Hope"),
+            Self::UpdateSummary => write!(f, "Update Summary"),
         }
     }
 }
@@ -273,6 +275,7 @@ impl ProjectHopeSelectedMenuItem {
             Self::CoverWithMilestone,
             Self::ProcessAndFinish,
             Self::SwitchToMaintenanceHope,
+            Self::UpdateSummary,
         ]
     }
 }
@@ -296,6 +299,9 @@ async fn present_hope_selected_menu(
         }
         Ok(ProjectHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
             switch_to_maintenance_hope(hope_selected, send_to_data_storage_layer).await
+        }
+        Ok(ProjectHopeSelectedMenuItem::UpdateSummary) => {
+            update_item_summary(hope_selected.get_surreal_item().clone(), send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => {
             view_project_hopes(send_to_data_storage_layer).await

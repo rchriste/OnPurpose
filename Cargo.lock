@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "async-recursion",
  "chrono",

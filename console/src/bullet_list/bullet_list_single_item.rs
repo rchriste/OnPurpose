@@ -2,12 +2,12 @@ mod cover_bullet_item;
 
 use std::fmt::Display;
 
-use inquire::{Editor, InquireError, Select, Text};
+use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
     bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
-    surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands},
+    surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands}, update_item_summary,
 };
 
 use super::InquireBulletListItem;
@@ -15,7 +15,7 @@ use super::InquireBulletListItem;
 enum BulletListSingleItemSelection {
     ProcessAndFinish,
     Cover,
-    EditSummary,
+    UpdateSummary,
 }
 
 impl Display for BulletListSingleItemSelection {
@@ -23,7 +23,7 @@ impl Display for BulletListSingleItemSelection {
         match self {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::Cover => write!(f, "Cover ⼍"),
-            Self::EditSummary => write!(f, "Edit Summary"),
+            Self::UpdateSummary => write!(f, "Update Summary"),
         }
     }
 }
@@ -32,7 +32,7 @@ fn create_list() -> Vec<BulletListSingleItemSelection> {
     vec![
         BulletListSingleItemSelection::ProcessAndFinish,
         BulletListSingleItemSelection::Cover,
-        BulletListSingleItemSelection::EditSummary,
+        BulletListSingleItemSelection::UpdateSummary,
     ]
 }
 
@@ -51,8 +51,8 @@ pub async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::Cover) => {
             cover_bullet_item(menu_for.into(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::EditSummary) => {
-            edit_item_summary(menu_for.into(), send_to_data_storage_layer).await
+        Ok(BulletListSingleItemSelection::UpdateSummary) => {
+            update_item_summary(menu_for.into(), send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => (), //Nothing to do we just want to return to the bullet list
         Err(err) => panic!("Unexpected {}", err),
@@ -81,13 +81,3 @@ async fn process_and_finish_bullet_item(
         .unwrap();
 }
 
-async fn edit_item_summary(
-    item_to_cover: SurrealItem,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
-    send_to_data_storage_layer
-        .send(DataLayerCommands::UpdateItemSummary(item_to_cover, new_summary))
-        .await
-        .unwrap()
-}

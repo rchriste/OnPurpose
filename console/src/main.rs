@@ -7,9 +7,10 @@ mod top_menu;
 
 use base_data::Item;
 use chrono::Local;
-use inquire::{InquireError, Select};
+use inquire::{InquireError, Select, Text};
 use node::ToDoNode;
-use tokio::sync::mpsc;
+use surrealdb_layer::surreal_item::SurrealItem;
+use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
     base_data::{
@@ -34,6 +35,17 @@ fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
         result.extend(parents.iter());
     }
     result
+}
+
+async fn update_item_summary(
+    item_to_cover: SurrealItem,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
+    send_to_data_storage_layer
+        .send(DataLayerCommands::UpdateItemSummary(item_to_cover, new_summary))
+        .await
+        .unwrap()
 }
 
 #[tokio::main]
