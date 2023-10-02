@@ -7,7 +7,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
-    surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands}, update_item_summary,
+    surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands},
+    update_item_summary,
 };
 
 use super::InquireBulletListItem;
@@ -80,4 +81,3 @@ async fn process_and_finish_bullet_item(
         .await
         .unwrap();
 }
-

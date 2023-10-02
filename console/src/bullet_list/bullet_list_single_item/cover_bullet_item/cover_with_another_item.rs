@@ -3,7 +3,13 @@ use std::fmt::Display;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::{base_data::ToDo, surrealdb_layer::DataLayerCommands};
+use crate::{
+    base_data::ToDo,
+    surrealdb_layer::{
+        surreal_specific_to_todo::{Order, Responsibility},
+        DataLayerCommands,
+    },
+};
 
 enum AnotherItem {
     //Eventually it would be nice if the new and existing could be combined into one UI control where you just type and
@@ -26,7 +32,7 @@ fn create_list() -> Vec<AnotherItem> {
     vec![AnotherItem::NewNextStep, AnotherItem::ExistingNextStep]
 }
 
-pub(crate) async fn cover_with_another_item<'a>(
+pub(crate) async fn cover_with_proactive_action_to_take<'a>(
     item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
@@ -35,7 +41,7 @@ pub(crate) async fn cover_with_another_item<'a>(
     let selection = Select::new("", choices).prompt().unwrap();
     match selection {
         AnotherItem::NewNextStep => {
-            cover_with_new_next_step(item_to_cover, send_to_data_storage_layer).await
+            cover_with_new_proactive_action_to_take(item_to_cover, send_to_data_storage_layer).await
         }
         AnotherItem::ExistingNextStep => {
             cover_with_existing_next_step(item_to_cover, send_to_data_storage_layer).await
@@ -43,11 +49,11 @@ pub(crate) async fn cover_with_another_item<'a>(
     }
 }
 
-async fn cover_with_new_next_step<'a>(
+async fn cover_with_new_proactive_action_to_take<'a>(
     item_to_cover: ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let new_next_step_text = Text::new("Enter New Covering Next Step ⍠")
+    let new_next_step_text = Text::new("Enter New Covering Action To Take ⍠")
         .prompt()
         .unwrap();
 
@@ -55,6 +61,8 @@ async fn cover_with_new_next_step<'a>(
         .send(DataLayerCommands::CoverItemWithANewToDo(
             item_to_cover.into(),
             new_next_step_text,
+            Order::NextStep,
+            Responsibility::ProactiveActionToTake,
         ))
         .await
         .unwrap();

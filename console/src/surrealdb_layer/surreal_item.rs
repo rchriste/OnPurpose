@@ -15,16 +15,6 @@ pub struct SurrealItem {
     pub item_type: ItemType,
 }
 
-pub trait SurrealItemVecExtensions {
-    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>>;
-}
-
-impl SurrealItemVecExtensions for [SurrealItem] {
-    fn make_items<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Vec<Item<'a>> {
-        self.iter().map(|x| x.make_item(requirements)).collect()
-    }
-}
-
 impl SurrealItem {
     pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Item<'a> {
         let my_requirements = requirements

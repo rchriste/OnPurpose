@@ -22,7 +22,6 @@ impl Display for InquireBulletListItem<'_> {
                 ItemType::ToDo => write!(f, "⬅ 🪜  ")?,
                 ItemType::Hope => write!(f, "⬅ 🧠 ")?,
                 ItemType::Motivation => write!(f, "⬅ 🎯 ")?,
-                ItemType::Question => todo!(),
             }
             write!(f, "{}", item.summary)?;
         }

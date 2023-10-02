@@ -10,9 +10,14 @@ I believe that the general issue with to do software is that it is either too si
 
 What I have worked out is that to do items should be tied to the outcome hoped for and backed by the motivation for why we are doing this thing. My hypothesis is that being explicit about this will result in better decisions for how we spend our time. To do software should help with all three phases of preparing, acting, and reflecting on the things we do. The interface should help with the goal of doing the right thing right now from the big picture down to the smallest literal next step. When you are waiting for something to happen it should have awareness or integrations to help you know when to return to something. It should help you remember different to dos related to your current location, head space, or situation. And it should help with the process of stopping and resuming later so you can better remember what your doing. And finally it should help you recall and celebrate your effort independent of what actually came to pass.
 
+## Why hasn't this already been done and tried? (MAYBE THIS REPEATS AND SHOULD BE REMOVED OR MOVED TO THE PRESENTATION ONLY)
+
+This system just can't be done on a piece of paper system because it is an active to do system and is meant to be reactive and shifting according to the situation. Which brings up the second issue that it requires a workable UI that really makes it convenient to implement and follow and in order to do that requires really nailing the fundamental concepts in the most natural way.
+
 ## Drive to Next Steps, (i.e. Covering, To Dos, Hopes, and Motivations)
 
-Have a list of things to do and cover that to the next step. To do's tie back to hopes and are done for motivations.
+Have a list of things to do and cover that to the next step. To do's tie back to hopes and are done for motivations. 
+There are next steps and do not forget items.
 
 ### Other uses of Covering
 
@@ -23,6 +28,22 @@ Can cover item by another item and can cover an item by a watcher that watches. 
 Pay attention to what is mentally resident
 See Upcoming
 Pick mood and state willingness
+
+### Types of To Dos
+
+* ProactiveActionToTake
+* ReactiveBeAvailableToAct
+* WaitingFor
+* TrackingToBeAwareOf
+
+### Types of Hopes
+
+* MentallyResident
+* OnDeck
+* Released
+
+### Types of Motivations
+
 
 ### In the area work, multitasking and multi-purposing
 

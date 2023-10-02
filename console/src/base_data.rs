@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local, Utc};
+use chrono::{DateTime, Datelike, Local};
 use serde::{Deserialize, Serialize};
 use surrealdb::{
     opt::RecordId,
@@ -7,8 +7,6 @@ use surrealdb::{
 use surrealdb_extra::table::Table;
 
 use crate::surrealdb_layer::{
-    surreal_covering::SurrealCovering,
-    surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::SurrealItem,
     surreal_requirement::{RequirementType, SurrealRequirement},
     surreal_specific_to_hope::{
@@ -185,7 +183,6 @@ impl<'b> Item<'b> {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub enum ItemType {
-    Question,
     ToDo,
     Hope,
     Motivation,
@@ -396,45 +393,6 @@ impl<'a> Motivation<'a> {
 pub struct Covering<'a> {
     pub smaller: &'a Item<'a>,
     pub parent: &'a Item<'a>,
-}
-
-pub trait SurrealCoveringVecExtensions {
-    fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>>;
-}
-
-impl SurrealCoveringVecExtensions for Vec<SurrealCovering> {
-    fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
-        self.iter()
-            .map(|x| Covering {
-                smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
-                parent: items.lookup_from_record_id(&x.parent).unwrap(),
-            })
-            .collect()
-    }
-}
-
-pub trait SurrealCoveringUntilDatetimeVecExtensions {
-    fn make_coverings_until_date_time<'a>(
-        &'a self,
-        items: &'a [Item<'a>],
-    ) -> Vec<CoveringUntilDateTime<'a>>;
-}
-
-impl SurrealCoveringUntilDatetimeVecExtensions for Vec<SurrealCoveringUntilDatetime> {
-    fn make_coverings_until_date_time<'a>(
-        &'a self,
-        items: &'a [Item<'a>],
-    ) -> Vec<CoveringUntilDateTime<'a>> {
-        self.iter()
-            .map(|x| {
-                let until_utc: DateTime<Utc> = x.until.clone().into();
-                CoveringUntilDateTime {
-                    cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
-                    until: until_utc.into(),
-                }
-            })
-            .collect()
-    }
 }
 
 pub struct CoveringUntilDateTime<'a> {

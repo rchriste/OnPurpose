@@ -3,6 +3,7 @@ pub mod surreal_covering_until_date_time;
 pub mod surreal_item;
 pub mod surreal_requirement;
 pub mod surreal_specific_to_hope;
+pub mod surreal_specific_to_todo;
 
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
@@ -16,7 +17,9 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::base_data::{ItemType, ProcessedText};
+use crate::base_data::{
+    Covering, CoveringUntilDateTime, Item, ItemType, ItemVecExtensions, ProcessedText,
+};
 
 use self::{
     surreal_covering::SurrealCovering,
@@ -24,15 +27,52 @@ use self::{
     surreal_item::SurrealItem,
     surreal_requirement::{RequirementType, SurrealRequirement},
     surreal_specific_to_hope::{Permanence, SurrealSpecificToHope},
+    surreal_specific_to_todo::{Order, Responsibility, SurrealSpecificToToDo},
 };
 
 #[derive(Debug)]
 pub struct SurrealTables {
     pub surreal_items: Vec<SurrealItem>,
     pub surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
+    pub surreal_specific_to_to_dos: Vec<SurrealSpecificToToDo>,
     pub surreal_coverings: Vec<SurrealCovering>,
     pub surreal_requirements: Vec<SurrealRequirement>,
     pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
+}
+
+impl SurrealTables {
+    pub fn make_items(&self) -> Vec<Item<'_>> {
+        self.surreal_items
+            .iter()
+            .map(|x| x.make_item(&self.surreal_requirements))
+            .collect()
+    }
+
+    pub fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+        self.surreal_coverings
+            .iter()
+            .map(|x| Covering {
+                smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
+                parent: items.lookup_from_record_id(&x.parent).unwrap(),
+            })
+            .collect()
+    }
+
+    pub fn make_coverings_until_date_time<'a>(
+        &'a self,
+        items: &'a [Item<'a>],
+    ) -> Vec<CoveringUntilDateTime<'a>> {
+        self.surreal_coverings_until_date_time
+            .iter()
+            .map(|x| {
+                let until_utc: DateTime<Utc> = x.until.clone().into();
+                CoveringUntilDateTime {
+                    cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
+                    until: until_utc.into(),
+                }
+            })
+            .collect()
+    }
 }
 
 pub enum DataLayerCommands {
@@ -43,8 +83,8 @@ pub enum DataLayerCommands {
     NewToDo(String),
     NewHope(String),
     NewMotivation(String),
-    CoverItemWithANewToDo(SurrealItem, String),
-    CoverItemWithANewQuestion(SurrealItem, String),
+    CoverItemWithANewToDo(SurrealItem, String, Order, Responsibility),
+    CoverItemWithANewWaitingForQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddRequirementNotSunday(SurrealItem),
@@ -107,11 +147,23 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::NewMotivation(summary_text)) => {
                 new_motivation(summary_text, &db).await
             }
-            Some(DataLayerCommands::CoverItemWithANewToDo(item_to_cover, new_to_do_text)) => {
-                cover_item_with_a_new_next_step(item_to_cover, new_to_do_text, &db).await
+            Some(DataLayerCommands::CoverItemWithANewToDo(
+                item_to_cover,
+                new_to_do_text,
+                order,
+                responsibility,
+            )) => {
+                cover_item_with_a_new_next_step(
+                    item_to_cover,
+                    new_to_do_text,
+                    order,
+                    responsibility,
+                    &db,
+                )
+                .await
             }
-            Some(DataLayerCommands::CoverItemWithANewQuestion(item, question)) => {
-                cover_item_with_a_new_question(item, question, &db).await
+            Some(DataLayerCommands::CoverItemWithANewWaitingForQuestion(item, question)) => {
+                cover_item_with_a_new_waiting_for_question(item, question, &db).await
             }
             Some(DataLayerCommands::CoverItemWithANewMilestone(
                 item_to_cover,
@@ -136,10 +188,12 @@ pub async fn data_storage_start_and_run(
 
 pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
+    let all_specific_to_to_dos = SurrealSpecificToToDo::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
     let all_requirements = SurrealRequirement::get_all(db);
     let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
+
     let all_items = all_items.await.unwrap();
     let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
     let all_specific_to_hopes = all_items
@@ -154,12 +208,28 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
             }
         })
         .collect();
+
+    let all_specific_to_to_dos = all_specific_to_to_dos.await.unwrap();
+    let all_specific_to_to_dos = all_items
+        .iter()
+        .map(|x| {
+            match all_specific_to_to_dos
+                .iter()
+                .find(|y| x.id.as_ref().expect("In DB") == &y.for_item)
+            {
+                Some(s) => s.clone(),
+                None => SurrealSpecificToToDo::new_defaults(x.id.as_ref().expect("In DB").clone()),
+            }
+        })
+        .collect();
+
     SurrealTables {
         surreal_items: all_items,
         surreal_coverings: all_coverings.await.unwrap(),
         surreal_requirements: all_requirements.await.unwrap(),
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
         surreal_specific_to_hopes: all_specific_to_hopes,
+        surreal_specific_to_to_dos: all_specific_to_to_dos,
     }
 }
 
@@ -231,14 +301,28 @@ async fn new_motivation(motivation_text: String, db: &Surreal<Any>) {
     .unwrap();
 }
 
-async fn cover_item_with_a_new_question(item: SurrealItem, question: String, db: &Surreal<Any>) {
+async fn cover_item_with_a_new_waiting_for_question(
+    item: SurrealItem,
+    question: String,
+    db: &Surreal<Any>,
+) {
+    //TODO: Cause this to be a Waiting For Responsibility o
     //For now covering an item with a question is the same implementation as just covering with a next step so just call into that
-    cover_item_with_a_new_next_step(item, question, db).await
+    cover_item_with_a_new_next_step(
+        item,
+        question,
+        Order::NextStep,
+        Responsibility::WaitingFor,
+        db,
+    )
+    .await
 }
 
 async fn cover_item_with_a_new_next_step(
     item_to_cover: SurrealItem,
     new_to_do_text: String,
+    order: Order,
+    responsibility: Responsibility,
     db: &Surreal<Any>,
 ) {
     //Note that both of these things should really be happening inside of a single transaction but I don't know how to do that
@@ -257,6 +341,14 @@ async fn cover_item_with_a_new_next_step(
     .next()
     .unwrap();
 
+    let specific_to_to_do = SurrealSpecificToToDo {
+        id: None,
+        for_item: new_to_do.id.as_ref().expect("In DB").clone(),
+        order,
+        responsibility,
+    }
+    .create(db);
+
     let smaller_option: Option<Thing> = new_to_do.into();
     let parent_option: Option<Thing> = item_to_cover.into();
     SurrealCovering {
@@ -267,6 +359,8 @@ async fn cover_item_with_a_new_next_step(
     .create(db)
     .await
     .unwrap();
+
+    specific_to_to_do.await.unwrap();
 }
 
 async fn cover_item_with_a_new_milestone(
@@ -356,8 +450,6 @@ async fn update_item_summary(
 #[cfg(test)]
 mod tests {
     use tokio::sync::mpsc;
-
-    use crate::surrealdb_layer::surreal_item::SurrealItemVecExtensions;
 
     use super::*;
 
@@ -511,9 +603,7 @@ mod tests {
             .unwrap();
 
         let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
-        let items = surreal_tables
-            .surreal_items
-            .make_items(&surreal_tables.surreal_requirements);
+        let items = surreal_tables.make_items();
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
@@ -526,9 +616,7 @@ mod tests {
             .unwrap();
 
         let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
-        let items = surreal_tables
-            .surreal_items
-            .make_items(&surreal_tables.surreal_requirements);
+        let items = surreal_tables.make_items();
 
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
@@ -540,7 +628,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cover_item_with_a_new_next_step() {
+    async fn cover_item_with_a_new_proactive_next_step() {
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
@@ -560,6 +648,8 @@ mod tests {
             .send(DataLayerCommands::CoverItemWithANewToDo(
                 item_to_cover.clone(),
                 "Covering item".into(),
+                Order::NextStep,
+                Responsibility::ProactiveActionToTake,
             ))
             .await
             .unwrap();
@@ -587,6 +677,7 @@ mod tests {
             item_that_should_cover.id.as_ref().unwrap(),
             &covering.smaller
         );
+        //TODO: Check Order & Responsibility that they are properly set
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -610,7 +701,7 @@ mod tests {
         let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
         sender
-            .send(DataLayerCommands::CoverItemWithANewQuestion(
+            .send(DataLayerCommands::CoverItemWithANewWaitingForQuestion(
                 item_to_cover.clone(),
                 "Covering item".into(),
             ))

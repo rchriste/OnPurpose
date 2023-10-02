@@ -80,11 +80,13 @@ mod tests {
     use surrealdb::sql::Datetime;
 
     use crate::{
-        base_data::{ItemType, ItemVecExtensions, SurrealCoveringUntilDatetimeVecExtensions},
+        base_data::{ItemType, ItemVecExtensions},
         surrealdb_layer::{
+            surreal_covering::SurrealCovering,
             surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-            surreal_item::{SurrealItem, SurrealItemVecExtensions},
+            surreal_item::SurrealItem,
             surreal_requirement::{RequirementType, SurrealRequirement},
+            SurrealTables,
         },
     };
 
@@ -92,16 +94,23 @@ mod tests {
 
     #[test]
     fn new_to_dos_are_shown_in_next_steps() {
-        let items = vec![SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "New item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-        }];
-        let coverings = vec![];
-        let coverings_until_date_time = vec![];
-        let requirements = vec![];
-        let items = items.make_items(&requirements);
+        let surreal_tables = SurrealTables {
+            surreal_items: vec![SurrealItem {
+                id: Some(("surreal_item", "1").into()),
+                summary: "New item".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            }],
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let wednesday_ignore =
@@ -120,16 +129,23 @@ mod tests {
 
     #[test]
     fn finished_to_dos_are_not_shown() {
-        let items = vec![SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Finished item".into(),
-            finished: Some(undefined_datetime_for_testing()),
-            item_type: ItemType::ToDo,
-        }];
-        let coverings = vec![];
-        let coverings_until_date_time = vec![];
-        let requirements = vec![];
-        let items = items.make_items(&requirements);
+        let surreal_tables = SurrealTables {
+            surreal_items: vec![SurrealItem {
+                id: Some(("surreal_item", "1").into()),
+                summary: "Finished item".into(),
+                finished: Some(undefined_datetime_for_testing()),
+                item_type: ItemType::ToDo,
+            }],
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let wednesday_ignore =
@@ -154,15 +170,23 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let coverings = vec![];
-        let coverings_until_date_time = vec![];
         let surreal_requirements = vec![SurrealRequirement {
             id: Some(("surreal_requirement", "1").into()),
             requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
             requirement_type: RequirementType::NotSunday,
         }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements,
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
 
-        let items = surreal_items.make_items(&surreal_requirements);
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let to_dos = items.filter_just_to_dos();
         let sunday =
             DateTime::parse_from_str("1983 Apr 17 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
@@ -182,15 +206,22 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let coverings = vec![];
-        let coverings_until_date_time = vec![];
         let surreal_requirements = vec![SurrealRequirement {
             id: Some(("surreal_requirement", "1").into()),
             requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
             requirement_type: RequirementType::NotSunday,
         }];
-
-        let items = surreal_items.make_items(&surreal_requirements);
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements,
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let to_dos = items.filter_just_to_dos();
         let wednesday =
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
@@ -210,16 +241,23 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let coverings = vec![];
-        let coverings_until_date_time = vec![];
         let surreal_requirements = vec![SurrealRequirement {
             id: Some(("surreal_requirement", "1").into()),
             requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
             requirement_type: RequirementType::NotSunday,
         }];
-
-        let items = surreal_items.make_items(&surreal_requirements);
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements,
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+        let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let saturday =
             DateTime::parse_from_str("1983 Apr 16 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
@@ -236,7 +274,7 @@ mod tests {
 
     #[test]
     fn to_dos_disappear_after_they_are_covered() {
-        let items = vec![
+        let surreal_items = vec![
             SurrealItem {
                 id: Some(("surreal_item", "1").into()),
                 summary: "Covered Item that should not be shown".into(),
@@ -250,13 +288,22 @@ mod tests {
                 item_type: ItemType::ToDo,
             },
         ];
-        let requirements = vec![];
-        let items = items.make_items(&requirements);
-        let coverings = vec![Covering {
-            smaller: (&items[1]).into(),
-            parent: (&items[0]).into(),
+        let surreal_coverings = vec![SurrealCovering {
+            id: Some(("surreal_covering", "1").into()),
+            smaller: surreal_items[1].id.as_ref().expect("value set").clone(),
+            parent: surreal_items[0].id.as_ref().expect("value set").clone(),
         }];
-        let coverings_until_date_time = vec![];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings,
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let wednesday_ignore =
@@ -276,7 +323,7 @@ mod tests {
 
     #[test]
     fn to_dos_return_to_next_steps_after_they_are_uncovered() {
-        let items = vec![
+        let surreal_items = vec![
             SurrealItem {
                 id: Some(("surreal_item", "1").into()),
                 summary: "Covered Item to show once the covering item is finished".into(),
@@ -290,13 +337,22 @@ mod tests {
                 item_type: ItemType::ToDo,
             },
         ];
-        let requirements = vec![];
-        let items = items.make_items(&requirements);
-        let coverings = vec![Covering {
-            smaller: (&items[1]).into(),
-            parent: (&items[0]).into(),
+        let surreal_coverings = vec![SurrealCovering {
+            id: Some(("surreal_covering", "1").into()),
+            smaller: surreal_items[1].id.as_ref().expect("Set above").clone(),
+            parent: surreal_items[0].id.as_ref().expect("Set above").clone(),
         }];
-        let coverings_until_date_time = vec![];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings,
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_specific_to_to_dos: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let wednesday_ignore =
@@ -322,8 +378,6 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let surreal_requirements = vec![];
-        let coverings = vec![];
         let now = Local::now();
         let now_utc: DateTime<Utc> = now.into();
         let in_the_future = now_utc + Duration::from_secs(60);
@@ -332,10 +386,18 @@ mod tests {
             cover_this: surreal_items[0].id.as_ref().unwrap().clone(),
             until: in_the_future.into(),
         }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time,
+            surreal_specific_to_to_dos: vec![],
+        };
 
-        let items: Vec<Item> = surreal_items.make_items(&surreal_requirements);
-        let coverings_until_date_time =
-            surreal_coverings_until_date_time.make_coverings_until_date_time(&items);
+        let items: Vec<Item> = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes =
@@ -352,20 +414,27 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let surreal_requirements = vec![];
-        let coverings = vec![];
+
         let now = Local::now();
         let now_utc: DateTime<Utc> = now.into();
         let in_the_past = now_utc - Duration::from_secs(60);
+
         let surreal_coverings_until_date_time = vec![SurrealCoveringUntilDatetime {
             id: Some(("surreal_coverings_until_date_time", "1").into()),
             cover_this: surreal_items[0].id.as_ref().unwrap().clone(),
             until: in_the_past.into(),
         }];
-
-        let items: Vec<Item> = surreal_items.make_items(&surreal_requirements);
-        let coverings_until_date_time =
-            surreal_coverings_until_date_time.make_coverings_until_date_time(&items);
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_requirements: vec![],
+            surreal_coverings_until_date_time,
+            surreal_specific_to_to_dos: vec![],
+        };
+        let items: Vec<Item> = surreal_tables.make_items();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes =

@@ -5,13 +5,15 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{Covering, Hope, Item, ItemVecExtensions, SurrealCoveringVecExtensions},
+    base_data::{Covering, Hope, Item, ItemVecExtensions},
     surrealdb_layer::{
-        surreal_item::{SurrealItem, SurrealItemVecExtensions},
+        surreal_item::SurrealItem,
         surreal_specific_to_hope::Permanence,
+        surreal_specific_to_todo::{Order, Responsibility},
         DataLayerCommands,
     },
-    top_menu::present_top_menu, update_item_summary,
+    top_menu::present_top_menu,
+    update_item_summary,
 };
 
 struct ProjectHopeItem<'a> {
@@ -143,10 +145,8 @@ pub async fn view_project_hopes(send_to_data_storage_layer: &Sender<DataLayerCom
         .await
         .unwrap();
 
-    let items = surreal_tables
-        .surreal_items
-        .make_items(&surreal_tables.surreal_requirements);
-    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
+    let items = surreal_tables.make_items();
+    let coverings = surreal_tables.make_coverings(&items);
 
     let hopes: Vec<Hope<'_>> = items
         .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
@@ -216,10 +216,8 @@ pub async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLaye
         .await
         .unwrap();
 
-    let items = surreal_tables
-        .surreal_items
-        .make_items(&surreal_tables.surreal_requirements);
-    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
+    let items = surreal_tables.make_items();
+    let coverings = surreal_tables.make_coverings(&items);
 
     let hopes: Vec<Hope<'_>> = items
         .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
@@ -301,7 +299,11 @@ async fn present_hope_selected_menu(
             switch_to_maintenance_hope(hope_selected, send_to_data_storage_layer).await
         }
         Ok(ProjectHopeSelectedMenuItem::UpdateSummary) => {
-            update_item_summary(hope_selected.get_surreal_item().clone(), send_to_data_storage_layer).await
+            update_item_summary(
+                hope_selected.get_surreal_item().clone(),
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Err(InquireError::OperationCanceled) => {
             view_project_hopes(send_to_data_storage_layer).await
@@ -358,6 +360,8 @@ async fn present_new_to_do(
         .send(DataLayerCommands::CoverItemWithANewToDo(
             hope_to_cover.get_surreal_item().clone(),
             new_hope_text,
+            Order::NextStep,
+            Responsibility::ProactiveActionToTake,
         ))
         .await
         .unwrap();

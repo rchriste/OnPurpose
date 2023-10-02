@@ -13,16 +13,12 @@ use surrealdb_layer::surreal_item::SurrealItem;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
-    base_data::{
-        ItemVecExtensions, SurrealCoveringUntilDatetimeVecExtensions, SurrealCoveringVecExtensions,
-    },
+    base_data::ItemVecExtensions,
     bullet_list::{
         bullet_list_single_item::present_bullet_list_item_selected, InquireBulletListItem,
     },
     node::create_to_do_nodes,
-    surrealdb_layer::{
-        data_storage_start_and_run, surreal_item::SurrealItemVecExtensions, DataLayerCommands,
-    },
+    surrealdb_layer::{data_storage_start_and_run, DataLayerCommands},
     top_menu::present_top_menu,
 };
 
@@ -43,7 +39,10 @@ async fn update_item_summary(
 ) {
     let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
     send_to_data_storage_layer
-        .send(DataLayerCommands::UpdateItemSummary(item_to_cover, new_summary))
+        .send(DataLayerCommands::UpdateItemSummary(
+            item_to_cover,
+            new_summary,
+        ))
         .await
         .unwrap()
 }
@@ -72,13 +71,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap();
 
-    let items = surreal_tables
-        .surreal_items
-        .make_items(&surreal_tables.surreal_requirements);
-    let coverings = surreal_tables.surreal_coverings.make_coverings(&items);
-    let coverings_until_date_time = surreal_tables
-        .surreal_coverings_until_date_time
-        .make_coverings_until_date_time(&items);
+    let items = surreal_tables.make_items();
+    let coverings = surreal_tables.make_coverings(&items);
+    let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
     let to_dos = &items.filter_just_to_dos();
     let current_date_time = Local::now();
