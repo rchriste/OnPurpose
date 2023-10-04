@@ -95,12 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(selected) => {
                 present_bullet_list_item_selected(selected, &send_to_data_storage_layer_tx).await
             }
-            Err(err) => match err {
-                InquireError::OperationCanceled => {
-                    present_top_menu(&send_to_data_storage_layer_tx).await
-                }
-                _ => panic!("Unexpected InquireError of {}", err),
-            },
+            Err(InquireError::OperationCanceled) => present_top_menu(&send_to_data_storage_layer_tx).await,
+            Err(err) => todo!("Unexpected InquireError of {}", err),
         };
     } else {
         println!("To Do List is Empty, falling back to main menu");

@@ -16,7 +16,7 @@ This system just can't be done on a piece of paper system because it is an activ
 
 ## Drive to Next Steps, (i.e. Covering, To Dos, Hopes, and Motivations)
 
-Have a list of things to do and cover that to the next step. To do's tie back to hopes and are done for motivations. 
+Have a list of things to do and cover that to the next step. To do's tie back to hopes and are done for motivations.
 There are next steps and do not forget items.
 
 ### Other uses of Covering
@@ -43,7 +43,6 @@ Pick mood and state willingness
 * Released
 
 ### Types of Motivations
-
 
 ### In the area work, multitasking and multi-purposing
 

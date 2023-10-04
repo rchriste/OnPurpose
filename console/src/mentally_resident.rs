@@ -238,7 +238,7 @@ pub async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLaye
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
             }
-            Err(err) => panic!("{}", err),
+            Err(err) => todo!("{}", err),
         }
     } else {
         println!("Maintenance List is empty, falling back to main menu.");
@@ -308,7 +308,7 @@ async fn present_hope_selected_menu(
         Err(InquireError::OperationCanceled) => {
             view_project_hopes(send_to_data_storage_layer).await
         }
-        Err(err) => panic!("{}", err),
+        Err(err) => todo!("{}", err),
     }
 }
 

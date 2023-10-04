@@ -56,7 +56,7 @@ pub async fn present_bullet_list_item_selected(
             update_item_summary(menu_for.into(), send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => (), //Nothing to do we just want to return to the bullet list
-        Err(err) => panic!("Unexpected {}", err),
+        Err(err) => todo!("Unexpected {}", err),
     }
 }
 

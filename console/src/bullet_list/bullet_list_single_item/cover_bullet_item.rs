@@ -115,7 +115,7 @@ pub async fn cover_with_waiting_for<'a>(
         Err(inquire::InquireError::OperationCanceled) => {
             cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
         }
-        Err(err) => panic!("{}", err),
+        Err(err) => todo!("{}", err),
     }
 }
 
@@ -158,7 +158,7 @@ async fn cover_with_waiting_for_question<'a>(
         Err(inquire::InquireError::OperationCanceled) => {
             cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
         }
-        Err(err) => panic!("{}", err),
+        Err(err) => todo!("{}", err),
     }
 }
 
@@ -229,19 +229,21 @@ async fn cover_with_waiting_for_event<'a>(
 
 enum CircumstanceThatMustBeTrueToActMenuItem {
     NotSunday,
+    FocusTime,
 }
 
 impl Display for CircumstanceThatMustBeTrueToActMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotSunday => write!(f, "Not Sunday"),
+            Self::NotSunday => write!(f, "Not On Sunday"),
+            Self::FocusTime => write!(f, "During Focus Time"),
         }
     }
 }
 
 impl CircumstanceThatMustBeTrueToActMenuItem {
     fn create_list() -> Vec<Self> {
-        vec![Self::NotSunday]
+        vec![Self::NotSunday, Self::FocusTime]
     }
 }
 
@@ -251,12 +253,15 @@ async fn cover_with_circumstance_that_must_be_true_to_act<'a>(
 ) {
     let list = CircumstanceThatMustBeTrueToActMenuItem::create_list();
 
-    let selection = Select::new("", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt();
 
     match selection {
-        CircumstanceThatMustBeTrueToActMenuItem::NotSunday => {
+        Ok(CircumstanceThatMustBeTrueToActMenuItem::NotSunday) => {
             set_circumstance_not_sunday(item_to_cover, send_to_data_storage_layer).await
-        }
+        },
+        Ok(CircumstanceThatMustBeTrueToActMenuItem::FocusTime) => todo!(),
+        Err(inquire::InquireError::OperationCanceled) => cover_bullet_item(item_to_cover, send_to_data_storage_layer).await,
+        Err(err) => todo!("{}", err)
     }
 }
 
