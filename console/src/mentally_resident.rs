@@ -8,7 +8,7 @@ use crate::{
     base_data::{Covering, Hope, Item, ItemVecExtensions},
     surrealdb_layer::{
         surreal_item::SurrealItem,
-        surreal_specific_to_hope::Permanence,
+        surreal_specific_to_hope::{Permanence, Staging},
         surreal_specific_to_todo::{Order, Responsibility},
         DataLayerCommands,
     },
@@ -139,8 +139,63 @@ impl<'a> HopeNode<'a> {
     }
 }
 
+enum HopeMenuItem {
+    MentallyResidentProjects,
+    OnDeckProjects,
+    IntensionProjects,
+    ReleasedProjects,
+    MaintenanceItems,
+}
+
+impl Display for HopeMenuItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MentallyResidentProjects => write!(f, "🧠 Mentally Resident Projects 🏗️"),
+            Self::OnDeckProjects => write!(f, "🚧 On Deck Projects           🏗️"),
+            Self::IntensionProjects => write!(f, "🌠 Intension Projects         🏗️"),
+            Self::ReleasedProjects => write!(f, "🔓 Released Projects          🏗️"),
+            Self::MaintenanceItems => write!(f, "🔁 Maintenance Items          🔁"),
+        }
+    }
+}
+
+impl HopeMenuItem {
+    fn make_list() -> Vec<HopeMenuItem> {
+        vec![
+            Self::MentallyResidentProjects,
+            Self::OnDeckProjects,
+            Self::IntensionProjects,
+            Self::ReleasedProjects,
+            Self::MaintenanceItems,
+        ]
+    }
+}
+
 #[async_recursion]
-pub async fn view_project_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let list = HopeMenuItem::make_list();
+
+    let selection = Select::new("", list).prompt();
+
+    match selection {
+        Ok(HopeMenuItem::MentallyResidentProjects) => {
+            view_mentally_resident_project_hopes(send_to_data_storage_layer).await
+        }
+        Ok(HopeMenuItem::OnDeckProjects) => todo!(),
+        Ok(HopeMenuItem::IntensionProjects) => todo!(),
+        Ok(HopeMenuItem::ReleasedProjects) => todo!(),
+        Ok(HopeMenuItem::MaintenanceItems) => {
+            view_maintenance_hopes(send_to_data_storage_layer).await
+        }
+        Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(err) => todo!("{}", err),
+    }
+}
+
+#[async_recursion]
+pub async fn view_mentally_resident_project_hopes(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -151,7 +206,7 @@ pub async fn view_project_hopes(send_to_data_storage_layer: &Sender<DataLayerCom
     let hopes: Vec<Hope<'_>> = items
         .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
         .into_iter()
-        .filter(|x| x.is_project())
+        .filter(|x| x.is_project() && x.is_mentally_resident())
         .collect();
     let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings)
         .into_iter()
@@ -165,7 +220,11 @@ pub async fn view_project_hopes(send_to_data_storage_layer: &Sender<DataLayerCom
 
         match selected {
             Ok(selected) => {
-                present_hope_selected_menu(selected.into(), send_to_data_storage_layer).await;
+                present_mentally_resident_hope_selected_menu(
+                    selected.into(),
+                    send_to_data_storage_layer,
+                )
+                .await;
             }
             Err(err) => match err {
                 InquireError::OperationCanceled => {
@@ -246,68 +305,89 @@ pub async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLaye
     }
 }
 
-enum ProjectHopeSelectedMenuItem {
+enum MentallyResidentHopeSelectedMenuItem {
     CoverWithNextStep,
     CoverWithMilestone,
     ProcessAndFinish,
     SwitchToMaintenanceHope,
+    SwitchToOnDeckHope,
+    SwitchToIntensionHope,
+    ReleaseHope,
     UpdateSummary,
 }
 
-impl Display for ProjectHopeSelectedMenuItem {
+impl Display for MentallyResidentHopeSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CoverWithNextStep => write!(f, "Cover with next step (To Do)"),
             Self::CoverWithMilestone => write!(f, "Cover with milestone (Hope)"),
             Self::ProcessAndFinish => write!(f, "Process and Finish"),
             Self::SwitchToMaintenanceHope => write!(f, "Switch to a maintenance Hope"),
+            Self::SwitchToOnDeckHope => write!(f, "Switch to on deck Hope"),
+            Self::SwitchToIntensionHope => write!(f, "Switch to intension Hope"),
+            Self::ReleaseHope => write!(f, "Release Hope"),
             Self::UpdateSummary => write!(f, "Update Summary"),
         }
     }
 }
 
-impl ProjectHopeSelectedMenuItem {
-    fn create_list() -> Vec<ProjectHopeSelectedMenuItem> {
+impl MentallyResidentHopeSelectedMenuItem {
+    fn create_list() -> Vec<MentallyResidentHopeSelectedMenuItem> {
         vec![
             Self::CoverWithNextStep,
             Self::CoverWithMilestone,
             Self::ProcessAndFinish,
             Self::SwitchToMaintenanceHope,
+            Self::SwitchToOnDeckHope,
+            Self::SwitchToIntensionHope,
+            Self::ReleaseHope,
             Self::UpdateSummary,
         ]
     }
 }
 
-async fn present_hope_selected_menu(
+async fn present_mentally_resident_hope_selected_menu(
     hope_selected: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = ProjectHopeSelectedMenuItem::create_list();
+    let list = MentallyResidentHopeSelectedMenuItem::create_list();
 
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(ProjectHopeSelectedMenuItem::CoverWithNextStep) => {
+        Ok(MentallyResidentHopeSelectedMenuItem::CoverWithNextStep) => {
             present_add_next_step(hope_selected, send_to_data_storage_layer).await
         }
-        Ok(ProjectHopeSelectedMenuItem::CoverWithMilestone) => {
+        Ok(MentallyResidentHopeSelectedMenuItem::CoverWithMilestone) => {
             present_add_milestone(hope_selected, send_to_data_storage_layer).await
         }
-        Ok(ProjectHopeSelectedMenuItem::ProcessAndFinish) => {
+        Ok(MentallyResidentHopeSelectedMenuItem::ProcessAndFinish) => {
             process_and_finish_hope(hope_selected, send_to_data_storage_layer).await
         }
-        Ok(ProjectHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
+        Ok(MentallyResidentHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
             switch_to_maintenance_hope(hope_selected, send_to_data_storage_layer).await
         }
-        Ok(ProjectHopeSelectedMenuItem::UpdateSummary) => {
+        Ok(MentallyResidentHopeSelectedMenuItem::SwitchToOnDeckHope) => {
+            update_hope_staging(hope_selected, send_to_data_storage_layer, Staging::OnDeck).await
+        }
+        Ok(MentallyResidentHopeSelectedMenuItem::SwitchToIntensionHope) => {
+            update_hope_staging(
+                hope_selected,
+                send_to_data_storage_layer,
+                Staging::Intension,
+            )
+            .await
+        }
+        Ok(MentallyResidentHopeSelectedMenuItem::ReleaseHope) => {
+            update_hope_staging(hope_selected, send_to_data_storage_layer, Staging::Released).await
+        }
+        Ok(MentallyResidentHopeSelectedMenuItem::UpdateSummary) => {
             update_item_summary(
                 hope_selected.get_surreal_item().clone(),
                 send_to_data_storage_layer,
             )
             .await
         }
-        Err(InquireError::OperationCanceled) => {
-            view_project_hopes(send_to_data_storage_layer).await
-        }
+        Err(InquireError::OperationCanceled) => view_hopes(send_to_data_storage_layer).await,
         Err(err) => todo!("{}", err),
     }
 }
@@ -449,6 +529,20 @@ async fn switch_to_maintenance_hope(
         .send(DataLayerCommands::UpdateHopePermanence(
             selected_hope.hope_specific.clone(),
             Permanence::Maintenance,
+        ))
+        .await
+        .unwrap();
+}
+
+async fn update_hope_staging(
+    selected_hope: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+    new_staging: Staging,
+) {
+    send_to_data_storage_layer
+        .send(DataLayerCommands::UpdateHopeStaging(
+            selected_hope.hope_specific.clone(),
+            new_staging,
         ))
         .await
         .unwrap();

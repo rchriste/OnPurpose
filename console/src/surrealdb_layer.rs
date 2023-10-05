@@ -26,7 +26,7 @@ use self::{
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::SurrealItem,
     surreal_requirement::{RequirementType, SurrealRequirement},
-    surreal_specific_to_hope::{Permanence, SurrealSpecificToHope},
+    surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
     surreal_specific_to_todo::{Order, Responsibility, SurrealSpecificToToDo},
 };
 
@@ -89,6 +89,7 @@ pub enum DataLayerCommands {
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddRequirementNotSunday(SurrealItem),
     UpdateHopePermanence(SurrealSpecificToHope, Permanence),
+    UpdateHopeStaging(SurrealSpecificToHope, Staging),
     UpdateItemSummary(SurrealItem, String),
 }
 
@@ -175,8 +176,11 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
                 add_requirement_not_sunday(add_requirement_to_this, &db).await
             }
-            Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, permanence)) => {
-                update_hope_permanence(specific_to_hope, permanence, &db).await
+            Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, new_permanence)) => {
+                update_hope_permanence(specific_to_hope, new_permanence, &db).await
+            }
+            Some(DataLayerCommands::UpdateHopeStaging(specific_to_hope, new_staging)) => {
+                update_hope_staging(specific_to_hope, new_staging, &db).await
             }
             Some(DataLayerCommands::UpdateItemSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
@@ -427,6 +431,22 @@ async fn update_hope_permanence(
     db: &Surreal<Any>,
 ) {
     surreal_specific_to_hope.permanence = new_permanence;
+
+    if surreal_specific_to_hope.id.is_some() {
+        //Update
+        surreal_specific_to_hope.update(db).await.unwrap();
+    } else {
+        //Create record
+        surreal_specific_to_hope.create(db).await.unwrap();
+    }
+}
+
+async fn update_hope_staging(
+    mut surreal_specific_to_hope: SurrealSpecificToHope,
+    new_staging: Staging,
+    db: &Surreal<Any>,
+) {
+    surreal_specific_to_hope.staging = new_staging;
 
     if surreal_specific_to_hope.id.is_some() {
         //Update

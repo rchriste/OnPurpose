@@ -40,6 +40,7 @@ Pick mood and state willingness
 
 * MentallyResident
 * OnDeck
+* Intension
 * Released
 
 ### Types of Motivations

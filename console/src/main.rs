@@ -95,7 +95,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(selected) => {
                 present_bullet_list_item_selected(selected, &send_to_data_storage_layer_tx).await
             }
-            Err(InquireError::OperationCanceled) => present_top_menu(&send_to_data_storage_layer_tx).await,
+            Err(InquireError::OperationCanceled) => {
+                present_top_menu(&send_to_data_storage_layer_tx).await
+            }
             Err(err) => todo!("Unexpected InquireError of {}", err),
         };
     } else {

@@ -34,6 +34,7 @@ pub enum Staging {
     #[default]
     MentallyResident,
     OnDeck,
+    Intension,
     Released,
 }
 

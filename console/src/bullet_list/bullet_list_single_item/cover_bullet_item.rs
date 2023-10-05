@@ -258,10 +258,12 @@ async fn cover_with_circumstance_that_must_be_true_to_act<'a>(
     match selection {
         Ok(CircumstanceThatMustBeTrueToActMenuItem::NotSunday) => {
             set_circumstance_not_sunday(item_to_cover, send_to_data_storage_layer).await
-        },
+        }
         Ok(CircumstanceThatMustBeTrueToActMenuItem::FocusTime) => todo!(),
-        Err(inquire::InquireError::OperationCanceled) => cover_bullet_item(item_to_cover, send_to_data_storage_layer).await,
-        Err(err) => todo!("{}", err)
+        Err(inquire::InquireError::OperationCanceled) => {
+            cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{}", err),
     }
 }
 
