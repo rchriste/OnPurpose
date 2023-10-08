@@ -352,7 +352,7 @@ async fn present_mentally_resident_hope_selected_menu(
 ) {
     let list = MentallyResidentHopeSelectedMenuItem::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("", list).with_page_size(15).prompt();
     match selection {
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithNextStep) => {
             present_add_next_step(hope_selected, send_to_data_storage_layer).await
