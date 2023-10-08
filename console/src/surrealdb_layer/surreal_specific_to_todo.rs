@@ -24,6 +24,7 @@ impl SurrealSpecificToToDo {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub enum Order {
+    //This is maybe something that should be tagged on the actual covering action rather than the to do itself
     #[default]
     NextStep,
     DoNotForget,

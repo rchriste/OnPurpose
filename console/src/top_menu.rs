@@ -10,7 +10,7 @@ use crate::{
 
 enum TopMenuSelection {
     CaptureToDo,
-    ViewToDos,
+    ViewBulletList,
     CaptureHope,
     ViewHopes,
     CaptureMotivation,
@@ -20,17 +20,17 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do      🗭"),
-            TopMenuSelection::ViewToDos => write!(f, "👁 🗒️ View To Dos        👁"),
-            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope       🗭"),
+            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do             🗭"),
+            TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️ View Bullet List (To Dos) 👁"),
+            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope              🗭"),
             TopMenuSelection::ViewHopes => {
-                write!(f, "👁 🙏 View Hopes         👁")
+                write!(f, "👁 🙏 View Hopes                👁")
             }
             TopMenuSelection::CaptureMotivation => {
-                write!(f, "🗬 🎯 Capture Motivation 🗭")
+                write!(f, "🗬 🎯 Capture Motivation        🗭")
             }
             TopMenuSelection::ViewMotivations => {
-                write!(f, "👁 🎯 View Motivations   👁")
+                write!(f, "👁 🎯 View Motivations          👁")
             }
         }
     }
@@ -40,7 +40,7 @@ impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
             TopMenuSelection::CaptureToDo,
-            TopMenuSelection::ViewToDos,
+            TopMenuSelection::ViewBulletList,
             TopMenuSelection::CaptureHope,
             TopMenuSelection::ViewHopes,
             TopMenuSelection::CaptureMotivation,
@@ -57,7 +57,7 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
-        TopMenuSelection::ViewToDos => {
+        TopMenuSelection::ViewBulletList => {
             present_unfocused_bullet_list_menu(send_to_data_storage_layer).await
         }
         TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,

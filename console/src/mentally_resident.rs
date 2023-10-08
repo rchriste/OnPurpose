@@ -63,7 +63,10 @@ impl<'a> ProjectHopeItem<'a> {
     }
 }
 
-fn create_hope_nodes<'a>(hopes: &'a [Hope<'a>], coverings: &[Covering<'a>]) -> Vec<HopeNode<'a>> {
+pub fn create_hope_nodes<'a>(
+    hopes: &'a [Hope<'a>],
+    coverings: &[Covering<'a>],
+) -> Vec<HopeNode<'a>> {
     hopes
         .iter()
         .filter_map(|x| {
@@ -111,7 +114,7 @@ fn build_towards_motivation_chain<'a>(
         .collect()
 }
 
-struct HopeNode<'a> {
+pub struct HopeNode<'a> {
     pub hope: &'a Hope<'a>,
     pub next_steps: Vec<&'a Item<'a>>,
     pub towards_motivation_chain: Vec<&'a Item<'a>>,
@@ -346,7 +349,7 @@ impl MentallyResidentHopeSelectedMenuItem {
     }
 }
 
-async fn present_mentally_resident_hope_selected_menu(
+pub async fn present_mentally_resident_hope_selected_menu(
     hope_selected: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
