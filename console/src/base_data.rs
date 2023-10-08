@@ -8,7 +8,7 @@ use surrealdb_extra::table::Table;
 
 use crate::surrealdb_layer::{
     surreal_item::SurrealItem,
-    surreal_requirement::{RequirementType, SurrealRequirement},
+    surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{
         Permanence, Staging, SurrealSpecificToHope, SurrealSpecificToHopes,
     },
@@ -20,7 +20,7 @@ pub struct Item<'a> {
     pub summary: &'a String,
     pub finished: &'a Option<Datetime>,
     pub item_type: &'a ItemType,
-    pub requirements: Vec<&'a SurrealRequirement>,
+    pub required_circumstances: Vec<&'a SurrealRequiredCircumstance>,
     pub surreal_item: &'a SurrealItem,
 }
 
@@ -254,13 +254,14 @@ impl<'a> ToDo<'a> {
         self.finished.is_some()
     }
 
-    pub fn is_requirements_met(&self, date: &DateTime<Local>) -> bool {
+    pub fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
         !self
             .item
-            .requirements
+            .required_circumstances
             .iter()
-            .any(|x| match x.requirement_type {
-                RequirementType::NotSunday => date.weekday().num_days_from_sunday() == 0,
+            .any(|x| match x.circumstance_type {
+                CircumstanceType::NotSunday => date.weekday().num_days_from_sunday() == 0,
+                CircumstanceType::DuringFocusTime => !are_we_in_focus_time, //TODO: Add unit test for testing this scenario in this function
             })
     }
 
@@ -425,20 +426,20 @@ impl Item<'_> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Requirement<'a> {
-    pub requirement_for: &'a SurrealItem,
-    pub requirement_type: &'a RequirementType,
-    surreal_requirement: &'a SurrealRequirement,
+pub struct Circumstance<'a> {
+    pub circumstance_for: &'a SurrealItem,
+    pub circumstance_type: &'a CircumstanceType,
+    surreal_required_circumstance: &'a SurrealRequiredCircumstance,
 }
 
-impl<'a> From<&Requirement<'a>> for &'a SurrealRequirement {
-    fn from(value: &Requirement<'a>) -> Self {
-        value.surreal_requirement
+impl<'a> From<&Circumstance<'a>> for &'a SurrealRequiredCircumstance {
+    fn from(value: &Circumstance<'a>) -> Self {
+        value.surreal_required_circumstance
     }
 }
 
-impl<'a> From<Requirement<'a>> for &'a SurrealRequirement {
-    fn from(value: Requirement<'a>) -> Self {
-        value.surreal_requirement
+impl<'a> From<Circumstance<'a>> for &'a SurrealRequiredCircumstance {
+    fn from(value: Circumstance<'a>) -> Self {
+        value.surreal_required_circumstance
     }
 }

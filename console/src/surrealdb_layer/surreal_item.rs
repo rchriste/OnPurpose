@@ -4,7 +4,7 @@ use surrealdb_extra::table::Table;
 
 use crate::base_data::{Item, ItemType};
 
-use super::surreal_requirement::SurrealRequirement;
+use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "item")] //TODO: This should be renamed items
@@ -16,11 +16,11 @@ pub struct SurrealItem {
 }
 
 impl SurrealItem {
-    pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequirement]) -> Item<'a> {
+    pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequiredCircumstance]) -> Item<'a> {
         let my_requirements = requirements
             .iter()
             .filter(|x| {
-                &x.requirement_for
+                &x.required_for
                     == self
                         .id
                         .as_ref()
@@ -36,7 +36,7 @@ impl SurrealItem {
             summary: &self.summary,
             finished: &self.finished,
             item_type: &self.item_type,
-            requirements: my_requirements,
+            required_circumstances: my_requirements,
             surreal_item: self,
         }
     }

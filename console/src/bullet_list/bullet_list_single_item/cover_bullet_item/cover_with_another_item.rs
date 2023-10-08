@@ -33,7 +33,7 @@ fn create_list() -> Vec<AnotherItem> {
 }
 
 pub(crate) async fn cover_with_proactive_action_to_take<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let choices = create_list();
@@ -50,7 +50,7 @@ pub(crate) async fn cover_with_proactive_action_to_take<'a>(
 }
 
 async fn cover_with_new_proactive_action_to_take<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let new_next_step_text = Text::new("Enter New Covering Action To Take ⍠")
@@ -59,7 +59,7 @@ async fn cover_with_new_proactive_action_to_take<'a>(
 
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithANewToDo(
-            item_to_cover.into(),
+            item_to_cover.get_surreal_item().clone(),
             new_next_step_text,
             Order::NextStep,
             Responsibility::ProactiveActionToTake,
@@ -69,7 +69,7 @@ async fn cover_with_new_proactive_action_to_take<'a>(
 }
 
 async fn cover_with_existing_next_step(
-    _item_to_cover: ToDo<'_>,
+    _item_to_cover: &ToDo<'_>,
     _send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     todo!()

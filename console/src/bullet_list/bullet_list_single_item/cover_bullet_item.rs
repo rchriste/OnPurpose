@@ -49,7 +49,7 @@ impl CoverBulletItem {
 
 #[async_recursion]
 pub async fn cover_bullet_item(
-    item_to_cover: ToDo<'async_recursion>,
+    item_to_cover: &'async_recursion ToDo<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let choices = CoverBulletItem::create_list();
@@ -98,7 +98,7 @@ impl CoverWithWaitingFor {
 }
 
 pub async fn cover_with_waiting_for<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = CoverWithWaitingFor::create_list();
@@ -140,7 +140,7 @@ impl CoverWithQuestionItem {
 }
 
 async fn cover_with_waiting_for_question<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = CoverWithQuestionItem::create_list();
@@ -163,21 +163,21 @@ async fn cover_with_waiting_for_question<'a>(
 }
 
 async fn cover_with_new_waiting_for_question<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let question = Text::new("Enter Waiting For Question ⍠").prompt().unwrap();
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithANewWaitingForQuestion(
-            item_to_cover.into(),
+            item_to_cover.get_surreal_item().clone(),
             question,
         ))
         .await
         .unwrap()
 }
 
-async fn cover_with_existing_waiting_for_question<'a>(
-    _item_to_cover: ToDo<'a>,
+async fn cover_with_existing_waiting_for_question(
+    _item_to_cover: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let raw_current_items = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
@@ -211,7 +211,7 @@ impl EventMenuItem {
 }
 
 async fn cover_with_waiting_for_event<'a>(
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = EventMenuItem::create_list();
@@ -247,8 +247,8 @@ impl CircumstanceThatMustBeTrueToActMenuItem {
     }
 }
 
-async fn cover_with_circumstance_that_must_be_true_to_act<'a>(
-    item_to_cover: ToDo<'a>,
+async fn cover_with_circumstance_that_must_be_true_to_act(
+    item_to_cover: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = CircumstanceThatMustBeTrueToActMenuItem::create_list();
@@ -259,7 +259,9 @@ async fn cover_with_circumstance_that_must_be_true_to_act<'a>(
         Ok(CircumstanceThatMustBeTrueToActMenuItem::NotSunday) => {
             set_circumstance_not_sunday(item_to_cover, send_to_data_storage_layer).await
         }
-        Ok(CircumstanceThatMustBeTrueToActMenuItem::FocusTime) => todo!(),
+        Ok(CircumstanceThatMustBeTrueToActMenuItem::FocusTime) => {
+            set_circumstance_during_focus_time(item_to_cover, send_to_data_storage_layer).await
+        }
         Err(inquire::InquireError::OperationCanceled) => {
             cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
         }
@@ -268,13 +270,24 @@ async fn cover_with_circumstance_that_must_be_true_to_act<'a>(
 }
 
 async fn set_circumstance_not_sunday(
-    item_to_get_requirement: ToDo<'_>,
+    item_to_get_circumstance: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     send_to_data_storage_layer
-        .send(DataLayerCommands::AddRequirementNotSunday(
-            //TODO: This should be renamed to Circumstance
-            item_to_get_requirement.into(),
+        .send(DataLayerCommands::AddCircumstanceNotSunday(
+            item_to_get_circumstance.get_surreal_item().clone(),
+        ))
+        .await
+        .unwrap()
+}
+
+async fn set_circumstance_during_focus_time(
+    item_to_get_circumstance: &ToDo<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    send_to_data_storage_layer
+        .send(DataLayerCommands::AddCircumstanceDuringFocusTime(
+            item_to_get_circumstance.get_surreal_item().clone(),
         ))
         .await
         .unwrap()
@@ -286,7 +299,7 @@ async fn cover_until_an_exact_date_time() {
 
 async fn cover_for_an_amount_of_time<'a>(
     now: DateTime<Local>,
-    item_to_cover: ToDo<'a>,
+    item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let wait_string = Text::new("Cover for how long?").prompt().unwrap();

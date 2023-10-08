@@ -3,15 +3,15 @@ use surrealdb::{opt::RecordId, sql::Thing};
 use surrealdb_extra::table::Table;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "requirements")]
-pub struct SurrealRequirement {
-    //TODO: Rename to SurrealCircumstance or SurrealRequiredCircumstance
+#[table(name = "required_circumstances")]
+pub struct SurrealRequiredCircumstance {
     pub id: Option<Thing>,
-    pub requirement_for: RecordId,
-    pub requirement_type: RequirementType,
+    pub required_for: RecordId,
+    pub circumstance_type: CircumstanceType,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum RequirementType {
+pub enum CircumstanceType {
     NotSunday,
+    DuringFocusTime,
 }

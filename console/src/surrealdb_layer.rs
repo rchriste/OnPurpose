@@ -1,7 +1,7 @@
 pub mod surreal_covering;
 pub mod surreal_covering_until_date_time;
 pub mod surreal_item;
-pub mod surreal_requirement;
+pub mod surreal_required_circumstance;
 pub mod surreal_specific_to_hope;
 pub mod surreal_specific_to_todo;
 
@@ -25,7 +25,7 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::SurrealItem,
-    surreal_requirement::{RequirementType, SurrealRequirement},
+    surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
     surreal_specific_to_todo::{Order, Responsibility, SurrealSpecificToToDo},
 };
@@ -36,7 +36,7 @@ pub struct SurrealTables {
     pub surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
     pub surreal_specific_to_to_dos: Vec<SurrealSpecificToToDo>,
     pub surreal_coverings: Vec<SurrealCovering>,
-    pub surreal_requirements: Vec<SurrealRequirement>,
+    pub surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
     pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
 }
 
@@ -44,7 +44,7 @@ impl SurrealTables {
     pub fn make_items(&self) -> Vec<Item<'_>> {
         self.surreal_items
             .iter()
-            .map(|x| x.make_item(&self.surreal_requirements))
+            .map(|x| x.make_item(&self.surreal_required_circumstances))
             .collect()
     }
 
@@ -87,7 +87,8 @@ pub enum DataLayerCommands {
     CoverItemWithANewWaitingForQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
-    AddRequirementNotSunday(SurrealItem),
+    AddCircumstanceNotSunday(SurrealItem),
+    AddCircumstanceDuringFocusTime(SurrealItem),
     UpdateHopePermanence(SurrealSpecificToHope, Permanence),
     UpdateHopeStaging(SurrealSpecificToHope, Staging),
     UpdateItemSummary(SurrealItem, String),
@@ -173,8 +174,11 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
                 cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
             }
-            Some(DataLayerCommands::AddRequirementNotSunday(add_requirement_to_this)) => {
-                add_requirement_not_sunday(add_requirement_to_this, &db).await
+            Some(DataLayerCommands::AddCircumstanceNotSunday(add_circumstance_to_this)) => {
+                add_circumstance_not_sunday(add_circumstance_to_this, &db).await
+            }
+            Some(DataLayerCommands::AddCircumstanceDuringFocusTime(add_circumstance_to_this)) => {
+                add_circumstance_during_focus_time(add_circumstance_to_this, &db).await
             }
             Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, new_permanence)) => {
                 update_hope_permanence(specific_to_hope, new_permanence, &db).await
@@ -195,7 +199,7 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     let all_specific_to_to_dos = SurrealSpecificToToDo::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
-    let all_requirements = SurrealRequirement::get_all(db);
+    let all_required_circumstances = SurrealRequiredCircumstance::get_all(db);
     let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
 
     let all_items = all_items.await.unwrap();
@@ -230,7 +234,7 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     SurrealTables {
         surreal_items: all_items,
         surreal_coverings: all_coverings.await.unwrap(),
-        surreal_requirements: all_requirements.await.unwrap(),
+        surreal_required_circumstances: all_required_circumstances.await.unwrap(),
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
         surreal_specific_to_hopes: all_specific_to_hopes,
         surreal_specific_to_to_dos: all_specific_to_to_dos,
@@ -414,11 +418,19 @@ async fn cover_item_until_an_exact_date_time(
     .unwrap();
 }
 
-async fn add_requirement_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
-    SurrealRequirement {
+async fn add_circumstance_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
+    add_circumstance(item, CircumstanceType::NotSunday, db).await
+}
+
+async fn add_circumstance_during_focus_time(item: SurrealItem, db: &Surreal<Any>) {
+    add_circumstance(item, CircumstanceType::DuringFocusTime, db).await
+}
+
+async fn add_circumstance(item: SurrealItem, circumstance: CircumstanceType, db: &Surreal<Any>) {
+    SurrealRequiredCircumstance {
         id: None,
-        requirement_for: item.id.unwrap(),
-        requirement_type: RequirementType::NotSunday,
+        required_for: item.id.unwrap(),
+        circumstance_type: circumstance,
     }
     .create(db)
     .await
@@ -483,7 +495,7 @@ mod tests {
 
         assert!(surreal_tables.surreal_items.is_empty());
         assert!(surreal_tables.surreal_coverings.is_empty());
-        assert!(surreal_tables.surreal_requirements.is_empty());
+        assert!(surreal_tables.surreal_required_circumstances.is_empty());
         assert!(surreal_tables.surreal_coverings_until_date_time.is_empty());
 
         drop(sender);
@@ -882,10 +894,10 @@ mod tests {
         let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
-        assert!(surreal_tables.surreal_requirements.is_empty());
+        assert!(surreal_tables.surreal_required_circumstances.is_empty());
 
         sender
-            .send(DataLayerCommands::AddRequirementNotSunday(
+            .send(DataLayerCommands::AddCircumstanceNotSunday(
                 surreal_tables.surreal_items.into_iter().next().unwrap(),
             ))
             .await
@@ -894,14 +906,14 @@ mod tests {
         let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
-        assert_eq!(1, surreal_tables.surreal_requirements.len());
+        assert_eq!(1, surreal_tables.surreal_required_circumstances.len());
         assert_eq!(
-            RequirementType::NotSunday,
+            CircumstanceType::NotSunday,
             surreal_tables
-                .surreal_requirements
+                .surreal_required_circumstances
                 .first()
                 .unwrap()
-                .requirement_type
+                .circumstance_type
         );
         assert_eq!(
             surreal_tables
@@ -912,10 +924,10 @@ mod tests {
                 .as_ref()
                 .unwrap(),
             &surreal_tables
-                .surreal_requirements
+                .surreal_required_circumstances
                 .first()
                 .unwrap()
-                .requirement_for
+                .required_for
         );
 
         drop(sender);

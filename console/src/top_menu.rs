@@ -3,7 +3,10 @@ use std::fmt::Display;
 use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::{mentally_resident::view_hopes, surrealdb_layer::DataLayerCommands, bullet_list::bullet_list_single_item::present_bullet_list_menu};
+use crate::{
+    bullet_list::present_unfocused_bullet_list_menu, mentally_resident::view_hopes,
+    surrealdb_layer::DataLayerCommands,
+};
 
 enum TopMenuSelection {
     CaptureToDo,
@@ -54,7 +57,9 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
-        TopMenuSelection::ViewToDos => present_bullet_list_menu(send_to_data_storage_layer).await,
+        TopMenuSelection::ViewToDos => {
+            present_unfocused_bullet_list_menu(send_to_data_storage_layer).await
+        }
         TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
         TopMenuSelection::ViewMotivations => view_motivations().await,
     }

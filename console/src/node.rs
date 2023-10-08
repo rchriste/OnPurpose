@@ -29,13 +29,14 @@ pub fn create_to_do_nodes<'a>(
     coverings: &'a [Covering<'a>],
     coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
     current_date: &DateTime<Local>,
+    currently_in_focus_time: bool,
 ) -> Vec<ToDoNode<'a>> {
     next_steps
         .iter()
         .filter_map(|x| {
             if !x.is_covered(coverings, coverings_until_date_time, current_date)
                 && !x.is_finished()
-                && x.is_requirements_met(current_date)
+                && x.is_circumstances_met(current_date, currently_in_focus_time)
             {
                 Some(create_to_do_node(x, coverings))
             } else {
@@ -85,7 +86,7 @@ mod tests {
             surreal_covering::SurrealCovering,
             surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
             surreal_item::SurrealItem,
-            surreal_requirement::{RequirementType, SurrealRequirement},
+            surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
             SurrealTables,
         },
     };
@@ -103,7 +104,7 @@ mod tests {
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -122,6 +123,7 @@ mod tests {
             &coverings,
             &coverings_until_date_time,
             &wednesday_ignore,
+            false,
         );
 
         assert_eq!(next_step_nodes.len(), 1);
@@ -138,7 +140,7 @@ mod tests {
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -157,6 +159,7 @@ mod tests {
             &coverings,
             &coverings_until_date_time,
             &wednesday_ignore,
+            false,
         );
 
         assert_eq!(next_step_nodes.len(), 0);
@@ -170,16 +173,16 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let surreal_requirements = vec![SurrealRequirement {
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
-            requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
-            requirement_type: RequirementType::NotSunday,
+            required_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
+            circumstance_type: CircumstanceType::NotSunday,
         }];
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements,
+            surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -192,8 +195,13 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 17 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        let next_step_nodes =
-            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &sunday);
+        let next_step_nodes = create_to_do_nodes(
+            &to_dos,
+            &coverings,
+            &coverings_until_date_time,
+            &sunday,
+            false,
+        );
 
         assert!(next_step_nodes.is_empty()); //Not shown because it is Sunday
     }
@@ -206,16 +214,16 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let surreal_requirements = vec![SurrealRequirement {
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
-            requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
-            requirement_type: RequirementType::NotSunday,
+            required_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
+            circumstance_type: CircumstanceType::NotSunday,
         }];
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements,
+            surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -227,8 +235,13 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        let next_step_nodes =
-            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &wednesday);
+        let next_step_nodes = create_to_do_nodes(
+            &to_dos,
+            &coverings,
+            &coverings_until_date_time,
+            &wednesday,
+            false,
+        );
 
         assert_eq!(1, next_step_nodes.len());
     }
@@ -241,16 +254,16 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
         }];
-        let surreal_requirements = vec![SurrealRequirement {
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
-            requirement_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
-            requirement_type: RequirementType::NotSunday,
+            required_for: surreal_items.first().unwrap().id.as_ref().unwrap().clone(),
+            circumstance_type: CircumstanceType::NotSunday,
         }];
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements,
+            surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -262,8 +275,13 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 16 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        let next_step_nodes =
-            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &saturday);
+        let next_step_nodes = create_to_do_nodes(
+            &to_dos,
+            &coverings,
+            &coverings_until_date_time,
+            &saturday,
+            false,
+        );
 
         assert_eq!(1, next_step_nodes.len());
     }
@@ -297,7 +315,7 @@ mod tests {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings,
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -315,6 +333,7 @@ mod tests {
             &coverings,
             &coverings_until_date_time,
             &wednesday_ignore,
+            false,
         );
 
         assert_eq!(next_step_nodes.len(), 1);
@@ -346,7 +365,7 @@ mod tests {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings,
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
         };
@@ -364,6 +383,7 @@ mod tests {
             &coverings,
             &coverings_until_date_time,
             &wednesday_ignore,
+            false,
         );
 
         assert_eq!(next_step_nodes.len(), 1);
@@ -390,7 +410,7 @@ mod tests {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
             surreal_specific_to_to_dos: vec![],
         };
@@ -401,7 +421,7 @@ mod tests {
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes =
-            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now);
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, false);
 
         assert!(next_steps_nodes.is_empty());
     }
@@ -428,7 +448,7 @@ mod tests {
             surreal_items,
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
-            surreal_requirements: vec![],
+            surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
             surreal_specific_to_to_dos: vec![],
         };
@@ -438,7 +458,7 @@ mod tests {
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes =
-            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now);
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, false);
 
         assert_eq!(1, next_steps_nodes.len());
     }

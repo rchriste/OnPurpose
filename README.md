@@ -12,12 +12,16 @@ What I have worked out is that to do items should be tied to the outcome hoped f
 
 ## Why hasn't this already been done and tried? (MAYBE THIS REPEATS AND SHOULD BE REMOVED OR MOVED TO THE PRESENTATION ONLY)
 
+As weird as this sounds I am just not really aware of to do software that tries to be a scheduler in a wholistic way. I think part of the reason is the idea that if a computer is a scheduler that it is then taking away from the agency of the person rather than a presenter of choices but the user remains in control. Regardless my experience is that to do software goes help you prioritize things but the idea is that you do things off the to do list but the goal is always to also do other things outside of that.
+
 This system just can't be done on a piece of paper system because it is an active to do system and is meant to be reactive and shifting according to the situation. Which brings up the second issue that it requires a workable UI that really makes it convenient to implement and follow and in order to do that requires really nailing the fundamental concepts in the most natural way.
 
 ## Drive to Next Steps, (i.e. Covering, To Dos, Hopes, and Motivations)
 
 Have a list of things to do and cover that to the next step. To do's tie back to hopes and are done for motivations.
 There are next steps and do not forget items.
+
+### Alternate between focus work, unfocused/awareness work (Also account for what is refreshing work)
 
 ### Other uses of Covering
 
