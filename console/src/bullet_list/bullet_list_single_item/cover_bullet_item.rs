@@ -48,12 +48,13 @@ impl CoverBulletItem {
 }
 
 #[async_recursion]
+#[must_use]
 pub async fn cover_bullet_item(
     item_to_cover: &'async_recursion ToDo<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), InquireError> {
     let choices = CoverBulletItem::create_list();
-    let selection = Select::new("", choices).prompt().unwrap();
+    let selection = Select::new("", choices).prompt()?;
     match selection {
         CoverBulletItem::ProactiveActionToTake => {
             cover_with_another_item::cover_with_proactive_action_to_take(
@@ -75,6 +76,7 @@ pub async fn cover_bullet_item(
             .await
         }
     }
+    Ok(())
 }
 
 enum CoverWithWaitingFor {
@@ -97,6 +99,7 @@ impl CoverWithWaitingFor {
     }
 }
 
+#[async_recursion]
 pub async fn cover_with_waiting_for<'a>(
     item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -113,7 +116,14 @@ pub async fn cover_with_waiting_for<'a>(
             cover_with_waiting_for_question(item_to_cover, send_to_data_storage_layer).await
         }
         Err(inquire::InquireError::OperationCanceled) => {
-            cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
+            let r = cover_bullet_item(item_to_cover, send_to_data_storage_layer).await;
+            match r {
+                Ok(()) => (),
+                Err(InquireError::OperationCanceled) => {
+                    cover_with_waiting_for(item_to_cover, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{}", err),
+            }
         }
         Err(err) => todo!("{}", err),
     }
@@ -139,6 +149,7 @@ impl CoverWithQuestionItem {
     }
 }
 
+#[async_recursion]
 async fn cover_with_waiting_for_question<'a>(
     item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -156,7 +167,14 @@ async fn cover_with_waiting_for_question<'a>(
                 .await
         }
         Err(inquire::InquireError::OperationCanceled) => {
-            cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
+            let r = cover_bullet_item(item_to_cover, send_to_data_storage_layer).await;
+            match r {
+                Ok(()) => (),
+                Err(InquireError::OperationCanceled) => {
+                    cover_with_waiting_for_question(item_to_cover, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{}", err),
+            }
         }
         Err(err) => todo!("{}", err),
     }
@@ -252,6 +270,7 @@ impl CircumstanceThatMustBeTrueToActMenuItem {
     }
 }
 
+#[async_recursion]
 async fn cover_with_circumstance_that_must_be_true_to_act(
     item_to_cover: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -268,7 +287,18 @@ async fn cover_with_circumstance_that_must_be_true_to_act(
             set_circumstance_during_focus_time(item_to_cover, send_to_data_storage_layer).await
         }
         Err(inquire::InquireError::OperationCanceled) => {
-            cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
+            let r = cover_bullet_item(item_to_cover, send_to_data_storage_layer).await;
+            match r {
+                Ok(()) => (),
+                Err(InquireError::OperationCanceled) => {
+                    cover_with_circumstance_that_must_be_true_to_act(
+                        item_to_cover,
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
+                Err(err) => todo!("{}", err),
+            }
         }
         Err(err) => todo!("{}", err),
     }

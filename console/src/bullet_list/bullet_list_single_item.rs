@@ -2,6 +2,7 @@ mod cover_bullet_item;
 
 use std::fmt::Display;
 
+use async_recursion::async_recursion;
 use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
@@ -36,6 +37,7 @@ fn create_list() -> Vec<BulletListSingleItemSelection> {
     ]
 }
 
+#[async_recursion]
 pub async fn present_bullet_list_item_selected(
     menu_for: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -53,7 +55,14 @@ pub async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::Cover) => {
-            cover_bullet_item(menu_for, send_to_data_storage_layer).await
+            let r = cover_bullet_item(menu_for, send_to_data_storage_layer).await;
+            match r {
+                Ok(()) => (),
+                Err(InquireError::OperationCanceled) => {
+                    present_bullet_list_item_selected(menu_for, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{}", err),
+            }
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(
