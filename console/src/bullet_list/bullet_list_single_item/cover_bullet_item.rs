@@ -5,7 +5,7 @@ use std::fmt::Display;
 use async_recursion::async_recursion;
 use chrono::{DateTime, Local};
 use duration_str::parse;
-use inquire::{Select, Text};
+use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -210,20 +210,25 @@ impl EventMenuItem {
     }
 }
 
+#[async_recursion]
 async fn cover_with_waiting_for_event<'a>(
     item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = EventMenuItem::create_list();
 
-    let selection = Select::new("", list).prompt().unwrap();
+    let selection = Select::new("", list).prompt();
 
     match selection {
-        EventMenuItem::UntilAnExactDateTime => cover_until_an_exact_date_time().await,
-        EventMenuItem::ForAnAmountOfTime => {
+        Ok(EventMenuItem::UntilAnExactDateTime) => cover_until_an_exact_date_time().await,
+        Ok(EventMenuItem::ForAnAmountOfTime) => {
             cover_for_an_amount_of_time(Local::now(), item_to_cover, send_to_data_storage_layer)
                 .await
         }
+        Err(InquireError::OperationCanceled) => {
+            cover_with_waiting_for(item_to_cover, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{}", err),
     }
 }
 
@@ -297,19 +302,28 @@ async fn cover_until_an_exact_date_time() {
     todo!()
 }
 
-async fn cover_for_an_amount_of_time<'a>(
+#[async_recursion]
+async fn cover_for_an_amount_of_time(
     now: DateTime<Local>,
-    item_to_cover: &'a ToDo<'a>,
+    item_to_cover: &ToDo<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let wait_string = Text::new("Cover for how long?").prompt().unwrap();
-    let wait_duration = parse(&wait_string).unwrap();
-    let wait_until = now + wait_duration;
-    send_to_data_storage_layer
-        .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-            item_to_cover.get_surreal_item().clone(),
-            wait_until.into(),
-        ))
-        .await
-        .unwrap();
+    let result = Text::new("Cover for how long?").prompt();
+    match result {
+        Ok(wait_string) => {
+            let wait_duration = parse(&wait_string).unwrap();
+            let wait_until = now + wait_duration;
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
+                    item_to_cover.get_surreal_item().clone(),
+                    wait_until.into(),
+                ))
+                .await
+                .unwrap();
+        }
+        Err(InquireError::OperationCanceled) => {
+            cover_with_waiting_for_event(item_to_cover, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{}", err),
+    }
 }
