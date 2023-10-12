@@ -16,7 +16,13 @@ use crate::{
     surrealdb_layer::{data_storage_start_and_run, DataLayerCommands},
 };
 
-//I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
+#[must_use]
+pub enum UnexpectedNextMenuAction {
+    Back,
+    Close
+}
+
+//TODO: I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
 fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
     let mut result = Vec::default();
     for i in item.larger.iter() {
@@ -27,7 +33,7 @@ fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
     result
 }
 
-async fn update_item_summary(
+async fn update_item_summary( //TODO: Move this
     item_to_cover: SurrealItem,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {

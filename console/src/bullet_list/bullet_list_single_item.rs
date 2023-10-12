@@ -10,7 +10,7 @@ use crate::{
     base_data::ToDo,
     bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
     surrealdb_layer::{surreal_item::SurrealItem, DataLayerCommands},
-    update_item_summary,
+    update_item_summary, UnexpectedNextMenuAction,
 };
 
 enum BulletListSingleItemSelection {
@@ -52,16 +52,16 @@ pub async fn present_bullet_list_item_selected(
                 menu_for.get_surreal_item().clone(),
                 send_to_data_storage_layer,
             )
-            .await
+            .await;
         }
         Ok(BulletListSingleItemSelection::Cover) => {
             let r = cover_bullet_item(menu_for, send_to_data_storage_layer).await;
             match r {
                 Ok(()) => (),
-                Err(InquireError::OperationCanceled) => {
+                Err(UnexpectedNextMenuAction::Back) => {
                     present_bullet_list_item_selected(menu_for, send_to_data_storage_layer).await
                 }
-                Err(err) => todo!("{}", err),
+                Err(UnexpectedNextMenuAction::Close) => todo!(),
             }
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
