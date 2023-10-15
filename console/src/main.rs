@@ -5,7 +5,7 @@ mod node;
 mod surrealdb_layer;
 mod top_menu;
 
-use base_data::Item;
+use base_data::item::Item;
 use inquire::Text;
 use node::ToDoNode;
 use surrealdb_layer::surreal_item::SurrealItem;
@@ -19,7 +19,7 @@ use crate::{
 #[must_use]
 pub enum UnexpectedNextMenuAction {
     Back,
-    Close
+    Close,
 }
 
 //TODO: I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
@@ -33,7 +33,7 @@ fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
     result
 }
 
-async fn update_item_summary( //TODO: Move this
+async fn update_item_summary(
     item_to_cover: SurrealItem,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {

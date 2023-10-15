@@ -5,7 +5,11 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{Covering, Hope, Item, ItemVecExtensions},
+    base_data::{
+        hope::Hope,
+        item::{Item, ItemVecExtensions},
+        Covering,
+    },
     surrealdb_layer::{
         surreal_item::SurrealItem,
         surreal_specific_to_hope::{Permanence, Staging},

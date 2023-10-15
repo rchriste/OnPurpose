@@ -18,7 +18,8 @@ use tokio::sync::{
 };
 
 use crate::base_data::{
-    Covering, CoveringUntilDateTime, Item, ItemType, ItemVecExtensions, ProcessedText,
+    item::{Item, ItemVecExtensions},
+    Covering, CoveringUntilDateTime, ItemType, ProcessedText,
 };
 
 use self::{

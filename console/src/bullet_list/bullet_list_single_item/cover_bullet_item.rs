@@ -9,8 +9,9 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{ItemVecExtensions, ToDo},
-    surrealdb_layer::DataLayerCommands, UnexpectedNextMenuAction,
+    base_data::{item::ItemVecExtensions, to_do::ToDo},
+    surrealdb_layer::DataLayerCommands,
+    UnexpectedNextMenuAction,
 };
 
 enum CoverBulletItem {
@@ -68,7 +69,9 @@ pub async fn cover_bullet_item(
             let r = cover_with_waiting_for(item_to_cover, send_to_data_storage_layer).await;
             match r {
                 Ok(()) => Ok(()),
-                Err(UnexpectedNextMenuAction::Back) => cover_bullet_item(item_to_cover, send_to_data_storage_layer).await,
+                Err(UnexpectedNextMenuAction::Back) => {
+                    cover_bullet_item(item_to_cover, send_to_data_storage_layer).await
+                }
                 Err(UnexpectedNextMenuAction::Close) => Err(UnexpectedNextMenuAction::Close),
             }
         }
@@ -81,9 +84,7 @@ pub async fn cover_bullet_item(
             .await;
             Ok(())
         }
-        Err(InquireError::OperationCanceled) => {
-            Err(UnexpectedNextMenuAction::Back)
-        }
+        Err(InquireError::OperationCanceled) => Err(UnexpectedNextMenuAction::Back),
         Err(InquireError::OperationInterrupted) => Err(UnexpectedNextMenuAction::Close),
         Err(err) => todo!("{}", err),
     }
@@ -127,9 +128,7 @@ pub async fn cover_with_waiting_for<'a>(
             cover_with_waiting_for_question(item_to_cover, send_to_data_storage_layer).await;
             Ok(())
         }
-        Err(InquireError::OperationCanceled) => {
-            Err(UnexpectedNextMenuAction::Back)
-        }
+        Err(InquireError::OperationCanceled) => Err(UnexpectedNextMenuAction::Back),
         Err(err) => todo!("{}", err),
     }
 }
@@ -172,11 +171,8 @@ async fn cover_with_waiting_for_question<'a>(
                 .await;
         }
         Err(InquireError::OperationCanceled) => {
-            let r = cover_bullet_item(item_to_cover, send_to_data_storage_layer).await;
-            match r {
-                Ok(()) => (),
-                Err(_) => (), //ignore cancel because paying attention causes bugs due to not having a proper back chain
-            }
+            let _ = cover_bullet_item(item_to_cover, send_to_data_storage_layer).await;
+            //discard the result because paying attention causes bugs due to not having a proper back chain
         }
         Err(err) => todo!("{}", err),
     }
@@ -253,8 +249,10 @@ async fn cover_with_waiting_for_event<'a>(
                 Ok(()) => (),
                 Err(UnexpectedNextMenuAction::Back) => {
                     cover_with_waiting_for_event(item_to_cover, send_to_data_storage_layer).await;
-                },
-                Err(UnexpectedNextMenuAction::Close) => todo!("Change return type of this function so this can be returned"),
+                }
+                Err(UnexpectedNextMenuAction::Close) => {
+                    todo!("Change return type of this function so this can be returned")
+                }
             }
         }
         Err(err) => todo!("{}", err),
@@ -308,7 +306,9 @@ async fn cover_with_circumstance_that_must_be_true_to_act(
                     )
                     .await
                 }
-                Err(UnexpectedNextMenuAction::Close) => todo!("Change the return type of this function and return this"),
+                Err(UnexpectedNextMenuAction::Close) => {
+                    todo!("Change the return type of this function and return this")
+                }
             }
         }
         Err(err) => todo!("{}", err),

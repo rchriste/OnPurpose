@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 
-use crate::base_data::{Covering, CoveringUntilDateTime, Item, ToDo};
+use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
 
 pub struct GrowingNode<'a> {
     pub item: &'a Item<'a>,
@@ -54,6 +54,13 @@ pub fn create_to_do_node<'a>(to_do: &'a ToDo, coverings: &'a [Covering<'a>]) -> 
     ToDoNode { to_do, larger }
 }
 
+impl<'a> ToDoNode<'a> {
+    #[allow(dead_code)]
+    pub fn get_summary(&'a self) -> &'a str {
+        self.to_do.get_summary()
+    }
+}
+
 pub fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     coverings: &'a [Covering<'a>],
@@ -73,6 +80,7 @@ pub fn create_growing_node<'a>(
     GrowingNode { item, larger }
 }
 
+//TODO: I think most of these test cases should be moved to another file
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -81,7 +89,7 @@ mod tests {
     use surrealdb::sql::Datetime;
 
     use crate::{
-        base_data::{ItemType, ItemVecExtensions},
+        base_data::{item::ItemVecExtensions, ItemType},
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
@@ -461,5 +469,233 @@ mod tests {
             create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, false);
 
         assert_eq!(1, next_steps_nodes.len());
+    }
+
+    #[test]
+    fn focus_items_are_not_shown_outside_of_focus_time() {
+        let surreal_items = vec![SurrealItem {
+            id: Some(("surreal_item", "1").into()),
+            summary: "Focus item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+        }];
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
+            id: Some(("surreal_required_circumstance", "1").into()),
+            required_for: surreal_items
+                .first()
+                .as_ref()
+                .expect("set above")
+                .id
+                .as_ref()
+                .expect("set above")
+                .clone(),
+            circumstance_type: CircumstanceType::DuringFocusTime,
+        }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances,
+            surreal_coverings_until_date_time: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let now = Local::now();
+
+        let bullet_list =
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, false);
+
+        assert!(bullet_list.is_empty());
+    }
+
+    #[test]
+    fn only_focus_items_are_shown_during_focus_time() {
+        let surreal_items = vec![SurrealItem {
+            id: Some(("surreal_item", "1").into()),
+            summary: "Focus item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+        }];
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
+            id: Some(("surreal_required_circumstance", "1").into()),
+            required_for: surreal_items
+                .first()
+                .as_ref()
+                .expect("set above")
+                .id
+                .as_ref()
+                .expect("set above")
+                .clone(),
+            circumstance_type: CircumstanceType::DuringFocusTime,
+        }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances,
+            surreal_coverings_until_date_time: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let now = Local::now();
+
+        let bullet_list =
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, true);
+
+        assert_eq!(1, bullet_list.len());
+    }
+
+    #[test]
+    fn focus_item_that_covers_is_only_shown_during_focus_time() {
+        let surreal_items = vec![
+            SurrealItem {
+                id: Some(("surreal_item", "1").into()),
+                summary: "Focus item".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+            SurrealItem {
+                id: Some(("surreal_item", "2").into()),
+                summary: "Covered Itemed".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+        ];
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
+            id: Some(("surreal_required_circumstance", "1").into()),
+            required_for: surreal_items
+                .first()
+                .as_ref()
+                .expect("set above")
+                .id
+                .as_ref()
+                .expect("set above")
+                .clone(),
+            circumstance_type: CircumstanceType::DuringFocusTime,
+        }];
+        let surreal_coverings = vec![SurrealCovering {
+            id: Some(("surreal_coverings", "1").into()),
+            smaller: surreal_items[0].id.as_ref().expect("Set above").clone(),
+            parent: surreal_items[1].id.as_ref().expect("Set above").clone(),
+        }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings,
+            surreal_required_circumstances,
+            surreal_coverings_until_date_time: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let now = Local::now();
+
+        let bullet_list =
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, true);
+
+        assert_eq!(1, bullet_list.len());
+    }
+
+    #[test]
+    fn focus_item_that_covers_is_hidden_outside_focus_time() {
+        let surreal_items = vec![
+            SurrealItem {
+                id: Some(("surreal_item", "1").into()),
+                summary: "Focus item".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+            SurrealItem {
+                id: Some(("surreal_item", "2").into()),
+                summary: "Covered Itemed".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+        ];
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
+            id: Some(("surreal_required_circumstance", "1").into()),
+            required_for: surreal_items
+                .first()
+                .as_ref()
+                .expect("set above")
+                .id
+                .as_ref()
+                .expect("set above")
+                .clone(),
+            circumstance_type: CircumstanceType::DuringFocusTime,
+        }];
+        let surreal_coverings = vec![SurrealCovering {
+            id: Some(("surreal_coverings", "1").into()),
+            smaller: surreal_items[0].id.as_ref().expect("Set above").clone(),
+            parent: surreal_items[1].id.as_ref().expect("Set above").clone(),
+        }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings,
+            surreal_required_circumstances,
+            surreal_coverings_until_date_time: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let now = Local::now();
+
+        let bullet_list =
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, false);
+
+        assert!(bullet_list.is_empty());
+    }
+
+    #[test]
+    fn focus_item_and_non_focus_item_during_focus_time_only_shows_the_focus_item() {
+        let surreal_items = vec![
+            SurrealItem {
+                id: Some(("surreal_item", "1").into()),
+                summary: "Focus item".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+            SurrealItem {
+                id: Some(("surreal_item", "2").into()),
+                summary: "Non-focus item".into(),
+                finished: None,
+                item_type: ItemType::ToDo,
+            },
+        ];
+        let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
+            id: Some(("surreal_required_circumstance", "1").into()),
+            required_for: surreal_items[0].id.as_ref().expect("set above").clone(),
+            circumstance_type: CircumstanceType::DuringFocusTime,
+        }];
+        let surreal_tables = SurrealTables {
+            surreal_items,
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances,
+            surreal_coverings_until_date_time: vec![],
+        };
+        let items = surreal_tables.make_items();
+        let to_dos = items.filter_just_to_dos();
+        let coverings = surreal_tables.make_coverings(&items);
+        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let now = Local::now();
+
+        let bullet_list =
+            create_to_do_nodes(&to_dos, &coverings, &coverings_until_date_time, &now, true);
+
+        assert_eq!(1, bullet_list.len());
+        assert_eq!("Focus item", bullet_list[0].get_summary());
     }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::{Item, ItemType};
+use crate::base_data::{item::Item, ItemType};
 
 use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
@@ -28,16 +28,6 @@ impl SurrealItem {
             })
             .collect();
 
-        Item {
-            id: self
-                .id
-                .as_ref()
-                .expect("Item should already be in the database and have an id"),
-            summary: &self.summary,
-            finished: &self.finished,
-            item_type: &self.item_type,
-            required_circumstances: my_requirements,
-            surreal_item: self,
-        }
+        Item::new(self, my_requirements)
     }
 }
