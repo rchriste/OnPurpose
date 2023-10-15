@@ -9,45 +9,56 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{item::Item, to_do::ToDo},
     bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
+    display_item::DisplayItem,
     surrealdb_layer::DataLayerCommands,
     update_item_summary, UnexpectedNextMenuAction,
 };
 
-enum BulletListSingleItemSelection {
+enum BulletListSingleItemSelection<'e> {
     ProcessAndFinish,
     Cover,
     UpdateSummary,
+    //Take a DisplayItem rather than a reference because it is felt that this type is only created
+    //for this scenario rather than kept around.
+    ParentItem(DisplayItem<'e>),
     DebugPrintItem,
 }
 
-impl Display for BulletListSingleItemSelection {
+impl Display for BulletListSingleItemSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
+            Self::ParentItem(item) => write!(f, "Parent Item: {}", item),
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
         }
     }
 }
 
-impl BulletListSingleItemSelection {
-    fn create_list() -> Vec<BulletListSingleItemSelection> {
-        vec![
-            Self::ProcessAndFinish,
-            Self::Cover,
-            Self::UpdateSummary,
-            Self::DebugPrintItem,
-        ]
+impl<'e> BulletListSingleItemSelection<'e> {
+    fn create_list(parent_items: &[&'e Item<'e>]) -> Vec<Self> {
+        let mut list = vec![Self::ProcessAndFinish, Self::Cover, Self::UpdateSummary];
+
+        list.extend(
+            parent_items
+                .iter()
+                .map(|x: &&'e Item<'e>| Self::ParentItem(DisplayItem::new(x))),
+        );
+
+        list.push(Self::DebugPrintItem);
+
+        list
     }
 }
 
 #[async_recursion]
 pub async fn present_bullet_list_item_selected(
     menu_for: &ToDo<'_>,
+    parents: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list();
+    let list = BulletListSingleItemSelection::create_list(parents);
 
     let selection = Select::new("", list).prompt();
 
@@ -60,7 +71,8 @@ pub async fn present_bullet_list_item_selected(
             match r {
                 Ok(()) => (),
                 Err(UnexpectedNextMenuAction::Back) => {
-                    present_bullet_list_item_selected(menu_for, send_to_data_storage_layer).await
+                    present_bullet_list_item_selected(menu_for, parents, send_to_data_storage_layer)
+                        .await
                 }
                 Err(UnexpectedNextMenuAction::Close) => todo!(),
             }
@@ -71,6 +83,9 @@ pub async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
+        }
+        Ok(BulletListSingleItemSelection::ParentItem(item)) => {
+            present_bullet_list_item_parent_selected(item.into(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::DebugPrintItem) => {
             println!("{:?}", menu_for);
@@ -84,6 +99,9 @@ async fn process_and_finish_bullet_item(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
+    //I should probably be processing and finishing all of the children next steps but this requires some thought
+    //because sometimes or if there are multiple children next steps that that shouldn't happen rather the user
+    //should be prompted to pick which children to also process and finish.
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
 
     let surreal_item = item.get_surreal_item();
@@ -101,4 +119,19 @@ async fn process_and_finish_bullet_item(
         .send(DataLayerCommands::FinishItem(surreal_item.clone()))
         .await
         .unwrap();
+}
+
+async fn present_bullet_list_item_parent_selected(
+    selected_item: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    match selected_item.item_type {
+        crate::base_data::ItemType::ToDo => {
+            let to_do = ToDo::new(selected_item);
+            let parents = vec![]; //TODO: get parents, probably use send_to_data_storage_layer to get the data needed
+            present_bullet_list_item_selected(&to_do, &parents, send_to_data_storage_layer).await
+        }
+        crate::base_data::ItemType::Hope => todo!(),
+        crate::base_data::ItemType::Motivation => todo!(),
+    }
 }

@@ -2,12 +2,12 @@ use chrono::{DateTime, Local};
 
 use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
 
-pub struct GrowingNode<'a> {
+pub struct GrowingItemNode<'a> {
     pub item: &'a Item<'a>,
-    pub larger: Vec<GrowingNode<'a>>,
+    pub larger: Vec<GrowingItemNode<'a>>,
 }
 
-impl<'a> GrowingNode<'a> {
+impl<'a> GrowingItemNode<'a> {
     pub fn create_growing_parents(&self) -> Vec<&'a Item<'a>> {
         let mut result = Vec::default();
         for i in self.larger.iter() {
@@ -21,7 +21,7 @@ impl<'a> GrowingNode<'a> {
 
 pub struct ToDoNode<'a> {
     pub to_do: &'a ToDo<'a>,
-    pub larger: Vec<GrowingNode<'a>>,
+    pub larger: Vec<GrowingItemNode<'a>>,
 }
 
 pub fn create_to_do_nodes<'a>(
@@ -64,7 +64,7 @@ impl<'a> ToDoNode<'a> {
 pub fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     coverings: &'a [Covering<'a>],
-) -> Vec<GrowingNode<'a>> {
+) -> Vec<GrowingItemNode<'a>> {
     items
         .iter()
         .map(|x| create_growing_node(x, coverings))
@@ -74,10 +74,10 @@ pub fn create_growing_nodes<'a>(
 pub fn create_growing_node<'a>(
     item: &'a Item<'a>,
     coverings: &'a [Covering<'a>],
-) -> GrowingNode<'a> {
+) -> GrowingItemNode<'a> {
     let parents = item.find_parents(coverings);
     let larger = create_growing_nodes(parents, coverings);
-    GrowingNode { item, larger }
+    GrowingItemNode { item, larger }
 }
 
 //TODO: I think most of these test cases should be moved to another file

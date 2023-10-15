@@ -110,7 +110,8 @@ impl<'b> Item<'b> {
     }
 
     pub fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
-        self.is_circumstances_met_sunday(date) && self.is_circumstances_met_focus_time(are_we_in_focus_time)
+        self.is_circumstances_met_sunday(date)
+            && self.is_circumstances_met_focus_time(are_we_in_focus_time)
     }
 
     pub fn is_circumstances_met_sunday(&self, date: &DateTime<Local>) -> bool {
@@ -121,19 +122,15 @@ impl<'b> Item<'b> {
                 CircumstanceType::NotSunday => date.weekday().num_days_from_sunday() == 0,
                 _ => false,
             })
-
     }
 
     pub fn is_circumstances_met_focus_time(&self, are_we_in_focus_time: bool) -> bool {
         let should_this_be_done_during_focus_time = self
             .required_circumstances
             .iter()
-            .any(|x| match x.circumstance_type {
-                CircumstanceType::DuringFocusTime => true, //TODO: Add unit test for testing this scenario in this function
-                _ => false,
-            });
+            .any(|x| matches!(x.circumstance_type, CircumstanceType::DuringFocusTime));
 
-            should_this_be_done_during_focus_time == are_we_in_focus_time
+        should_this_be_done_during_focus_time == are_we_in_focus_time
     }
 
     pub fn is_finished(&self) -> bool {
@@ -280,7 +277,7 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        
+
         assert!(item.is_circumstances_met(&wednesday_ignore, true));
     }
 
@@ -306,7 +303,7 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        
+
         assert!(!item.is_circumstances_met(&wednesday_ignore, false));
     }
 }

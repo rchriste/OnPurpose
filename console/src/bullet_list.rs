@@ -157,8 +157,8 @@ pub async fn present_unfocused_bullet_list_menu(
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 present_focused_bullet_list_menu(send_to_data_storage_layer).await
             }
-            Ok(InquireBulletListItem::NextStepToDo { to_do, parents: _ }) => {
-                present_bullet_list_item_selected(to_do, send_to_data_storage_layer).await
+            Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
+                present_bullet_list_item_selected(to_do, &parents, send_to_data_storage_layer).await
             }
             Ok(InquireBulletListItem::NeedsNextStepHope { hope, parents: _ }) => {
                 present_mentally_resident_hope_selected_menu(hope, send_to_data_storage_layer).await
@@ -207,8 +207,8 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 panic!("The focus list should not present this option")
             }
-            Ok(InquireBulletListItem::NextStepToDo { to_do, parents: _ }) => {
-                present_bullet_list_item_selected(to_do, send_to_data_storage_layer).await
+            Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
+                present_bullet_list_item_selected(to_do, &parents, send_to_data_storage_layer).await
             }
             Ok(InquireBulletListItem::NeedsNextStepHope {
                 hope: _,

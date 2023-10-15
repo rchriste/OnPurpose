@@ -1,5 +1,6 @@
 pub mod base_data;
 mod bullet_list;
+pub(crate) mod display_item;
 mod mentally_resident;
 mod node;
 mod surrealdb_layer;
