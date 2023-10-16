@@ -1,5 +1,6 @@
 pub mod base_data;
 mod bullet_list;
+mod change_routine;
 pub(crate) mod display_item;
 mod mentally_resident;
 mod node;
@@ -8,7 +9,7 @@ mod top_menu;
 
 use base_data::item::Item;
 use inquire::Text;
-use node::ToDoNode;
+use node::to_do_node::ToDoNode;
 use surrealdb_layer::surreal_item::SurrealItem;
 use tokio::sync::mpsc::{self, Sender};
 

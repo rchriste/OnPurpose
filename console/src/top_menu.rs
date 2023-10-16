@@ -4,12 +4,13 @@ use inquire::{Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    bullet_list::present_unfocused_bullet_list_menu, mentally_resident::view_hopes,
-    surrealdb_layer::DataLayerCommands,
+    bullet_list::present_unfocused_bullet_list_menu, change_routine::change_routine,
+    mentally_resident::view_hopes, surrealdb_layer::DataLayerCommands,
 };
 
 enum TopMenuSelection {
     CaptureToDo,
+    ChangeRoutine,
     ViewBulletList,
     CaptureHope,
     ViewHopes,
@@ -21,6 +22,7 @@ impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do             🗭"),
+            TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝ Change Routine            ↜"),
             TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️ View Bullet List (To Dos) 👁"),
             TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope              🗭"),
             TopMenuSelection::ViewHopes => {
@@ -39,12 +41,13 @@ impl Display for TopMenuSelection {
 impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
-            TopMenuSelection::CaptureToDo,
-            TopMenuSelection::ViewBulletList,
-            TopMenuSelection::CaptureHope,
-            TopMenuSelection::ViewHopes,
-            TopMenuSelection::CaptureMotivation,
-            TopMenuSelection::ViewMotivations,
+            Self::CaptureToDo,
+            Self::ChangeRoutine,
+            Self::ViewBulletList,
+            Self::CaptureHope,
+            Self::ViewHopes,
+            Self::CaptureMotivation,
+            Self::ViewMotivations,
         ]
     }
 }
@@ -55,6 +58,7 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
     let selection = Select::new("", top_menu).prompt().unwrap();
     match selection {
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
+        TopMenuSelection::ChangeRoutine => change_routine(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
         TopMenuSelection::ViewBulletList => {

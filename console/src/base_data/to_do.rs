@@ -32,6 +32,12 @@ impl<'a> From<&ToDo<'a>> for &'a SurrealItem {
     }
 }
 
+impl<'a> From<&&ToDo<'a>> for &'a Item<'a> {
+    fn from(value: &&ToDo<'a>) -> Self {
+        value.item
+    }
+}
+
 impl<'a> From<&ToDo<'a>> for &'a Item<'a> {
     fn from(value: &ToDo<'a>) -> Self {
         value.item

@@ -1,6 +1,8 @@
 pub mod hope;
 pub mod item;
+pub mod life_area;
 pub mod motivation;
+pub mod routine;
 pub mod to_do;
 
 use chrono::{DateTime, Local};

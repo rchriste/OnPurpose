@@ -12,13 +12,13 @@ use crate::{
         hope::Hope,
         item::{Item, ItemVecExtensions},
         to_do::ToDo,
-        ItemType,
     },
     create_next_step_parents,
+    display_item::DisplayItem,
     mentally_resident::{
         create_hope_nodes, present_mentally_resident_hope_selected_menu, HopeNode,
     },
-    node::{create_to_do_nodes, ToDoNode},
+    node::to_do_node::{create_to_do_nodes, ToDoNode},
     surrealdb_layer::DataLayerCommands,
     top_menu::present_top_menu,
 };
@@ -42,25 +42,19 @@ impl Display for InquireBulletListItem<'_> {
         match self {
             Self::ViewFocusItems => write!(f, "⏲️  [View Focus Items] ⏲️")?,
             Self::NextStepToDo { to_do, parents } => {
-                write!(f, "{} ", to_do.summary)?;
+                let display_item = DisplayItem::new(to_do.into());
+                write!(f, "{} ", display_item)?;
                 for item in parents {
-                    match item.item_type {
-                        ItemType::ToDo => write!(f, "⬅ 🪜  ")?,
-                        ItemType::Hope => write!(f, "⬅ 🧠 ")?,
-                        ItemType::Motivation => write!(f, "⬅ 🎯 ")?,
-                    }
-                    write!(f, "{}", item.summary)?;
+                    let display_item = DisplayItem::new(item);
+                    write!(f, " ⬅ {}", display_item)?;
                 }
             }
             Self::NeedsNextStepHope { hope, parents } => {
-                write!(f, "[NEEDS NEXT STEP] ⬅ 🧠 {}", hope.summary)?;
+                let display_item = DisplayItem::new(hope.into());
+                write!(f, "[NEEDS NEXT STEP] ⬅ {}", display_item)?;
                 for item in parents {
-                    match item.item_type {
-                        ItemType::ToDo => write!(f, "⬅ 🪜  ")?,
-                        ItemType::Hope => write!(f, "⬅ 🧠 ")?,
-                        ItemType::Motivation => write!(f, "⬅ 🎯 ")?,
-                    }
-                    write!(f, " ⬅  {}", item.summary)?;
+                    let display_item = DisplayItem::new(item);
+                    write!(f, " ⬅  {}", display_item)?;
                 }
             }
         }

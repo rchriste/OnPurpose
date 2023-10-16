@@ -1,7 +1,9 @@
 pub mod surreal_covering;
 pub mod surreal_covering_until_date_time;
 pub mod surreal_item;
+pub mod surreal_life_area;
 pub mod surreal_required_circumstance;
+pub mod surreal_routine;
 pub mod surreal_specific_to_hope;
 pub mod surreal_specific_to_todo;
 
@@ -19,6 +21,8 @@ use tokio::sync::{
 
 use crate::base_data::{
     item::{Item, ItemVecExtensions},
+    life_area::LifeArea,
+    routine::Routine,
     Covering, CoveringUntilDateTime, ItemType, ProcessedText,
 };
 
@@ -26,7 +30,9 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::SurrealItem,
+    surreal_life_area::SurrealLifeArea,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
+    surreal_routine::SurrealRoutine,
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
     surreal_specific_to_todo::{Order, Responsibility, SurrealSpecificToToDo},
 };
@@ -39,6 +45,8 @@ pub struct SurrealTables {
     pub surreal_coverings: Vec<SurrealCovering>,
     pub surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
     pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
+    pub surreal_life_areas: Vec<SurrealLifeArea>,
+    pub surreal_routines: Vec<SurrealRoutine>,
 }
 
 impl SurrealTables {
@@ -71,6 +79,23 @@ impl SurrealTables {
                     cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
                     until: until_utc.into(),
                 }
+            })
+            .collect()
+    }
+
+    pub fn make_life_areas(&self) -> Vec<LifeArea<'_>> {
+        self.surreal_life_areas.iter().map(LifeArea::new).collect()
+    }
+
+    pub fn make_routines<'a>(&'a self, life_areas: &'a [LifeArea<'a>]) -> Vec<Routine<'a>> {
+        self.surreal_routines
+            .iter()
+            .map(|x| {
+                let parent_life_area = life_areas
+                    .iter()
+                    .find(|y| y.surreal_life_area.id.as_ref().expect("Always in DB") == &x.parent)
+                    .unwrap();
+                Routine::new(x, parent_life_area)
             })
             .collect()
     }
@@ -202,6 +227,8 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     let all_coverings = SurrealCovering::get_all(db);
     let all_required_circumstances = SurrealRequiredCircumstance::get_all(db);
     let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
+    let all_life_areas = SurrealLifeArea::get_all(db);
+    let all_routines = SurrealRoutine::get_all(db);
 
     let all_items = all_items.await.unwrap();
     let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
@@ -239,6 +266,8 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
         surreal_specific_to_hopes: all_specific_to_hopes,
         surreal_specific_to_to_dos: all_specific_to_to_dos,
+        surreal_life_areas: all_life_areas.await.unwrap(),
+        surreal_routines: all_routines.await.unwrap(),
     }
 }
 

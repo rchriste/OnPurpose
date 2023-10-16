@@ -30,6 +30,18 @@ impl<'a> From<&'a Hope<'a>> for &'a SurrealItem {
     }
 }
 
+impl<'s> From<&&'s Hope<'s>> for &'s Item<'s> {
+    fn from(value: &&'s Hope<'s>) -> Self {
+        value.item
+    }
+}
+
+impl<'s> From<&'s Hope<'s>> for &'s Item<'s> {
+    fn from(value: &'s Hope<'s>) -> Self {
+        value.item
+    }
+}
+
 impl PartialEq<Hope<'_>> for Item<'_> {
     fn eq(&self, other: &Hope<'_>) -> bool {
         self == other.item

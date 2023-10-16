@@ -1,6 +1,6 @@
-use chrono::{DateTime, Local};
+pub mod to_do_node;
 
-use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
+use crate::base_data::{item::Item, Covering};
 
 pub struct GrowingItemNode<'a> {
     pub item: &'a Item<'a>,
@@ -16,48 +16,6 @@ impl<'a> GrowingItemNode<'a> {
             result.extend(parents.iter());
         }
         result
-    }
-}
-
-pub struct ToDoNode<'a> {
-    pub to_do: &'a ToDo<'a>,
-    pub larger: Vec<GrowingItemNode<'a>>,
-}
-
-pub fn create_to_do_nodes<'a>(
-    next_steps: &'a [ToDo],
-    coverings: &'a [Covering<'a>],
-    coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
-    current_date: &DateTime<Local>,
-    currently_in_focus_time: bool,
-) -> Vec<ToDoNode<'a>> {
-    next_steps
-        .iter()
-        .filter_map(|x| {
-            if !x.is_covered(coverings, coverings_until_date_time, current_date)
-                && !x.is_finished()
-                && x.is_circumstances_met(current_date, currently_in_focus_time)
-            {
-                Some(create_to_do_node(x, coverings))
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-pub fn create_to_do_node<'a>(to_do: &'a ToDo, coverings: &'a [Covering<'a>]) -> ToDoNode<'a> {
-    let item: &Item = to_do.into();
-    let parents = item.find_parents(coverings);
-    let larger = create_growing_nodes(parents, coverings);
-
-    ToDoNode { to_do, larger }
-}
-
-impl<'a> ToDoNode<'a> {
-    #[allow(dead_code)]
-    pub fn get_summary(&'a self) -> &'a str {
-        self.to_do.get_summary()
     }
 }
 
@@ -85,11 +43,12 @@ pub fn create_growing_node<'a>(
 mod tests {
     use std::time::Duration;
 
-    use chrono::{Local, Utc};
+    use chrono::{DateTime, Local, Utc};
     use surrealdb::sql::Datetime;
 
     use crate::{
         base_data::{item::ItemVecExtensions, ItemType},
+        node::to_do_node::create_to_do_nodes,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
@@ -115,6 +74,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
 
         let items = surreal_tables.make_items();
@@ -151,6 +112,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
 
         let items = surreal_tables.make_items();
@@ -193,6 +156,8 @@ mod tests {
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
 
         let items = surreal_tables.make_items();
@@ -234,6 +199,8 @@ mod tests {
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let coverings = surreal_tables.make_coverings(&items);
@@ -274,6 +241,8 @@ mod tests {
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
@@ -326,6 +295,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let coverings = surreal_tables.make_coverings(&items);
@@ -376,6 +347,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let coverings = surreal_tables.make_coverings(&items);
@@ -421,6 +394,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
 
         let items: Vec<Item> = surreal_tables.make_items();
@@ -459,6 +434,8 @@ mod tests {
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
             surreal_specific_to_to_dos: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items: Vec<Item> = surreal_tables.make_items();
         let coverings = surreal_tables.make_coverings(&items);
@@ -498,6 +475,8 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
@@ -538,6 +517,8 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
@@ -591,6 +572,8 @@ mod tests {
             surreal_coverings,
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
@@ -644,6 +627,8 @@ mod tests {
             surreal_coverings,
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
@@ -685,6 +670,8 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
         };
         let items = surreal_tables.make_items();
         let to_dos = items.filter_just_to_dos();
