@@ -212,6 +212,7 @@ mod tests {
             summary: "Circumstance type is not Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: Vec::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -237,6 +238,7 @@ mod tests {
             summary: "Circumstance type is not Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: Vec::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -263,6 +265,7 @@ mod tests {
             summary: "Circumstance type is not Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: Vec::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -289,6 +292,7 @@ mod tests {
             summary: "Circumstance type is not Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: Vec::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {

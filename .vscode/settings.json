@@ -4,13 +4,16 @@
         "chrono",
         "Datelike",
         "Datetime",
+        "meds",
         "neurodiverse",
         "neurodiversity",
         "oneshoot",
         "oneshot",
+        "prioritizations",
         "protobuf",
         "rocksdb",
         "serde",
-        "surrealdb"
+        "surrealdb",
+        "Ｗｏｒｋ"
     ]
 }

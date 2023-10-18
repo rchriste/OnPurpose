@@ -68,6 +68,7 @@ mod tests {
                 summary: "New item".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
@@ -106,6 +107,7 @@ mod tests {
                 summary: "Finished item".into(),
                 finished: Some(undefined_datetime_for_testing()),
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
@@ -143,6 +145,7 @@ mod tests {
             summary: "Can't do this on Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -186,6 +189,7 @@ mod tests {
             summary: "Can't do this on Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -228,6 +232,7 @@ mod tests {
             summary: "Can't do this on Sunday".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -275,12 +280,14 @@ mod tests {
                 summary: "Covered Item that should not be shown".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
                 summary: "Covering Item that should be shown".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
         ];
         let surreal_coverings = vec![SurrealCovering {
@@ -327,12 +334,14 @@ mod tests {
                 summary: "Covered Item to show once the covering item is finished".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
                 summary: "Covering Item that is finished".into(),
                 finished: Some(undefined_datetime_for_testing()),
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
         ];
         let surreal_coverings = vec![SurrealCovering {
@@ -378,6 +387,7 @@ mod tests {
             summary: "Covered item that should not be shown".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let now = Local::now();
         let now_utc: DateTime<Utc> = now.into();
@@ -416,6 +426,7 @@ mod tests {
             summary: "Covered item that should not be shown".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
 
         let now = Local::now();
@@ -455,6 +466,7 @@ mod tests {
             summary: "Focus item".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -497,6 +509,7 @@ mod tests {
             summary: "Focus item".into(),
             finished: None,
             item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -540,12 +553,14 @@ mod tests {
                 summary: "Focus item".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
                 summary: "Covered Itemed".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
@@ -595,12 +610,14 @@ mod tests {
                 summary: "Focus item".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
                 summary: "Covered Itemed".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
@@ -650,12 +667,14 @@ mod tests {
                 summary: "Focus item".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
                 summary: "Non-focus item".into(),
                 finished: None,
                 item_type: ItemType::ToDo,
+                smaller_items_in_priority_order: vec![],
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {

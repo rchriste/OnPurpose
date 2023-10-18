@@ -10,21 +10,22 @@ pub mod surreal_specific_to_todo;
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
+    error::Api,
     sql::Thing,
-    Surreal,
+    Error, Surreal,
 };
-use surrealdb_extra::table::Table;
+use surrealdb_extra::table::{Table, TableError};
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     oneshot::{self, error::RecvError},
 };
 
-use crate::base_data::{
+use crate::{base_data::{
     item::{Item, ItemVecExtensions},
     life_area::LifeArea,
     routine::Routine,
     Covering, CoveringUntilDateTime, ItemType, ProcessedText,
-};
+}, surrealdb_layer::surreal_item::SurrealItemOldVersion};
 
 use self::{
     surreal_covering::SurrealCovering,
@@ -160,7 +161,7 @@ pub async fn data_storage_start_and_run(
         let received = data_storage_layer_receive_rx.recv().await;
         match received {
             Some(DataLayerCommands::SendRawData(oneshot)) => {
-                let surreal_tables = load_data_from_surrealdb(&db).await;
+                let surreal_tables = load_from_surrealdb_upgrade_if_needed(&db).await;
                 oneshot.send(surreal_tables).unwrap();
             }
             Some(DataLayerCommands::AddProcessedText(processed_text, for_item)) => {
@@ -220,7 +221,7 @@ pub async fn data_storage_start_and_run(
     }
 }
 
-pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
+pub async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
     let all_specific_to_to_dos = SurrealSpecificToToDo::get_all(db);
     let all_items = SurrealItem::get_all(db);
@@ -230,7 +231,15 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     let all_life_areas = SurrealLifeArea::get_all(db);
     let all_routines = SurrealRoutine::get_all(db);
 
-    let all_items = all_items.await.unwrap();
+    let all_items = match all_items.await {
+        Ok(all_items) => all_items,
+        Err(TableError::Db(Error::Api(Api::FromValue { value: _, error }))) => {
+            println!("Upgrading items table because of issue: {}", error);
+            upgrade_items_table(db).await;
+            SurrealItem::get_all(db).await.unwrap()
+        }
+        _ => todo!(),
+    };
     let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
     let all_specific_to_hopes = all_items
         .iter()
@@ -271,6 +280,14 @@ pub async fn load_data_from_surrealdb(db: &Surreal<Any>) -> SurrealTables {
     }
 }
 
+async fn upgrade_items_table(db: &Surreal<Any>) {
+    for item_old_version in SurrealItemOldVersion::get_all(db).await.unwrap().into_iter() {
+        let item: SurrealItem = item_old_version.into();
+        item.update(db).await.unwrap();
+    }
+}
+
+
 pub async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
     let for_item: Option<Thing> = for_item.into();
     let data = ProcessedText {
@@ -304,35 +321,24 @@ pub async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>) {
 }
 
 async fn new_to_do(to_do_text: String, db: &Surreal<Any>) {
-    SurrealItem {
-        id: None,
-        summary: to_do_text,
-        finished: None,
-        item_type: ItemType::ToDo,
-    }
-    .create(db)
-    .await
-    .unwrap();
+    new_item(to_do_text, ItemType::ToDo, db).await
 }
 
 async fn new_hope(hope_text: String, db: &Surreal<Any>) {
-    SurrealItem {
-        id: None,
-        summary: hope_text,
-        finished: None,
-        item_type: ItemType::Hope,
-    }
-    .create(db)
-    .await
-    .unwrap();
+    new_item(hope_text, ItemType::Hope, db).await
 }
 
 async fn new_motivation(motivation_text: String, db: &Surreal<Any>) {
+    new_item(motivation_text, ItemType::Motivation, db).await
+}
+
+async fn new_item(summary_text: String, item_type: ItemType, db: &Surreal<Any>) {
     SurrealItem {
         id: None,
-        summary: motivation_text,
+        summary: summary_text,
         finished: None,
-        item_type: ItemType::Motivation,
+        item_type,
+        smaller_items_in_priority_order: Vec::default(),
     }
     .create(db)
     .await
@@ -371,6 +377,7 @@ async fn cover_item_with_a_new_next_step(
         summary: new_to_do_text,
         finished: None,
         item_type: ItemType::ToDo,
+        smaller_items_in_priority_order: Vec::default(),
     }
     .create(db)
     .await
@@ -413,6 +420,7 @@ async fn cover_item_with_a_new_milestone(
         summary: milestone_text,
         finished: None,
         item_type: ItemType::Hope,
+        smaller_items_in_priority_order: Vec::default(),
     }
     .create(db)
     .await

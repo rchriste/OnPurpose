@@ -24,19 +24,45 @@ Routines
 *Personal ➜ Bedtime Process and Sleep
 *Personal ➜ Church calling
 
-Prioritization When Work Life Area Selected
-Work ➜ More Urgent Than Meetings ｜ 0%+ When working on pauses all time debt+surplus for child items
- ⎣Work ➜ Team Meetings ｜ Whatever it takes
-   ⎣Work ➜ Travel to work ｜ 3 days a week (est 30min there and 30min back), normalize in a year, does not count towards work time goal
-     ⎣Work ➜ More Urgent Than Promised Scheduled Work | 0%+ When working on pauses all time debt+surplus for child items
-       ⎣Personal or Family, Flagged During The Day ｜ 4 hrs/week, normalized yearly, time also counts towards the primary time slot, time does not count towards work time goal
-       ⎣Work ➜ Compliance ｜ 2 hrs/week, normalized monthly, Compliance meeting has urgency of Team Meetings but counts towards this time, Unread + Flagged Emails in Compliance Outlook folder, Checking Compliance website and resulting items unless they are sprint work
-       ⎣Work ➜ Security Champ ｜ 2 hr/week, normalized quarterly, Unread + Flagged Emails in Security Champ Outlook folder, Security Champ meetings
-       ⎣Work ➜ Improve Pre-check-in Testing ｜ 2 hr/week, normalized quarterly
-       ⎣Work ➜ Improve Data Inconsistency & Layout ｜ 2 hr/week, normalized quarterly
-       ⎣Work ➜ Handle Live-Site Incidents Assigned to Me ｜ Whatever it takes, check daily
-       ⎣Work ➜ Awareness & Support ｜ Of Remaining, Up to 30% Daily, normalize monthly, team code reviews (check daily), Unread + Flagged in Inbox Outlook folder, check & respond to Team's messages, etc.
-       ⎣Work ➜ Sprint Work   ｜ Of Remaining, At least 70% Daily, normalize monthly
+Prioritization
+Work ｜ 8hrs each weekday, not Sunday, normalize in a month
+ ⎣Work ➜ More Urgent Than Meetings ｜ [Take] 0%+ When working on pauses all time debt+surplus for child items
+   ⎣Work ➜ Team Meetings ｜ Whatever it takes
+     ⎣Work ➜ Travel to work ｜ 3 days a week (est 30min there and 30min back), normalize in a year, does not count towards work time goal
+       ⎣Work ➜ More Urgent Than Promised Scheduled Work | 0%+ When working on pauses all time debt+surplus for child items
+         ⎣Personal or Family, Flagged During The Day ｜ 4 hrs/week, normalized yearly, time also counts towards the primary time slot, time does not count towards work time goal
+         ⎣Work ➜ Compliance ｜ 2 hrs/week, normalized monthly, Compliance meeting has urgency of Team Meetings but counts towards this time, Unread + Flagged Emails in Compliance Outlook folder, Checking Compliance website and resulting items unless they are sprint work
+         ⎣Work ➜ Security Champ ｜ 2 hr/week, normalized quarterly, Unread + Flagged Emails in Security Champ Outlook folder, Security Champ meetings
+         ⎣Work ➜ Improve Pre-check-in Testing ｜ 2 hr/week, normalized quarterly
+         ⎣Work ➜ Improve Data Inconsistency & Layout ｜ 2 hr/week, normalized quarterly
+         ⎣Work ➜ Handle Live-Site Incidents Assigned to Me ｜ Whatever it takes, check daily
+         ⎣Work ➜ Awareness & Support ｜ Of Remaining, Up to 30% Daily, normalize monthly, team code reviews (check daily), Unread + Flagged in Inbox Outlook folder, check & respond to Team's messages, etc.
+         ⎣Work ➜ Sprint Work   ｜ Of Remaining, At least 70% Daily, normalize monthly
+Hobby ｜ 10hrs each week, normalize in a year
+Fitness ｜ 2.5hrs intense physical activity per week, normalize in a year, 3.0hrs per week is max carryover, pre+post to intense physical activity is tracked but not part of the goal
+Family ｜ 10hrs each week, normalize in a year
+Personal ｜ The Rest
+
+Experiment with Data Structures - Prioritization
+Life
+ ⎣8hrs each weekday, not Sunday, normalize in a month
+Work ｜
+ ⎣Work ➜ More Urgent Than Meetings ｜ [Take] 0%+ When working on pauses all time debt+surplus for child items
+   ⎣Work ➜ Team Meetings ｜ Whatever it takes
+     ⎣Work ➜ Travel to work ｜ 3 days a week (est 30min there and 30min back), normalize in a year, does not count towards work time goal
+       ⎣Work ➜ More Urgent Than Promised Scheduled Work | 0%+ When working on pauses all time debt+surplus for child items
+         ⎣Personal or Family, Flagged During The Day ｜ 4 hrs/week, normalized yearly, time also counts towards the primary time slot, time does not count towards work time goal
+         ⎣Work ➜ Compliance ｜ 2 hrs/week, normalized monthly, Compliance meeting has urgency of Team Meetings but counts towards this time, Unread + Flagged Emails in Compliance Outlook folder, Checking Compliance website and resulting items unless they are sprint work
+         ⎣Work ➜ Security Champ ｜ 2 hr/week, normalized quarterly, Unread + Flagged Emails in Security Champ Outlook folder, Security Champ meetings
+         ⎣Work ➜ Improve Pre-check-in Testing ｜ 2 hr/week, normalized quarterly
+         ⎣Work ➜ Improve Data Inconsistency & Layout ｜ 2 hr/week, normalized quarterly
+         ⎣Work ➜ Handle Live-Site Incidents Assigned to Me ｜ Whatever it takes, check daily
+         ⎣Work ➜ Awareness & Support ｜ Of Remaining, Up to 30% Daily, normalize monthly, team code reviews (check daily), Unread + Flagged in Inbox Outlook folder, check & respond to Team's messages, etc.
+         ⎣Work ➜ Sprint Work   ｜ Of Remaining, At least 70% Daily, normalize monthly
+Hobby ｜ 10hrs each week, normalize in a year
+Fitness ｜ 2.5hrs intense physical activity per week, normalize in a year, 3.0hrs per week is max carryover, pre+post to intense physical activity is tracked but not part of the goal
+Family ｜ 10hrs each week, normalize in a year
+Personal ｜ The Rest
 
 Life Routine Schedule
 *Hobby ➜ On Purpose, work on after I wake up
