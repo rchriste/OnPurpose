@@ -222,7 +222,7 @@ impl Display for EventMenuItem {
 
 impl EventMenuItem {
     fn create_list() -> Vec<EventMenuItem> {
-        vec![Self::UntilAnExactDateTime, Self::ForAnAmountOfTime]
+        vec![Self::ForAnAmountOfTime, Self::UntilAnExactDateTime]
     }
 }
 

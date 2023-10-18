@@ -20,12 +20,15 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::{base_data::{
-    item::{Item, ItemVecExtensions},
-    life_area::LifeArea,
-    routine::Routine,
-    Covering, CoveringUntilDateTime, ItemType, ProcessedText,
-}, surrealdb_layer::surreal_item::SurrealItemOldVersion};
+use crate::{
+    base_data::{
+        item::{Item, ItemVecExtensions},
+        life_area::LifeArea,
+        routine::Routine,
+        Covering, CoveringUntilDateTime, ItemType, ProcessedText,
+    },
+    surrealdb_layer::surreal_item::SurrealItemOldVersion,
+};
 
 use self::{
     surreal_covering::SurrealCovering,
@@ -281,12 +284,15 @@ pub async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> Surreal
 }
 
 async fn upgrade_items_table(db: &Surreal<Any>) {
-    for item_old_version in SurrealItemOldVersion::get_all(db).await.unwrap().into_iter() {
+    for item_old_version in SurrealItemOldVersion::get_all(db)
+        .await
+        .unwrap()
+        .into_iter()
+    {
         let item: SurrealItem = item_old_version.into();
         item.update(db).await.unwrap();
     }
 }
-
 
 pub async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
     let for_item: Option<Thing> = for_item.into();
