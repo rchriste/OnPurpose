@@ -116,6 +116,10 @@ pub enum DataLayerCommands {
     CoverItemWithANewToDo(SurrealItem, String, Order, Responsibility),
     CoverItemWithANewWaitingForQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
+    CoverItemWithAnExistingItem {
+        item_to_be_covered: SurrealItem,
+        item_that_should_do_the_covering: SurrealItem,
+    },
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
@@ -201,6 +205,17 @@ pub async fn data_storage_start_and_run(
                 item_to_cover,
                 new_milestone_text,
             )) => cover_item_with_a_new_milestone(item_to_cover, new_milestone_text, &db).await,
+            Some(DataLayerCommands::CoverItemWithAnExistingItem {
+                item_to_be_covered,
+                item_that_should_do_the_covering,
+            }) => {
+                cover_item_with_an_existing_item(
+                    item_to_be_covered,
+                    item_that_should_do_the_covering,
+                    &db,
+                )
+                .await
+            }
             Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
                 cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
             }
@@ -437,6 +452,23 @@ async fn cover_item_with_a_new_milestone(
 
     let smaller_option: Option<Thing> = new_milestone.into();
     let parent_option: Option<Thing> = item_to_cover.into();
+    SurrealCovering {
+        id: None,
+        smaller: smaller_option.expect("Should already be in the database"),
+        parent: parent_option.expect("Should already be in the database"),
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
+async fn cover_item_with_an_existing_item(
+    existing_item_to_be_covered: SurrealItem,
+    existing_item_that_is_doing_the_covering: SurrealItem,
+    db: &Surreal<Any>,
+) {
+    let smaller_option: Option<Thing> = existing_item_that_is_doing_the_covering.into();
+    let parent_option: Option<Thing> = existing_item_to_be_covered.into();
     SurrealCovering {
         id: None,
         smaller: smaller_option.expect("Should already be in the database"),

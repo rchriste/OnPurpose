@@ -192,8 +192,30 @@ async fn cover_with_new_waiting_for_question<'a>(
         .unwrap()
 }
 
+enum CoverExistingItem<'e> {
+    ExistingToDo(ToDo<'e>),
+}
+
+impl Display for CoverExistingItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CoverExistingItem::ExistingToDo(to_do) => write!(f, "{}", to_do.summary),
+        }
+    }
+}
+
+impl<'e> CoverExistingItem<'e> {
+    fn create_list(to_dos: Vec<ToDo<'e>>) -> Vec<Self> {
+        to_dos
+            .into_iter()
+            .map(CoverExistingItem::ExistingToDo)
+            .collect()
+    }
+}
+
+#[async_recursion]
 async fn cover_with_existing_waiting_for_question(
-    _item_to_cover: &ToDo<'_>,
+    item_to_cover: &ToDo<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let raw_current_items = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
@@ -201,9 +223,24 @@ async fn cover_with_existing_waiting_for_question(
         .unwrap();
 
     let current = raw_current_items.make_items();
-    let _to_dos = current.filter_just_to_dos();
+    let to_dos = current.filter_just_to_dos();
 
-    todo!()
+    let list = CoverExistingItem::create_list(to_dos);
+
+    let selection = Select::new("Start typing to search the list", list).prompt();
+    match selection {
+        Ok(CoverExistingItem::ExistingToDo(selected_to_do)) => send_to_data_storage_layer
+            .send(DataLayerCommands::CoverItemWithAnExistingItem {
+                item_to_be_covered: item_to_cover.get_surreal_item().clone(),
+                item_that_should_do_the_covering: selected_to_do.get_surreal_item().clone(),
+            })
+            .await
+            .unwrap(),
+        Err(InquireError::OperationCanceled) => {
+            cover_with_waiting_for_question(item_to_cover, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{}", err),
+    }
 }
 
 enum EventMenuItem {

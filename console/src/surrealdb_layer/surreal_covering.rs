@@ -8,7 +8,9 @@ use crate::base_data::Covering;
 #[table(name = "coverings")]
 pub struct SurrealCovering {
     pub id: Option<Thing>,
-    pub smaller: RecordId,
+    /// RecordId of the smaller item that is doing the covering
+    pub smaller: RecordId, //TODO: This smaller parent stuff should be changed to item being covered and item doing the covering
+    /// RecordId of the larger item that is being covered
     pub parent: RecordId,
 }
 
