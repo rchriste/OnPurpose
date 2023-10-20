@@ -9,9 +9,9 @@ use crate::base_data::Covering;
 pub struct SurrealCovering {
     pub id: Option<Thing>,
     /// RecordId of the smaller item that is doing the covering
-    pub smaller: RecordId, //TODO: This smaller parent stuff should be changed to item being covered and item doing the covering
+    pub smaller: RecordId, //TODO: Rename to covering
     /// RecordId of the larger item that is being covered
-    pub parent: RecordId,
+    pub parent: RecordId, //TODO: Rename to being_covered
 }
 
 impl<'a> From<Covering<'a>> for SurrealCovering {

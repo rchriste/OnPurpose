@@ -8,6 +8,7 @@ use crate::{
     base_data::{
         hope::Hope,
         item::{Item, ItemVecExtensions},
+        to_do::ToDo,
         Covering,
     },
     surrealdb_layer::{
@@ -431,7 +432,9 @@ async fn present_add_next_step(
         AddNextStepMenuItem::NewToDo => {
             present_new_to_do(hope_to_cover, send_to_data_storage_layer).await
         }
-        AddNextStepMenuItem::ExistingToDo => todo!(),
+        AddNextStepMenuItem::ExistingToDo => {
+            cover_with_existing_to_do(hope_to_cover, send_to_data_storage_layer).await
+        }
     }
 }
 
@@ -452,6 +455,62 @@ async fn present_new_to_do(
         ))
         .await
         .unwrap();
+}
+
+enum CoverWithExistingToDoMenuItem<'e> {
+    ToDo(&'e ToDo<'e>),
+}
+
+impl Display for CoverWithExistingToDoMenuItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CoverWithExistingToDoMenuItem::ToDo(to_do) => {
+                write!(f, "{}", to_do.summary)
+            }
+        }
+    }
+}
+
+impl<'e> CoverWithExistingToDoMenuItem<'e> {
+    fn create_list(to_dos: &'e [ToDo<'e>]) -> Vec<Self> {
+        to_dos
+            .iter()
+            .map(CoverWithExistingToDoMenuItem::ToDo)
+            .collect()
+    }
+}
+
+#[async_recursion]
+async fn cover_with_existing_to_do(
+    hope_to_be_covered: &Hope<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let r = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
+
+    let items = r.make_items();
+    let to_dos = items.filter_just_to_dos();
+    let list = CoverWithExistingToDoMenuItem::create_list(&to_dos);
+
+    let selection = Select::new("", list).prompt();
+    match selection {
+        Ok(CoverWithExistingToDoMenuItem::ToDo(to_do_that_should_do_the_covering)) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverItemWithAnExistingItem {
+                    item_to_be_covered: hope_to_be_covered.get_surreal_item().clone(),
+                    item_that_should_do_the_covering: to_do_that_should_do_the_covering
+                        .get_surreal_item()
+                        .clone(),
+                })
+                .await
+                .unwrap();
+        }
+        Err(InquireError::OperationCanceled) => {
+            present_add_next_step(hope_to_be_covered, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{}", err),
+    }
 }
 
 enum AddMilestoneMenuItem {
