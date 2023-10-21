@@ -13,7 +13,6 @@ use crate::{
         item::{Item, ItemVecExtensions},
         to_do::ToDo,
     },
-    create_next_step_parents,
     display_item::DisplayItem,
     mentally_resident::{
         create_hope_nodes, present_mentally_resident_hope_selected_menu, HopeNode,
@@ -91,7 +90,7 @@ impl<'a> InquireBulletListItem<'a> {
                 .iter()
                 .map(|x| InquireBulletListItem::NextStepToDo {
                     to_do: x.to_do,
-                    parents: create_next_step_parents(x),
+                    parents: x.create_next_step_parents(),
                 }),
         );
         list.extend(hopes_without_a_next_step.iter().map(|x| {
@@ -113,6 +112,7 @@ pub async fn present_unfocused_bullet_list_menu(
         .unwrap();
 
     let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
     let coverings = surreal_tables.make_coverings(&items);
     let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
@@ -122,6 +122,7 @@ pub async fn present_unfocused_bullet_list_menu(
         to_dos,
         &coverings,
         &coverings_until_date_time,
+        &active_items,
         &current_date_time,
         false,
     );
@@ -174,6 +175,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         .unwrap();
 
     let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
     let coverings = surreal_tables.make_coverings(&items);
     let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
@@ -183,6 +185,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         to_dos,
         &coverings,
         &coverings_until_date_time,
+        &active_items,
         &current_date_time,
         true,
     );

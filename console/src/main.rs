@@ -2,14 +2,15 @@ pub mod base_data;
 mod bullet_list;
 mod change_routine;
 pub(crate) mod display_item;
+pub(crate) mod display_motivation_or_responsive_item;
+pub(crate) mod display_responsive_item;
 mod mentally_resident;
+pub mod new_item;
 mod node;
 mod surrealdb_layer;
 mod top_menu;
 
-use base_data::item::Item;
 use inquire::Text;
-use node::to_do_node::ToDoNode;
 use surrealdb_layer::surreal_item::SurrealItem;
 use tokio::sync::mpsc::{self, Sender};
 
@@ -22,17 +23,6 @@ use crate::{
 pub enum UnexpectedNextMenuAction {
     Back,
     Close,
-}
-
-//TODO: I get an error about lifetimes that I can't figure out when I refactor this to be a member function of NextStepNode and I don't understand why
-fn create_next_step_parents<'a>(item: &'a ToDoNode<'a>) -> Vec<&'a Item<'a>> {
-    let mut result = Vec::default();
-    for i in item.larger.iter() {
-        result.push(i.item);
-        let parents = i.create_growing_parents();
-        result.extend(parents.iter());
-    }
-    result
 }
 
 async fn update_item_summary(

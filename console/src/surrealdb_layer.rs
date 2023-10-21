@@ -27,18 +27,19 @@ use crate::{
         routine::Routine,
         Covering, CoveringUntilDateTime, ItemType, ProcessedText,
     },
+    new_item::NewItem,
     surrealdb_layer::surreal_item::SurrealItemOldVersion,
 };
 
 use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-    surreal_item::SurrealItem,
+    surreal_item::{Responsibility, SurrealItem, SurrealOrderedSubItem},
     surreal_life_area::SurrealLifeArea,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
-    surreal_specific_to_todo::{Order, Responsibility, SurrealSpecificToToDo},
+    surreal_specific_to_todo::{Order, SurrealSpecificToToDo},
 };
 
 #[derive(Debug)]
@@ -121,6 +122,14 @@ pub enum DataLayerCommands {
         item_that_should_do_the_covering: SurrealItem,
     },
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
+    ParentItemWithExistingItem {
+        child: SurrealItem,
+        parent: SurrealItem,
+    },
+    ParentItemWithANewItem {
+        child: SurrealItem,
+        parent_new_item: NewItem,
+    },
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
     UpdateHopePermanence(SurrealSpecificToHope, Permanence),
@@ -219,6 +228,13 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
                 cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
             }
+            Some(DataLayerCommands::ParentItemWithExistingItem { child, parent }) => {
+                parent_item_with_existing_item(child, parent, &db).await
+            }
+            Some(DataLayerCommands::ParentItemWithANewItem {
+                child,
+                parent_new_item,
+            }) => parent_item_with_a_new_item(child, parent_new_item, &db).await,
             Some(DataLayerCommands::AddCircumstanceNotSunday(add_circumstance_to_this)) => {
                 add_circumstance_not_sunday(add_circumstance_to_this, &db).await
             }
@@ -360,6 +376,7 @@ async fn new_item(summary_text: String, item_type: ItemType, db: &Surreal<Any>) 
         finished: None,
         item_type,
         smaller_items_in_priority_order: Vec::default(),
+        responsibility: Responsibility::default(),
     }
     .create(db)
     .await
@@ -399,6 +416,7 @@ async fn cover_item_with_a_new_next_step(
         finished: None,
         item_type: ItemType::ToDo,
         smaller_items_in_priority_order: Vec::default(),
+        responsibility: responsibility.clone(),
     }
     .create(db)
     .await
@@ -442,6 +460,7 @@ async fn cover_item_with_a_new_milestone(
         finished: None,
         item_type: ItemType::Hope,
         smaller_items_in_priority_order: Vec::default(),
+        responsibility: Responsibility::default(),
     }
     .create(db)
     .await
@@ -513,6 +532,33 @@ async fn add_circumstance(item: SurrealItem, circumstance: CircumstanceType, db:
     .unwrap();
 }
 
+async fn parent_item_with_existing_item(
+    child: SurrealItem,
+    mut parent: SurrealItem,
+    db: &Surreal<Any>,
+) {
+    parent
+        .smaller_items_in_priority_order
+        .push(SurrealOrderedSubItem::SubItem {
+            surreal_item_id: child.id.expect("Already in DB"),
+        });
+    parent.update(db).await.unwrap();
+}
+
+async fn parent_item_with_a_new_item(
+    child: SurrealItem,
+    parent_new_item: NewItem,
+    db: &Surreal<Any>,
+) {
+    //TODO: Write a Unit Test for this
+    let smaller_items_in_priority_order = vec![SurrealOrderedSubItem::SubItem {
+        surreal_item_id: child.id.expect("Already in DB"),
+    }];
+
+    let parent_surreal_item = SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
+    parent_surreal_item.create(db).await.unwrap();
+}
+
 async fn update_hope_permanence(
     mut surreal_specific_to_hope: SurrealSpecificToHope,
     new_permanence: Permanence,
@@ -558,6 +604,8 @@ async fn update_item_summary(
 #[cfg(test)]
 mod tests {
     use tokio::sync::mpsc;
+
+    use crate::new_item;
 
     use super::*;
 
@@ -1004,6 +1052,154 @@ mod tests {
                 .first()
                 .unwrap()
                 .required_for
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_item_with_a_new_item() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewToDo(
+                "Item that needs a parent".into(),
+            ))
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(1, surreal_tables.surreal_items.len());
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewItem {
+                child: surreal_tables.surreal_items.into_iter().next().unwrap(),
+                parent_new_item: new_item::NewItem {
+                    summary: "Parent Item".into(),
+                    item_type: ItemType::Hope,
+                    responsibility: Responsibility::default(),
+                    finished: None,
+                },
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, surreal_tables.surreal_items.len());
+        assert_eq!(
+            1,
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
+                .len()
+        );
+        assert_eq!(
+            &SurrealOrderedSubItem::SubItem {
+                surreal_item_id: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Item that needs a parent")
+                    .unwrap()
+                    .id
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+            },
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
+                .first()
+                .unwrap()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_item_with_existing_item() {
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewToDo(
+                "Item that needs a parent".into(),
+            ))
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::NewToDo("Parent Item".into()))
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, surreal_tables.surreal_items.len());
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Item that needs a parent")
+                    .unwrap()
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .clone(),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+
+        assert_eq!(2, surreal_tables.surreal_items.len());
+        assert_eq!(
+            1,
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
+                .len()
+        );
+        assert_eq!(
+            &SurrealOrderedSubItem::SubItem {
+                surreal_item_id: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Item that needs a parent")
+                    .unwrap()
+                    .id
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+            },
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
+                .first()
+                .unwrap()
         );
 
         drop(sender);

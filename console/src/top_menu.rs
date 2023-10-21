@@ -1,11 +1,16 @@
 use std::fmt::Display;
 
-use inquire::{Select, Text};
+use async_recursion::async_recursion;
+use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    bullet_list::present_unfocused_bullet_list_menu, change_routine::change_routine,
-    mentally_resident::view_hopes, surrealdb_layer::DataLayerCommands,
+    base_data::item::{Item, ItemVecExtensions},
+    bullet_list::present_unfocused_bullet_list_menu,
+    change_routine::change_routine,
+    display_item::DisplayItem,
+    mentally_resident::view_hopes,
+    surrealdb_layer::DataLayerCommands,
 };
 
 enum TopMenuSelection {
@@ -16,6 +21,7 @@ enum TopMenuSelection {
     ViewHopes,
     CaptureMotivation,
     ViewMotivations,
+    DebugViewAllItems,
 }
 
 impl Display for TopMenuSelection {
@@ -34,6 +40,9 @@ impl Display for TopMenuSelection {
             TopMenuSelection::ViewMotivations => {
                 write!(f, "👁 🎯 View Motivations          👁")
             }
+            TopMenuSelection::DebugViewAllItems => {
+                write!(f, "👁 🗒️ Debug View All Items      👁")
+            }
         }
     }
 }
@@ -48,10 +57,12 @@ impl TopMenuSelection {
             Self::ViewHopes,
             Self::CaptureMotivation,
             Self::ViewMotivations,
+            Self::DebugViewAllItems,
         ]
     }
 }
 
+#[async_recursion]
 pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let top_menu = TopMenuSelection::make_list();
 
@@ -66,6 +77,9 @@ pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerComma
         }
         TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
         TopMenuSelection::ViewMotivations => view_motivations().await,
+        TopMenuSelection::DebugViewAllItems => {
+            debug_view_all_items(send_to_data_storage_layer).await
+        }
     }
 }
 
@@ -98,4 +112,46 @@ async fn capture_motivation(send_to_data_storage_layer: &Sender<DataLayerCommand
 
 async fn view_motivations() {
     todo!()
+}
+
+enum DebugViewItem<'e> {
+    Item(DisplayItem<'e>),
+}
+
+impl Display for DebugViewItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DebugViewItem::Item(item) => write!(f, "{}", item),
+        }
+    }
+}
+
+impl<'e> DebugViewItem<'e> {
+    fn make_list(items: &'e [&'e Item<'e>]) -> Vec<DebugViewItem<'e>> {
+        items
+            .iter()
+            .map(|x| DebugViewItem::Item(DisplayItem::new(x)))
+            .collect()
+    }
+}
+
+async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
+
+    let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
+
+    let list = DebugViewItem::make_list(&active_items);
+
+    let selection = Select::new("Select an item to show the debug view of...", list).prompt();
+    match selection {
+        Ok(DebugViewItem::Item(item)) => {
+            let item: &Item = item.item;
+            println!("{:#?}", item);
+        }
+        Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(err) => todo!("Unexpected InquireError of {}", err),
+    }
 }

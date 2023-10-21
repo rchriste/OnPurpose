@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::{item::Item, ItemType};
+use crate::{
+    base_data::{item::Item, ItemType},
+    new_item::NewItem,
+};
 
 use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
@@ -12,6 +15,7 @@ pub struct SurrealItem {
     pub id: Option<Thing>,
     pub summary: String,
     pub finished: Option<Datetime>,
+    pub responsibility: Responsibility,
     pub item_type: ItemType,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
@@ -19,6 +23,20 @@ pub struct SurrealItem {
 }
 
 impl SurrealItem {
+    pub(crate) fn new(
+        new_item: NewItem,
+        smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
+    ) -> Self {
+        SurrealItem {
+            id: None,
+            summary: new_item.summary,
+            finished: new_item.finished,
+            responsibility: new_item.responsibility,
+            item_type: new_item.item_type,
+            smaller_items_in_priority_order,
+        }
+    }
+
     pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequiredCircumstance]) -> Item<'a> {
         let my_requirements = requirements
             .iter()
@@ -33,6 +51,15 @@ impl SurrealItem {
 
         Item::new(self, my_requirements)
     }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub enum Responsibility {
+    #[default]
+    ProactiveActionToTake,
+    ReactiveBeAvailableToAct,
+    WaitingFor, //TODO: This should not exist it should just be a TrackingToBeAwareOf that could be a Question or have some kind of automated way to track and watch and know
+    TrackingToBeAwareOf,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
@@ -70,6 +97,7 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: old.summary,
             finished: old.finished,
             item_type: old.item_type,
+            responsibility: Responsibility::default(),
             smaller_items_in_priority_order: Vec::default(),
         }
     }

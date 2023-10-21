@@ -5,23 +5,25 @@ use surrealdb::{
 };
 
 use crate::surrealdb_layer::{
-    surreal_item::SurrealItem,
+    surreal_item::{Responsibility, SurrealItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{SurrealSpecificToHope, SurrealSpecificToHopes},
 };
 
 use super::{
-    hope::Hope, motivation::Motivation, to_do::ToDo, Covering, CoveringUntilDateTime, ItemType,
+    hope::Hope, motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
+    responsive_item::ResponsiveItem, to_do::ToDo, Covering, CoveringUntilDateTime, ItemType,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Item<'a> {
-    pub id: &'a Thing,
-    pub summary: &'a String,
-    pub finished: &'a Option<Datetime>,
-    pub item_type: &'a ItemType,
-    pub required_circumstances: Vec<&'a SurrealRequiredCircumstance>,
-    pub surreal_item: &'a SurrealItem,
+pub struct Item<'s> {
+    pub id: &'s Thing,
+    pub summary: &'s String,
+    pub finished: &'s Option<Datetime>,
+    pub responsibility: &'s Responsibility,
+    pub item_type: &'s ItemType,
+    pub required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
+    pub surreal_item: &'s SurrealItem,
 }
 
 impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
@@ -44,6 +46,8 @@ pub trait ItemVecExtensions {
         surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
     ) -> Vec<Hope<'a>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
+    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
+    fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
 }
 
 impl<'b> ItemVecExtensions for [Item<'b>] {
@@ -92,6 +96,26 @@ impl<'b> ItemVecExtensions for [Item<'b>] {
             })
             .collect()
     }
+
+    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::Motivation {
+                    Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
+                } else if x.responsibility == &Responsibility::ReactiveBeAvailableToAct {
+                    Some(MotivationOrResponsiveItem::ResponsiveItem(
+                        ResponsiveItem::new(x),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_active_items(&self) -> Vec<&Item> {
+        self.iter().filter(|x| !x.is_finished()).collect()
+    }
 }
 
 impl<'b> Item<'b> {
@@ -104,6 +128,7 @@ impl<'b> Item<'b> {
             summary: &surreal_item.summary,
             finished: &surreal_item.finished,
             item_type: &surreal_item.item_type,
+            responsibility: &surreal_item.responsibility,
             required_circumstances,
             surreal_item,
         }
@@ -201,7 +226,10 @@ impl<'b> Item<'b> {
 
 #[cfg(test)]
 mod tests {
-    use crate::surrealdb_layer::surreal_required_circumstance::CircumstanceType;
+    use crate::surrealdb_layer::{
+        surreal_item::SurrealOrderedSubItem, surreal_required_circumstance::CircumstanceType,
+        SurrealTables,
+    };
 
     use super::*;
 
@@ -213,6 +241,7 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
+            responsibility: Responsibility::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -239,6 +268,7 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
+            responsibility: Responsibility::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -266,6 +296,7 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
+            responsibility: Responsibility::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -293,6 +324,7 @@ mod tests {
             finished: None,
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
+            responsibility: Responsibility::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -309,5 +341,52 @@ mod tests {
                 .into();
 
         assert!(!item.is_circumstances_met(&wednesday_ignore, false));
+    }
+
+    #[test]
+    fn to_do_item_with_a_parent_returns_the_parent_when_find_parents_is_called() {
+        let smaller_item = SurrealItem {
+            id: Some(("surreal_item", "1").into()),
+            summary: "Smaller item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
+            responsibility: Responsibility::default(),
+        };
+        let parent_item = SurrealItem {
+            id: Some(("surreal_item", "2").into()),
+            summary: "Parent item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
+            }],
+            responsibility: Responsibility::default(),
+        };
+        let surreal_tables = SurrealTables {
+            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
+            surreal_specific_to_hopes: vec![],
+            surreal_specific_to_to_dos: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
+        };
+        let items: Vec<Item> = surreal_tables.make_items();
+        let active_items = items.filter_active_items();
+        let coverings = surreal_tables.make_coverings(&items);
+
+        let smaller_item = items
+            .iter()
+            .find(|x| smaller_item.id.as_ref().unwrap() == x.id)
+            .unwrap();
+        let find_results = smaller_item.find_parents(&coverings, &active_items);
+
+        assert_eq!(find_results.len(), 1);
+        assert_eq!(
+            find_results.first().expect("checked in assert above").id,
+            parent_item.id.as_ref().expect("set above")
+        );
     }
 }

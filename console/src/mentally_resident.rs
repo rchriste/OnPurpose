@@ -12,9 +12,9 @@ use crate::{
         Covering,
     },
     surrealdb_layer::{
-        surreal_item::SurrealItem,
+        surreal_item::{Responsibility, SurrealItem},
         surreal_specific_to_hope::{Permanence, Staging},
-        surreal_specific_to_todo::{Order, Responsibility},
+        surreal_specific_to_todo::Order,
         DataLayerCommands,
     },
     top_menu::present_top_menu,

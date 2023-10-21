@@ -6,8 +6,7 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::to_do::ToDo,
     surrealdb_layer::{
-        surreal_specific_to_todo::{Order, Responsibility},
-        DataLayerCommands,
+        surreal_item::Responsibility, surreal_specific_to_todo::Order, DataLayerCommands,
     },
 };
 

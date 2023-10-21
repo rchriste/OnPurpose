@@ -2,6 +2,8 @@ pub mod hope;
 pub mod item;
 pub mod life_area;
 pub mod motivation;
+pub mod motivation_or_responsive_item;
+pub mod responsive_item;
 pub mod routine;
 pub mod to_do;
 
@@ -14,7 +16,7 @@ use surrealdb::{
 use surrealdb_extra::table::Table;
 
 use crate::surrealdb_layer::{
-    surreal_item::SurrealItem,
+    surreal_item::{SurrealItem, SurrealOrderedSubItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
 };
 
@@ -53,8 +55,12 @@ pub struct ProcessedText {
 }
 
 impl Item<'_> {
-    pub fn find_parents<'a>(&self, linkage: &'a [Covering<'a>]) -> Vec<&'a Item<'a>> {
-        linkage
+    pub fn find_parents<'a>(
+        &self,
+        linkage: &'a [Covering<'a>],
+        other_items: &'a [&'a Item<'a>],
+    ) -> Vec<&'a Item<'a>> {
+        let mut result: Vec<&'a Item<'a>> = linkage
             .iter()
             .filter_map(|x| {
                 if x.smaller == self {
@@ -63,7 +69,35 @@ impl Item<'_> {
                     None
                 }
             })
-            .collect()
+            .collect();
+
+        result.extend(other_items.iter().filter_map(|other_item| {
+            if other_item.is_this_a_smaller_item(self) {
+                Some(*other_item)
+            } else {
+                None
+            }
+        }));
+        result
+    }
+
+    pub fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
+        self.surreal_item
+            .smaller_items_in_priority_order
+            .iter()
+            .any(|x| match x {
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                    other_item
+                        .surreal_item
+                        .id
+                        .as_ref()
+                        .expect("Should always be in DB")
+                        == surreal_item_id
+                }
+                SurrealOrderedSubItem::Split { shared_priority: _ } => {
+                    todo!("Implement this now that this variant is more than a placeholder")
+                }
+            })
     }
 }
 
