@@ -1,6 +1,6 @@
-# What is OnPurpose?
+# What is On Purpose?
 
-Over the past few years I have been on a journey to rethink how a computer can help with the problem of time and task management. This _OnPurpose_ project exists as a place for me to implement my ideas. My initial goal is to implement a CLI and text based menu driven program, then expand to the phone with a Graphical UI, and then make a desktop GUI that can be always visible and pinned opposite the OS taskbar. I expect this to be a multi-year journey, at the very least.
+**Over the past few years I have been on a journey to rethink and re-imagine how a computer can better help with the problem of time and task management. This _On Purpose_ project was created as a place for me to implement my ideas and show my ideas to others with a working program that others can try. I am targeting the summer of 2024 as an upcoming milestone for when I encourage others to try it. As of today what I have written is very partial and does not yet demonstrate the core of the vision. Once that happens I will start having a downloadable binary. Windows and the Microsoft Graph APIs are my lead platform.**
 
 I should also mention that part of my goal is to influence and encourage these ideas to be integrated into other programs and into the OS itself. The reason is because my experience is that it is **not** the core idea but rather how convenient it is to implement that is the real barrier. While this is a practical problem for me I also see this problem from professional therapists, to professionals helping care for the elderly, to institutions researching how to practically improve the lives of neurodiverse adults and children. The problem that I see is that the guidance is not followed because it is not convenient or natural enough to follow with today's software.
 
@@ -12,15 +12,15 @@ Furthermore I believe that to do software can feel rewarding when it is helping 
 
 I believe that the long term value of to do software should measured by if it helped me make better decisions and feel better about what I actually did. Features in support of this goal should be centered around the theme of ensuring the user agrees that they prioritized the right thing after the fact, that there actions were on purpose. To do software should help the user record both effort and accomplishments. I want to do software to help me feel good about what I did and I want it to give me appropriate reminders throughout the day and at the right time so I can improve.
 
-My aspiration with _OnPurpose_ is to redefine expectations of what to do software is. I feel like the core ideas in today's to do software can still be generally implemented in a day planner. I believe the fact that the to do app is so commonly used as a sample program is a signal that to do apps map much more closely to how computers operate than what is intuitive to the human mind. In addition my experience with existing to do software is that it is almost exclusively focused on projects that I am driving and cannot properly represent all the kinds of work that we do, one example is an inability to enumerate supportive or responsive items that we expect to come up.
+My aspiration with _On Purpose_ is to redefine expectations of what to do software is. This is my attempt to rethink the problem place and better adopt the many wonderful things learned by the professionals and researchers who devote their lives to helping people and especially the neurodiverse function and be productive in this world.
 
-I believe that the general issue with to do software is that it is either too simple to be truly useful or features are added until the whole thing becomes overly complicated and even still is not exactly doing what is desired. I have seen one of these two mistakes repeated countless times and I believe the solution to this problem rests in the word intuition. And speaking personally I have been stuck at this point for many years, even though I was spending a significant amount of time each week trying to figure out a path forward. My search centered around the idea that software needs to demonstrate understanding. The software needs to "get it."
+At the same time my goal is **not** to just implement the wonderful ideas of others rather I believe that my unique value and contribution rests in my ability to rethink the problem space and come up with something that is more natural and intuitive, at least in hindsight after you get experience with the program. I am writing _On Purpose_ as a program that I can personally use, benefit from, and iteratively improve. I created _On Purpose_ as an open source project because I believe others can also benefit and I hope for these ideas to spread.
 
-What I have worked out is that to do items should be tied to the outcome hoped for and backed by the motivation for why we are doing this thing. My hypothesis is that being explicit about this will result in better decisions for how we spend our time. To do software should help with all three phases of preparing, acting, and reflecting on the things we do. The interface should help with the goal of doing the right thing right now from the big picture down to the smallest literal next step. When you are waiting for something to happen it should have awareness or integrations to help you know when to return to something. It should help you remember different to dos related to your current location, head space, or situation. And it should help with the process of stopping and resuming later so you can better remember what your doing. And finally it should help you recall and celebrate your effort independent of what actually came to pass.
-
-This system just can't be done on a piece of paper to do list or planner because it is an active thing that is meant to be reactive and shifting according to the situation. It requires a workable UI that really makes it convenient to implement and follow and in order to do that requires really nailing the fundamental concepts in the most natural way.
+My initial goal is to implement a text based menu driven program, then expand to a phone Graphical UI, and then a desktop Graphical UI that can be always visible and pinned opposite the OS taskbar. I also intend to leverage AI to make data entry more convenient, including the ability to use photos and speech for data entry. But the next step is to develop the core of the idea as a console or text based program that I personally use and depend on. I expect this to be a multi-year journey, at the very least. If you want to learn more details about these ideas and how I am implementing them into a console program read on. 😀
 
 ## Basic Structure & Concepts
+
+What I have worked out is that to do items should be tied to the outcome hoped for and backed by the motivation for why we are doing this thing. My hypothesis is that being explicit about this will result in better decisions for how we spend our time. To do software should help with all three phases of preparing, acting, and reflecting on the things we do. The interface should help with the goal of doing the right thing right now from the big picture down to the smallest literal next step. When you are waiting for something to happen it should have awareness or integrations to help you know when to return to something. It should help you remember different to dos related to your current location, head space, or situation. And it should help with the process of stopping and resuming later so you can better remember what your doing. And finally it should help you recall and celebrate your effort independent of what actually came to pass.
 
 When something to do comes up or when something to do comes into your head you capture these items by pressing _Esc_ from the bullet list menu and selecting _Capture_. _On-Purpose_ helps you prioritize and recall these items, it helps you stay on track by staying true to the reason or reasons for why you are doing this, and it helps you break apart the work into smaller pieces while maintaining a focus on the literal next step or action that you should take.
 
@@ -54,6 +54,8 @@ Beyond logging literal things to do in order for _On Purpose_ to be complete it 
 
 ### Maintaining Focus, Logging, Keeping your eye on the prize, and feeling satisfaction
 
+### Grouping (i.e. "In the area" work)
+
 ### Types of To Dos
 
 - ProactiveActionToTake
@@ -84,17 +86,17 @@ Take a screenshot, including scroll and simple interaction. Save accessibility d
 
 ## Reflection & Rewards
 
-## Trying OnPurpose
+## Trying On Purpose
 
-_OnPurpose_ is currently at the very early stages. I am currently developing it by using it myself and quickly running into issues and then working to add features to address these issues. If you want to try it now you will need to compile it. As of right now On Purpose should work on both Windows and Linux, however Windows is my lead platform (because I work for Microsoft and therefor use Windows).
+_On Purpose_ is currently at the very early stages. I am currently developing it by using it myself and quickly running into issues and then working to add features to address these issues. If you want to try it now you will need to compile it. As of right now On Purpose should work on both Windows and Linux, however Windows is my lead platform (because I work for Microsoft and therefor use Windows).
 
-### Compiling OnPurpose
+### Compiling On Purpose
 
 Compiling On Purpose requires the Rust toolchain and it requires installing various things as well so the Surreal DB dependencies can compile. These other things are things like LLVM and some GNU tools. And this is required because I use Surreal DB as an embedded database (aka "SQLLite") to save data to disk.
 
 - [Install Rust from here](https://rustup.rs)
 - [Instructions for how to install the SurrealDB dependencies are here](https://github.com/surrealdb/surrealdb/blob/main/doc/BUILDING.md)
 
-### Using OnPurpose with Windows Terminal
+### Using On Purpose with Windows Terminal
 
 In order for the Emoji and Unicode char to display properly you need to enable the new "Atlas" rendering engine. Go to Settings -> Rendering -> Engine and turn on `Use the new Text Render ("AtlasEngine")`
