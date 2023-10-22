@@ -63,7 +63,7 @@ impl TopMenuSelection {
 }
 
 #[async_recursion]
-pub async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let top_menu = TopMenuSelection::make_list();
 
     let selection = Select::new("", top_menu).prompt().unwrap();

@@ -8,21 +8,19 @@ use crate::{
     base_data::{
         hope::Hope,
         item::{Item, ItemVecExtensions},
-        to_do::ToDo,
         Covering,
     },
     surrealdb_layer::{
-        surreal_item::{Responsibility, SurrealItem},
+        surreal_item::SurrealItem,
         surreal_specific_to_hope::{Permanence, Staging},
-        surreal_specific_to_todo::Order,
         DataLayerCommands,
     },
     top_menu::present_top_menu,
-    update_item_summary,
+    update_item_summary, bullet_list::bullet_list_single_item::cover_with_item,
 };
 
 struct ProjectHopeItem<'a> {
-    pub hope_node: &'a HopeNode<'a>,
+    pub(crate) hope_node: &'a HopeNode<'a>,
 }
 
 impl<'a> Display for ProjectHopeItem<'a> {
@@ -68,7 +66,7 @@ impl<'a> ProjectHopeItem<'a> {
     }
 }
 
-pub fn create_hope_nodes<'a>(
+pub(crate) fn create_hope_nodes<'a>(
     hopes: &'a [Hope<'a>],
     coverings: &[Covering<'a>],
 ) -> Vec<HopeNode<'a>> {
@@ -119,10 +117,10 @@ fn build_towards_motivation_chain<'a>(
         .collect()
 }
 
-pub struct HopeNode<'a> {
-    pub hope: &'a Hope<'a>,
-    pub next_steps: Vec<&'a Item<'a>>,
-    pub towards_motivation_chain: Vec<&'a Item<'a>>,
+pub(crate) struct HopeNode<'a> {
+    pub(crate) hope: &'a Hope<'a>,
+    pub(crate) next_steps: Vec<&'a Item<'a>>,
+    pub(crate) towards_motivation_chain: Vec<&'a Item<'a>>,
 }
 
 impl<'a> From<&'a HopeNode<'a>> for &'a Hope<'a> {
@@ -138,11 +136,11 @@ impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
 }
 
 impl<'a> HopeNode<'a> {
-    pub fn is_maintenance(&self) -> bool {
+    pub(crate) fn is_maintenance(&self) -> bool {
         self.hope.is_maintenance()
     }
 
-    pub fn is_project(&self) -> bool {
+    pub(crate) fn is_project(&self) -> bool {
         self.hope.is_project()
     }
 }
@@ -180,7 +178,7 @@ impl HopeMenuItem {
 }
 
 #[async_recursion]
-pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let list = HopeMenuItem::make_list();
 
     let selection = Select::new("", list).prompt();
@@ -201,7 +199,7 @@ pub async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) 
 }
 
 #[async_recursion]
-pub async fn view_mentally_resident_project_hopes(
+pub(crate) async fn view_mentally_resident_project_hopes(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
@@ -278,7 +276,7 @@ impl<'a> MaintenanceHopeItem<'a> {
 }
 
 #[async_recursion]
-pub async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -354,7 +352,7 @@ impl MentallyResidentHopeSelectedMenuItem {
     }
 }
 
-pub async fn present_mentally_resident_hope_selected_menu(
+pub(crate) async fn present_mentally_resident_hope_selected_menu(
     hope_selected: &Hope<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
@@ -363,7 +361,7 @@ pub async fn present_mentally_resident_hope_selected_menu(
     let selection = Select::new("", list).with_page_size(15).prompt();
     match selection {
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithNextStep) => {
-            present_add_next_step(hope_selected, send_to_data_storage_layer).await
+            cover_with_item(hope_selected.get_item(), send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithMilestone) => {
             present_add_milestone(hope_selected, send_to_data_storage_layer).await
@@ -396,119 +394,6 @@ pub async fn present_mentally_resident_hope_selected_menu(
             .await
         }
         Err(InquireError::OperationCanceled) => view_hopes(send_to_data_storage_layer).await,
-        Err(err) => todo!("{}", err),
-    }
-}
-
-enum AddNextStepMenuItem {
-    NewToDo,
-    ExistingToDo,
-}
-
-impl Display for AddNextStepMenuItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AddNextStepMenuItem::NewToDo => write!(f, "New To Do"),
-            AddNextStepMenuItem::ExistingToDo => write!(f, "Existing To Do"),
-        }
-    }
-}
-
-impl AddNextStepMenuItem {
-    fn create_list() -> Vec<Self> {
-        vec![Self::NewToDo, Self::ExistingToDo]
-    }
-}
-
-async fn present_add_next_step(
-    hope_to_cover: &Hope<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let list = AddNextStepMenuItem::create_list();
-
-    let selection = Select::new("", list).prompt().unwrap();
-
-    match selection {
-        AddNextStepMenuItem::NewToDo => {
-            present_new_to_do(hope_to_cover, send_to_data_storage_layer).await
-        }
-        AddNextStepMenuItem::ExistingToDo => {
-            cover_with_existing_to_do(hope_to_cover, send_to_data_storage_layer).await
-        }
-    }
-}
-
-async fn present_new_to_do(
-    hope_to_cover: &Hope<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let new_hope_text = Text::new("Enter To Do (i.e. Next Step) ⍠")
-        .prompt()
-        .unwrap();
-
-    send_to_data_storage_layer
-        .send(DataLayerCommands::CoverItemWithANewToDo(
-            hope_to_cover.get_surreal_item().clone(),
-            new_hope_text,
-            Order::NextStep,
-            Responsibility::ProactiveActionToTake,
-        ))
-        .await
-        .unwrap();
-}
-
-enum CoverWithExistingToDoMenuItem<'e> {
-    ToDo(&'e ToDo<'e>),
-}
-
-impl Display for CoverWithExistingToDoMenuItem<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CoverWithExistingToDoMenuItem::ToDo(to_do) => {
-                write!(f, "{}", to_do.summary)
-            }
-        }
-    }
-}
-
-impl<'e> CoverWithExistingToDoMenuItem<'e> {
-    fn create_list(to_dos: &'e [ToDo<'e>]) -> Vec<Self> {
-        to_dos
-            .iter()
-            .map(CoverWithExistingToDoMenuItem::ToDo)
-            .collect()
-    }
-}
-
-#[async_recursion]
-async fn cover_with_existing_to_do(
-    hope_to_be_covered: &Hope<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let r = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
-        .await
-        .unwrap();
-
-    let items = r.make_items();
-    let to_dos = items.filter_just_to_dos();
-    let list = CoverWithExistingToDoMenuItem::create_list(&to_dos);
-
-    let selection = Select::new("", list).prompt();
-    match selection {
-        Ok(CoverWithExistingToDoMenuItem::ToDo(to_do_that_should_do_the_covering)) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::CoverItemWithAnExistingItem {
-                    item_to_be_covered: hope_to_be_covered.get_surreal_item().clone(),
-                    item_that_should_do_the_covering: to_do_that_should_do_the_covering
-                        .get_surreal_item()
-                        .clone(),
-                })
-                .await
-                .unwrap();
-        }
-        Err(InquireError::OperationCanceled) => {
-            present_add_next_step(hope_to_be_covered, send_to_data_storage_layer).await
-        }
         Err(err) => todo!("{}", err),
     }
 }

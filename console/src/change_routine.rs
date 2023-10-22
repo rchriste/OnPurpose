@@ -10,7 +10,7 @@ use crate::{
     top_menu::present_top_menu,
 };
 
-pub enum LifeAreaItem<'e> {
+pub(crate) enum LifeAreaItem<'e> {
     ExistingRoutine(&'e Routine<'e>),
     NewLifeArea,
     NewRoutine(&'e LifeArea<'e>),
@@ -46,12 +46,12 @@ impl<'e> LifeAreaItem<'e> {
 }
 
 #[async_recursion]
-pub async fn change_routine(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let raw_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
         .await
         .unwrap();
     let life_areas = raw_tables.make_life_areas();
-    let routines = raw_tables.make_routines(&life_areas);
+    let routines = raw_tables.make_routines();
     let list = LifeAreaItem::make_list(&routines, &life_areas);
 
     let selection = Select::new("", list).prompt();

@@ -1,5 +1,3 @@
-mod cover_with_another_item;
-
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
@@ -14,58 +12,57 @@ use crate::{
     UnexpectedNextMenuAction,
 };
 
+use super::cover_with_item;
+
 enum CoverBulletItem {
-    ProactiveActionToTake,
-    ReactiveBeAvailableToAct,
-    WaitingFor,
-    TrackingToBeAwareOf,
-    CircumstanceThatMustBeTrueToAct,
+    ItemOrNextStep,
+    WaitForSomethingOrScheduled,
+    GroupOrDoWith,
+    Circumstance,
+    Mood,
 }
 
 impl Display for CoverBulletItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CoverBulletItem::ProactiveActionToTake => write!(f, "Proactive action to take"),
-            CoverBulletItem::WaitingFor => write!(f, "Waiting For"),
-            CoverBulletItem::CircumstanceThatMustBeTrueToAct => {
-                write!(f, "Circumstance that must be true to act")
-            }
-            CoverBulletItem::ReactiveBeAvailableToAct => write!(f, "Reactive be available to act"),
-            CoverBulletItem::TrackingToBeAwareOf => write!(f, "Tracking to be aware of"),
+            CoverBulletItem::ItemOrNextStep => write!(f, "Item or Next Step"),
+            CoverBulletItem::WaitForSomethingOrScheduled => write!(f, "Wait for something to happen or wait until a scheduled time"),
+            CoverBulletItem::Circumstance => write!(f, "Circumstance"),
+            CoverBulletItem::Mood => write!(f, "Mood"),
+            CoverBulletItem::GroupOrDoWith => write!(f, "Group or do with"),
         }
     }
 }
 
 impl CoverBulletItem {
-    fn create_list() -> Vec<CoverBulletItem> {
+    fn create_list() -> Vec<Self> {
         vec![
-            Self::ProactiveActionToTake,
-            Self::ReactiveBeAvailableToAct,
-            Self::WaitingFor,
-            Self::TrackingToBeAwareOf,
-            Self::CircumstanceThatMustBeTrueToAct,
+            Self::ItemOrNextStep,
+            Self::WaitForSomethingOrScheduled,
+            Self::GroupOrDoWith,
+            Self::Circumstance,
+            Self::Mood,
         ]
     }
 }
 
 #[async_recursion]
-pub async fn cover_bullet_item(
+pub(crate) async fn cover_bullet_item(
     item_to_cover: &'async_recursion ToDo<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), UnexpectedNextMenuAction> {
     let choices = CoverBulletItem::create_list();
     let selection = Select::new("", choices).prompt();
     match selection {
-        Ok(CoverBulletItem::ProactiveActionToTake) => {
-            cover_with_another_item::cover_with_proactive_action_to_take(
-                item_to_cover,
+        Ok(CoverBulletItem::ItemOrNextStep) => {
+            cover_with_item(
+                item_to_cover.get_item(),
                 send_to_data_storage_layer,
             )
             .await;
             Ok(())
         }
-        Ok(CoverBulletItem::ReactiveBeAvailableToAct) => todo!(),
-        Ok(CoverBulletItem::WaitingFor) => {
+        Ok(CoverBulletItem::WaitForSomethingOrScheduled) => {
             let r = cover_with_waiting_for(item_to_cover, send_to_data_storage_layer).await;
             match r {
                 Ok(()) => Ok(()),
@@ -75,8 +72,7 @@ pub async fn cover_bullet_item(
                 Err(UnexpectedNextMenuAction::Close) => Err(UnexpectedNextMenuAction::Close),
             }
         }
-        Ok(CoverBulletItem::TrackingToBeAwareOf) => todo!(),
-        Ok(CoverBulletItem::CircumstanceThatMustBeTrueToAct) => {
+        Ok(CoverBulletItem::Circumstance) => {
             cover_with_circumstance_that_must_be_true_to_act(
                 item_to_cover,
                 send_to_data_storage_layer,
@@ -84,6 +80,8 @@ pub async fn cover_bullet_item(
             .await;
             Ok(())
         }
+        Ok(CoverBulletItem::Mood) => todo!("Setting this as to do during focus time should be part of it"),
+        Ok(CoverBulletItem::GroupOrDoWith) => todo!("Allow the user to select what group of items this should be a part of"),
         Err(InquireError::OperationCanceled) => Err(UnexpectedNextMenuAction::Back),
         Err(InquireError::OperationInterrupted) => Err(UnexpectedNextMenuAction::Close),
         Err(err) => todo!("{}", err),
@@ -111,7 +109,7 @@ impl CoverWithWaitingFor {
 }
 
 #[async_recursion]
-pub async fn cover_with_waiting_for<'a>(
+pub(crate) async fn cover_with_waiting_for<'a>(
     item_to_cover: &'a ToDo<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), UnexpectedNextMenuAction> {

@@ -16,14 +16,14 @@ use super::{
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Item<'s> {
-    pub id: &'s Thing,
-    pub summary: &'s String,
-    pub finished: &'s Option<Datetime>,
-    pub responsibility: &'s Responsibility,
-    pub item_type: &'s ItemType,
-    pub required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
-    pub surreal_item: &'s SurrealItem,
+pub(crate) struct Item<'s> {
+    pub(crate) id: &'s Thing,
+    pub(crate) summary: &'s String,
+    pub(crate) finished: &'s Option<Datetime>,
+    pub(crate) responsibility: &'s Responsibility,
+    pub(crate) item_type: &'s ItemType,
+    pub(crate) required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
+    pub(crate) surreal_item: &'s SurrealItem,
 }
 
 impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
@@ -38,7 +38,7 @@ impl From<Item<'_>> for SurrealItem {
     }
 }
 
-pub trait ItemVecExtensions {
+pub(crate) trait ItemVecExtensions {
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
     fn filter_just_hopes<'a>(
@@ -134,12 +134,12 @@ impl<'b> Item<'b> {
         }
     }
 
-    pub fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
+    pub(crate) fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
         self.is_circumstances_met_sunday(date)
             && self.is_circumstances_met_focus_time(are_we_in_focus_time)
     }
 
-    pub fn is_circumstances_met_sunday(&self, date: &DateTime<Local>) -> bool {
+    pub(crate) fn is_circumstances_met_sunday(&self, date: &DateTime<Local>) -> bool {
         !self
             .required_circumstances
             .iter()
@@ -149,7 +149,7 @@ impl<'b> Item<'b> {
             })
     }
 
-    pub fn is_circumstances_met_focus_time(&self, are_we_in_focus_time: bool) -> bool {
+    pub(crate) fn is_circumstances_met_focus_time(&self, are_we_in_focus_time: bool) -> bool {
         let should_this_be_done_during_focus_time = self
             .required_circumstances
             .iter()
@@ -158,17 +158,17 @@ impl<'b> Item<'b> {
         should_this_be_done_during_focus_time == are_we_in_focus_time
     }
 
-    pub fn is_finished(&self) -> bool {
+    pub(crate) fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 
-    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
+    pub(crate) fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
         let mut covered_by = coverings.iter().filter(|x| self == x.parent);
         //Now see if the items that are covering are finished or active
         covered_by.any(|x| !x.smaller.is_finished())
     }
 
-    pub fn is_covered_by_date_time(
+    pub(crate) fn is_covered_by_date_time(
         &self,
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
         now: &DateTime<Local>,
@@ -179,7 +179,7 @@ impl<'b> Item<'b> {
         covered_by_date_time.any(|x| now < &x.until)
     }
 
-    pub fn is_covered(
+    pub(crate) fn is_covered(
         &self,
         coverings: &[Covering<'_>],
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
@@ -189,7 +189,7 @@ impl<'b> Item<'b> {
             || self.is_covered_by_date_time(coverings_until_date_time, now)
     }
 
-    pub fn covered_by<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+    pub(crate) fn covered_by<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
         coverings
             .iter()
             .filter_map(|x| {
@@ -202,7 +202,7 @@ impl<'b> Item<'b> {
             .collect()
     }
 
-    pub fn who_am_i_covering<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+    pub(crate) fn who_am_i_covering<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
         coverings
             .iter()
             .filter_map(|x| {
@@ -215,11 +215,11 @@ impl<'b> Item<'b> {
             .collect()
     }
 
-    pub fn get_surreal_item(&self) -> &'b SurrealItem {
+    pub(crate) fn get_surreal_item(&self) -> &'b SurrealItem {
         self.surreal_item
     }
 
-    pub fn get_summary(&self) -> &'b str {
+    pub(crate) fn get_summary(&self) -> &'b str {
         self.summary
     }
 }
@@ -366,7 +366,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items: vec![smaller_item.clone(), parent_item.clone()],
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],

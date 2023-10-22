@@ -5,7 +5,7 @@ use crate::{
     display_item::DisplayItem, display_responsive_item::DisplayResponsiveItem,
 };
 
-pub struct DisplayMotivationOrResponsiveItem<'e> {
+pub(crate) struct DisplayMotivationOrResponsiveItem<'e> {
     item: &'e MotivationOrResponsiveItem<'e>,
 }
 
@@ -25,11 +25,5 @@ impl Display for DisplayMotivationOrResponsiveItem<'_> {
 impl<'e> From<DisplayMotivationOrResponsiveItem<'e>> for &'e MotivationOrResponsiveItem<'e> {
     fn from(display_motivation_or_responsive_item: DisplayMotivationOrResponsiveItem<'e>) -> Self {
         display_motivation_or_responsive_item.item
-    }
-}
-
-impl<'e> DisplayMotivationOrResponsiveItem<'e> {
-    pub fn new(item: &'e MotivationOrResponsiveItem<'e>) -> Self {
-        Self { item }
     }
 }

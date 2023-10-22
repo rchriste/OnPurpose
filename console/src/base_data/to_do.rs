@@ -6,11 +6,11 @@ use crate::surrealdb_layer::surreal_item::SurrealItem;
 use super::{item::Item, Covering, CoveringUntilDateTime};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct ToDo<'a> {
+pub(crate) struct ToDo<'a> {
     //TODO: turn these things into get methods and use that derive get thing
-    pub id: &'a Thing,
-    pub summary: &'a String,
-    pub finished: &'a Option<Datetime>,
+    pub(crate) id: &'a Thing,
+    pub(crate) summary: &'a String,
+    pub(crate) finished: &'a Option<Datetime>,
     item: &'a Item<'a>,
 }
 
@@ -65,20 +65,8 @@ impl<'a> ToDo<'a> {
             item,
         }
     }
-    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
-        self.item.is_covered_by_another_item(coverings)
-    }
 
-    pub fn is_covered_by_date_time(
-        &self,
-        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
-        now: &DateTime<Local>,
-    ) -> bool {
-        self.item
-            .is_covered_by_date_time(coverings_until_date_time, now)
-    }
-
-    pub fn is_covered(
+    pub(crate) fn is_covered(
         &self,
         coverings: &[Covering<'_>],
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
@@ -88,23 +76,23 @@ impl<'a> ToDo<'a> {
             .is_covered(coverings, coverings_until_date_time, now)
     }
 
-    pub fn is_finished(&self) -> bool {
+    pub(crate) fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 
-    pub fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
+    pub(crate) fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
         self.item.is_circumstances_met(date, are_we_in_focus_time)
     }
 
-    pub fn get_item(&self) -> &'a Item<'a> {
+    pub(crate) fn get_item(&self) -> &'a Item<'a> {
         self.item
     }
 
-    pub fn get_surreal_item(&self) -> &'a SurrealItem {
+    pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {
         self.item.surreal_item
     }
 
-    pub fn get_summary(&self) -> &'a str {
+    pub(crate) fn get_summary(&self) -> &'a str {
         self.item.get_summary()
     }
 }

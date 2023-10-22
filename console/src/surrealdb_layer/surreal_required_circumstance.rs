@@ -4,14 +4,14 @@ use surrealdb_extra::table::Table;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "required_circumstances")]
-pub struct SurrealRequiredCircumstance {
-    pub id: Option<Thing>,
-    pub required_for: RecordId,
-    pub circumstance_type: CircumstanceType,
+pub(crate) struct SurrealRequiredCircumstance {
+    pub(crate) id: Option<Thing>,
+    pub(crate) required_for: RecordId,
+    pub(crate) circumstance_type: CircumstanceType,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum CircumstanceType {
+pub(crate) enum CircumstanceType {
     NotSunday,
     DuringFocusTime,
 }

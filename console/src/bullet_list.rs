@@ -1,4 +1,4 @@
-pub mod bullet_list_single_item;
+pub(crate) mod bullet_list_single_item;
 
 use std::fmt::Display;
 
@@ -24,7 +24,7 @@ use crate::{
 
 use self::bullet_list_single_item::present_bullet_list_item_selected;
 
-pub enum InquireBulletListItem<'a> {
+pub(crate) enum InquireBulletListItem<'a> {
     ViewFocusItems,
     NextStepToDo {
         to_do: &'a ToDo<'a>,
@@ -62,7 +62,7 @@ impl Display for InquireBulletListItem<'_> {
 }
 
 impl<'a> InquireBulletListItem<'a> {
-    pub fn create_list_with_view_focus_items_option(
+    pub(crate) fn create_list_with_view_focus_items_option(
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
@@ -72,7 +72,7 @@ impl<'a> InquireBulletListItem<'a> {
         Self::add_items_to_list(list, next_step_nodes, hopes_without_a_next_step)
     }
 
-    pub fn create_list_just_items(
+    pub(crate) fn create_list_just_items(
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
@@ -104,7 +104,7 @@ impl<'a> InquireBulletListItem<'a> {
 }
 
 #[async_recursion]
-pub async fn present_unfocused_bullet_list_menu(
+pub(crate) async fn present_unfocused_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)

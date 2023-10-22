@@ -1,15 +1,15 @@
-use crate::surrealdb_layer::surreal_item::{Responsibility, SurrealItem};
+use crate::surrealdb_layer::surreal_item::Responsibility;
 
 use super::item::Item;
 
 /// Could have a motivation_type with options for Commitment (do it because the outcome of doing it is wanted), Obligation (do it because the consequence of not doing it is bad), or Value
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct ResponsiveItem<'s> {
+pub(crate) struct ResponsiveItem<'s> {
     item: &'s Item<'s>,
 }
 
 impl<'s> ResponsiveItem<'s> {
-    pub fn new(item: &'s Item<'s>) -> Self {
+    pub(crate) fn new(item: &'s Item<'s>) -> Self {
         assert_eq!(
             *item.responsibility,
             Responsibility::ReactiveBeAvailableToAct
@@ -17,11 +17,7 @@ impl<'s> ResponsiveItem<'s> {
         Self { item }
     }
 
-    pub fn get_item(&self) -> &'s Item {
+    pub(crate) fn get_item(&self) -> &'s Item {
         self.item //TODO: Switch to using a crate that does this automatically making this getter
-    }
-
-    pub fn get_surreal_item(&self) -> &'s SurrealItem {
-        self.item.get_surreal_item()
     }
 }

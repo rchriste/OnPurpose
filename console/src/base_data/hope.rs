@@ -1,4 +1,3 @@
-use chrono::{DateTime, Local};
 use surrealdb::sql::{Datetime, Thing};
 
 use crate::surrealdb_layer::{
@@ -6,15 +5,15 @@ use crate::surrealdb_layer::{
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
 };
 
-use super::{item::Item, Covering, CoveringUntilDateTime, ItemType};
+use super::{item::Item, Covering, ItemType};
 
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Hope<'a> {
-    pub id: &'a Thing,
-    pub summary: &'a String,
-    pub finished: &'a Option<Datetime>,
-    pub hope_specific: SurrealSpecificToHope,
+pub(crate) struct Hope<'a> {
+    pub(crate) id: &'a Thing,
+    pub(crate) summary: &'a String,
+    pub(crate) finished: &'a Option<Datetime>,
+    pub(crate) hope_specific: SurrealSpecificToHope,
     item: &'a Item<'a>,
 }
 
@@ -66,24 +65,24 @@ impl<'a> Hope<'a> {
         }
     }
 
-    pub fn is_mentally_resident(&self) -> bool {
+    pub(crate) fn is_mentally_resident(&self) -> bool {
         self.hope_specific.staging == Staging::MentallyResident
     }
 
-    pub fn is_project(&self) -> bool {
+    pub(crate) fn is_project(&self) -> bool {
         self.hope_specific.permanence == Permanence::Project
             && self.hope_specific.staging == Staging::MentallyResident
     }
 
-    pub fn is_maintenance(&self) -> bool {
+    pub(crate) fn is_maintenance(&self) -> bool {
         self.hope_specific.permanence == Permanence::Maintenance
     }
 
-    pub fn is_finished(&self) -> bool {
+    pub(crate) fn is_finished(&self) -> bool {
         self.finished.is_some()
     }
 
-    pub fn is_covered_by_another_hope(&self, coverings: &[Covering<'_>]) -> bool {
+    pub(crate) fn is_covered_by_another_hope(&self, coverings: &[Covering<'_>]) -> bool {
         let mut covered_by = coverings.iter().filter(|x| {
             self == x.parent && x.smaller.item_type == &ItemType::Hope && !x.smaller.is_finished()
         });
@@ -91,42 +90,15 @@ impl<'a> Hope<'a> {
         covered_by.any(|x| !x.smaller.is_finished())
     }
 
-    pub fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
-        self.item.is_covered_by_another_item(coverings)
-    }
-
-    pub fn is_covered_by_date_time(
-        &self,
-        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
-        now: &DateTime<Local>,
-    ) -> bool {
-        self.item
-            .is_covered_by_date_time(coverings_until_date_time, now)
-    }
-
-    pub fn is_covered(
-        &self,
-        coverings: &[Covering<'_>],
-        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
-        now: &DateTime<Local>,
-    ) -> bool {
-        self.item
-            .is_covered(coverings, coverings_until_date_time, now)
-    }
-
-    pub fn covered_by(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
+    pub(crate) fn covered_by(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
         self.item.covered_by(coverings)
     }
 
-    pub fn who_am_i_covering(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
-        self.item.who_am_i_covering(coverings)
-    }
-
-    pub fn get_surreal_item(&self) -> &'a SurrealItem {
+    pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {
         self.item.surreal_item
     }
 
-    pub fn get_item(&self) -> &'a Item<'a> {
+    pub(crate) fn get_item(&self) -> &'a Item<'a> {
         self.item
     }
 }

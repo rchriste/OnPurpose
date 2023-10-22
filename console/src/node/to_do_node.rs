@@ -4,13 +4,13 @@ use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime}
 
 use super::{create_growing_nodes, GrowingItemNode};
 
-pub struct ToDoNode<'s> {
-    pub to_do: &'s ToDo<'s>,
-    pub larger: Vec<GrowingItemNode<'s>>,
+pub(crate) struct ToDoNode<'s> {
+    pub(crate) to_do: &'s ToDo<'s>,
+    pub(crate) larger: Vec<GrowingItemNode<'s>>,
 }
 
 impl<'s> ToDoNode<'s> {
-    pub fn create_next_step_parents(&'s self) -> Vec<&'s Item<'s>> {
+    pub(crate) fn create_next_step_parents(&'s self) -> Vec<&'s Item<'s>> {
         let mut result = Vec::default();
         for i in self.larger.iter() {
             result.push(i.item);
@@ -21,7 +21,7 @@ impl<'s> ToDoNode<'s> {
     }
 }
 
-pub fn create_to_do_nodes<'a>(
+pub(crate) fn create_to_do_nodes<'a>(
     next_steps: &'a [ToDo],
     coverings: &'a [Covering<'a>],
     coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
@@ -44,7 +44,7 @@ pub fn create_to_do_nodes<'a>(
         .collect()
 }
 
-pub fn create_to_do_node<'a>(
+pub(crate) fn create_to_do_node<'a>(
     to_do: &'a ToDo,
     coverings: &'a [Covering<'a>],
     possible_parents: &'a [&'a Item<'a>],
@@ -58,7 +58,7 @@ pub fn create_to_do_node<'a>(
 
 impl<'a> ToDoNode<'a> {
     #[allow(dead_code)]
-    pub fn get_summary(&'a self) -> &'a str {
+    pub(crate) fn get_summary(&'a self) -> &'a str {
         self.to_do.get_summary()
     }
 }
@@ -99,7 +99,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -141,7 +140,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -189,7 +187,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -236,7 +233,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -282,7 +278,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -342,7 +337,6 @@ mod tests {
             surreal_coverings,
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -400,7 +394,6 @@ mod tests {
             surreal_coverings,
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -451,7 +444,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -500,7 +492,6 @@ mod tests {
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time,
-            surreal_specific_to_to_dos: vec![],
             surreal_life_areas: vec![],
             surreal_routines: vec![],
         };
@@ -547,7 +538,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
@@ -598,7 +588,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
@@ -664,7 +653,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings,
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
@@ -730,7 +718,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings,
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
@@ -784,7 +771,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items,
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings: vec![],
             surreal_required_circumstances,
             surreal_coverings_until_date_time: vec![],
@@ -834,7 +820,6 @@ mod tests {
         let surreal_tables = SurrealTables {
             surreal_items: vec![smaller_item.clone(), parent_item.clone()],
             surreal_specific_to_hopes: vec![],
-            surreal_specific_to_to_dos: vec![],
             surreal_coverings: vec![],
             surreal_required_circumstances: vec![],
             surreal_coverings_until_date_time: vec![],

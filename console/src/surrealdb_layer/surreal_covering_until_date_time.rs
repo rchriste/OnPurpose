@@ -9,8 +9,8 @@ use surrealdb_extra::table::Table;
 /// an exact date_time
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "coverings_until_datetime")]
-pub struct SurrealCoveringUntilDatetime {
-    pub id: Option<Thing>,
-    pub cover_this: RecordId,
-    pub until: Datetime,
+pub(crate) struct SurrealCoveringUntilDatetime {
+    pub(crate) id: Option<Thing>,
+    pub(crate) cover_this: RecordId,
+    pub(crate) until: Datetime,
 }

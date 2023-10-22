@@ -1,6 +1,8 @@
 # What is On Purpose?
 
-**Over the past few years I have been on a journey to rethink and re-imagine how a computer can better help with the problem of time and task management. This _On Purpose_ project was created as a place for me to implement my ideas and show my ideas to others with a working program that others can try. I am targeting the summer of 2024 as an upcoming milestone for when I encourage others to try it. As of today what I have written is very partial and does not yet demonstrate the core of the vision. Once that happens I will start having a downloadable binary. Windows and the Microsoft Graph APIs are my lead platform.**
+Over the past few years I have been on a journey to rethink and re-imagine how a computer can better help with the problem of time and task management. This _On Purpose_ project was created as a place for me to implement my ideas and show my ideas to others with a working program that others can try. I am targeting the summer of 2024 as an upcoming milestone for when I encourage others to try it. As of today what I have written is very partial and does not yet demonstrate the core of the vision. Once that happens I will start having a downloadable binary. Microsoft Windows and the Microsoft Graph APIs are my lead platform.
+
+## Vision
 
 I should also mention that part of my goal is to influence and encourage these ideas to be integrated into other programs and into the OS itself. The reason is because my experience is that it is **not** the core idea but rather how convenient it is to implement that is the real barrier. While this is a practical problem for me I also see this problem from professional therapists, to professionals helping care for the elderly, to institutions researching how to practically improve the lives of neurodiverse adults and children. The problem that I see is that the guidance is not followed because it is not convenient or natural enough to follow with today's software.
 
@@ -16,9 +18,22 @@ My aspiration with _On Purpose_ is to redefine expectations of what to do softwa
 
 At the same time my goal is **not** to just implement the wonderful ideas of others rather I believe that my unique value and contribution rests in my ability to rethink the problem space and come up with something that is more natural and intuitive, at least in hindsight after you get experience with the program. I am writing _On Purpose_ as a program that I can personally use, benefit from, and iteratively improve. I created _On Purpose_ as an open source project because I believe others can also benefit and I hope for these ideas to spread.
 
-My initial goal is to implement a text based menu driven program, then expand to a phone Graphical UI, and then a desktop Graphical UI that can be always visible and pinned opposite the OS taskbar. I also intend to leverage AI to make data entry more convenient, including the ability to use photos and speech for data entry. But the next step is to develop the core of the idea as a console or text based program that I personally use and depend on. I expect this to be a multi-year journey, at the very least. If you want to learn more details about these ideas and how I am implementing them into a console program read on. 😀
+My initial goal is to implement a text based menu driven program, then expand to a phone Graphical UI, and then a desktop Graphical UI that can be always visible and pinned opposite the OS taskbar. I also intend to leverage AI to make data entry more convenient, including the ability to use photos and speech for data entry. But the next step is to develop the core of the idea as a console or text based program that I personally use and depend on. I expect this to be a multi-year journey, at the very least. What follows is a work-in-progress description of the core features of the _On Purpose_ console program. If you want an idea of how far along things are read on. 😀
 
-## Basic Structure & Concepts
+## Basic Terminology & Concepts
+
+### Covering
+
+Covering is how you state the reason for why something can't be done right now.
+-Because there is a different item or a smaller next step that should be done first
+-Because you are waiting for an amount of time or for something to happen first
+-Circumstance, for example you need a tool or thing or to be in a certain place
+-Mood, including focus
+-Should be done with a group of items or do with another item
+
+### Grouping
+
+## Getting Started
 
 What I have worked out is that to do items should be tied to the outcome hoped for and backed by the motivation for why we are doing this thing. My hypothesis is that being explicit about this will result in better decisions for how we spend our time. To do software should help with all three phases of preparing, acting, and reflecting on the things we do. The interface should help with the goal of doing the right thing right now from the big picture down to the smallest literal next step. When you are waiting for something to happen it should have awareness or integrations to help you know when to return to something. It should help you remember different to dos related to your current location, head space, or situation. And it should help with the process of stopping and resuming later so you can better remember what your doing. And finally it should help you recall and celebrate your effort independent of what actually came to pass.
 
@@ -74,21 +89,23 @@ Beyond logging literal things to do in order for _On Purpose_ to be complete it 
 
 ### In the area work, multitasking and multi-purposing
 
-## Integration with other systems (i.e. The Personal View)
+### Integration with other systems (i.e. The Personal View)
 
 Picking what to do
 
-## Saving, Resuming, and Staying On Track
+### Saving, Resuming, and Staying On Track
 
-### Capturing
+#### Capturing
 
 Take a screenshot, including scroll and simple interaction. Save accessibility data with the copy-paste.
 
-## Reflection & Rewards
+### Reflection & Rewards
+
+## Long-term Vision
 
 ## Trying On Purpose
 
-_On Purpose_ is currently at the very early stages. I am currently developing it by using it myself and quickly running into issues and then working to add features to address these issues. If you want to try it now you will need to compile it. As of right now On Purpose should work on both Windows and Linux, however Windows is my lead platform (because I work for Microsoft and therefor use Windows).
+_On Purpose_ is currently at the very early stages. I am currently developing it by using it myself and quickly running into issues and then working to add features to address these issues. If you want to try it now you will need to compile it. While On Purpose might work Linux, Windows is my lead platform.
 
 ### Compiling On Purpose
 

@@ -1,11 +1,11 @@
-pub mod base_data;
+pub(crate) mod base_data;
 mod bullet_list;
 mod change_routine;
 pub(crate) mod display_item;
 pub(crate) mod display_motivation_or_responsive_item;
 pub(crate) mod display_responsive_item;
 mod mentally_resident;
-pub mod new_item;
+pub(crate) mod new_item;
 mod node;
 mod surrealdb_layer;
 mod top_menu;
@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[must_use]
-pub enum UnexpectedNextMenuAction {
+pub(crate) enum UnexpectedNextMenuAction {
     Back,
     Close,
 }

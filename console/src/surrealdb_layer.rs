@@ -1,11 +1,10 @@
-pub mod surreal_covering;
-pub mod surreal_covering_until_date_time;
-pub mod surreal_item;
-pub mod surreal_life_area;
-pub mod surreal_required_circumstance;
-pub mod surreal_routine;
-pub mod surreal_specific_to_hope;
-pub mod surreal_specific_to_todo;
+pub(crate) mod surreal_covering;
+pub(crate) mod surreal_covering_until_date_time;
+pub(crate) mod surreal_item;
+pub(crate) mod surreal_life_area;
+pub(crate) mod surreal_required_circumstance;
+pub(crate) mod surreal_routine;
+pub(crate) mod surreal_specific_to_hope;
 
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
@@ -39,30 +38,28 @@ use self::{
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
-    surreal_specific_to_todo::{Order, SurrealSpecificToToDo},
 };
 
 #[derive(Debug)]
-pub struct SurrealTables {
-    pub surreal_items: Vec<SurrealItem>,
-    pub surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
-    pub surreal_specific_to_to_dos: Vec<SurrealSpecificToToDo>,
-    pub surreal_coverings: Vec<SurrealCovering>,
-    pub surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
-    pub surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
-    pub surreal_life_areas: Vec<SurrealLifeArea>,
-    pub surreal_routines: Vec<SurrealRoutine>,
+pub(crate) struct SurrealTables {
+    pub(crate) surreal_items: Vec<SurrealItem>,
+    pub(crate) surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
+    pub(crate) surreal_coverings: Vec<SurrealCovering>,
+    pub(crate) surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
+    pub(crate) surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
+    pub(crate) surreal_life_areas: Vec<SurrealLifeArea>,
+    pub(crate) surreal_routines: Vec<SurrealRoutine>,
 }
 
 impl SurrealTables {
-    pub fn make_items(&self) -> Vec<Item<'_>> {
+    pub(crate) fn make_items(&self) -> Vec<Item<'_>> {
         self.surreal_items
             .iter()
             .map(|x| x.make_item(&self.surreal_required_circumstances))
             .collect()
     }
 
-    pub fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+    pub(crate) fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
         self.surreal_coverings
             .iter()
             .map(|x| Covering {
@@ -72,7 +69,7 @@ impl SurrealTables {
             .collect()
     }
 
-    pub fn make_coverings_until_date_time<'a>(
+    pub(crate) fn make_coverings_until_date_time<'a>(
         &'a self,
         items: &'a [Item<'a>],
     ) -> Vec<CoveringUntilDateTime<'a>> {
@@ -88,25 +85,19 @@ impl SurrealTables {
             .collect()
     }
 
-    pub fn make_life_areas(&self) -> Vec<LifeArea<'_>> {
+    pub(crate) fn make_life_areas(&self) -> Vec<LifeArea<'_>> {
         self.surreal_life_areas.iter().map(LifeArea::new).collect()
     }
 
-    pub fn make_routines<'a>(&'a self, life_areas: &'a [LifeArea<'a>]) -> Vec<Routine<'a>> {
+    pub(crate) fn make_routines<'a>(&'a self) -> Vec<Routine<'a>> {
         self.surreal_routines
             .iter()
-            .map(|x| {
-                let parent_life_area = life_areas
-                    .iter()
-                    .find(|y| y.surreal_life_area.id.as_ref().expect("Always in DB") == &x.parent)
-                    .unwrap();
-                Routine::new(x, parent_life_area)
-            })
+            .map(Routine::new)
             .collect()
     }
 }
 
-pub enum DataLayerCommands {
+pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
     AddProcessedText(String, SurrealItem),
     GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
@@ -114,7 +105,7 @@ pub enum DataLayerCommands {
     NewToDo(String),
     NewHope(String),
     NewMotivation(String),
-    CoverItemWithANewToDo(SurrealItem, String, Order, Responsibility),
+    CoverWithANewItem{cover_this: SurrealItem, cover_with: NewItem},
     CoverItemWithANewWaitingForQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
     CoverItemWithAnExistingItem {
@@ -138,7 +129,7 @@ pub enum DataLayerCommands {
 }
 
 impl DataLayerCommands {
-    pub async fn get_raw_data(
+    pub(crate) async fn get_raw_data(
         sender: &Sender<DataLayerCommands>,
     ) -> Result<SurrealTables, RecvError> {
         let (raw_data_sender, raw_data_receiver) = oneshot::channel();
@@ -150,7 +141,7 @@ impl DataLayerCommands {
     }
 
     #[allow(dead_code)] //Remove after this is used beyond the unit tests
-    pub async fn get_processed_text(
+    pub(crate) async fn get_processed_text(
         sender: &Sender<DataLayerCommands>,
         for_item: SurrealItem,
     ) -> Result<Vec<ProcessedText>, RecvError> {
@@ -166,7 +157,7 @@ impl DataLayerCommands {
     }
 }
 
-pub async fn data_storage_start_and_run(
+pub(crate) async fn data_storage_start_and_run(
     mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
     endpoint: impl IntoEndpoint,
 ) {
@@ -192,20 +183,8 @@ pub async fn data_storage_start_and_run(
             Some(DataLayerCommands::NewMotivation(summary_text)) => {
                 new_motivation(summary_text, &db).await
             }
-            Some(DataLayerCommands::CoverItemWithANewToDo(
-                item_to_cover,
-                new_to_do_text,
-                order,
-                responsibility,
-            )) => {
-                cover_item_with_a_new_next_step(
-                    item_to_cover,
-                    new_to_do_text,
-                    order,
-                    responsibility,
-                    &db,
-                )
-                .await
+            Some(DataLayerCommands::CoverWithANewItem { cover_this, cover_with }) => {
+                cover_with_a_new_item(cover_this, cover_with, &db).await
             }
             Some(DataLayerCommands::CoverItemWithANewWaitingForQuestion(item, question)) => {
                 cover_item_with_a_new_waiting_for_question(item, question, &db).await
@@ -255,9 +234,8 @@ pub async fn data_storage_start_and_run(
     }
 }
 
-pub async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
+pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
-    let all_specific_to_to_dos = SurrealSpecificToToDo::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
     let all_required_circumstances = SurrealRequiredCircumstance::get_all(db);
@@ -288,27 +266,12 @@ pub async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> Surreal
         })
         .collect();
 
-    let all_specific_to_to_dos = all_specific_to_to_dos.await.unwrap();
-    let all_specific_to_to_dos = all_items
-        .iter()
-        .map(|x| {
-            match all_specific_to_to_dos
-                .iter()
-                .find(|y| x.id.as_ref().expect("In DB") == &y.for_item)
-            {
-                Some(s) => s.clone(),
-                None => SurrealSpecificToToDo::new_defaults(x.id.as_ref().expect("In DB").clone()),
-            }
-        })
-        .collect();
-
     SurrealTables {
         surreal_items: all_items,
         surreal_coverings: all_coverings.await.unwrap(),
         surreal_required_circumstances: all_required_circumstances.await.unwrap(),
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
         surreal_specific_to_hopes: all_specific_to_hopes,
-        surreal_specific_to_to_dos: all_specific_to_to_dos,
         surreal_life_areas: all_life_areas.await.unwrap(),
         surreal_routines: all_routines.await.unwrap(),
     }
@@ -325,7 +288,7 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
     }
 }
 
-pub async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
+pub(crate) async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
     let for_item: Option<Thing> = for_item.into();
     let data = ProcessedText {
         id: None,
@@ -336,7 +299,7 @@ pub async fn add_processed_text(processed_text: String, for_item: SurrealItem, d
     data.create(db).await.unwrap();
 }
 
-pub async fn get_processed_text(
+pub(crate) async fn get_processed_text(
     for_item: SurrealItem,
     send_response_here: oneshot::Sender<Vec<ProcessedText>>,
     db: &Surreal<Any>,
@@ -352,7 +315,7 @@ pub async fn get_processed_text(
     send_response_here.send(processed_text).unwrap();
 }
 
-pub async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>) {
+pub(crate) async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>) {
     finish_this.finished = Some(Local::now().naive_utc().and_utc().into());
     finish_this.update(db).await.unwrap();
 }
@@ -393,17 +356,35 @@ async fn cover_item_with_a_new_waiting_for_question(
     cover_item_with_a_new_next_step(
         item,
         question,
-        Order::NextStep,
         Responsibility::WaitingFor,
         db,
     )
     .await
 }
 
+async fn cover_with_a_new_item(
+    cover_this: SurrealItem,
+    cover_with: NewItem,
+    db: &Surreal<Any>,
+) {
+    let cover_with = SurrealItem::new(cover_with, vec![]);
+    let cover_with = cover_with.create(db).await.unwrap().into_iter().next().unwrap();
+
+    let cover_with: Option<Thing> = cover_with.into();
+    let cover_this: Option<Thing> = cover_this.into();
+    SurrealCovering {
+        id: None,
+        smaller: cover_with.expect("Should already be in the database"),
+        parent: cover_this.expect("Should already be in the database"),
+    }
+    .create(db)
+    .await
+    .unwrap();
+}
+
 async fn cover_item_with_a_new_next_step(
     item_to_cover: SurrealItem,
     new_to_do_text: String,
-    order: Order,
     responsibility: Responsibility,
     db: &Surreal<Any>,
 ) {
@@ -425,14 +406,6 @@ async fn cover_item_with_a_new_next_step(
     .next()
     .unwrap();
 
-    let specific_to_to_do = SurrealSpecificToToDo {
-        id: None,
-        for_item: new_to_do.id.as_ref().expect("In DB").clone(),
-        order,
-        responsibility,
-    }
-    .create(db);
-
     let smaller_option: Option<Thing> = new_to_do.into();
     let parent_option: Option<Thing> = item_to_cover.into();
     SurrealCovering {
@@ -443,8 +416,6 @@ async fn cover_item_with_a_new_next_step(
     .create(db)
     .await
     .unwrap();
-
-    specific_to_to_do.await.unwrap();
 }
 
 async fn cover_item_with_a_new_milestone(
@@ -800,13 +771,18 @@ mod tests {
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
         let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
+        let new_item = NewItem { 
+            summary: "Covering item".into(), 
+            finished: None, 
+            responsibility: Responsibility::ProactiveActionToTake, 
+            item_type: ItemType::ToDo, 
+        };
+
         sender
-            .send(DataLayerCommands::CoverItemWithANewToDo(
-                item_to_cover.clone(),
-                "Covering item".into(),
-                Order::NextStep,
-                Responsibility::ProactiveActionToTake,
-            ))
+            .send(DataLayerCommands::CoverWithANewItem{
+                cover_this: item_to_cover.clone(),
+                cover_with: new_item,
+            })
             .await
             .unwrap();
 

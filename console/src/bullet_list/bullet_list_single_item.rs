@@ -66,7 +66,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 }
 
 #[async_recursion]
-pub async fn present_bullet_list_item_selected(
+pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ToDo<'_>,
     parents: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -158,27 +158,6 @@ async fn present_bullet_list_item_parent_selected(
     }
 }
 
-enum ParentToItem<'e> {
-    Item(DisplayItem<'e>),
-}
-
-impl Display for ParentToItem<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParentToItem::Item(item) => write!(f, "{}", item),
-        }
-    }
-}
-
-impl<'e> ParentToItem<'e> {
-    fn make_list(items: &'e [Item<'e>]) -> Vec<Self> {
-        items
-            .iter()
-            .map(|x| Self::Item(DisplayItem::new(x)))
-            .collect()
-    }
-}
-
 async fn parent_to_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -192,12 +171,12 @@ async fn parent_to_item(
         .filter(|x| !x.is_finished())
         .collect();
 
-    let list = ParentToItem::make_list(&items);
+    let list = DisplayItem::make_list(&items);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {
-        Ok(ParentToItem::Item(item)) => {
-            let item: &Item = item.into();
+        Ok(display_item) => {
+            let item: &Item = display_item.into();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -213,7 +192,42 @@ async fn parent_to_item(
     }
 }
 
-enum NewItem {
+pub(crate) async fn cover_with_item(
+    parent_this: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) { //TODO: cover_to_item and parent_to_item are the same except for the command sent to the data storage layer, refactor to reduce duplicated code
+    let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
+    let items: Vec<Item> = raw_data
+        .make_items()
+        .into_iter()
+        .filter(|x| !x.is_finished())
+        .collect();
+
+    let list = DisplayItem::make_list(&items);
+
+    let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
+    match selection {
+        Ok(display_item) => {
+            let item: &Item = display_item.into();
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemWithExistingItem {
+                    child: parent_this.get_surreal_item().clone(),
+                    parent: item.get_surreal_item().clone(),
+                })
+                .await
+                .unwrap();
+        }
+        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
+            cover_with_new_item(parent_this, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("Unexpected {}", err),
+    }
+}
+
+
+enum NewItemSelection {
     ProactiveToDo,
     ResponsiveToDo,
     ProactiveHope,
@@ -223,21 +237,21 @@ enum NewItem {
     ResponsiveMotivation,
 }
 
-impl Display for NewItem {
+impl Display for NewItemSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NewItem::ProactiveToDo => write!(f, "New Proactive To Do"),
-            NewItem::ResponsiveToDo => write!(f, "New Responsive To Do"),
-            NewItem::ProactiveHope => write!(f, "New Proactive Hope"),
-            NewItem::ResponsiveHope => write!(f, "New Responsive Hope"),
-            NewItem::ProactiveMotivation => write!(f, "New Proactive Motivation"),
-            NewItem::ResponsiveMotivation => write!(f, "New Responsive Motivation"),
-            NewItem::ProactiveMilestone => write!(f, "New Proactive Milestone"),
+            Self::ProactiveToDo => write!(f, "New Proactive To Do"),
+            Self::ResponsiveToDo => write!(f, "New Responsive To Do"),
+            Self::ProactiveHope => write!(f, "New Proactive Hope"),
+            Self::ResponsiveHope => write!(f, "New Responsive Hope"),
+            Self::ProactiveMotivation => write!(f, "New Proactive Motivation"),
+            Self::ResponsiveMotivation => write!(f, "New Responsive Motivation"),
+            Self::ProactiveMilestone => write!(f, "New Proactive Milestone"),
         }
     }
 }
 
-impl NewItem {
+impl NewItemSelection {
     fn create_list() -> Vec<Self> {
         vec![
             Self::ProactiveToDo,
@@ -251,15 +265,15 @@ impl NewItem {
     }
 }
 
-async fn parent_to_new_item(
+pub(crate) async fn parent_to_new_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = NewItem::create_list();
+    let list = NewItemSelection::create_list();
 
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(NewItem::ProactiveToDo) => {
+        Ok(NewItemSelection::ProactiveToDo) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -275,7 +289,7 @@ async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItem::ResponsiveToDo) => {
+        Ok(NewItemSelection::ResponsiveToDo) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -291,7 +305,7 @@ async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItem::ProactiveHope) => {
+        Ok(NewItemSelection::ProactiveHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -307,7 +321,7 @@ async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItem::ProactiveMilestone) => {
+        Ok(NewItemSelection::ProactiveMilestone) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let _new_item = new_item::NewItem {
                 summary,
@@ -321,7 +335,7 @@ async fn parent_to_new_item(
             //     parent_new_item: new_item,
             // }).await.unwrap();
         }
-        Ok(NewItem::ResponsiveHope) => {
+        Ok(NewItemSelection::ResponsiveHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -337,7 +351,7 @@ async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItem::ProactiveMotivation) => {
+        Ok(NewItemSelection::ProactiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -353,7 +367,7 @@ async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItem::ResponsiveMotivation) => {
+        Ok(NewItemSelection::ResponsiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -365,6 +379,130 @@ async fn parent_to_new_item(
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
                     parent_new_item: new_item,
+                })
+                .await
+                .unwrap();
+        }
+
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(err) => todo!("Unexpected {}", err),
+    }
+}
+
+pub(crate) async fn cover_with_new_item(
+    cover_this: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let list = NewItemSelection::create_list();
+
+    let selection = Select::new("", list).prompt();
+    match selection {
+        Ok(NewItemSelection::ProactiveToDo) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ProactiveActionToTake,
+                item_type: ItemType::ToDo,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap();
+        }
+        Ok(NewItemSelection::ResponsiveToDo) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ReactiveBeAvailableToAct,
+                item_type: ItemType::ToDo,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap();
+        }
+        Ok(NewItemSelection::ProactiveHope) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ProactiveActionToTake,
+                item_type: ItemType::Hope,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap();
+        }
+        Ok(NewItemSelection::ProactiveMilestone) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let _new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ProactiveActionToTake,
+                item_type: ItemType::Hope,
+            };
+            todo!("I need to also set this hope to be a milestone");
+            // send_to_data_storage_layer.send(DataLayerCommands::CoverWithANewItem{
+            //     cover_this: cover_this.get_surreal_item().clone(),
+            //     cover_with: new_item,
+            // }).await.unwrap();
+        }
+        Ok(NewItemSelection::ResponsiveHope) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ReactiveBeAvailableToAct,
+                item_type: ItemType::Hope,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap();
+        }
+        Ok(NewItemSelection::ProactiveMotivation) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ProactiveActionToTake,
+                item_type: ItemType::Motivation,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap();
+        }
+        Ok(NewItemSelection::ResponsiveMotivation) => {
+            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
+            let new_item = new_item::NewItem {
+                summary,
+                finished: None,
+                responsibility: Responsibility::ReactiveBeAvailableToAct,
+                item_type: ItemType::Motivation,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_with: new_item,
                 })
                 .await
                 .unwrap();

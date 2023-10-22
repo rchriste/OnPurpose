@@ -4,8 +4,8 @@ use surrealdb_extra::table::Table;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "routines")]
-pub struct SurrealRoutine {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub parent: Thing,
+pub(crate) struct SurrealRoutine {
+    pub(crate) id: Option<Thing>,
+    pub(crate) summary: String,
+    pub(crate) parent: Thing,
 }

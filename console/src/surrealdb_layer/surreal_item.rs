@@ -11,15 +11,15 @@ use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "item")] //TODO: This should be renamed items
-pub struct SurrealItem {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub finished: Option<Datetime>,
-    pub responsibility: Responsibility,
-    pub item_type: ItemType,
+pub(crate) struct SurrealItem {
+    pub(crate) id: Option<Thing>,
+    pub(crate) summary: String,
+    pub(crate) finished: Option<Datetime>,
+    pub(crate) responsibility: Responsibility,
+    pub(crate) item_type: ItemType,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
-    pub smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
+    pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
 }
 
 impl SurrealItem {
@@ -37,7 +37,7 @@ impl SurrealItem {
         }
     }
 
-    pub fn make_item<'a>(&'a self, requirements: &'a [SurrealRequiredCircumstance]) -> Item<'a> {
+    pub(crate) fn make_item<'a>(&'a self, requirements: &'a [SurrealRequiredCircumstance]) -> Item<'a> {
         let my_requirements = requirements
             .iter()
             .filter(|x| {
@@ -54,7 +54,7 @@ impl SurrealItem {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub enum Responsibility {
+pub(crate) enum Responsibility {
     #[default]
     ProactiveActionToTake,
     ReactiveBeAvailableToAct,
@@ -63,7 +63,7 @@ pub enum Responsibility {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum SurrealOrderedSubItem {
+pub(crate) enum SurrealOrderedSubItem {
     SubItem {
         surreal_item_id: Thing,
     },
@@ -75,7 +75,7 @@ pub enum SurrealOrderedSubItem {
 //Each of these variants should be containing data but I don't want the data layer to get too far ahead of the prototype UI
 //so I want to wait until I can try it out before working out these details so just this for now.
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum SurrealPriorityGoal {
+pub(crate) enum SurrealPriorityGoal {
     AbsoluteInvocationCount,
     AbsoluteAmountOfTime,
     RelativePercentageOfTime,
@@ -83,11 +83,11 @@ pub enum SurrealPriorityGoal {
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "item")] //TODO: Remove this after the upgrade is complete
-pub struct SurrealItemOldVersion {
-    pub id: Option<Thing>,
-    pub summary: String,
-    pub finished: Option<Datetime>,
-    pub item_type: ItemType,
+pub(crate) struct SurrealItemOldVersion {
+    pub(crate) id: Option<Thing>,
+    pub(crate) summary: String,
+    pub(crate) finished: Option<Datetime>,
+    pub(crate) item_type: ItemType,
 }
 
 impl From<SurrealItemOldVersion> for SurrealItem {

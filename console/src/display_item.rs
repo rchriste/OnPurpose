@@ -6,7 +6,7 @@ use crate::base_data::{item::Item, ItemType};
 /// putting that onto the core Item type that should not be tied to specific display or printing logic for a console
 /// application.
 pub(crate) struct DisplayItem<'s> {
-    pub item: &'s Item<'s>,
+    pub(crate) item: &'s Item<'s>,
 }
 
 impl<'s> From<&&'s Item<'s>> for DisplayItem<'s> {
@@ -39,7 +39,14 @@ impl Display for DisplayItem<'_> {
 }
 
 impl<'s> DisplayItem<'s> {
-    pub fn new(item: &'s Item<'s>) -> Self {
+    pub(crate) fn new(item: &'s Item<'s>) -> Self {
         DisplayItem { item }
+    }
+
+    pub(crate) fn make_list(items: &'s [Item<'s>]) -> Vec<Self> {
+        items
+            .iter()
+            .map(|x| DisplayItem::new(x))
+            .collect()
     }
 }

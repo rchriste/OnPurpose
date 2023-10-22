@@ -4,15 +4,15 @@ use surrealdb_extra::table::Table;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "specific_to_hopes")]
-pub struct SurrealSpecificToHope {
-    pub id: Option<Thing>,
-    pub for_item: RecordId,
-    pub permanence: Permanence,
-    pub staging: Staging,
+pub(crate) struct SurrealSpecificToHope {
+    pub(crate) id: Option<Thing>,
+    pub(crate) for_item: RecordId,
+    pub(crate) permanence: Permanence,
+    pub(crate) staging: Staging,
 }
 
 impl SurrealSpecificToHope {
-    pub fn new_defaults(for_item: RecordId) -> Self {
+    pub(crate) fn new_defaults(for_item: RecordId) -> Self {
         Self {
             id: Option::<Thing>::default(),
             for_item,
@@ -23,14 +23,14 @@ impl SurrealSpecificToHope {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub enum Permanence {
+pub(crate) enum Permanence {
     Maintenance,
     #[default]
     Project,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub enum Staging {
+pub(crate) enum Staging {
     #[default]
     MentallyResident,
     OnDeck,
@@ -38,7 +38,7 @@ pub enum Staging {
     Released,
 }
 
-pub trait SurrealSpecificToHopes<'a> {
+pub(crate) trait SurrealSpecificToHopes<'a> {
     fn get_by_id(&'a self, id: &RecordId) -> Option<&'a SurrealSpecificToHope>;
 }
 

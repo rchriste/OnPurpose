@@ -6,12 +6,12 @@ use crate::base_data::Covering;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "coverings")]
-pub struct SurrealCovering {
-    pub id: Option<Thing>,
+pub(crate) struct SurrealCovering {
+    pub(crate) id: Option<Thing>,
     /// RecordId of the smaller item that is doing the covering
-    pub smaller: RecordId, //TODO: Rename to covering
+    pub(crate) smaller: RecordId, //TODO: Rename to covering
     /// RecordId of the larger item that is being covered
-    pub parent: RecordId, //TODO: Rename to being_covered
+    pub(crate) parent: RecordId, //TODO: Rename to being_covered
 }
 
 impl<'a> From<Covering<'a>> for SurrealCovering {

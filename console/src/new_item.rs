@@ -2,9 +2,9 @@ use surrealdb::sql::Datetime;
 
 use crate::{base_data::ItemType, surrealdb_layer::surreal_item::Responsibility};
 
-pub struct NewItem {
-    pub summary: String,
-    pub finished: Option<Datetime>,
-    pub responsibility: Responsibility,
-    pub item_type: ItemType,
+pub(crate) struct NewItem {
+    pub(crate) summary: String,
+    pub(crate) finished: Option<Datetime>,
+    pub(crate) responsibility: Responsibility,
+    pub(crate) item_type: ItemType,
 }

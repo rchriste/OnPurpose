@@ -1,11 +1,11 @@
-pub mod hope;
-pub mod item;
-pub mod life_area;
-pub mod motivation;
-pub mod motivation_or_responsive_item;
-pub mod responsive_item;
-pub mod routine;
-pub mod to_do;
+pub(crate) mod hope;
+pub(crate) mod item;
+pub(crate) mod life_area;
+pub(crate) mod motivation;
+pub(crate) mod motivation_or_responsive_item;
+pub(crate) mod responsive_item;
+pub(crate) mod routine;
+pub(crate) mod to_do;
 
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
@@ -29,33 +29,33 @@ impl From<SurrealItem> for Option<Thing> {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub enum ItemType {
+pub(crate) enum ItemType {
     ToDo,
     Hope,
     Motivation,
 }
 
-pub struct Covering<'a> {
-    pub smaller: &'a Item<'a>,
-    pub parent: &'a Item<'a>,
+pub(crate) struct Covering<'a> {
+    pub(crate) smaller: &'a Item<'a>,
+    pub(crate) parent: &'a Item<'a>,
 }
 
-pub struct CoveringUntilDateTime<'a> {
-    pub cover_this: &'a Item<'a>,
-    pub until: DateTime<Local>,
+pub(crate) struct CoveringUntilDateTime<'a> {
+    pub(crate) cover_this: &'a Item<'a>,
+    pub(crate) until: DateTime<Local>,
 }
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "processed_text")]
-pub struct ProcessedText {
-    pub id: Option<Thing>,
-    pub text: String,
-    pub when_written: Datetime,
-    pub for_item: RecordId,
+pub(crate) struct ProcessedText {
+    pub(crate) id: Option<Thing>,
+    pub(crate) text: String,
+    pub(crate) when_written: Datetime,
+    pub(crate) for_item: RecordId,
 }
 
 impl Item<'_> {
-    pub fn find_parents<'a>(
+    pub(crate) fn find_parents<'a>(
         &self,
         linkage: &'a [Covering<'a>],
         other_items: &'a [&'a Item<'a>],
@@ -81,7 +81,7 @@ impl Item<'_> {
         result
     }
 
-    pub fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
+    pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
         self.surreal_item
             .smaller_items_in_priority_order
             .iter()
@@ -102,9 +102,9 @@ impl Item<'_> {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Circumstance<'a> {
-    pub circumstance_for: &'a SurrealItem,
-    pub circumstance_type: &'a CircumstanceType,
+pub(crate) struct Circumstance<'a> {
+    pub(crate) circumstance_for: &'a SurrealItem,
+    pub(crate) circumstance_type: &'a CircumstanceType,
     surreal_required_circumstance: &'a SurrealRequiredCircumstance,
 }
 
