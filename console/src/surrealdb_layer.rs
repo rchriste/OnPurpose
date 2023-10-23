@@ -33,7 +33,7 @@ use crate::{
 use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-    surreal_item::{Responsibility, SurrealItem, SurrealOrderedSubItem},
+    surreal_item::{NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
     surreal_life_area::SurrealLifeArea,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
@@ -89,11 +89,8 @@ impl SurrealTables {
         self.surreal_life_areas.iter().map(LifeArea::new).collect()
     }
 
-    pub(crate) fn make_routines<'a>(&'a self) -> Vec<Routine<'a>> {
-        self.surreal_routines
-            .iter()
-            .map(Routine::new)
-            .collect()
+    pub(crate) fn make_routines(&self) -> Vec<Routine<'_>> {
+        self.surreal_routines.iter().map(Routine::new).collect()
     }
 }
 
@@ -105,7 +102,10 @@ pub(crate) enum DataLayerCommands {
     NewToDo(String),
     NewHope(String),
     NewMotivation(String),
-    CoverWithANewItem{cover_this: SurrealItem, cover_with: NewItem},
+    CoverWithANewItem {
+        cover_this: SurrealItem,
+        cover_with: NewItem,
+    },
     CoverItemWithANewWaitingForQuestion(SurrealItem, String),
     CoverItemWithANewMilestone(SurrealItem, String),
     CoverItemWithAnExistingItem {
@@ -183,9 +183,10 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::NewMotivation(summary_text)) => {
                 new_motivation(summary_text, &db).await
             }
-            Some(DataLayerCommands::CoverWithANewItem { cover_this, cover_with }) => {
-                cover_with_a_new_item(cover_this, cover_with, &db).await
-            }
+            Some(DataLayerCommands::CoverWithANewItem {
+                cover_this,
+                cover_with,
+            }) => cover_with_a_new_item(cover_this, cover_with, &db).await,
             Some(DataLayerCommands::CoverItemWithANewWaitingForQuestion(item, question)) => {
                 cover_item_with_a_new_waiting_for_question(item, question, &db).await
             }
@@ -288,7 +289,11 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
     }
 }
 
-pub(crate) async fn add_processed_text(processed_text: String, for_item: SurrealItem, db: &Surreal<Any>) {
+pub(crate) async fn add_processed_text(
+    processed_text: String,
+    for_item: SurrealItem,
+    db: &Surreal<Any>,
+) {
     let for_item: Option<Thing> = for_item.into();
     let data = ProcessedText {
         id: None,
@@ -340,6 +345,7 @@ async fn new_item(summary_text: String, item_type: ItemType, db: &Surreal<Any>) 
         item_type,
         smaller_items_in_priority_order: Vec::default(),
         responsibility: Responsibility::default(),
+        notes_location: NotesLocation::default(),
     }
     .create(db)
     .await
@@ -353,22 +359,18 @@ async fn cover_item_with_a_new_waiting_for_question(
 ) {
     //TODO: Cause this to be a Waiting For Responsibility o
     //For now covering an item with a question is the same implementation as just covering with a next step so just call into that
-    cover_item_with_a_new_next_step(
-        item,
-        question,
-        Responsibility::WaitingFor,
-        db,
-    )
-    .await
+    cover_item_with_a_new_next_step(item, question, Responsibility::WaitingFor, db).await
 }
 
-async fn cover_with_a_new_item(
-    cover_this: SurrealItem,
-    cover_with: NewItem,
-    db: &Surreal<Any>,
-) {
+async fn cover_with_a_new_item(cover_this: SurrealItem, cover_with: NewItem, db: &Surreal<Any>) {
     let cover_with = SurrealItem::new(cover_with, vec![]);
-    let cover_with = cover_with.create(db).await.unwrap().into_iter().next().unwrap();
+    let cover_with = cover_with
+        .create(db)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
 
     let cover_with: Option<Thing> = cover_with.into();
     let cover_this: Option<Thing> = cover_this.into();
@@ -398,6 +400,7 @@ async fn cover_item_with_a_new_next_step(
         item_type: ItemType::ToDo,
         smaller_items_in_priority_order: Vec::default(),
         responsibility: responsibility.clone(),
+        notes_location: NotesLocation::default(),
     }
     .create(db)
     .await
@@ -432,6 +435,7 @@ async fn cover_item_with_a_new_milestone(
         item_type: ItemType::Hope,
         smaller_items_in_priority_order: Vec::default(),
         responsibility: Responsibility::default(),
+        notes_location: NotesLocation::default(),
     }
     .create(db)
     .await
@@ -771,15 +775,15 @@ mod tests {
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
         let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
-        let new_item = NewItem { 
-            summary: "Covering item".into(), 
-            finished: None, 
-            responsibility: Responsibility::ProactiveActionToTake, 
-            item_type: ItemType::ToDo, 
+        let new_item = NewItem {
+            summary: "Covering item".into(),
+            finished: None,
+            responsibility: Responsibility::ProactiveActionToTake,
+            item_type: ItemType::ToDo,
         };
 
         sender
-            .send(DataLayerCommands::CoverWithANewItem{
+            .send(DataLayerCommands::CoverWithANewItem {
                 cover_this: item_to_cover.clone(),
                 cover_with: new_item,
             })

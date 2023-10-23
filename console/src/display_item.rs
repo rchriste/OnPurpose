@@ -34,6 +34,8 @@ impl Display for DisplayItem<'_> {
             ItemType::Hope => write!(f, "🪧  {}", self.item.summary),
             ItemType::Motivation => write!(f, "🎯  {}", self.item.summary),
             ItemType::ToDo => write!(f, "🪜  {}", self.item.summary),
+            ItemType::SimpleThing => write!(f, "📌  {}", self.item.summary),
+            ItemType::Undeclared => write!(f, "❓  {}", self.item.summary),
         }
     }
 }
@@ -44,9 +46,6 @@ impl<'s> DisplayItem<'s> {
     }
 
     pub(crate) fn make_list(items: &'s [Item<'s>]) -> Vec<Self> {
-        items
-            .iter()
-            .map(|x| DisplayItem::new(x))
-            .collect()
+        items.iter().map(DisplayItem::new).collect()
     }
 }

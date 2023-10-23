@@ -26,7 +26,10 @@ impl Display for CoverBulletItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CoverBulletItem::ItemOrNextStep => write!(f, "Item or Next Step"),
-            CoverBulletItem::WaitForSomethingOrScheduled => write!(f, "Wait for something to happen or wait until a scheduled time"),
+            CoverBulletItem::WaitForSomethingOrScheduled => write!(
+                f,
+                "Wait for something to happen or wait until a scheduled time"
+            ),
             CoverBulletItem::Circumstance => write!(f, "Circumstance"),
             CoverBulletItem::Mood => write!(f, "Mood"),
             CoverBulletItem::GroupOrDoWith => write!(f, "Group or do with"),
@@ -55,11 +58,7 @@ pub(crate) async fn cover_bullet_item(
     let selection = Select::new("", choices).prompt();
     match selection {
         Ok(CoverBulletItem::ItemOrNextStep) => {
-            cover_with_item(
-                item_to_cover.get_item(),
-                send_to_data_storage_layer,
-            )
-            .await;
+            cover_with_item(item_to_cover.get_item(), send_to_data_storage_layer).await;
             Ok(())
         }
         Ok(CoverBulletItem::WaitForSomethingOrScheduled) => {
@@ -80,8 +79,12 @@ pub(crate) async fn cover_bullet_item(
             .await;
             Ok(())
         }
-        Ok(CoverBulletItem::Mood) => todo!("Setting this as to do during focus time should be part of it"),
-        Ok(CoverBulletItem::GroupOrDoWith) => todo!("Allow the user to select what group of items this should be a part of"),
+        Ok(CoverBulletItem::Mood) => {
+            todo!("Setting this as to do during focus time should be part of it")
+        }
+        Ok(CoverBulletItem::GroupOrDoWith) => {
+            todo!("Allow the user to select what group of items this should be a part of")
+        }
         Err(InquireError::OperationCanceled) => Err(UnexpectedNextMenuAction::Back),
         Err(InquireError::OperationInterrupted) => Err(UnexpectedNextMenuAction::Close),
         Err(err) => todo!("{}", err),

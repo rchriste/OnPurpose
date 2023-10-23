@@ -17,6 +17,7 @@ pub(crate) struct SurrealItem {
     pub(crate) finished: Option<Datetime>,
     pub(crate) responsibility: Responsibility,
     pub(crate) item_type: ItemType,
+    pub(crate) notes_location: NotesLocation,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
@@ -34,10 +35,14 @@ impl SurrealItem {
             responsibility: new_item.responsibility,
             item_type: new_item.item_type,
             smaller_items_in_priority_order,
+            notes_location: NotesLocation::default(),
         }
     }
 
-    pub(crate) fn make_item<'a>(&'a self, requirements: &'a [SurrealRequiredCircumstance]) -> Item<'a> {
+    pub(crate) fn make_item<'a>(
+        &'a self,
+        requirements: &'a [SurrealRequiredCircumstance],
+    ) -> Item<'a> {
         let my_requirements = requirements
             .iter()
             .filter(|x| {
@@ -81,6 +86,14 @@ pub(crate) enum SurrealPriorityGoal {
     RelativePercentageOfTime,
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum NotesLocation {
+    #[default]
+    None,
+    OneNoteLink(String),
+    WebLink(String),
+}
+
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "item")] //TODO: Remove this after the upgrade is complete
 pub(crate) struct SurrealItemOldVersion {
@@ -99,6 +112,7 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             item_type: old.item_type,
             responsibility: Responsibility::default(),
             smaller_items_in_priority_order: Vec::default(),
+            notes_location: NotesLocation::default(),
         }
     }
 }

@@ -10,13 +10,14 @@ use crate::{
         item::{Item, ItemVecExtensions},
         Covering,
     },
+    menu::bullet_list::bullet_list_single_item::cover_with_item,
+    menu::top_menu::present_top_menu,
     surrealdb_layer::{
         surreal_item::SurrealItem,
         surreal_specific_to_hope::{Permanence, Staging},
         DataLayerCommands,
     },
-    top_menu::present_top_menu,
-    update_item_summary, bullet_list::bullet_list_single_item::cover_with_item,
+    update_item_summary,
 };
 
 struct ProjectHopeItem<'a> {

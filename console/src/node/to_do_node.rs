@@ -94,6 +94,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
@@ -135,6 +136,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             }],
             surreal_specific_to_hopes: vec![],
             surreal_coverings: vec![],
@@ -175,6 +177,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -221,6 +224,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -266,6 +270,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_requirement", "1").into()),
@@ -316,6 +321,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
@@ -324,6 +330,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
         ];
         let surreal_coverings = vec![SurrealCovering {
@@ -373,6 +380,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
@@ -381,6 +389,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
         ];
         let surreal_coverings = vec![SurrealCovering {
@@ -429,6 +438,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let now = Local::now();
         let now_utc: DateTime<Utc> = now.into();
@@ -475,6 +485,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
 
         let now = Local::now();
@@ -522,6 +533,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -572,6 +584,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         }];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -623,6 +636,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
@@ -631,6 +645,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
@@ -688,6 +703,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
@@ -696,6 +712,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
@@ -753,6 +770,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
             SurrealItem {
                 id: Some(("surreal_item", "2").into()),
@@ -761,6 +779,7 @@ mod tests {
                 item_type: ItemType::ToDo,
                 smaller_items_in_priority_order: vec![],
                 responsibility: Responsibility::default(),
+                notes_location: Default::default(),
             },
         ];
         let surreal_required_circumstances = vec![SurrealRequiredCircumstance {
@@ -806,6 +825,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
         let parent_item = SurrealItem {
             id: Some(("surreal_item", "2").into()),
@@ -816,6 +836,7 @@ mod tests {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
         let surreal_tables = SurrealTables {
             surreal_items: vec![smaller_item.clone(), parent_item.clone()],

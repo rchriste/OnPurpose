@@ -6,8 +6,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{life_area::LifeArea, routine::Routine},
+    menu::top_menu::present_top_menu,
     surrealdb_layer::DataLayerCommands,
-    top_menu::present_top_menu,
 };
 
 pub(crate) enum LifeAreaItem<'e> {

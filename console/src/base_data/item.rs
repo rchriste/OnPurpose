@@ -5,7 +5,7 @@ use surrealdb::{
 };
 
 use crate::surrealdb_layer::{
-    surreal_item::{Responsibility, SurrealItem},
+    surreal_item::{NotesLocation, Responsibility, SurrealItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{SurrealSpecificToHope, SurrealSpecificToHopes},
 };
@@ -134,7 +134,11 @@ impl<'b> Item<'b> {
         }
     }
 
-    pub(crate) fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
+    pub(crate) fn is_circumstances_met(
+        &self,
+        date: &DateTime<Local>,
+        are_we_in_focus_time: bool,
+    ) -> bool {
         self.is_circumstances_met_sunday(date)
             && self.is_circumstances_met_focus_time(are_we_in_focus_time)
     }
@@ -168,6 +172,34 @@ impl<'b> Item<'b> {
         covered_by.any(|x| !x.smaller.is_finished())
     }
 
+    pub(crate) fn get_covered_by_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
+        let covered_by = coverings.iter().filter(|x| self == x.parent);
+        //Now see if the items that are covering are finished or active
+        covered_by
+            .filter_map(|x| {
+                if !x.smaller.is_finished() {
+                    Some(x.smaller)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn get_covering_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
+        let cover_others = coverings.iter().filter(|x| self == x.smaller);
+        //Now see if the items that are covering are finished or active
+        cover_others
+            .filter_map(|x| {
+                if !x.parent.is_finished() {
+                    Some(x.parent)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     pub(crate) fn is_covered_by_date_time(
         &self,
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
@@ -177,6 +209,19 @@ impl<'b> Item<'b> {
             .iter()
             .filter(|x| self == x.cover_this);
         covered_by_date_time.any(|x| now < &x.until)
+    }
+
+    pub(crate) fn get_covered_by_date_time<'a>(
+        &self,
+        coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
+        now: &DateTime<Local>,
+    ) -> Vec<&'a DateTime<Local>> {
+        let covered_by_date_time = coverings_until_date_time
+            .iter()
+            .filter(|x| self == x.cover_this);
+        covered_by_date_time
+            .filter_map(|x| if now < &x.until { Some(&x.until) } else { None })
+            .collect()
     }
 
     pub(crate) fn is_covered(
@@ -222,6 +267,44 @@ impl<'b> Item<'b> {
     pub(crate) fn get_summary(&self) -> &'b str {
         self.summary
     }
+
+    pub(crate) fn is_type_undeclared(&self) -> bool {
+        self.item_type == &ItemType::Undeclared
+    }
+
+    pub(crate) fn is_type_simple_thing(&self) -> bool {
+        self.item_type == &ItemType::SimpleThing
+    }
+
+    pub(crate) fn is_type_action(&self) -> bool {
+        self.item_type == &ItemType::ToDo
+    }
+
+    pub(crate) fn is_type_hope(&self) -> bool {
+        self.item_type == &ItemType::Hope
+    }
+
+    pub(crate) fn is_type_motivation(&self) -> bool {
+        self.item_type == &ItemType::Motivation
+    }
+
+    pub(crate) fn is_circumstance_focus_time(&self) -> bool {
+        self.required_circumstances
+            .iter()
+            .any(|x| matches!(x.circumstance_type, CircumstanceType::DuringFocusTime))
+    }
+
+    pub(crate) fn get_estimated_focus_periods(&self) -> Option<u32> {
+        todo!("I need to ensure that we are storing this data with an Item and then I can implement this method")
+    }
+
+    pub(crate) fn has_children(&self) -> bool {
+        !self.surreal_item.smaller_items_in_priority_order.is_empty()
+    }
+
+    pub(crate) fn is_there_notes(&self) -> bool {
+        self.surreal_item.notes_location != NotesLocation::None
+    }
 }
 
 #[cfg(test)]
@@ -242,6 +325,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -269,6 +353,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -297,6 +382,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -325,6 +411,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: Vec::default(),
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
 
         let required_circumstance = SurrealRequiredCircumstance {
@@ -352,6 +439,7 @@ mod tests {
             item_type: ItemType::ToDo,
             smaller_items_in_priority_order: vec![],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
         let parent_item = SurrealItem {
             id: Some(("surreal_item", "2").into()),
@@ -362,6 +450,7 @@ mod tests {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }],
             responsibility: Responsibility::default(),
+            notes_location: Default::default(),
         };
         let surreal_tables = SurrealTables {
             surreal_items: vec![smaller_item.clone(), parent_item.clone()],

@@ -80,7 +80,11 @@ impl<'a> ToDo<'a> {
         self.finished.is_some()
     }
 
-    pub(crate) fn is_circumstances_met(&self, date: &DateTime<Local>, are_we_in_focus_time: bool) -> bool {
+    pub(crate) fn is_circumstances_met(
+        &self,
+        date: &DateTime<Local>,
+        are_we_in_focus_time: bool,
+    ) -> bool {
         self.item.is_circumstances_met(date, are_we_in_focus_time)
     }
 

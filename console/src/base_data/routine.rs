@@ -6,9 +6,7 @@ pub(crate) struct Routine<'s> {
 
 impl<'s> Routine<'s> {
     pub(crate) fn new(surreal_routine: &'s SurrealRoutine) -> Self {
-        Self {
-            surreal_routine,
-        }
+        Self { surreal_routine }
     }
 
     pub(crate) fn summary(&self) -> &str {

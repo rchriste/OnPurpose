@@ -3,6 +3,7 @@
         "binutils",
         "chrono",
         "Datelike",
+        "dateparser",
         "Datetime",
         "meds",
         "neurodiverse",

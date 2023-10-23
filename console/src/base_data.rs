@@ -28,10 +28,13 @@ impl From<SurrealItem> for Option<Thing> {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum ItemType {
-    ToDo,
-    Hope,
+    #[default]
+    Undeclared,
+    SimpleThing,
+    ToDo, //TODO: Rename to Action
+    Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
     Motivation,
 }
 
