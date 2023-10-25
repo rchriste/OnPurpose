@@ -12,7 +12,8 @@ use crate::surrealdb_layer::{
 
 use super::{
     hope::Hope, motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
-    responsive_item::ResponsiveItem, to_do::ToDo, Covering, CoveringUntilDateTime, ItemType,
+    person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, to_do::ToDo, Covering,
+    CoveringUntilDateTime, ItemType,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -46,11 +47,12 @@ pub(crate) trait ItemVecExtensions {
         surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
     ) -> Vec<Hope<'a>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
+    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>>;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
     fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
 }
 
-impl<'b> ItemVecExtensions for [Item<'b>] {
+impl<'s> ItemVecExtensions for [Item<'s>] {
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
         self.iter().find(|x| x.id == record_id)
     }
@@ -115,6 +117,18 @@ impl<'b> ItemVecExtensions for [Item<'b>] {
 
     fn filter_active_items(&self) -> Vec<&Item> {
         self.iter().filter(|x| !x.is_finished()).collect()
+    }
+
+    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::PersonOrGroup {
+                    Some(PersonOrGroup::new(x))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
@@ -184,6 +198,12 @@ impl<'b> Item<'b> {
                 }
             })
             .collect()
+    }
+
+    pub(crate) fn is_covering_another_item(&self, coverings: &[Covering<'_>]) -> bool {
+        let mut cover_others = coverings.iter().filter(|x| self == x.smaller);
+        //Now see if the items that are covering are finished or active
+        cover_others.any(|x| !x.parent.is_finished())
     }
 
     pub(crate) fn get_covering_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
@@ -476,5 +496,10 @@ mod tests {
             find_results.first().expect("checked in assert above").id,
             parent_item.id.as_ref().expect("set above")
         );
+    }
+
+    #[test]
+    fn when_items_covered_by_a_person_or_group_that_person_or_group_shows_up_in_the_bullet_list() {
+        todo!("I should probably just have a person or group be an itemType that is a reactive item and put it there as a regular covered item")
     }
 }

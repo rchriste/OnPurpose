@@ -11,29 +11,36 @@ use crate::{
     base_data::{
         hope::Hope,
         item::{Item, ItemVecExtensions},
+        person_or_group::PersonOrGroup,
         to_do::ToDo,
     },
-    display_item::DisplayItem,
+    display::display_item::DisplayItem,
     mentally_resident::{
         create_hope_nodes, present_mentally_resident_hope_selected_menu, HopeNode,
     },
     menu::top_menu::present_top_menu,
-    node::to_do_node::{create_to_do_nodes, ToDoNode},
+    node::{
+        person_or_group_node::{create_person_or_group_nodes, PersonOrGroupNode},
+        to_do_node::{create_to_do_nodes, ToDoNode},
+    },
     surrealdb_layer::DataLayerCommands,
 };
 
-use self::bullet_list_single_item::present_bullet_list_item_selected;
+use self::bullet_list_single_item::{
+    present_bullet_list_item_selected, present_is_person_or_group_around_menu,
+};
 
-pub(crate) enum InquireBulletListItem<'a> {
+pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
     NextStepToDo {
-        to_do: &'a ToDo<'a>,
-        parents: Vec<&'a Item<'a>>,
+        to_do: &'e ToDo<'e>,
+        parents: Vec<&'e Item<'e>>,
     },
     NeedsNextStepHope {
-        hope: &'a Hope<'a>,
-        parents: Vec<&'a Item<'a>>,
+        hope: &'e Hope<'e>,
+        parents: Vec<&'e Item<'e>>,
     },
+    IsAPersonOrGroupAround(&'e PersonOrGroupNode<'e>),
 }
 
 impl Display for InquireBulletListItem<'_> {
@@ -56,6 +63,15 @@ impl Display for InquireBulletListItem<'_> {
                     write!(f, " ⬅  {}", display_item)?;
                 }
             }
+            Self::IsAPersonOrGroupAround(person_or_group_node) => {
+                let display_item =
+                    DisplayItem::new(person_or_group_node.person_or_group().get_item());
+                write!(f, "Is {} around?", display_item)?;
+                for item in person_or_group_node.create_parent_chain() {
+                    let display_item = DisplayItem::new(item);
+                    write!(f, " ⬅ {}", display_item)?;
+                }
+            }
         }
         Ok(())
     }
@@ -63,33 +79,51 @@ impl Display for InquireBulletListItem<'_> {
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
+        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let mut list =
             Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len() + 1);
         list.push(Self::ViewFocusItems);
-        Self::add_items_to_list(list, next_step_nodes, hopes_without_a_next_step)
+        Self::add_items_to_list(
+            list,
+            person_or_group_nodes,
+            next_step_nodes,
+            hopes_without_a_next_step,
+        )
     }
 
     pub(crate) fn create_list_just_items(
+        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let list = Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len());
-        Self::add_items_to_list(list, next_step_nodes, hopes_without_a_next_step)
+        Self::add_items_to_list(
+            list,
+            person_or_group_nodes,
+            next_step_nodes,
+            hopes_without_a_next_step,
+        )
     }
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
+        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         list.extend(
+            person_or_group_nodes
+                .iter()
+                .map(InquireBulletListItem::IsAPersonOrGroupAround),
+        );
+        list.extend(
             next_step_nodes
                 .iter()
                 .map(|x| InquireBulletListItem::NextStepToDo {
-                    to_do: x.to_do,
+                    to_do: x.get_to_do(),
                     parents: x.create_next_step_parents(),
                 }),
         );
@@ -137,8 +171,22 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         .into_iter()
         .filter(|x| x.next_steps.is_empty())
         .collect();
+    let persons_or_groups = items.filter_just_persons_or_groups();
+    let person_or_groups_that_cover_an_item: Vec<PersonOrGroup> = persons_or_groups
+        .into_iter()
+        .filter(|x| x.is_covering_another_item(&coverings))
+        .collect();
+    let person_or_group_nodes_that_cover_an_item = create_person_or_group_nodes(
+        &person_or_groups_that_cover_an_item,
+        &coverings,
+        &coverings_until_date_time,
+        &active_items,
+        &current_date_time,
+        false,
+    );
 
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
+        &person_or_group_nodes_that_cover_an_item,
         &next_step_nodes,
         &hope_nodes_needing_a_next_step,
     );
@@ -157,6 +205,13 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
             }
             Ok(InquireBulletListItem::NeedsNextStepHope { hope, parents: _ }) => {
                 present_mentally_resident_hope_selected_menu(hope, send_to_data_storage_layer).await
+            }
+            Ok(InquireBulletListItem::IsAPersonOrGroupAround(person_or_group_node)) => {
+                present_is_person_or_group_around_menu(
+                    person_or_group_node,
+                    send_to_data_storage_layer,
+                )
+                .await
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
@@ -191,9 +246,13 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
     );
 
     let hopes_without_a_next_step = vec![]; //Hopes without a next step cannot be focus items
+    let persons_or_groups_that_cover_an_item = vec![]; //Sync'ing up with someone cannot be a focus item
 
-    let inquire_bullet_list =
-        InquireBulletListItem::create_list_just_items(&next_step_nodes, &hopes_without_a_next_step);
+    let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
+        &persons_or_groups_that_cover_an_item,
+        &next_step_nodes,
+        &hopes_without_a_next_step,
+    );
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("", inquire_bullet_list)
@@ -206,6 +265,9 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
                 present_bullet_list_item_selected(to_do, &parents, send_to_data_storage_layer).await
+            }
+            Ok(InquireBulletListItem::IsAPersonOrGroupAround(_)) => {
+                panic!("The focus list should not present this option")
             }
             Ok(InquireBulletListItem::NeedsNextStepHope {
                 hope: _,

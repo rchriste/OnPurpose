@@ -1,8 +1,10 @@
+pub(crate) mod grouped_item;
 pub(crate) mod hope;
 pub(crate) mod item;
 pub(crate) mod life_area;
 pub(crate) mod motivation;
 pub(crate) mod motivation_or_responsive_item;
+pub(crate) mod person_or_group;
 pub(crate) mod responsive_item;
 pub(crate) mod routine;
 pub(crate) mod to_do;
@@ -36,6 +38,7 @@ pub(crate) enum ItemType {
     ToDo, //TODO: Rename to Action
     Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
     Motivation,
+    PersonOrGroup,
 }
 
 pub(crate) struct Covering<'a> {

@@ -12,12 +12,13 @@ use crate::{
         to_do::ToDo,
         ItemType,
     },
-    display_item::DisplayItem,
+    display::display_item::DisplayItem,
     menu::{
         bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
+    node::person_or_group_node::PersonOrGroupNode,
     surrealdb_layer::{surreal_item::Responsibility, DataLayerCommands},
     update_item_summary, UnexpectedNextMenuAction,
 };
@@ -374,7 +375,7 @@ async fn present_bullet_list_item_parent_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     match selected_item.item_type {
-        crate::base_data::ItemType::ToDo => {
+        ItemType::ToDo => {
             let to_do = ToDo::new(selected_item);
             let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
                 .await
@@ -385,10 +386,11 @@ async fn present_bullet_list_item_parent_selected(
             let parents = selected_item.find_parents(&coverings, &active_items);
             present_bullet_list_item_selected(&to_do, &parents, send_to_data_storage_layer).await
         }
-        crate::base_data::ItemType::Hope => todo!(),
-        crate::base_data::ItemType::Motivation => todo!(),
-        crate::base_data::ItemType::Undeclared => todo!(),
-        crate::base_data::ItemType::SimpleThing => todo!(),
+        ItemType::Hope => todo!(),
+        ItemType::Motivation => todo!(),
+        ItemType::Undeclared => todo!(),
+        ItemType::SimpleThing => todo!(),
+        ItemType::PersonOrGroup => todo!(),
     }
 }
 
@@ -745,4 +747,40 @@ pub(crate) async fn cover_with_new_item(
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),
     }
+}
+
+enum IsAPersonOrGroupAroundSelection<'e> {
+    Yes,
+    No,
+    ChildItemUnknownIfMotivationalOrInTheArea(&'e Item<'e>),
+}
+
+impl Display for IsAPersonOrGroupAroundSelection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IsAPersonOrGroupAroundSelection::Yes => write!(f, "Yes"),
+            IsAPersonOrGroupAroundSelection::No => write!(f, "No"),
+            IsAPersonOrGroupAroundSelection::ChildItemUnknownIfMotivationalOrInTheArea(item) => {
+                let display_item = DisplayItem::new(item);
+                write!(f, "Child Item: {}", display_item)
+            }
+        }
+    }
+}
+
+impl<'e> IsAPersonOrGroupAroundSelection<'e> {
+    fn create_list() -> Vec<Self> {
+        vec![Self::Yes, Self::No]
+    }
+}
+
+pub(crate) async fn present_is_person_or_group_around_menu(
+    person_or_group_node: &PersonOrGroupNode<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let grouped_work = person_or_group_node.create_grouped_work();
+    let list = IsAPersonOrGroupAroundSelection::create_list();
+
+    let selection = Select::new("", list).prompt();
+    todo!()
 }

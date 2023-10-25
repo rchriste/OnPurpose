@@ -36,6 +36,7 @@ impl Display for DisplayItem<'_> {
             ItemType::ToDo => write!(f, "🪜  {}", self.item.summary),
             ItemType::SimpleThing => write!(f, "📌  {}", self.item.summary),
             ItemType::Undeclared => write!(f, "❓  {}", self.item.summary),
+            ItemType::PersonOrGroup => write!(f, "👤  {}", self.item.summary),
         }
     }
 }

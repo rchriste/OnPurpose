@@ -96,8 +96,8 @@ impl SurrealTables {
 
 pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
+    SendProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
     AddProcessedText(String, SurrealItem),
-    GetProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
     FinishItem(SurrealItem),
     NewToDo(String),
     NewHope(String),
@@ -147,7 +147,7 @@ impl DataLayerCommands {
     ) -> Result<Vec<ProcessedText>, RecvError> {
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
         sender
-            .send(DataLayerCommands::GetProcessedText(
+            .send(DataLayerCommands::SendProcessedText(
                 for_item,
                 processed_text_tx,
             ))
@@ -174,8 +174,8 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::AddProcessedText(processed_text, for_item)) => {
                 add_processed_text(processed_text, for_item, &db).await
             }
-            Some(DataLayerCommands::GetProcessedText(for_item, send_response_here)) => {
-                get_processed_text(for_item, send_response_here, &db).await
+            Some(DataLayerCommands::SendProcessedText(for_item, send_response_here)) => {
+                send_processed_text(for_item, send_response_here, &db).await
             }
             Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
             Some(DataLayerCommands::NewToDo(to_do_text)) => new_to_do(to_do_text, &db).await,
@@ -304,7 +304,7 @@ pub(crate) async fn add_processed_text(
     data.create(db).await.unwrap();
 }
 
-pub(crate) async fn get_processed_text(
+pub(crate) async fn send_processed_text(
     for_item: SurrealItem,
     send_response_here: oneshot::Sender<Vec<ProcessedText>>,
     db: &Surreal<Any>,
@@ -704,7 +704,7 @@ mod tests {
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
         let next_step = surreal_tables.surreal_items.first().unwrap();
         sender
-            .send(DataLayerCommands::GetProcessedText(
+            .send(DataLayerCommands::SendProcessedText(
                 next_step.clone(),
                 processed_text_tx,
             ))

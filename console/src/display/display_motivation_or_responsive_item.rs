@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     base_data::motivation_or_responsive_item::MotivationOrResponsiveItem,
-    display_item::DisplayItem, display_responsive_item::DisplayResponsiveItem,
+    display::{display_item::DisplayItem, display_responsive_item::DisplayResponsiveItem},
 };
 
 pub(crate) struct DisplayMotivationOrResponsiveItem<'e> {

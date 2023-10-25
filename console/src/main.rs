@@ -1,8 +1,6 @@
 pub(crate) mod base_data;
 mod change_routine;
-pub(crate) mod display_item;
-pub(crate) mod display_motivation_or_responsive_item;
-pub(crate) mod display_responsive_item;
+pub(crate) mod display;
 mod mentally_resident;
 pub(crate) mod menu;
 pub(crate) mod new_item;

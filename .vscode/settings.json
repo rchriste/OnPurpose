@@ -5,6 +5,8 @@
         "Datelike",
         "dateparser",
         "Datetime",
+        "debuginfo",
+        "itertools",
         "meds",
         "neurodiverse",
         "neurodiversity",

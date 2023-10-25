@@ -2,22 +2,39 @@ use chrono::{DateTime, Local};
 
 use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
 
-use super::{create_growing_nodes, GrowingItemNode};
+use super::item_node::{create_growing_nodes, GrowingItemNode, ItemNode};
 
 pub(crate) struct ToDoNode<'s> {
-    pub(crate) to_do: &'s ToDo<'s>,
-    pub(crate) larger: Vec<GrowingItemNode<'s>>,
+    to_do: &'s ToDo<'s>,
+    item_node: ItemNode<'s>,
 }
 
 impl<'s> ToDoNode<'s> {
     pub(crate) fn create_next_step_parents(&'s self) -> Vec<&'s Item<'s>> {
-        let mut result = Vec::default();
-        for i in self.larger.iter() {
-            result.push(i.item);
-            let parents = i.create_growing_parents();
-            result.extend(parents.iter());
-        }
-        result
+        self.item_node.create_next_step_parents()
+    }
+
+    pub(crate) fn new(
+        to_do: &'s ToDo<'s>,
+        coverings: &'s [Covering<'s>],
+        possible_parents: &'s [&'s Item<'s>],
+    ) -> Self {
+        let item: &Item = to_do.get_item();
+        let item_node = ItemNode::new(item, coverings, possible_parents);
+
+        ToDoNode { to_do, item_node }
+    }
+
+    pub(crate) fn get_summary(&'s self) -> &'s str {
+        self.item_node.get_summary()
+    }
+
+    pub(crate) fn get_to_do(&'s self) -> &'s ToDo<'s> {
+        self.to_do
+    }
+
+    pub(crate) fn get_larger(&'s self) -> &'s [GrowingItemNode<'s>] {
+        self.item_node.get_larger()
     }
 }
 
@@ -36,31 +53,12 @@ pub(crate) fn create_to_do_nodes<'a>(
                 && !x.is_finished()
                 && x.is_circumstances_met(current_date, currently_in_focus_time)
             {
-                Some(create_to_do_node(x, coverings, possible_parents))
+                Some(ToDoNode::new(x, coverings, possible_parents))
             } else {
                 None
             }
         })
         .collect()
-}
-
-pub(crate) fn create_to_do_node<'a>(
-    to_do: &'a ToDo,
-    coverings: &'a [Covering<'a>],
-    possible_parents: &'a [&'a Item<'a>],
-) -> ToDoNode<'a> {
-    let item: &Item = to_do.into();
-    let parents = item.find_parents(coverings, possible_parents);
-    let larger = create_growing_nodes(parents, coverings, possible_parents);
-
-    ToDoNode { to_do, larger }
-}
-
-impl<'a> ToDoNode<'a> {
-    #[allow(dead_code)]
-    pub(crate) fn get_summary(&'a self) -> &'a str {
-        self.to_do.get_summary()
-    }
 }
 
 #[cfg(test)]
@@ -367,7 +365,10 @@ mod tests {
         );
 
         assert_eq!(next_step_nodes.len(), 1);
-        assert_eq!(next_step_nodes.iter().next().unwrap().to_do, &items[1]);
+        assert_eq!(
+            next_step_nodes.iter().next().unwrap().get_to_do(),
+            &items[1]
+        );
     }
 
     #[test]
@@ -869,10 +870,10 @@ mod tests {
             .find(|node| node.to_do.id == smaller_item.id.as_ref().expect("set above"))
             .expect("Unit test failure during test setup, but this might be a product bug");
 
-        assert_eq!(smaller_item_node.larger.len(), 1);
+        assert_eq!(smaller_item_node.get_larger().len(), 1);
         assert_eq!(
             smaller_item_node
-                .larger
+                .get_larger()
                 .first()
                 .expect("checked in assert above")
                 .item

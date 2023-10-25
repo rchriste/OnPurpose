@@ -1,23 +1,33 @@
+use core::iter::once;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
 use chrono::Local;
-use inquire::InquireError;
+use inquire::{InquireError, Select, Text};
+use itertools::chain;
 use parse_datetime::{parse_datetime_at_date, ParseDateTimeError};
 use tokio::sync::mpsc::Sender;
 
-use crate::{base_data::item::Item, surrealdb_layer::DataLayerCommands};
+use crate::{
+    base_data::{
+        item::{Item, ItemVecExtensions},
+        person_or_group::PersonOrGroup,
+    },
+    display::display_person_or_group::DisplayPersonOrGroup,
+    new_item::NewItem,
+    surrealdb_layer::DataLayerCommands,
+};
 
 enum UnableReason {
-    SomeoneIsNotAround,
+    SomeoneOrGroupIsNotAvailable,
     PlaceToContactIsNotOpen,
 }
 
 impl Display for UnableReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnableReason::SomeoneIsNotAround => {
-                write!(f, "Someone is not around")
+            UnableReason::SomeoneOrGroupIsNotAvailable => {
+                write!(f, "Someone is not available (or group is not available)")
             }
             UnableReason::PlaceToContactIsNotOpen => {
                 write!(f, "Place to contact is not open")
@@ -28,10 +38,14 @@ impl Display for UnableReason {
 
 impl UnableReason {
     fn make_list() -> Vec<UnableReason> {
-        vec![Self::SomeoneIsNotAround, Self::PlaceToContactIsNotOpen]
+        vec![
+            Self::SomeoneOrGroupIsNotAvailable,
+            Self::PlaceToContactIsNotOpen,
+        ]
     }
 }
 
+#[async_recursion]
 pub(crate) async fn unable_to_work_on_item_right_now(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -40,8 +54,8 @@ pub(crate) async fn unable_to_work_on_item_right_now(
     let selection = inquire::Select::new("", list).prompt();
 
     match selection {
-        Ok(UnableReason::SomeoneIsNotAround) => {
-            todo!()
+        Ok(UnableReason::SomeoneOrGroupIsNotAvailable) => {
+            person_or_group_is_not_available(unable_to_do, send_to_data_storage_layer).await
         }
         Ok(UnableReason::PlaceToContactIsNotOpen) => {
             place_to_contact_is_not_open(unable_to_do, send_to_data_storage_layer).await
@@ -140,6 +154,79 @@ pub(crate) async fn place_to_contact_is_not_open(
         }
         Ok(WhatLibraryToUse::DurationStr) => {
             todo!()
+        }
+        Err(InquireError::OperationCanceled) => {
+            unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await
+        }
+        Err(err) => todo!("{:?}", err),
+    }
+}
+
+enum PersonOrGroupSelection<'e> {
+    ExistingPersonOrGroup(DisplayPersonOrGroup<'e>),
+    NewPersonOrGroup,
+}
+
+impl Display for PersonOrGroupSelection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PersonOrGroupSelection::ExistingPersonOrGroup(person_or_group) => {
+                write!(f, "{}", person_or_group)
+            }
+            PersonOrGroupSelection::NewPersonOrGroup => {
+                write!(f, "New Person or Group")
+            }
+        }
+    }
+}
+
+impl<'e> PersonOrGroupSelection<'e> {
+    fn make_list(persons_or_groups: &'e [PersonOrGroup<'e>]) -> Vec<Self> {
+        chain!(
+            persons_or_groups
+                .iter()
+                .map(|x| Self::ExistingPersonOrGroup(DisplayPersonOrGroup::new(x))),
+            once(Self::NewPersonOrGroup)
+        )
+        .collect()
+    }
+}
+
+pub(crate) async fn person_or_group_is_not_available(
+    unable_to_do: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+        .await
+        .unwrap();
+    let items = surreal_tables.make_items();
+    let persons_or_groups = items.filter_just_persons_or_groups();
+    let list = PersonOrGroupSelection::make_list(&persons_or_groups);
+
+    let selection = Select::new("", list).prompt();
+    match selection {
+        Ok(PersonOrGroupSelection::ExistingPersonOrGroup(person_or_group)) => {
+            let person_or_group: &PersonOrGroup = person_or_group.into();
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverItemWithAnExistingItem {
+                    item_to_be_covered: unable_to_do.get_surreal_item().clone(),
+                    item_that_should_do_the_covering: person_or_group.get_surreal_item().clone(),
+                })
+                .await
+                .unwrap()
+        }
+        Ok(PersonOrGroupSelection::NewPersonOrGroup) => {
+            let summary = Text::new("Enter the name of the person or group ⍠")
+                .prompt()
+                .unwrap();
+            let new_item = NewItem::new_person_or_group(summary);
+            send_to_data_storage_layer
+                .send(DataLayerCommands::CoverWithANewItem {
+                    cover_this: unable_to_do.get_surreal_item().clone(),
+                    cover_with: new_item,
+                })
+                .await
+                .unwrap()
         }
         Err(InquireError::OperationCanceled) => {
             unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await

@@ -11,7 +11,7 @@ use crate::{
         Covering,
     },
     change_routine::change_routine,
-    display_item::DisplayItem,
+    display::display_item::DisplayItem,
     mentally_resident::view_hopes,
     menu::bullet_list::present_unfocused_bullet_list_menu,
     surrealdb_layer::DataLayerCommands,

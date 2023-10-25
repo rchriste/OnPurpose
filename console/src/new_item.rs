@@ -8,3 +8,14 @@ pub(crate) struct NewItem {
     pub(crate) responsibility: Responsibility,
     pub(crate) item_type: ItemType,
 }
+
+impl NewItem {
+    pub(crate) fn new_person_or_group(summary: String) -> Self {
+        NewItem {
+            summary,
+            finished: None,
+            responsibility: Responsibility::ReactiveBeAvailableToAct,
+            item_type: ItemType::PersonOrGroup,
+        }
+    }
+}

@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.29"
+version = "0.0.30"
 edition = "2021"
 
 [dependencies]
@@ -15,5 +15,15 @@ async-recursion = "1.0.5"
 duration-str = "0.7.0" #So I can parse the amount of time to wait
 parse_datetime = "0.5.0" #So I can parse when to expect something to be available
 dateparser = "0.2.0"
+itertools = "0.11.0"
+
+#Note that I tried adding the below package so I can see a call stack on stack overflow without needing to run inside a debugger.
+#However when I tried it on 10/25/2023 I had compile errors that seemed to imply that only Linux was supported at the time (version 0.3)
+#Also note that this package is only recommended for non-production scenarios. When I looked into this it seemed that there are 
+#security reasons related to code that is meant to never panic can actually still panic if there is a stack overflow and so there
+#is somehow a possible security risk to running a panic handler and printing out a call stack on no panic code. Currently Rust
+#when a stack overflow happens just hard aborts without running a panic handler. So for now if there is a stack overflow you just
+#need to get it into a debugger to get a call stack.
+#backtrace-on-stack-overflow = "0.3.0" 
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term
