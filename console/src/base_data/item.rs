@@ -489,7 +489,8 @@ mod tests {
             .iter()
             .find(|x| smaller_item.id.as_ref().unwrap() == x.id)
             .unwrap();
-        let find_results = smaller_item.find_parents(&coverings, &active_items);
+        let visited = vec![];
+        let find_results = smaller_item.find_parents(&coverings, &active_items, &visited);
 
         assert_eq!(find_results.len(), 1);
         assert_eq!(

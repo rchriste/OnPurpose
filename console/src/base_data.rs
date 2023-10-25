@@ -65,11 +65,12 @@ impl Item<'_> {
         &self,
         linkage: &'a [Covering<'a>],
         other_items: &'a [&'a Item<'a>],
+        visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
         let mut result: Vec<&'a Item<'a>> = linkage
             .iter()
             .filter_map(|x| {
-                if x.smaller == self {
+                if x.smaller == self && !visited.contains(&x.parent) {
                     Some(x.parent)
                 } else {
                     None

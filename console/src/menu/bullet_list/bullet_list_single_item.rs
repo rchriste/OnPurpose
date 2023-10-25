@@ -383,7 +383,8 @@ async fn present_bullet_list_item_parent_selected(
             let items = raw_data.make_items();
             let active_items = items.filter_active_items();
             let coverings = raw_data.make_coverings(&items);
-            let parents = selected_item.find_parents(&coverings, &active_items);
+            let visited = vec![];
+            let parents = selected_item.find_parents(&coverings, &active_items, &visited);
             present_bullet_list_item_selected(&to_do, &parents, send_to_data_storage_layer).await
         }
         ItemType::Hope => todo!(),
