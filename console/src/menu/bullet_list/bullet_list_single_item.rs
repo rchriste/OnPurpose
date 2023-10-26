@@ -281,7 +281,10 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement WorkedOnThis");
         }
         Ok(BulletListSingleItemSelection::Finished) => {
-            todo!("TODO: Implement IAmDone");
+            send_to_data_storage_layer
+                .send(DataLayerCommands::FinishItem(menu_for.get_surreal_item().clone()))
+                .await
+                .unwrap();
         }
         Ok(BulletListSingleItemSelection::ThisIsARepeatingItem) => {
             todo!("TODO: Implement ThisIsARepeatingItem");
