@@ -33,6 +33,7 @@ enum BulletListSingleItemSelection<'e> {
     EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
+    SomethingElseShouldBeDoneFirst,
     DefineChildActions,
     UpdateChildActions,
     DefineChildHopes, //For a motivation
@@ -75,6 +76,9 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ASimpleThingICanDoQuickly => write!(f, "This is a simple thing I can do quickly"),
             Self::ICannotDoThisSimpleThingRightNowRemindMeLater => {
                 write!(f, "I cannot do this right now, remind me later")
+            }
+            Self::SomethingElseShouldBeDoneFirst => {
+                write!(f, "Something else should be done first")
             }
             Self::DeclareItemType => write!(f, "Declare Item Type"),
             Self::ParentToAGoal => write!(f, "Parent this to a Goal"),
@@ -132,6 +136,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::UnableToDoThisRightNow);
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
+
+        list.push(Self::SomethingElseShouldBeDoneFirst);
 
         if !item.is_circumstance_focus_time() {
             list.push(Self::DoInAFocusPeriod);
@@ -258,6 +264,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
             todo!("TODO: Implement NotInTheMoodToDoThisRightNow");
+        }
+        Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
+            todo!("TODO: Implement SomethingElseShouldBeDoneFirst");
         }
         Ok(BulletListSingleItemSelection::DefineChildActions) => {
             todo!("TODO: Implement DefineChildActions");
