@@ -95,8 +95,4 @@ impl<'a> ToDo<'a> {
     pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {
         self.item.surreal_item
     }
-
-    pub(crate) fn get_summary(&self) -> &'a str {
-        self.item.get_summary()
-    }
 }

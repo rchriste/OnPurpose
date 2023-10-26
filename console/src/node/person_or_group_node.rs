@@ -1,8 +1,8 @@
 use chrono::{DateTime, Local};
 
-use crate::base_data::{
-    grouped_item::GroupedItem, item::Item, person_or_group::PersonOrGroup, Covering,
-    CoveringUntilDateTime,
+use crate::{
+    base_data::{item::Item, person_or_group::PersonOrGroup, Covering, CoveringUntilDateTime},
+    surrealdb_layer::surreal_item::SurrealItem,
 };
 
 use super::item_node::ItemNode;
@@ -34,8 +34,8 @@ impl<'s> PersonOrGroupNode<'s> {
         self.item_node.create_next_step_parents()
     }
 
-    pub(crate) fn create_grouped_work(&self) -> Vec<GroupedItem<'s>> {
-        todo!("I will need to plumb through the information back to the Surreal layer to know why the item is being grouped in that place. Probably one of the grouped types to store in the DB is to carry the reason from the parent item or something to that effect. I am not quite sure how to properly hook this up")
+    pub(crate) fn get_surreal_item(&'s self) -> &'s SurrealItem {
+        self.item_node.get_surreal_item()
     }
 }
 

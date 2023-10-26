@@ -2,7 +2,7 @@ use chrono::{DateTime, Local};
 
 use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
 
-use super::item_node::{create_growing_nodes, GrowingItemNode, ItemNode};
+use super::item_node::{GrowingItemNode, ItemNode};
 
 pub(crate) struct ToDoNode<'s> {
     to_do: &'s ToDo<'s>,
@@ -25,6 +25,7 @@ impl<'s> ToDoNode<'s> {
         ToDoNode { to_do, item_node }
     }
 
+    #[allow(dead_code)] //Used by unit test
     pub(crate) fn get_summary(&'s self) -> &'s str {
         self.item_node.get_summary()
     }
@@ -33,6 +34,7 @@ impl<'s> ToDoNode<'s> {
         self.to_do
     }
 
+    #[allow(dead_code)] //Used by unit test
     pub(crate) fn get_larger(&'s self) -> &'s [GrowingItemNode<'s>] {
         self.item_node.get_larger()
     }

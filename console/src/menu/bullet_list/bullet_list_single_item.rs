@@ -750,26 +750,21 @@ pub(crate) async fn cover_with_new_item(
     }
 }
 
-enum IsAPersonOrGroupAroundSelection<'e> {
+enum IsAPersonOrGroupAroundSelection {
     Yes,
     No,
-    ChildItemUnknownIfMotivationalOrInTheArea(&'e Item<'e>),
 }
 
-impl Display for IsAPersonOrGroupAroundSelection<'_> {
+impl Display for IsAPersonOrGroupAroundSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IsAPersonOrGroupAroundSelection::Yes => write!(f, "Yes"),
             IsAPersonOrGroupAroundSelection::No => write!(f, "No"),
-            IsAPersonOrGroupAroundSelection::ChildItemUnknownIfMotivationalOrInTheArea(item) => {
-                let display_item = DisplayItem::new(item);
-                write!(f, "Child Item: {}", display_item)
-            }
         }
     }
 }
 
-impl<'e> IsAPersonOrGroupAroundSelection<'e> {
+impl IsAPersonOrGroupAroundSelection {
     fn create_list() -> Vec<Self> {
         vec![Self::Yes, Self::No]
     }
@@ -779,9 +774,18 @@ pub(crate) async fn present_is_person_or_group_around_menu(
     person_or_group_node: &PersonOrGroupNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let grouped_work = person_or_group_node.create_grouped_work();
     let list = IsAPersonOrGroupAroundSelection::create_list();
 
     let selection = Select::new("", list).prompt();
-    todo!()
+    match selection {
+        Ok(IsAPersonOrGroupAroundSelection::Yes) => send_to_data_storage_layer
+            .send(DataLayerCommands::FinishItem(
+                person_or_group_node.get_surreal_item().clone(),
+            ))
+            .await
+            .unwrap(),
+        Ok(IsAPersonOrGroupAroundSelection::No) => todo!(),
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(err) => todo!("Unexpected {}", err),
+    }
 }

@@ -1,4 +1,7 @@
-use crate::base_data::{item::Item, Covering};
+use crate::{
+    base_data::{item::Item, Covering},
+    surrealdb_layer::surreal_item::SurrealItem,
+};
 
 pub(crate) struct ItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
@@ -29,11 +32,15 @@ impl<'s> ItemNode<'s> {
         result
     }
 
-    pub(crate) fn get_summary(&self) -> &str {
-        self.item.summary
+    pub(crate) fn get_surreal_item(&self) -> &'s SurrealItem {
+        self.item.surreal_item
     }
 
-    pub(crate) fn get_larger(&self) -> &[GrowingItemNode<'s>] {
+    pub(crate) fn get_summary(&self) -> &str {
+        &self.item.surreal_item.summary
+    }
+
+    pub(crate) fn get_larger(&self) -> &Vec<GrowingItemNode<'s>> {
         &self.larger
     }
 }
@@ -86,7 +93,6 @@ pub(crate) fn create_growing_node<'a>(
 mod tests {
     use chrono::DateTime;
 
-    use super::*;
     use crate::{
         base_data::{item::ItemVecExtensions, ItemType},
         node::to_do_node::create_to_do_nodes,
