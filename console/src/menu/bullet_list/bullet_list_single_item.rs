@@ -27,6 +27,7 @@ enum BulletListSingleItemSelection<'e> {
     ASimpleThingICanDoQuickly,
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
+    DefineASmallerItemOrPickASmallerItem,
     ParentToAGoal,
     ParentToAMotivation,
     DoInAFocusPeriod,
@@ -59,6 +60,7 @@ enum BulletListSingleItemSelection<'e> {
     //for this scenario rather than kept around.
     SwitchToParentItem(DisplayItem<'e>),
     ParentToItem,
+    CaptureAFork,
     DebugPrintItem,
 }
 
@@ -69,6 +71,9 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item) => write!(f, "Switch to: {}", parent_item),
+            Self::DefineASmallerItemOrPickASmallerItem => {
+                write!(f, "Define a smaller item or pick a smaller item")
+            }
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
@@ -113,6 +118,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             }
             Self::SearchForSimilarWork => write!(f, "Look for similar work to also do"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
+            Self::CaptureAFork => write!(f, "Capture a fork"),
         }
     }
 }
@@ -135,6 +141,10 @@ impl<'e> BulletListSingleItemSelection<'e> {
         if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
             list.push(Self::UnableToDoThisRightNow);
             list.push(Self::NotInTheMoodToDoThisRightNow);
+        }
+
+        if item.is_type_action() {
+            list.push(Self::DefineASmallerItemOrPickASmallerItem);
         }
 
         list.push(Self::SomethingElseShouldBeDoneFirst);
@@ -211,6 +221,10 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
+        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+            list.push(Self::CaptureAFork);
+        }
+
         if item.is_type_action() || item.is_type_hope() {
             list.push(Self::ThisIsARepeatingItem);
         }
@@ -246,6 +260,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
             todo!("TODO: Implement DeclareItemType");
+        }
+        Ok(BulletListSingleItemSelection::DefineASmallerItemOrPickASmallerItem) => {
+            todo!("TODO: Implement DefineASmallerItemOrPickASmallerItem");
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
             todo!("TODO: Implement ParentToAGoal");
@@ -291,7 +308,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             send_to_data_storage_layer
-                .send(DataLayerCommands::FinishItem(menu_for.get_surreal_item().clone()))
+                .send(DataLayerCommands::FinishItem(
+                    menu_for.get_surreal_item().clone(),
+                ))
                 .await
                 .unwrap();
         }
@@ -320,6 +339,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::ReturnToBulletList) => {
             todo!("TODO: Implement ReturnToBulletList");
+        }
+        Ok(BulletListSingleItemSelection::CaptureAFork) => {
+            todo!("TODO: Implement CaptureAFork");
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
