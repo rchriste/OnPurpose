@@ -27,7 +27,7 @@ enum BulletListSingleItemSelection<'e> {
     ASimpleThingICanDoQuickly,
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
-    DefineASmallerItemOrPickASmallerItem,
+    StateASmallerNextStep,
     ParentToAGoal,
     ParentToAMotivation,
     DoInAFocusPeriod,
@@ -71,8 +71,8 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item) => write!(f, "Switch to: {}", parent_item),
-            Self::DefineASmallerItemOrPickASmallerItem => {
-                write!(f, "Define a smaller item or pick a smaller item")
+            Self::StateASmallerNextStep => {
+                write!(f, "State a smaller next step")
             }
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
@@ -144,7 +144,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if item.is_type_action() {
-            list.push(Self::DefineASmallerItemOrPickASmallerItem);
+            list.push(Self::StateASmallerNextStep);
         }
 
         list.push(Self::SomethingElseShouldBeDoneFirst);
@@ -261,7 +261,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
             todo!("TODO: Implement DeclareItemType");
         }
-        Ok(BulletListSingleItemSelection::DefineASmallerItemOrPickASmallerItem) => {
+        Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             todo!("TODO: Implement DefineASmallerItemOrPickASmallerItem");
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
