@@ -485,8 +485,8 @@ pub(crate) async fn cover_with_item(
             let item: &Item = display_item.into();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent: item.get_surreal_item().clone(),
+                    child: item.get_surreal_item().clone(),
+                    parent: parent_this.get_surreal_item().clone(),
                 })
                 .await
                 .unwrap();
