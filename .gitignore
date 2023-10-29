@@ -2,3 +2,4 @@
 /.idea
 #Ignore files that reach out of this directory, added to ignore the SurrealDB file created in the home direcotry
 :/
+/.vs/*

@@ -18,5 +18,6 @@
         "serde",
         "surrealdb",
         "Ｗｏｒｋ"
-    ]
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

@@ -6,7 +6,9 @@ pub(crate) mod motivation_or_responsive_item;
 pub(crate) mod person_or_group;
 pub(crate) mod responsive_item;
 pub(crate) mod routine;
+pub(crate) mod simple;
 pub(crate) mod to_do;
+pub(crate) mod undeclared;
 
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
@@ -33,7 +35,7 @@ impl From<SurrealItem> for Option<Thing> {
 pub(crate) enum ItemType {
     #[default]
     Undeclared,
-    SimpleThing,
+    Simple,
     ToDo, //TODO: Rename to Action
     Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
     Motivation,

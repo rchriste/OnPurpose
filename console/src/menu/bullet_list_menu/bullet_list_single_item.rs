@@ -14,7 +14,7 @@ use crate::{
     },
     display::display_item::DisplayItem,
     menu::{
-        bullet_list::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
+        bullet_list_menu::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
@@ -24,7 +24,8 @@ use crate::{
 };
 
 enum BulletListSingleItemSelection<'e> {
-    ASimpleThingICanDoQuickly,
+    ASimpleThingICanDoRightNow,
+    ASimpleThingButICanDoItWhenever,
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
     StateASmallerNextStep,
@@ -78,7 +79,12 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
-            Self::ASimpleThingICanDoQuickly => write!(f, "This is a simple thing I can do quickly"),
+            Self::ASimpleThingICanDoRightNow => {
+                write!(f, "This is a simple thing I can do right now")
+            }
+            Self::ASimpleThingButICanDoItWhenever => {
+                write!(f, "This is a simple thing but I can do it whenever")
+            }
             Self::ICannotDoThisSimpleThingRightNowRemindMeLater => {
                 write!(f, "I cannot do this right now, remind me later")
             }
@@ -128,7 +134,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         if item.is_type_undeclared() {
-            list.push(Self::ASimpleThingICanDoQuickly);
+            list.push(Self::ASimpleThingICanDoRightNow);
+            list.push(Self::ASimpleThingButICanDoItWhenever);
             list.push(Self::DeclareItemType);
         }
 
@@ -147,12 +154,16 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::StateASmallerNextStep);
         }
 
-        list.push(Self::SomethingElseShouldBeDoneFirst);
+        if !item.is_type_undeclared() {
+            list.push(Self::SomethingElseShouldBeDoneFirst);
+        }
 
-        if !item.is_circumstance_focus_time() {
-            list.push(Self::DoInAFocusPeriod);
-        } else if item.get_estimated_focus_periods().is_none() {
-            list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
+        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+            if !item.is_circumstance_focus_time() {
+                list.push(Self::DoInAFocusPeriod);
+            } else if item.get_estimated_focus_periods().is_none() {
+                list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
+            }
         }
 
         if item.is_type_action() || item.is_type_hope() {
@@ -160,14 +171,16 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::SearchForSimilarWork);
         }
 
-        if item.is_there_notes() {
-            list.push(Self::OpenNotesForThisItem);
-        } else {
-            list.push(Self::CreateNotesForThisItem);
-            list.push(Self::LinkNotesForThisItem);
+        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+            if item.is_there_notes() {
+                list.push(Self::OpenNotesForThisItem);
+            } else {
+                list.push(Self::CreateNotesForThisItem);
+                list.push(Self::LinkNotesForThisItem);
+            }
         }
 
-        if item.is_type_simple_thing() {
+        if item.is_type_simple() {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
         }
 
@@ -203,14 +216,16 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if parent_items.is_empty() {
-            list.push(Self::ParentToItem);
-        } else {
-            list.extend(
-                parent_items
-                    .iter()
-                    .map(|x: &&'e Item<'e>| Self::SwitchToParentItem(DisplayItem::new(x))),
-            );
+        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+            if parent_items.is_empty() {
+                list.push(Self::ParentToItem);
+            } else {
+                list.extend(
+                    parent_items
+                        .iter()
+                        .map(|x: &&'e Item<'e>| Self::SwitchToParentItem(DisplayItem::new(x))),
+                );
+            }
         }
 
         for parent in parent_items {
@@ -229,13 +244,15 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ThisIsARepeatingItem);
         }
 
-        list.extend(vec![
-            Self::ProcessAndFinish,
-            Self::Cover,
-            Self::UpdateSummary,
-            Self::DebugPrintItem,
-            Self::ReturnToBulletList,
-        ]);
+        if !item.is_type_simple() && !item.is_type_undeclared() {
+            list.extend(vec![
+                Self::ProcessAndFinish,
+                Self::Cover,
+                Self::UpdateSummary,
+                Self::DebugPrintItem,
+                Self::ReturnToBulletList,
+            ]);
+        }
 
         list
     }
@@ -243,23 +260,26 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
-    menu_for: &ToDo<'_>, //TODO: This should take an Item and the other functions that take a Hope should be folded into this
+    menu_for: &Item<'_>, //TODO: This should take an Item and the other functions that take a Hope should be folded into this
     parents: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list(menu_for.get_item(), parents);
+    let list = BulletListSingleItemSelection::create_list(menu_for, parents);
 
     let selection = Select::new("", list).with_page_size(14).prompt();
 
     match selection {
-        Ok(BulletListSingleItemSelection::ASimpleThingICanDoQuickly) => {
-            todo!("TODO: Implement ASimpleThingICanDoQuickly");
+        Ok(BulletListSingleItemSelection::ASimpleThingICanDoRightNow) => {
+            todo!("TODO: Implement ASimpleThingICanDoRightNOw");
+        }
+        Ok(BulletListSingleItemSelection::ASimpleThingButICanDoItWhenever) => {
+            todo!("TODO: Implement ASimpleThingButICanDoItWhenever");
         }
         Ok(BulletListSingleItemSelection::ICannotDoThisSimpleThingRightNowRemindMeLater) => {
             todo!("TODO: Implement ICannotDoThisSimpleThingRightNowRemindMeLater");
         }
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
-            todo!("TODO: Implement DeclareItemType");
+            declare_item_type(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             todo!("TODO: Implement DefineASmallerItemOrPickASmallerItem");
@@ -277,7 +297,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
         }
         Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
-            unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await
+            unable_to_work_on_item_right_now(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
             todo!("TODO: Implement NotInTheMoodToDoThisRightNow");
@@ -344,7 +364,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement CaptureAFork");
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
-            process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
+            process_and_finish_bullet_item(menu_for, send_to_data_storage_layer).await;
         }
         Ok(BulletListSingleItemSelection::Cover) => {
             let r = cover_bullet_item(menu_for, send_to_data_storage_layer).await;
@@ -368,7 +388,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             present_bullet_list_item_parent_selected(item.into(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ParentToItem) => {
-            parent_to_item(menu_for.get_item(), send_to_data_storage_layer).await
+            parent_to_item(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::DebugPrintItem) => {
             println!("{:?}", menu_for);
@@ -419,12 +439,17 @@ async fn present_bullet_list_item_parent_selected(
             let coverings = raw_data.make_coverings(&items);
             let visited = vec![];
             let parents = selected_item.find_parents(&coverings, &active_items, &visited);
-            present_bullet_list_item_selected(&to_do, &parents, send_to_data_storage_layer).await
+            present_bullet_list_item_selected(
+                to_do.get_item(),
+                &parents,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         ItemType::Hope => todo!(),
         ItemType::Motivation => todo!(),
         ItemType::Undeclared => todo!(),
-        ItemType::SimpleThing => todo!(),
+        ItemType::Simple => todo!(),
         ItemType::PersonOrGroup => todo!(),
     }
 }
@@ -498,38 +523,40 @@ pub(crate) async fn cover_with_item(
     }
 }
 
-enum NewItemSelection {
-    ProactiveToDo,
-    ResponsiveToDo,
-    ProactiveHope,
-    ProactiveMilestone,
-    ResponsiveHope,
+enum ItemTypeSelection {
+    ProactiveAction,
+    ResponsiveAction,
+    ProactiveGoalThatIsAHope,
+    ProactiveGoalThatIsAMilestone,
+    ResponsiveGoal,
     ProactiveMotivation,
     ResponsiveMotivation,
 }
 
-impl Display for NewItemSelection {
+impl Display for ItemTypeSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ProactiveToDo => write!(f, "New Proactive To Do"),
-            Self::ResponsiveToDo => write!(f, "New Responsive To Do"),
-            Self::ProactiveHope => write!(f, "New Proactive Hope"),
-            Self::ResponsiveHope => write!(f, "New Responsive Hope"),
+            Self::ProactiveAction => write!(f, "New Proactive Action"),
+            Self::ResponsiveAction => write!(f, "New Responsive Action"),
+            Self::ProactiveGoalThatIsAHope => write!(f, "New Proactive Goal that is a Hope"),
+            Self::ProactiveGoalThatIsAMilestone => {
+                write!(f, "New Proactive Goal that is a Milestone")
+            }
+            Self::ResponsiveGoal => write!(f, "New Responsive Goal"),
             Self::ProactiveMotivation => write!(f, "New Proactive Motivation"),
             Self::ResponsiveMotivation => write!(f, "New Responsive Motivation"),
-            Self::ProactiveMilestone => write!(f, "New Proactive Milestone"),
         }
     }
 }
 
-impl NewItemSelection {
+impl ItemTypeSelection {
     fn create_list() -> Vec<Self> {
         vec![
-            Self::ProactiveToDo,
-            Self::ResponsiveToDo,
-            Self::ProactiveHope,
-            Self::ProactiveMilestone,
-            Self::ResponsiveHope,
+            Self::ProactiveAction,
+            Self::ResponsiveAction,
+            Self::ProactiveGoalThatIsAHope,
+            Self::ProactiveGoalThatIsAMilestone,
+            Self::ResponsiveGoal,
             Self::ProactiveMotivation,
             Self::ResponsiveMotivation,
         ]
@@ -540,11 +567,11 @@ pub(crate) async fn parent_to_new_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = NewItemSelection::create_list();
+    let list = ItemTypeSelection::create_list();
 
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(NewItemSelection::ProactiveToDo) => {
+        Ok(ItemTypeSelection::ProactiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -560,7 +587,7 @@ pub(crate) async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ResponsiveToDo) => {
+        Ok(ItemTypeSelection::ResponsiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -576,7 +603,7 @@ pub(crate) async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveHope) => {
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -592,7 +619,7 @@ pub(crate) async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveMilestone) => {
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let _new_item = new_item::NewItem {
                 summary,
@@ -606,7 +633,7 @@ pub(crate) async fn parent_to_new_item(
             //     parent_new_item: new_item,
             // }).await.unwrap();
         }
-        Ok(NewItemSelection::ResponsiveHope) => {
+        Ok(ItemTypeSelection::ResponsiveGoal) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -622,7 +649,7 @@ pub(crate) async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveMotivation) => {
+        Ok(ItemTypeSelection::ProactiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -638,7 +665,7 @@ pub(crate) async fn parent_to_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ResponsiveMotivation) => {
+        Ok(ItemTypeSelection::ResponsiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -664,11 +691,11 @@ pub(crate) async fn cover_with_new_item(
     cover_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = NewItemSelection::create_list();
+    let list = ItemTypeSelection::create_list();
 
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(NewItemSelection::ProactiveToDo) => {
+        Ok(ItemTypeSelection::ProactiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -684,7 +711,7 @@ pub(crate) async fn cover_with_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ResponsiveToDo) => {
+        Ok(ItemTypeSelection::ResponsiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -700,7 +727,7 @@ pub(crate) async fn cover_with_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveHope) => {
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -716,7 +743,7 @@ pub(crate) async fn cover_with_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveMilestone) => {
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let _new_item = new_item::NewItem {
                 summary,
@@ -730,7 +757,7 @@ pub(crate) async fn cover_with_new_item(
             //     cover_with: new_item,
             // }).await.unwrap();
         }
-        Ok(NewItemSelection::ResponsiveHope) => {
+        Ok(ItemTypeSelection::ResponsiveGoal) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -746,7 +773,7 @@ pub(crate) async fn cover_with_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ProactiveMotivation) => {
+        Ok(ItemTypeSelection::ProactiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -762,7 +789,7 @@ pub(crate) async fn cover_with_new_item(
                 .await
                 .unwrap();
         }
-        Ok(NewItemSelection::ResponsiveMotivation) => {
+        Ok(ItemTypeSelection::ResponsiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
             let new_item = new_item::NewItem {
                 summary,
@@ -779,6 +806,82 @@ pub(crate) async fn cover_with_new_item(
                 .unwrap();
         }
 
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(err) => todo!("Unexpected {}", err),
+    }
+}
+
+async fn declare_item_type(
+    item: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let list = ItemTypeSelection::create_list();
+
+    let selection = Select::new("", list).prompt();
+    match selection {
+        Ok(ItemTypeSelection::ProactiveAction) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    ItemType::ToDo,
+                ))
+                .await
+                .unwrap();
+        }
+        Ok(ItemTypeSelection::ResponsiveAction) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ReactiveBeAvailableToAct,
+                    ItemType::ToDo,
+                ))
+                .await
+                .unwrap();
+        }
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    ItemType::Hope,
+                ))
+                .await
+                .unwrap();
+        }
+        Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
+            todo!("I need to also set this hope to be a milestone")
+        }
+        Ok(ItemTypeSelection::ResponsiveGoal) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ReactiveBeAvailableToAct,
+                    ItemType::Hope,
+                ))
+                .await
+                .unwrap();
+        }
+        Ok(ItemTypeSelection::ProactiveMotivation) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    ItemType::Motivation,
+                ))
+                .await
+                .unwrap();
+        }
+        Ok(ItemTypeSelection::ResponsiveMotivation) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_item().clone(),
+                    Responsibility::ReactiveBeAvailableToAct,
+                    ItemType::Motivation,
+                ))
+                .await
+                .unwrap();
+        }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),
     }

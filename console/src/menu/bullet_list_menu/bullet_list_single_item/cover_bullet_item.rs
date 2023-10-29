@@ -7,7 +7,10 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::ItemVecExtensions, to_do::ToDo},
+    base_data::{
+        item::{Item, ItemVecExtensions},
+        to_do::ToDo,
+    },
     surrealdb_layer::DataLayerCommands,
     UnexpectedNextMenuAction,
 };
@@ -51,14 +54,14 @@ impl CoverBulletItem {
 
 #[async_recursion]
 pub(crate) async fn cover_bullet_item(
-    item_to_cover: &'async_recursion ToDo<'async_recursion>,
+    item_to_cover: &'async_recursion Item<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), UnexpectedNextMenuAction> {
     let choices = CoverBulletItem::create_list();
     let selection = Select::new("", choices).prompt();
     match selection {
         Ok(CoverBulletItem::ItemOrNextStep) => {
-            cover_with_item(item_to_cover.get_item(), send_to_data_storage_layer).await;
+            cover_with_item(item_to_cover, send_to_data_storage_layer).await;
             Ok(())
         }
         Ok(CoverBulletItem::WaitForSomethingOrScheduled) => {
@@ -113,7 +116,7 @@ impl CoverWithWaitingFor {
 
 #[async_recursion]
 pub(crate) async fn cover_with_waiting_for<'a>(
-    item_to_cover: &'a ToDo<'a>,
+    item_to_cover: &'a Item<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), UnexpectedNextMenuAction> {
     let list = CoverWithWaitingFor::create_list();
@@ -156,7 +159,7 @@ impl CoverWithQuestionItem {
 
 #[async_recursion]
 async fn cover_with_waiting_for_question<'a>(
-    item_to_cover: &'a ToDo<'a>,
+    item_to_cover: &'a Item<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = CoverWithQuestionItem::create_list();
@@ -180,7 +183,7 @@ async fn cover_with_waiting_for_question<'a>(
 }
 
 async fn cover_with_new_waiting_for_question<'a>(
-    item_to_cover: &'a ToDo<'a>,
+    item_to_cover: &'a Item<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let question = Text::new("Enter Waiting For Question ⍠").prompt().unwrap();
@@ -216,7 +219,7 @@ impl<'e> CoverExistingItem<'e> {
 
 #[async_recursion]
 async fn cover_with_existing_waiting_for_question(
-    item_to_cover: &ToDo<'_>,
+    item_to_cover: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let raw_current_items = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
@@ -266,7 +269,7 @@ impl EventMenuItem {
 
 #[async_recursion]
 async fn cover_with_waiting_for_event<'a>(
-    item_to_cover: &'a ToDo<'a>,
+    item_to_cover: &'a Item<'a>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = EventMenuItem::create_list();
@@ -319,7 +322,7 @@ impl CircumstanceThatMustBeTrueToActMenuItem {
 
 #[async_recursion]
 async fn cover_with_circumstance_that_must_be_true_to_act(
-    item_to_cover: &ToDo<'_>,
+    item_to_cover: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = CircumstanceThatMustBeTrueToActMenuItem::create_list();
@@ -354,7 +357,7 @@ async fn cover_with_circumstance_that_must_be_true_to_act(
 }
 
 async fn set_circumstance_not_sunday(
-    item_to_get_circumstance: &ToDo<'_>,
+    item_to_get_circumstance: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     send_to_data_storage_layer
@@ -366,7 +369,7 @@ async fn set_circumstance_not_sunday(
 }
 
 async fn set_circumstance_during_focus_time(
-    item_to_get_circumstance: &ToDo<'_>,
+    item_to_get_circumstance: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     send_to_data_storage_layer
@@ -384,7 +387,7 @@ async fn cover_until_an_exact_date_time() {
 #[async_recursion]
 async fn cover_for_an_amount_of_time(
     now: DateTime<Local>,
-    item_to_cover: &ToDo<'async_recursion>,
+    item_to_cover: &Item<'async_recursion>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let result = Text::new("Cover for how long?").prompt();

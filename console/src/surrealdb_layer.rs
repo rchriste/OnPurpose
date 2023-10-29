@@ -99,9 +99,7 @@ pub(crate) enum DataLayerCommands {
     SendProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
     AddProcessedText(String, SurrealItem),
     FinishItem(SurrealItem),
-    NewToDo(String),
-    NewHope(String),
-    NewMotivation(String),
+    NewItem(NewItem),
     CoverWithANewItem {
         cover_this: SurrealItem,
         cover_with: NewItem,
@@ -123,6 +121,7 @@ pub(crate) enum DataLayerCommands {
     },
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
+    UpdateResponsibilityAndItemType(SurrealItem, Responsibility, ItemType),
     UpdateHopePermanence(SurrealSpecificToHope, Permanence),
     UpdateHopeStaging(SurrealSpecificToHope, Staging),
     UpdateItemSummary(SurrealItem, String),
@@ -178,10 +177,8 @@ pub(crate) async fn data_storage_start_and_run(
                 send_processed_text(for_item, send_response_here, &db).await
             }
             Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
-            Some(DataLayerCommands::NewToDo(to_do_text)) => new_to_do(to_do_text, &db).await,
-            Some(DataLayerCommands::NewHope(hope_text)) => new_hope(hope_text, &db).await,
-            Some(DataLayerCommands::NewMotivation(summary_text)) => {
-                new_motivation(summary_text, &db).await
+            Some(DataLayerCommands::NewItem(new_item)) => {
+                super::surrealdb_layer::new_item(new_item, &db).await
             }
             Some(DataLayerCommands::CoverWithANewItem {
                 cover_this,
@@ -229,6 +226,16 @@ pub(crate) async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::UpdateItemSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
+            }
+            Some(DataLayerCommands::UpdateResponsibilityAndItemType(
+                item,
+                new_responsibility,
+                new_item_type,
+            )) => {
+                let mut item = item;
+                item.responsibility = new_responsibility;
+                item.item_type = new_item_type;
+                item.update(&db).await.unwrap();
             }
             None => return, //Channel closed, time to shutdown down, exit
         }
@@ -325,31 +332,9 @@ pub(crate) async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>)
     finish_this.update(db).await.unwrap();
 }
 
-async fn new_to_do(to_do_text: String, db: &Surreal<Any>) {
-    new_item(to_do_text, ItemType::ToDo, db).await
-}
-
-async fn new_hope(hope_text: String, db: &Surreal<Any>) {
-    new_item(hope_text, ItemType::Hope, db).await
-}
-
-async fn new_motivation(motivation_text: String, db: &Surreal<Any>) {
-    new_item(motivation_text, ItemType::Motivation, db).await
-}
-
-async fn new_item(summary_text: String, item_type: ItemType, db: &Surreal<Any>) {
-    SurrealItem {
-        id: None,
-        summary: summary_text,
-        finished: None,
-        item_type,
-        smaller_items_in_priority_order: Vec::default(),
-        responsibility: Responsibility::default(),
-        notes_location: NotesLocation::default(),
-    }
-    .create(db)
-    .await
-    .unwrap();
+async fn new_item(new_item: NewItem, db: &Surreal<Any>) {
+    let surreal_item: SurrealItem = SurrealItem::new(new_item, vec![]);
+    surreal_item.create(db).await.unwrap();
 }
 
 async fn cover_item_with_a_new_waiting_for_question(
@@ -602,13 +587,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn add_new_todo() {
+    async fn add_new_item() {
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_item = NewItem::new("New item".into());
         sender
-            .send(DataLayerCommands::NewToDo("New next step".into()))
+            .send(DataLayerCommands::NewItem(new_item))
             .await
             .unwrap();
 
@@ -616,55 +602,7 @@ mod tests {
 
         assert_eq!(surreal_tables.surreal_items.len(), 1);
         assert_eq!(
-            ItemType::ToDo,
-            surreal_tables.surreal_items.first().unwrap().item_type
-        );
-        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn add_new_hope() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        sender
-            .send(DataLayerCommands::NewHope("New hope".into()))
-            .await
-            .unwrap();
-
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
-
-        assert_eq!(surreal_tables.surreal_items.len(), 1);
-        assert_eq!(
-            ItemType::Hope,
-            surreal_tables.surreal_items.first().unwrap().item_type
-        );
-        assert_eq!(surreal_tables.surreal_coverings.len(), 0);
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn add_new_motivation() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        sender
-            .send(DataLayerCommands::NewMotivation("New motivation".into()))
-            .await
-            .unwrap();
-
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
-
-        assert_eq!(surreal_tables.surreal_items.len(), 1);
-        assert_eq!(
-            ItemType::Motivation,
+            ItemType::Undeclared,
             surreal_tables.surreal_items.first().unwrap().item_type
         );
         assert_eq!(surreal_tables.surreal_coverings.len(), 0);
@@ -679,8 +617,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_action = NewItem::new_action("New next step".into());
         sender
-            .send(DataLayerCommands::NewToDo("New next step".into()))
+            .send(DataLayerCommands::NewItem(new_action))
             .await
             .unwrap();
 
@@ -728,8 +667,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_next_step = NewItem::new_action("New next step".into());
         sender
-            .send(DataLayerCommands::NewToDo("New next step".into()))
+            .send(DataLayerCommands::NewItem(new_next_step))
             .await
             .unwrap();
 
@@ -764,8 +704,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_action = NewItem::new_action("Item to be covered".into());
         sender
-            .send(DataLayerCommands::NewToDo("Item to be covered".into()))
+            .send(DataLayerCommands::NewItem(new_action))
             .await
             .unwrap();
 
@@ -825,8 +766,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_action = NewItem::new_action("Item to be covered".into());
         sender
-            .send(DataLayerCommands::NewToDo("Item to be covered".into()))
+            .send(DataLayerCommands::NewItem(new_action))
             .await
             .unwrap();
 
@@ -878,8 +820,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_goal = NewItem::new_goal("Hope to be covered".into());
         sender
-            .send(DataLayerCommands::NewHope("Hope to be covered".into()))
+            .send(DataLayerCommands::NewItem(new_goal))
             .await
             .unwrap();
 
@@ -931,8 +874,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_action = NewItem::new_action("Item to be covered".into());
         sender
-            .send(DataLayerCommands::NewToDo("Item to get covered".into()))
+            .send(DataLayerCommands::NewItem(new_action))
             .await
             .unwrap();
 
@@ -990,8 +934,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_item = NewItem::new_action("Item to get requirement".into());
         sender
-            .send(DataLayerCommands::NewToDo("Item to get requirement".into()))
+            .send(DataLayerCommands::NewItem(new_item))
             .await
             .unwrap();
 
@@ -1044,10 +989,9 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let new_action = NewItem::new_action("Item that needs a parent".into());
         sender
-            .send(DataLayerCommands::NewToDo(
-                "Item that needs a parent".into(),
-            ))
+            .send(DataLayerCommands::NewItem(new_action))
             .await
             .unwrap();
 
@@ -1113,15 +1057,15 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
+        let item_that_needs_a_parent = NewItem::new_action("Item that needs a parent".into());
         sender
-            .send(DataLayerCommands::NewToDo(
-                "Item that needs a parent".into(),
-            ))
+            .send(DataLayerCommands::NewItem(item_that_needs_a_parent))
             .await
             .unwrap();
 
+        let parent_item = NewItem::new_action("Parent Item".into());
         sender
-            .send(DataLayerCommands::NewToDo("Parent Item".into()))
+            .send(DataLayerCommands::NewItem(parent_item))
             .await
             .unwrap();
 

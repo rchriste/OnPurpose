@@ -10,7 +10,7 @@ use crate::{
         item::{Item, ItemVecExtensions},
         Covering,
     },
-    menu::bullet_list::bullet_list_single_item::cover_with_item,
+    menu::bullet_list_menu::bullet_list_single_item::cover_with_item,
     menu::top_menu::present_top_menu,
     surrealdb_layer::{
         surreal_item::SurrealItem,

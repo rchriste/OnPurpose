@@ -12,7 +12,9 @@ use crate::{
         hope::Hope,
         item::{Item, ItemVecExtensions},
         person_or_group::PersonOrGroup,
+        simple::{self, Simple},
         to_do::ToDo,
+        undeclared::Undeclared,
     },
     display::display_item::DisplayItem,
     mentally_resident::{
@@ -41,6 +43,8 @@ pub(crate) enum InquireBulletListItem<'e> {
         parents: Vec<&'e Item<'e>>,
     },
     IsAPersonOrGroupAround(&'e PersonOrGroupNode<'e>),
+    NewlyCapturedItem(&'e Undeclared<'e>),
+    SimpleItem(&'e simple::Simple<'e>),
 }
 
 impl Display for InquireBulletListItem<'_> {
@@ -72,6 +76,14 @@ impl Display for InquireBulletListItem<'_> {
                     write!(f, " ⬅ {}", display_item)?;
                 }
             }
+            Self::NewlyCapturedItem(undeclared) => {
+                let display_item = DisplayItem::new(undeclared.get_item());
+                write!(f, "{}", display_item)?;
+            }
+            Self::SimpleItem(simple) => {
+                let display_item = DisplayItem::new(simple.get_item());
+                write!(f, "{}", display_item)?;
+            }
         }
         Ok(())
     }
@@ -79,6 +91,8 @@ impl Display for InquireBulletListItem<'_> {
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
+        undeclared_items: &'a [Undeclared<'a>],
+        simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
@@ -88,6 +102,8 @@ impl<'a> InquireBulletListItem<'a> {
         list.push(Self::ViewFocusItems);
         Self::add_items_to_list(
             list,
+            undeclared_items,
+            simple_items,
             person_or_group_nodes,
             next_step_nodes,
             hopes_without_a_next_step,
@@ -95,6 +111,8 @@ impl<'a> InquireBulletListItem<'a> {
     }
 
     pub(crate) fn create_list_just_items(
+        undeclared_items: &'a [Undeclared<'a>],
+        simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
@@ -102,6 +120,8 @@ impl<'a> InquireBulletListItem<'a> {
         let list = Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len());
         Self::add_items_to_list(
             list,
+            undeclared_items,
+            simple_items,
             person_or_group_nodes,
             next_step_nodes,
             hopes_without_a_next_step,
@@ -110,10 +130,18 @@ impl<'a> InquireBulletListItem<'a> {
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
+        undeclared_items: &'a [Undeclared<'a>],
+        simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
+        list.extend(
+            undeclared_items
+                .iter()
+                .map(InquireBulletListItem::NewlyCapturedItem),
+        );
+        list.extend(simple_items.iter().map(InquireBulletListItem::SimpleItem));
         list.extend(
             person_or_group_nodes
                 .iter()
@@ -185,7 +213,13 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         false,
     );
 
+    let undeclared_items = items.filter_just_undeclared_items();
+
+    let simple_items = items.filter_just_simple_items();
+
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
+        &undeclared_items,
+        &simple_items,
         &person_or_group_nodes_that_cover_an_item,
         &next_step_nodes,
         &hope_nodes_needing_a_next_step,
@@ -201,7 +235,12 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_focused_bullet_list_menu(send_to_data_storage_layer).await
             }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
-                present_bullet_list_item_selected(to_do, &parents, send_to_data_storage_layer).await
+                present_bullet_list_item_selected(
+                    to_do.get_item(),
+                    &parents,
+                    send_to_data_storage_layer,
+                )
+                .await
             }
             Ok(InquireBulletListItem::NeedsNextStepHope { hope, parents: _ }) => {
                 present_mentally_resident_hope_selected_menu(hope, send_to_data_storage_layer).await
@@ -212,6 +251,17 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                     send_to_data_storage_layer,
                 )
                 .await
+            }
+            Ok(InquireBulletListItem::NewlyCapturedItem(undeclared)) => {
+                present_bullet_list_item_selected(
+                    undeclared.get_item(),
+                    &[],
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+            Ok(InquireBulletListItem::SimpleItem(_)) => {
+                todo!("Implement this for a simple item")
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
@@ -247,8 +297,12 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
 
     let hopes_without_a_next_step = vec![]; //Hopes without a next step cannot be focus items
     let persons_or_groups_that_cover_an_item = vec![]; //Sync'ing up with someone cannot be a focus item
+    let undeclared_items = vec![]; //Newly captured items cannot be a focus item
+    let simple_items = vec![]; //Simple items cannot be a focus item
 
     let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
+        &undeclared_items,
+        &simple_items,
         &persons_or_groups_that_cover_an_item,
         &next_step_nodes,
         &hopes_without_a_next_step,
@@ -264,9 +318,20 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                 panic!("The focus list should not present this option")
             }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
-                present_bullet_list_item_selected(to_do, &parents, send_to_data_storage_layer).await
+                present_bullet_list_item_selected(
+                    to_do.get_item(),
+                    &parents,
+                    send_to_data_storage_layer,
+                )
+                .await
             }
             Ok(InquireBulletListItem::IsAPersonOrGroupAround(_)) => {
+                panic!("The focus list should not present this option")
+            }
+            Ok(InquireBulletListItem::NewlyCapturedItem(_)) => {
+                panic!("The focus list should not present this option")
+            }
+            Ok(InquireBulletListItem::SimpleItem(_)) => {
                 panic!("The focus list should not present this option")
             }
             Ok(InquireBulletListItem::NeedsNextStepHope {
@@ -283,3 +348,6 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         present_top_menu(send_to_data_storage_layer).await
     }
 }
+
+#[cfg(test)]
+mod tests {}

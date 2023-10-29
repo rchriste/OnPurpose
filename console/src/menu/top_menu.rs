@@ -13,7 +13,8 @@ use crate::{
     change_routine::change_routine,
     display::display_item::DisplayItem,
     mentally_resident::view_hopes,
-    menu::bullet_list::present_unfocused_bullet_list_menu,
+    menu::bullet_list_menu::present_unfocused_bullet_list_menu,
+    new_item::NewItem,
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -78,7 +79,7 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
 
     let selection = Select::new("", top_menu).prompt().unwrap();
     match selection {
-        TopMenuSelection::Capture => todo!("Implement Capture"),
+        TopMenuSelection::Capture => capture(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
         TopMenuSelection::ChangeRoutine => change_routine(send_to_data_storage_layer).await,
         TopMenuSelection::Reflection => todo!("Implement Reflection"),
@@ -95,11 +96,22 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
     }
 }
 
+async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let new_item_summary = Text::new("Enter New Item ⍠").prompt().unwrap();
+
+    let new_item = NewItem::new(new_item_summary);
+    send_to_data_storage_layer
+        .send(DataLayerCommands::NewItem(new_item))
+        .await
+        .unwrap();
+}
+
 async fn capture_to_do(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let new_next_step_text = Text::new("Enter To Do ⍠").prompt().unwrap();
 
+    let new_action = NewItem::new_action(new_next_step_text);
     send_to_data_storage_layer
-        .send(DataLayerCommands::NewToDo(new_next_step_text))
+        .send(DataLayerCommands::NewItem(new_action))
         .await
         .unwrap();
 }
@@ -107,8 +119,9 @@ async fn capture_to_do(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
 async fn capture_hope(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let new_hope_text = Text::new("Enter Hope ⍠").prompt().unwrap();
 
+    let new_goal = NewItem::new_goal(new_hope_text);
     send_to_data_storage_layer
-        .send(DataLayerCommands::NewHope(new_hope_text))
+        .send(DataLayerCommands::NewItem(new_goal))
         .await
         .unwrap();
 }
@@ -116,8 +129,9 @@ async fn capture_hope(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
 async fn capture_motivation(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let summary_text = Text::new("Enter Motivation ⍠").prompt().unwrap();
 
+    let new_motivation = NewItem::new_motivation(summary_text);
     send_to_data_storage_layer
-        .send(DataLayerCommands::NewMotivation(summary_text))
+        .send(DataLayerCommands::NewItem(new_motivation))
         .await
         .unwrap();
 }

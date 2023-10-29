@@ -8,6 +8,12 @@ pub(crate) struct PersonOrGroup<'s> {
     item: &'s Item<'s>,
 }
 
+impl<'s> From<PersonOrGroup<'s>> for &'s Item<'s> {
+    fn from(value: PersonOrGroup<'s>) -> Self {
+        value.item
+    }
+}
+
 impl<'s> PersonOrGroup<'s> {
     pub(crate) fn new(item: &'s Item<'s>) -> Self {
         assert!(item.item_type == &ItemType::PersonOrGroup);
