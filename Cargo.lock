@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.38"
+version = "0.0.39"
 dependencies = [
  "async-recursion",
  "chrono",
@@ -3188,14 +3188,13 @@ dependencies = [
 
 [[package]]
 name = "surrealdb_extra"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a88fff8daad88574f088ce310dcbfa5209a0ded3d01b517a61113b8406a5ff5"
+checksum = "b1625c31ffe9f598e02f42142f672fef397fb2b82310031a9d9c8b8c37a33b38"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "itertools 0.11.0",
  "rayon",
  "serde",
  "surrealdb",
@@ -3205,9 +3204,9 @@ dependencies = [
 
 [[package]]
 name = "surrealdb_extra_derive"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2739f92d90548fd4715f991e1d14f54700983a01d8dbbad2ff9fe44e2e87f66"
+checksum = "2650dffe80a3ee8abd668de7de4306cf89a93d12e965a8e4fc18196cda18e957"
 dependencies = [
  "quote",
  "surrealdb",
@@ -3953,18 +3952,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.7.15"
+version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81ba595b9f2772fbee2312de30eeb80ec773b4cb2f1e8098db024afadda6c06f"
+checksum = "ede7d7c7970ca2215b8c1ccf4d4f354c4733201dfaaba72d44ae5b37472e4901"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.7.15"
+version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "772666c41fb6dceaf520b564b962d738a8e1a83b41bd48945f50837aed78bb1d"
+checksum = "4b27b1bb92570f989aac0ab7e9cbfbacdd65973f7ee920d9f0e71ebac878fd0b"
 dependencies = [
  "proc-macro2",
  "quote",
