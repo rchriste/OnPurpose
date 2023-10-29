@@ -53,6 +53,7 @@ enum BulletListSingleItemSelection<'e> {
     },
     WaitUntilSimilarWorkIsDone,
     SearchForSimilarWork,
+    ChangeType,
     ReturnToBulletList,
     ProcessAndFinish,
     Cover,
@@ -125,6 +126,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::SearchForSimilarWork => write!(f, "Look for similar work to also do"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
+            Self::ChangeType => write!(f, "Change Type"),
         }
     }
 }
@@ -132,6 +134,10 @@ impl Display for BulletListSingleItemSelection<'_> {
 impl<'e> BulletListSingleItemSelection<'e> {
     fn create_list(item: &'e Item<'e>, parent_items: &[&'e Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
+
+        if item.is_type_action() {
+            list.push(Self::ParentToAGoal);
+        }
 
         if item.is_type_undeclared() {
             list.push(Self::ASimpleThingICanDoRightNow);
@@ -182,10 +188,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if item.is_type_simple() {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
-        }
-
-        if item.is_type_action() {
-            list.push(Self::ParentToAGoal);
         }
 
         if item.is_type_action() || item.is_type_hope() {
@@ -242,6 +244,10 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if item.is_type_action() || item.is_type_hope() {
             list.push(Self::ThisIsARepeatingItem);
+        }
+
+        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+            list.push(Self::ChangeType);
         }
 
         if !item.is_type_simple() && !item.is_type_undeclared() {
@@ -362,6 +368,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::CaptureAFork) => {
             todo!("TODO: Implement CaptureAFork");
+        }
+        Ok(BulletListSingleItemSelection::ChangeType) => {
+            declare_item_type(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for, send_to_data_storage_layer).await;
