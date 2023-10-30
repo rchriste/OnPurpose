@@ -1,4 +1,5 @@
 mod cover_bullet_item;
+mod parent_to_a_goal;
 
 use std::fmt::Display;
 
@@ -14,7 +15,9 @@ use crate::{
     },
     display::display_item::DisplayItem,
     menu::{
-        bullet_list_menu::bullet_list_single_item::cover_bullet_item::cover_bullet_item,
+        bullet_list_menu::bullet_list_single_item::{
+            cover_bullet_item::cover_bullet_item, parent_to_a_goal::parent_to_a_goal,
+        },
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
@@ -31,6 +34,7 @@ enum BulletListSingleItemSelection<'e> {
     StateASmallerNextStep,
     ParentToAGoal,
     ParentToAMotivation,
+    PlanWhenToDoThis,
     DoInAFocusPeriod,
     EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
@@ -78,6 +82,9 @@ impl Display for BulletListSingleItemSelection<'_> {
             }
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
+            }
+            Self::PlanWhenToDoThis => {
+                write!(f, "Plan when to do this")
             }
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
             Self::ASimpleThingICanDoRightNow => {
@@ -135,9 +142,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
     fn create_list(item: &'e Item<'e>, parent_items: &[&'e Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
 
-        if item.is_type_action() {
+        if item.is_type_action() && parent_items.is_empty() {
             list.push(Self::ParentToAGoal);
         }
+
+        list.push(Self::PlanWhenToDoThis);
 
         if item.is_type_undeclared() {
             list.push(Self::ASimpleThingICanDoRightNow);
@@ -291,7 +300,10 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement DefineASmallerItemOrPickASmallerItem");
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
-            todo!("TODO: Implement ParentToAGoal");
+            parent_to_a_goal(menu_for, send_to_data_storage_layer).await
+        }
+        Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
+            todo!("TODO: Implement PlanWhenToDoThis");
         }
         Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
             todo!("TODO: Implement ParentToAMotivation");
