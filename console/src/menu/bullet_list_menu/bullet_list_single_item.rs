@@ -571,7 +571,7 @@ impl Display for ItemTypeSelection {
 }
 
 impl ItemTypeSelection {
-    fn create_list() -> Vec<Self> {
+    pub(crate) fn create_list() -> Vec<Self> {
         vec![
             Self::ProactiveAction,
             Self::ResponsiveAction,
@@ -580,6 +580,14 @@ impl ItemTypeSelection {
             Self::ResponsiveGoal,
             Self::ProactiveMotivation,
             Self::ResponsiveMotivation,
+        ]
+    }
+
+    pub(crate) fn create_list_just_goals() -> Vec<Self> {
+        vec![
+            Self::ProactiveGoalThatIsAHope,
+            Self::ProactiveGoalThatIsAMilestone,
+            Self::ResponsiveGoal,
         ]
     }
 }

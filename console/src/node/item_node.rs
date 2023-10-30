@@ -71,9 +71,17 @@ pub(crate) fn create_growing_nodes<'a>(
     items
         .iter()
         .map(|x| {
-            let mut visited = visited.clone();
-            visited.push(x);
-            create_growing_node(x, coverings, possible_parents, visited)
+            if !visited.contains(x) {
+                //TODO: Add a unit test for this circular reference in smaller and bigger
+                let mut visited = visited.clone();
+                visited.push(x);
+                create_growing_node(x, coverings, possible_parents, visited)
+            } else {
+                GrowingItemNode {
+                    item: x,
+                    larger: vec![],
+                }
+            }
         })
         .collect()
 }
