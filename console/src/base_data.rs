@@ -19,6 +19,7 @@ use surrealdb::{
 use surrealdb_extra::table::Table;
 
 use crate::surrealdb_layer::{
+    surreal_covering::SurrealCovering,
     surreal_item::{SurrealItem, SurrealOrderedSubItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
 };
@@ -45,6 +46,13 @@ pub(crate) enum ItemType {
 pub(crate) struct Covering<'a> {
     pub(crate) smaller: &'a Item<'a>,
     pub(crate) parent: &'a Item<'a>,
+    pub(crate) surreal_covering: &'a SurrealCovering,
+}
+
+impl<'a> Covering<'a> {
+    pub(crate) fn get_surreal_covering(&'a self) -> &'a SurrealCovering {
+        self.surreal_covering
+    }
 }
 
 pub(crate) struct CoveringUntilDateTime<'a> {

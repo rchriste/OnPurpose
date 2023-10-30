@@ -59,12 +59,13 @@ impl SurrealTables {
             .collect()
     }
 
-    pub(crate) fn make_coverings<'a>(&self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+    pub(crate) fn make_coverings<'a>(&'a self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
         self.surreal_coverings
             .iter()
             .map(|x| Covering {
                 smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
                 parent: items.lookup_from_record_id(&x.parent).unwrap(),
+                surreal_covering: x,
             })
             .collect()
     }
@@ -110,6 +111,7 @@ pub(crate) enum DataLayerCommands {
         item_to_be_covered: SurrealItem,
         item_that_should_do_the_covering: SurrealItem,
     },
+    RemoveCoveringItem(SurrealCovering),
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     ParentItemWithExistingItem {
         child: SurrealItem,
@@ -201,6 +203,12 @@ pub(crate) async fn data_storage_start_and_run(
                     &db,
                 )
                 .await
+            }
+            Some(DataLayerCommands::RemoveCoveringItem(surreal_covering)) => {
+                SurrealCovering::delete(surreal_covering.id.unwrap().id.to_raw(), &db)
+                    .await
+                    .unwrap()
+                    .unwrap(); //2nd unwrap ensures the delete actually happened
             }
             Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
                 cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
