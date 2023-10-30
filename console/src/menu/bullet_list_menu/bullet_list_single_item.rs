@@ -145,7 +145,13 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ParentToAGoal);
         }
 
-        list.push(Self::PlanWhenToDoThis);
+        if item.is_type_hope() && parent_items.is_empty() {
+            list.push(Self::ParentToAMotivation);
+        }
+
+        if !item.is_type_hope() && !item.is_type_motivation() {
+            list.push(Self::PlanWhenToDoThis);
+        }
 
         if item.is_type_undeclared() {
             list.push(Self::ASimpleThingICanDoRightNow);
@@ -159,12 +165,12 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         list.push(Self::Finished);
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() {
             list.push(Self::UnableToDoThisRightNow);
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
 
-        if item.is_type_action() {
+        if item.is_type_action() || item.is_type_hope() && !item.has_children() {
             list.push(Self::StateASmallerNextStep);
         }
 
@@ -172,7 +178,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::SomethingElseShouldBeDoneFirst);
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() {
             if !item.is_circumstance_focus_time() {
                 list.push(Self::DoInAFocusPeriod);
             } else if item.get_estimated_focus_periods().is_none() {
@@ -198,9 +204,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
         }
 
-        if item.is_type_action() || item.is_type_hope() {
-            list.push(Self::ParentToAMotivation);
-        }
 
         if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
             if item.has_children() {
