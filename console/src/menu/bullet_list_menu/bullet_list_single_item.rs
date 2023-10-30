@@ -10,7 +10,6 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
-        to_do::ToDo,
         ItemType,
     },
     display::display_item::DisplayItem,
@@ -450,8 +449,7 @@ async fn present_bullet_list_item_parent_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     match selected_item.item_type {
-        ItemType::ToDo => {
-            let to_do = ToDo::new(selected_item);
+        ItemType::ToDo | ItemType::Hope => {
             let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
                 .await
                 .unwrap();
@@ -461,13 +459,12 @@ async fn present_bullet_list_item_parent_selected(
             let visited = vec![];
             let parents = selected_item.find_parents(&coverings, &active_items, &visited);
             present_bullet_list_item_selected(
-                to_do.get_item(),
+                selected_item,
                 &parents,
                 send_to_data_storage_layer,
             )
             .await
         }
-        ItemType::Hope => todo!(),
         ItemType::Motivation => todo!(),
         ItemType::Undeclared => todo!(),
         ItemType::Simple => todo!(),
