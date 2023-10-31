@@ -213,9 +213,17 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         false,
     );
 
-    let undeclared_items = items.filter_just_undeclared_items();
+    let undeclared_items = items
+        .filter_just_undeclared_items()
+        .into_iter()
+        .filter(|x| !x.is_finished())
+        .collect::<Vec<_>>();
 
-    let simple_items = items.filter_just_simple_items();
+    let simple_items = items
+        .filter_just_simple_items()
+        .into_iter()
+        .filter(|x| !x.is_finished())
+        .collect::<Vec<_>>();
 
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
         &undeclared_items,

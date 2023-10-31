@@ -12,4 +12,8 @@ impl<'s> Undeclared<'s> {
     pub(crate) fn get_item(&'s self) -> &'s Item<'s> {
         self.item
     }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item.is_finished()
+    }
 }
