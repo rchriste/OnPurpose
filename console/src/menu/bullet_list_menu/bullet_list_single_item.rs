@@ -8,10 +8,7 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        item::{Item, ItemVecExtensions},
-        ItemType,
-    },
+    base_data::item::{Item, ItemVecExtensions},
     display::display_item::DisplayItem,
     menu::{
         bullet_list_menu::bullet_list_single_item::{
@@ -21,7 +18,11 @@ use crate::{
     },
     new_item,
     node::person_or_group_node::PersonOrGroupNode,
-    surrealdb_layer::{surreal_item::Responsibility, DataLayerCommands},
+    surrealdb_layer::{
+        surreal_item::{ItemType, Responsibility},
+        surreal_tables::SurrealTables,
+        DataLayerCommands,
+    },
     update_item_summary, UnexpectedNextMenuAction,
 };
 
@@ -462,7 +463,7 @@ async fn present_bullet_list_item_parent_selected(
 ) {
     match selected_item.item_type {
         ItemType::ToDo | ItemType::Hope => {
-            let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+            let raw_data = SurrealTables::new(send_to_data_storage_layer)
                 .await
                 .unwrap();
             let items = raw_data.make_items();
@@ -489,7 +490,7 @@ async fn parent_to_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let items: Vec<Item> = raw_data
@@ -524,7 +525,7 @@ pub(crate) async fn cover_with_item(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     //TODO: cover_to_item and parent_to_item are the same except for the command sent to the data storage layer, refactor to reduce duplicated code
-    let raw_data = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let items: Vec<Item> = raw_data

@@ -7,7 +7,7 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{life_area::LifeArea, routine::Routine},
     menu::top_menu::present_top_menu,
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 pub(crate) enum LifeAreaItem<'e> {
@@ -47,7 +47,7 @@ impl<'e> LifeAreaItem<'e> {
 
 #[async_recursion]
 pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let raw_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let raw_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let life_areas = raw_tables.make_life_areas();

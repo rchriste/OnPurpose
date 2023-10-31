@@ -1,6 +1,8 @@
 use chrono::{DateTime, Local};
 
-use crate::base_data::{item::Item, to_do::ToDo, Covering, CoveringUntilDateTime};
+use crate::base_data::{
+    covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, to_do::ToDo,
+};
 
 use super::item_node::{GrowingItemNode, ItemNode};
 
@@ -75,14 +77,14 @@ mod tests {
     use surrealdb::sql::Datetime;
 
     use crate::{
-        base_data::{item::ItemVecExtensions, ItemType},
+        base_data::item::ItemVecExtensions,
         node::to_do_node::create_to_do_nodes,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-            surreal_item::{Responsibility, SurrealItem, SurrealOrderedSubItem},
+            surreal_item::{ItemType, Responsibility, SurrealItem, SurrealOrderedSubItem},
             surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
-            SurrealTables,
+            surreal_tables::SurrealTables,
         },
     };
 

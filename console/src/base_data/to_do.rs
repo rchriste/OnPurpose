@@ -3,7 +3,7 @@ use surrealdb::sql::{Datetime, Thing};
 
 use crate::surrealdb_layer::surreal_item::SurrealItem;
 
-use super::{item::Item, Covering, CoveringUntilDateTime};
+use super::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct ToDo<'a> {

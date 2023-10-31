@@ -1,7 +1,10 @@
 use chrono::{DateTime, Local};
 
 use crate::{
-    base_data::{item::Item, person_or_group::PersonOrGroup, Covering, CoveringUntilDateTime},
+    base_data::{
+        covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item,
+        person_or_group::PersonOrGroup,
+    },
     surrealdb_layer::surreal_item::SurrealItem,
 };
 

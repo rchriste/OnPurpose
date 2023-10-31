@@ -15,7 +15,7 @@ use crate::{
     },
     display::display_person_or_group::DisplayPersonOrGroup,
     new_item::NewItem,
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 enum UnableReason {
@@ -196,7 +196,7 @@ pub(crate) async fn person_or_group_is_not_available(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let items = surreal_tables.make_items();

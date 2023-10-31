@@ -1,6 +1,6 @@
 use surrealdb::sql::Datetime;
 
-use crate::{base_data::ItemType, surrealdb_layer::surreal_item::Responsibility};
+use crate::surrealdb_layer::surreal_item::{ItemType, Responsibility};
 
 pub(crate) struct NewItem {
     pub(crate) summary: String,

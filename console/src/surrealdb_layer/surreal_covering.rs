@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Thing};
 use surrealdb_extra::table::Table;
 
-use crate::base_data::Covering;
+use crate::base_data::covering::Covering;
 
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "coverings")]

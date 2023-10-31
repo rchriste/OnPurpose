@@ -10,7 +10,7 @@ pub(crate) mod systems;
 
 use base_data::item::ItemVecExtensions;
 use inquire::Text;
-use surrealdb_layer::surreal_item::SurrealItem;
+use surrealdb_layer::{surreal_item::SurrealItem, surreal_tables::SurrealTables};
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let items = surreal_tables.make_items();

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::base_data::{item::Item, ItemType};
+use crate::{base_data::item::Item, surrealdb_layer::surreal_item::ItemType};
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
 /// putting that onto the core Item type that should not be tied to specific display or printing logic for a console

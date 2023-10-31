@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.46"
+version = "0.0.47"
 edition = "2021"
 
 [dependencies]
@@ -25,5 +25,7 @@ itertools = "0.11.0"
 #when a stack overflow happens just hard aborts without running a panic handler. So for now if there is a stack overflow you just
 #need to get it into a debugger to get a call stack.
 #backtrace-on-stack-overflow = "0.3.0" 
+
+#I should look into the anyhow crate (suggested for application code like the console app) or thiserror crate (suggested for library code) for errors
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term

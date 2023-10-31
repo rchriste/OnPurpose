@@ -1,11 +1,11 @@
 use surrealdb::sql::{Datetime, Thing};
 
 use crate::surrealdb_layer::{
-    surreal_item::SurrealItem,
+    surreal_item::{ItemType, SurrealItem},
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
 };
 
-use super::{item::Item, Covering, ItemType};
+use super::{covering::Covering, item::Item};
 
 /// Could have a review_type with options for Milestone, StoppingPoint, and ReviewPoint
 #[derive(PartialEq, Eq, Clone, Debug)]

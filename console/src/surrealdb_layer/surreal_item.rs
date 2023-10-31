@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
 use surrealdb_extra::table::Table;
 
-use crate::{
-    base_data::{item::Item, ItemType},
-    new_item::NewItem,
-};
+use crate::{base_data::item::Item, new_item::NewItem};
 
 use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
@@ -21,6 +18,12 @@ pub(crate) struct SurrealItem {
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
+}
+
+impl From<SurrealItem> for Option<Thing> {
+    fn from(value: SurrealItem) -> Self {
+        value.id
+    }
 }
 
 impl SurrealItem {
@@ -56,6 +59,17 @@ impl SurrealItem {
 
         Item::new(self, my_requirements)
     }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum ItemType {
+    #[default]
+    Undeclared,
+    Simple,
+    ToDo, //TODO: Rename to Action
+    Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
+    Motivation,
+    PersonOrGroup,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]

@@ -6,15 +6,16 @@ use surrealdb::{
 };
 
 use crate::surrealdb_layer::{
-    surreal_item::{NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
+    surreal_item::{ItemType, NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{SurrealSpecificToHope, SurrealSpecificToHopes},
 };
 
 use super::{
-    hope::Hope, motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
+    covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
+    motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
     person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, simple::Simple, to_do::ToDo,
-    undeclared::Undeclared, Covering, CoveringUntilDateTime, ItemType,
+    undeclared::Undeclared,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -379,11 +380,59 @@ impl<'b> Item<'b> {
     }
 }
 
+impl Item<'_> {
+    pub(crate) fn find_parents<'a>(
+        &self,
+        linkage: &'a [Covering<'a>],
+        other_items: &'a [&'a Item<'a>],
+        visited: &[&Item<'_>],
+    ) -> Vec<&'a Item<'a>> {
+        let mut result: Vec<&'a Item<'a>> = linkage
+            .iter()
+            .filter_map(|x| {
+                if x.smaller == self && !visited.contains(&x.parent) {
+                    Some(x.parent)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        result.extend(other_items.iter().filter_map(|other_item| {
+            if other_item.is_this_a_smaller_item(self) {
+                Some(*other_item)
+            } else {
+                None
+            }
+        }));
+        result
+    }
+
+    pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
+        self.surreal_item
+            .smaller_items_in_priority_order
+            .iter()
+            .any(|x| match x {
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                    other_item
+                        .surreal_item
+                        .id
+                        .as_ref()
+                        .expect("Should always be in DB")
+                        == surreal_item_id
+                }
+                SurrealOrderedSubItem::Split { shared_priority: _ } => {
+                    todo!("Implement this now that this variant is more than a placeholder")
+                }
+            })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::surrealdb_layer::{
         surreal_item::SurrealOrderedSubItem, surreal_required_circumstance::CircumstanceType,
-        SurrealTables,
+        surreal_tables::SurrealTables,
     };
 
     use super::*;

@@ -11,7 +11,7 @@ use crate::{
         item::{Item, ItemVecExtensions},
         to_do::ToDo,
     },
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     UnexpectedNextMenuAction,
 };
 
@@ -222,7 +222,7 @@ async fn cover_with_existing_waiting_for_question(
     item_to_cover: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let raw_current_items = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let raw_current_items = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 

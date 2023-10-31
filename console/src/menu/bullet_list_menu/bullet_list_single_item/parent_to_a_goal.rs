@@ -2,21 +2,22 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        item::{Item, ItemVecExtensions},
-        ItemType,
-    },
+    base_data::item::{Item, ItemVecExtensions},
     display::display_item::DisplayItem,
     menu::bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
     new_item,
-    surrealdb_layer::{surreal_item::Responsibility, DataLayerCommands},
+    surrealdb_layer::{
+        surreal_item::{ItemType, Responsibility},
+        surreal_tables::SurrealTables,
+        DataLayerCommands,
+    },
 };
 
 pub(crate) async fn parent_to_a_goal(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
     let items = surreal_tables.make_items();

@@ -1,5 +1,5 @@
 use crate::{
-    base_data::{item::Item, Covering},
+    base_data::{covering::Covering, item::Item},
     surrealdb_layer::surreal_item::SurrealItem,
 };
 
@@ -102,12 +102,12 @@ mod tests {
     use chrono::DateTime;
 
     use crate::{
-        base_data::{item::ItemVecExtensions, ItemType},
+        base_data::item::ItemVecExtensions,
         node::to_do_node::create_to_do_nodes,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
-            surreal_item::{Responsibility, SurrealItem},
-            SurrealTables,
+            surreal_item::{ItemType, Responsibility, SurrealItem},
+            surreal_tables::SurrealTables,
         },
     };
 

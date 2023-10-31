@@ -17,6 +17,7 @@
         "rocksdb",
         "serde",
         "surrealdb",
+        "thiserror",
         "Ｗｏｒｋ"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false

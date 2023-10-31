@@ -7,15 +7,15 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
+        covering::Covering,
         item::{Item, ItemVecExtensions},
-        Covering,
     },
     change_routine::change_routine,
     display::display_item::DisplayItem,
     mentally_resident::view_hopes,
     menu::bullet_list_menu::present_unfocused_bullet_list_menu,
     new_item::NewItem,
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 enum TopMenuSelection {
@@ -162,7 +162,7 @@ impl<'e> DebugViewItem<'e> {
 }
 
 async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 

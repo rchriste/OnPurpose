@@ -2,9 +2,11 @@ pub(crate) mod surreal_covering;
 pub(crate) mod surreal_covering_until_date_time;
 pub(crate) mod surreal_item;
 pub(crate) mod surreal_life_area;
+pub(crate) mod surreal_processed_text;
 pub(crate) mod surreal_required_circumstance;
 pub(crate) mod surreal_routine;
 pub(crate) mod surreal_specific_to_hope;
+pub(crate) mod surreal_tables;
 
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
@@ -19,85 +21,23 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::{
-    base_data::{
-        item::{Item, ItemVecExtensions},
-        life_area::LifeArea,
-        routine::Routine,
-        Covering, CoveringUntilDateTime, ItemType, ProcessedText,
-    },
-    new_item::NewItem,
-    surrealdb_layer::surreal_item::SurrealItemOldVersion,
-};
+use crate::{new_item::NewItem, surrealdb_layer::surreal_item::SurrealItemOldVersion};
 
 use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-    surreal_item::{NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
+    surreal_item::{ItemType, NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
     surreal_life_area::SurrealLifeArea,
+    surreal_processed_text::SurrealProcessedText,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
     surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
+    surreal_tables::SurrealTables,
 };
-
-#[derive(Debug)]
-pub(crate) struct SurrealTables {
-    pub(crate) surreal_items: Vec<SurrealItem>,
-    pub(crate) surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
-    pub(crate) surreal_coverings: Vec<SurrealCovering>,
-    pub(crate) surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
-    pub(crate) surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
-    pub(crate) surreal_life_areas: Vec<SurrealLifeArea>,
-    pub(crate) surreal_routines: Vec<SurrealRoutine>,
-}
-
-impl SurrealTables {
-    pub(crate) fn make_items(&self) -> Vec<Item<'_>> {
-        self.surreal_items
-            .iter()
-            .map(|x| x.make_item(&self.surreal_required_circumstances))
-            .collect()
-    }
-
-    pub(crate) fn make_coverings<'a>(&'a self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
-        self.surreal_coverings
-            .iter()
-            .map(|x| Covering {
-                smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
-                parent: items.lookup_from_record_id(&x.parent).unwrap(),
-                surreal_covering: x,
-            })
-            .collect()
-    }
-
-    pub(crate) fn make_coverings_until_date_time<'a>(
-        &'a self,
-        items: &'a [Item<'a>],
-    ) -> Vec<CoveringUntilDateTime<'a>> {
-        self.surreal_coverings_until_date_time
-            .iter()
-            .map(|x| {
-                let until_utc: DateTime<Utc> = x.until.clone().into();
-                CoveringUntilDateTime {
-                    cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
-                    until: until_utc.into(),
-                }
-            })
-            .collect()
-    }
-
-    pub(crate) fn make_life_areas(&self) -> Vec<LifeArea<'_>> {
-        self.surreal_life_areas.iter().map(LifeArea::new).collect()
-    }
-
-    pub(crate) fn make_routines(&self) -> Vec<Routine<'_>> {
-        self.surreal_routines.iter().map(Routine::new).collect()
-    }
-}
 
 pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
-    SendProcessedText(SurrealItem, oneshot::Sender<Vec<ProcessedText>>),
+    SendProcessedText(SurrealItem, oneshot::Sender<Vec<SurrealProcessedText>>),
     AddProcessedText(String, SurrealItem),
     FinishItem(SurrealItem),
     NewItem(NewItem),
@@ -145,7 +85,7 @@ impl DataLayerCommands {
     pub(crate) async fn get_processed_text(
         sender: &Sender<DataLayerCommands>,
         for_item: SurrealItem,
-    ) -> Result<Vec<ProcessedText>, RecvError> {
+    ) -> Result<Vec<SurrealProcessedText>, RecvError> {
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
         sender
             .send(DataLayerCommands::SendProcessedText(
@@ -310,7 +250,7 @@ pub(crate) async fn add_processed_text(
     db: &Surreal<Any>,
 ) {
     let for_item: Option<Thing> = for_item.into();
-    let data = ProcessedText {
+    let data = SurrealProcessedText {
         id: None,
         text: processed_text,
         when_written: Local::now().naive_utc().and_utc().into(),
@@ -321,7 +261,7 @@ pub(crate) async fn add_processed_text(
 
 pub(crate) async fn send_processed_text(
     for_item: SurrealItem,
-    send_response_here: oneshot::Sender<Vec<ProcessedText>>,
+    send_response_here: oneshot::Sender<Vec<SurrealProcessedText>>,
     db: &Surreal<Any>,
 ) {
     let mut query_result = db
@@ -330,7 +270,7 @@ pub(crate) async fn send_processed_text(
         .await
         .unwrap();
 
-    let processed_text: Vec<ProcessedText> = query_result.take(0).unwrap();
+    let processed_text: Vec<SurrealProcessedText> = query_result.take(0).unwrap();
 
     send_response_here.send(processed_text).unwrap();
 }
@@ -583,7 +523,7 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert!(surreal_tables.surreal_items.is_empty());
         assert!(surreal_tables.surreal_coverings.is_empty());
@@ -606,7 +546,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(surreal_tables.surreal_items.len(), 1);
         assert_eq!(
@@ -631,7 +571,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         let item = surreal_tables.surreal_items.first().unwrap();
         let processed_text = DataLayerCommands::get_processed_text(&sender, item.clone())
@@ -681,7 +621,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
         let items = surreal_tables.make_items();
 
         assert_eq!(items.len(), 1);
@@ -694,7 +634,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
         let items = surreal_tables.make_items();
 
         assert_eq!(items.len(), 1);
@@ -718,7 +658,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
@@ -739,7 +679,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
         assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
@@ -780,7 +720,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
@@ -794,7 +734,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
         assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
@@ -834,7 +774,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
@@ -848,7 +788,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
         assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
@@ -888,7 +828,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert!(surreal_tables.surreal_coverings_until_date_time.is_empty());
@@ -902,7 +842,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(1, surreal_tables.surreal_coverings_until_date_time.len());
@@ -948,7 +888,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert!(surreal_tables.surreal_required_circumstances.is_empty());
@@ -960,7 +900,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(1, surreal_tables.surreal_required_circumstances.len());
@@ -1003,7 +943,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(1, surreal_tables.surreal_items.len());
 
@@ -1020,7 +960,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
         assert_eq!(
@@ -1077,7 +1017,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
 
@@ -1099,7 +1039,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = DataLayerCommands::get_raw_data(&sender).await.unwrap();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert_eq!(2, surreal_tables.surreal_items.len());
         assert_eq!(

@@ -6,15 +6,16 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
+        covering::Covering,
         hope::Hope,
         item::{Item, ItemVecExtensions},
-        Covering,
     },
     menu::bullet_list_menu::bullet_list_single_item::cover_with_item,
     menu::top_menu::present_top_menu,
     surrealdb_layer::{
         surreal_item::SurrealItem,
         surreal_specific_to_hope::{Permanence, Staging},
+        surreal_tables::SurrealTables,
         DataLayerCommands,
     },
     update_item_summary,
@@ -214,7 +215,7 @@ pub(crate) async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerComm
 pub(crate) async fn view_mentally_resident_project_hopes(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 
@@ -290,7 +291,7 @@ impl<'a> MaintenanceHopeItem<'a> {
 
 #[async_recursion]
 pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 

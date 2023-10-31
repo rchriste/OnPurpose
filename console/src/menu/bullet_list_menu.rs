@@ -25,7 +25,7 @@ use crate::{
         person_or_group_node::{create_person_or_group_nodes, PersonOrGroupNode},
         to_do_node::{create_to_do_nodes, ToDoNode},
     },
-    surrealdb_layer::DataLayerCommands,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 use self::bullet_list_single_item::{
@@ -169,7 +169,7 @@ impl<'a> InquireBulletListItem<'a> {
 pub(crate) async fn present_unfocused_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 
@@ -277,7 +277,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
 }
 
 async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
 

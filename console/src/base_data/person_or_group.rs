@@ -1,8 +1,8 @@
 use chrono::{DateTime, Local};
 
-use crate::{base_data::ItemType, surrealdb_layer::surreal_item::SurrealItem};
+use crate::surrealdb_layer::surreal_item::{ItemType, SurrealItem};
 
-use super::{item::Item, Covering, CoveringUntilDateTime};
+use super::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item};
 
 pub(crate) struct PersonOrGroup<'s> {
     item: &'s Item<'s>,
