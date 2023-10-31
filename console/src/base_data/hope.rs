@@ -90,8 +90,12 @@ impl<'a> Hope<'a> {
         covered_by.any(|x| !x.smaller.is_finished())
     }
 
-    pub(crate) fn covered_by(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
-        self.item.covered_by(coverings)
+    pub(crate) fn covered_by(
+        &self,
+        coverings: &[Covering<'a>],
+        all_items: &'a [&Item<'a>],
+    ) -> Vec<&'a Item<'a>> {
+        self.item.covered_by(coverings, all_items)
     }
 
     pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {

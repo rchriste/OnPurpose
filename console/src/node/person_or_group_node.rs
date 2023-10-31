@@ -50,7 +50,7 @@ pub(crate) fn create_person_or_group_nodes<'s>(
     create_nodes_from
         .iter()
         .filter_map(|x| {
-            if !x.is_covered(coverings, coverings_until_date_time, current_date)
+            if !x.is_covered(coverings, coverings_until_date_time, items, current_date)
                 && !x.is_finished()
                 && x.is_circumstances_met(current_date, currently_in_focus_time)
             {

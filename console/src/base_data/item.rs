@@ -1,11 +1,12 @@
 use chrono::{DateTime, Datelike, Local};
+use itertools::chain;
 use surrealdb::{
     opt::RecordId,
     sql::{Datetime, Thing},
 };
 
 use crate::surrealdb_layer::{
-    surreal_item::{NotesLocation, Responsibility, SurrealItem},
+    surreal_item::{NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_specific_to_hope::{SurrealSpecificToHope, SurrealSpecificToHopes},
 };
@@ -274,23 +275,39 @@ impl<'b> Item<'b> {
         &self,
         coverings: &[Covering<'_>],
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        all_items: &[&Item<'_>],
         now: &DateTime<Local>,
     ) -> bool {
-        self.is_covered_by_another_item(coverings)
+        self.has_children(all_items)
+            || self.is_covered_by_another_item(coverings)
             || self.is_covered_by_date_time(coverings_until_date_time, now)
     }
 
-    pub(crate) fn covered_by<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
-        coverings
-            .iter()
-            .filter_map(|x| {
+    pub(crate) fn covered_by<'a>(
+        &self,
+        coverings: &[Covering<'a>],
+        all_items: &'a [&Item<'a>],
+    ) -> Vec<&'a Item<'a>> {
+        chain!(
+            coverings.iter().filter_map(|x| {
                 if x.parent == self && !x.smaller.is_finished() {
                     Some(x.smaller)
                 } else {
                     None
                 }
-            })
-            .collect()
+            }),
+            self.surreal_item
+                .smaller_items_in_priority_order
+                .iter()
+                .filter_map(|x| match x {
+                    SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
+                        .iter()
+                        .copied()
+                        .find(|x| x.id == surreal_item_id && !x.is_finished()),
+                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
+                })
+        )
+        .collect()
     }
 
     pub(crate) fn who_am_i_covering<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
@@ -344,8 +361,17 @@ impl<'b> Item<'b> {
         todo!("I need to ensure that we are storing this data with an Item and then I can implement this method")
     }
 
-    pub(crate) fn has_children(&self) -> bool {
-        !self.surreal_item.smaller_items_in_priority_order.is_empty()
+    pub(crate) fn has_children(&self, all_items: &[&Item<'_>]) -> bool {
+        self.surreal_item
+            .smaller_items_in_priority_order
+            .iter()
+            .any(|x| match x {
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
+                    .iter()
+                    .find(|x| x.id == surreal_item_id)
+                    .is_some_and(|x| !x.is_finished()),
+                SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
+            })
     }
 
     pub(crate) fn is_there_notes(&self) -> bool {
@@ -522,6 +548,97 @@ mod tests {
         assert_eq!(
             find_results.first().expect("checked in assert above").id,
             parent_item.id.as_ref().expect("set above")
+        );
+    }
+
+    #[test]
+    fn when_active_smaller_items_in_priority_order_exist_has_children_returns_true() {
+        let smaller_item = SurrealItem {
+            id: Some(("surreal_item", "1").into()),
+            summary: "Smaller item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
+            responsibility: Responsibility::default(),
+            notes_location: Default::default(),
+        };
+        let parent_item = SurrealItem {
+            id: Some(("surreal_item", "2").into()),
+            summary: "Parent item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
+            }],
+            responsibility: Responsibility::default(),
+            notes_location: Default::default(),
+        };
+        let surreal_tables = SurrealTables {
+            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
+        };
+        let items: Vec<Item> = surreal_tables.make_items();
+        let active_items = items.filter_active_items();
+
+        let under_test_parent_item = items
+            .iter()
+            .find(|x| parent_item.id.as_ref().unwrap() == x.id)
+            .unwrap();
+
+        assert!(under_test_parent_item.has_children(&active_items));
+    }
+
+    #[test]
+    fn when_active_smaller_items_in_priority_order_exist_covered_by_returns_the_items() {
+        let smaller_item = SurrealItem {
+            id: Some(("surreal_item", "1").into()),
+            summary: "Smaller item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![],
+            responsibility: Responsibility::default(),
+            notes_location: Default::default(),
+        };
+        let parent_item = SurrealItem {
+            id: Some(("surreal_item", "2").into()),
+            summary: "Parent item".into(),
+            finished: None,
+            item_type: ItemType::ToDo,
+            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
+            }],
+            responsibility: Responsibility::default(),
+            notes_location: Default::default(),
+        };
+        let surreal_tables = SurrealTables {
+            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
+            surreal_specific_to_hopes: vec![],
+            surreal_coverings: vec![],
+            surreal_required_circumstances: vec![],
+            surreal_coverings_until_date_time: vec![],
+            surreal_life_areas: vec![],
+            surreal_routines: vec![],
+        };
+        let items: Vec<Item> = surreal_tables.make_items();
+        let active_items = items.filter_active_items();
+        let coverings = surreal_tables.make_coverings(&items);
+
+        let under_test_parent_item = items
+            .iter()
+            .find(|x| parent_item.id.as_ref().unwrap() == x.id)
+            .unwrap();
+
+        let covered_by = under_test_parent_item.covered_by(&coverings, &active_items);
+
+        assert_eq!(covered_by.len(), 1);
+        assert_eq!(
+            covered_by.first().expect("checked in assert above").id,
+            smaller_item.id.as_ref().expect("set above")
         );
     }
 }

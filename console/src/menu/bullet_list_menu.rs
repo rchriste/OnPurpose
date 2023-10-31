@@ -194,7 +194,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         .into_iter()
         .filter(|x| x.is_mentally_resident() && x.is_project())
         .collect();
-    let hope_nodes = create_hope_nodes(&mentally_resident_hopes, &coverings);
+    let hope_nodes = create_hope_nodes(&mentally_resident_hopes, &coverings, &active_items);
     let hope_nodes_needing_a_next_step: Vec<HopeNode<'_>> = hope_nodes
         .into_iter()
         .filter(|x| x.next_steps.is_empty())
@@ -238,6 +238,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_bullet_list_item_selected(
                     to_do.get_item(),
                     &parents,
+                    &active_items,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -256,6 +257,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_bullet_list_item_selected(
                     undeclared.get_item(),
                     &[],
+                    &active_items,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -321,6 +323,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                 present_bullet_list_item_selected(
                     to_do.get_item(),
                     &parents,
+                    &active_items,
                     send_to_data_storage_layer,
                 )
                 .await

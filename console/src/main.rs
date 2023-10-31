@@ -80,17 +80,17 @@ async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLay
     let items = surreal_tables.make_items();
     let coverings = surreal_tables.make_coverings(&items);
     let active_items = items.filter_active_items();
-    for item in active_items {
-        if item.has_children() {
+    for item in active_items.iter() {
+        if item.has_children(&active_items) {
             continue;
         }
         let items_covered = item.get_covering_another_item(&coverings);
         if items_covered.len() == 1 {
             let item_covered = items_covered[0];
-            assert!(item_covered != item); //Make sure the code is correct and I don't have the same item covering itself
+            assert!(item_covered != *item); //Make sure the code is correct and I don't have the same item covering itself
             let these_coverings = coverings
                 .iter()
-                .filter(|x| x.parent == item_covered && x.smaller == item)
+                .filter(|x| x.parent == item_covered && x.smaller == *item)
                 .collect::<Vec<_>>();
             assert!(!these_coverings.is_empty()); //Make sure the code is correct and I have the order right to find the covering
             assert!(these_coverings.len() == 1); //Make sure the code is correct and I don't have the same item covering itself

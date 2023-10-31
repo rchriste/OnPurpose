@@ -20,6 +20,7 @@ pub(crate) async fn parent_to_a_goal(
         .await
         .unwrap();
     let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
     let goals = items.filter_just_hopes(&surreal_tables.surreal_specific_to_hopes);
     let list = goals
         .iter()
@@ -30,7 +31,7 @@ pub(crate) async fn parent_to_a_goal(
     match selection {
         Ok(parent) => {
             let parent: &Item<'_> = parent.into();
-            if parent.has_children() {
+            if parent.has_children(&active_items) {
                 todo!("I need to pick a priority for this item among the children of the parent");
             } else {
                 send_to_data_storage_layer

@@ -70,10 +70,11 @@ impl<'a> ToDo<'a> {
         &self,
         coverings: &[Covering<'_>],
         coverings_until_date_time: &[CoveringUntilDateTime<'_>],
+        all_items: &[&Item<'_>],
         now: &DateTime<Local>,
     ) -> bool {
         self.item
-            .is_covered(coverings, coverings_until_date_time, now)
+            .is_covered(coverings, coverings_until_date_time, all_items, now)
     }
 
     pub(crate) fn is_finished(&self) -> bool {

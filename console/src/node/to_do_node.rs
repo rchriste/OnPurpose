@@ -51,8 +51,12 @@ pub(crate) fn create_to_do_nodes<'a>(
     next_steps
         .iter()
         .filter_map(|x| {
-            if !x.is_covered(coverings, coverings_until_date_time, current_date)
-                && !x.is_finished()
+            if !x.is_covered(
+                coverings,
+                coverings_until_date_time,
+                possible_parents,
+                current_date,
+            ) && !x.is_finished()
                 && x.is_circumstances_met(current_date, currently_in_focus_time)
             {
                 Some(ToDoNode::new(x, coverings, possible_parents))

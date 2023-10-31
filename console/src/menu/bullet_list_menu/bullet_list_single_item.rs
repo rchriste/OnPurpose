@@ -138,7 +138,11 @@ impl Display for BulletListSingleItemSelection<'_> {
 }
 
 impl<'e> BulletListSingleItemSelection<'e> {
-    fn create_list(item: &'e Item<'e>, parent_items: &[&'e Item<'e>]) -> Vec<Self> {
+    fn create_list(
+        item: &'e Item<'e>,
+        parent_items: &[&'e Item<'e>],
+        all_items: &[&Item<'_>],
+    ) -> Vec<Self> {
         let mut list = Vec::default();
 
         if item.is_type_action() && parent_items.is_empty() {
@@ -170,7 +174,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
 
-        if item.is_type_action() || item.is_type_hope() && !item.has_children() {
+        if item.is_type_action() || item.is_type_hope() && !item.has_children(all_items) {
             list.push(Self::StateASmallerNextStep);
         }
 
@@ -204,9 +208,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
         }
 
-
         if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
-            if item.has_children() {
+            if item.has_children(all_items) {
                 list.push(Self::UpdateChildActions);
             } else {
                 list.push(Self::DefineChildActions);
@@ -214,7 +217,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if item.is_type_motivation() {
-            if item.has_children() {
+            if item.has_children(all_items) {
                 list.push(Self::UpdateChildHopes);
             } else {
                 list.push(Self::DefineChildHopes);
@@ -222,7 +225,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if item.is_type_hope() {
-            if item.has_children() {
+            if item.has_children(all_items) {
                 list.push(Self::UpdateMilestones);
             } else {
                 list.push(Self::DefineMilestones);
@@ -279,9 +282,10 @@ impl<'e> BulletListSingleItemSelection<'e> {
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &Item<'_>, //TODO: This should take an Item and the other functions that take a Hope should be folded into this
     parents: &[&Item<'_>],
+    all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list(menu_for, parents);
+    let list = BulletListSingleItemSelection::create_list(menu_for, parents, all_items);
 
     let selection = Select::new("", list).with_page_size(14).prompt();
 
@@ -394,8 +398,13 @@ pub(crate) async fn present_bullet_list_item_selected(
             match r {
                 Ok(()) => (),
                 Err(UnexpectedNextMenuAction::Back) => {
-                    present_bullet_list_item_selected(menu_for, parents, send_to_data_storage_layer)
-                        .await
+                    present_bullet_list_item_selected(
+                        menu_for,
+                        parents,
+                        all_items,
+                        send_to_data_storage_layer,
+                    )
+                    .await
                 }
                 Err(UnexpectedNextMenuAction::Close) => todo!(),
             }
@@ -464,6 +473,7 @@ async fn present_bullet_list_item_parent_selected(
             present_bullet_list_item_selected(
                 selected_item,
                 &parents,
+                &active_items,
                 send_to_data_storage_layer,
             )
             .await

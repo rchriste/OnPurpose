@@ -72,12 +72,13 @@ impl<'a> ProjectHopeItem<'a> {
 pub(crate) fn create_hope_nodes<'a>(
     hopes: &'a [Hope<'a>],
     coverings: &[Covering<'a>],
+    all_items: &'a [&Item<'_>],
 ) -> Vec<HopeNode<'a>> {
     hopes
         .iter()
         .filter_map(|x| {
             if !x.is_covered_by_another_hope(coverings) && !x.is_finished() {
-                Some(create_hope_node(x, coverings))
+                Some(create_hope_node(x, coverings, all_items))
             } else {
                 None
             }
@@ -85,21 +86,29 @@ pub(crate) fn create_hope_nodes<'a>(
         .collect()
 }
 
-fn create_hope_node<'a>(hope: &'a Hope<'a>, coverings: &[Covering<'a>]) -> HopeNode<'a> {
+fn create_hope_node<'a>(
+    hope: &'a Hope<'a>,
+    coverings: &[Covering<'a>],
+    all_items: &'a [&Item<'_>],
+) -> HopeNode<'a> {
     HopeNode {
         hope,
-        next_steps: calculate_next_steps(hope, coverings),
+        next_steps: calculate_next_steps(hope, coverings, all_items),
         towards_motivation_chain: build_towards_motivation_chain(hope.get_item(), coverings),
     }
 }
 
-fn calculate_next_steps<'a>(hope: &Hope<'a>, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
-    let covered_by = hope.covered_by(coverings);
+fn calculate_next_steps<'a>(
+    hope: &Hope<'a>,
+    coverings: &[Covering<'a>],
+    all_items: &'a [&Item<'a>],
+) -> Vec<&'a Item<'a>> {
+    let covered_by = hope.covered_by(coverings, all_items);
     covered_by
         .into_iter()
         .flat_map(|x| {
             let mut covered_by = vec![x];
-            covered_by.extend(x.covered_by(coverings));
+            covered_by.extend(x.covered_by(coverings, all_items));
             covered_by
         })
         .collect()
@@ -210,6 +219,7 @@ pub(crate) async fn view_mentally_resident_project_hopes(
         .unwrap();
 
     let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
     let coverings = surreal_tables.make_coverings(&items);
 
     let hopes: Vec<Hope<'_>> = items
@@ -217,7 +227,7 @@ pub(crate) async fn view_mentally_resident_project_hopes(
         .into_iter()
         .filter(|x| x.is_project() && x.is_mentally_resident())
         .collect();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings)
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings, &active_items)
         .into_iter()
         .filter(|x| x.is_project())
         .collect();
@@ -285,6 +295,7 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
         .unwrap();
 
     let items = surreal_tables.make_items();
+    let active_items = items.filter_active_items();
     let coverings = surreal_tables.make_coverings(&items);
 
     let hopes: Vec<Hope<'_>> = items
@@ -292,7 +303,7 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
         .into_iter()
         .filter(|x| x.is_maintenance())
         .collect();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings)
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings, &active_items)
         .into_iter()
         .filter(|x| x.is_maintenance())
         .collect();

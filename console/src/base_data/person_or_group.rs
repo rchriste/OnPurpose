@@ -40,10 +40,11 @@ impl<'s> PersonOrGroup<'s> {
         &'s self,
         coverings: &'s [Covering<'s>],
         coverings_until_date_time: &'s [CoveringUntilDateTime<'s>],
+        all_items: &'s [&'s Item<'s>],
         now: &DateTime<Local>,
     ) -> bool {
         self.item
-            .is_covered(coverings, coverings_until_date_time, now)
+            .is_covered(coverings, coverings_until_date_time, all_items, now)
     }
 
     pub(crate) fn is_finished(&self) -> bool {
