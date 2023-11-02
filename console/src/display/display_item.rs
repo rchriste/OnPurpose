@@ -46,7 +46,7 @@ impl<'s> DisplayItem<'s> {
         DisplayItem { item }
     }
 
-    pub(crate) fn make_list(items: &'s [Item<'s>]) -> Vec<Self> {
-        items.iter().map(DisplayItem::new).collect()
+    pub(crate) fn make_list(items: &'s [&'s Item<'s>]) -> Vec<Self> {
+        items.iter().map(|x| DisplayItem::new(x)).collect()
     }
 }

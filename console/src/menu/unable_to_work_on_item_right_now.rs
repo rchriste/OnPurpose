@@ -12,6 +12,7 @@ use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
         person_or_group::PersonOrGroup,
+        BaseData,
     },
     display::display_person_or_group::DisplayPersonOrGroup,
     new_item::NewItem,
@@ -199,7 +200,8 @@ pub(crate) async fn person_or_group_is_not_available(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let items = surreal_tables.make_items();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let items = base_data.get_items();
     let persons_or_groups = items.filter_just_persons_or_groups();
     let list = PersonOrGroupSelection::make_list(&persons_or_groups);
 

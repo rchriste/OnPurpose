@@ -2,7 +2,7 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::item::{Item, ItemVecExtensions},
+    base_data::{item::Item, BaseData},
     display::display_item::DisplayItem,
     menu::bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
     new_item,
@@ -20,9 +20,9 @@ pub(crate) async fn parent_to_a_goal(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let goals = items.filter_just_hopes(&surreal_tables.surreal_specific_to_hopes);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let active_items = base_data.get_active_items();
+    let goals = base_data.get_just_hopes();
     let list = goals
         .iter()
         .map(|x| DisplayItem::new(x.get_item()))
@@ -32,7 +32,7 @@ pub(crate) async fn parent_to_a_goal(
     match selection {
         Ok(parent) => {
             let parent: &Item<'_> = parent.into();
-            if parent.has_children(&active_items) {
+            if parent.has_children(active_items) {
                 todo!("I need to pick a priority for this item among the children of the parent");
             } else {
                 send_to_data_storage_layer

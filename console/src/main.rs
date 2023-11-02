@@ -8,7 +8,7 @@ mod node;
 mod surrealdb_layer;
 pub(crate) mod systems;
 
-use base_data::item::ItemVecExtensions;
+use base_data::BaseData;
 use inquire::Text;
 use surrealdb_layer::{surreal_item::SurrealItem, surreal_tables::SurrealTables};
 use tokio::sync::mpsc::{self, Sender};
@@ -77,14 +77,14 @@ async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLay
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let items = surreal_tables.make_items();
-    let coverings = surreal_tables.make_coverings(&items);
-    let active_items = items.filter_active_items();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let coverings = base_data.get_coverings();
+    let active_items = base_data.get_active_items();
     for item in active_items.iter() {
-        if item.has_children(&active_items) {
+        if item.has_children(active_items) {
             continue;
         }
-        let items_covered = item.get_covering_another_item(&coverings);
+        let items_covered = item.get_covering_another_item(coverings);
         if items_covered.len() == 1 {
             let item_covered = items_covered.into_iter().next().unwrap();
             assert!(item_covered != *item); //Make sure the code is correct and I don't have the same item covering itself

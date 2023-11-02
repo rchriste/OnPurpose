@@ -5,7 +5,7 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{life_area::LifeArea, routine::Routine},
+    base_data::{life_area::LifeArea, routine::Routine, BaseData},
     menu::top_menu::present_top_menu,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
@@ -50,9 +50,10 @@ pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayer
     let raw_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let life_areas = raw_tables.make_life_areas();
-    let routines = raw_tables.make_routines();
-    let list = LifeAreaItem::make_list(&routines, &life_areas);
+    let base_data = BaseData::new_from_surreal_tables(raw_tables);
+    let life_areas = base_data.get_life_areas();
+    let routines = base_data.get_routines();
+    let list = LifeAreaItem::make_list(routines, life_areas);
 
     let selection = Select::new("", list).prompt();
 

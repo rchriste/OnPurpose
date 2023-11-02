@@ -6,10 +6,7 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        covering::Covering,
-        item::{Item, ItemVecExtensions},
-    },
+    base_data::{item::Item, BaseData},
     change_routine::change_routine,
     display::display_item::DisplayItem,
     mentally_resident::view_hopes,
@@ -166,12 +163,12 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
         .await
         .unwrap();
 
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let covering: Vec<Covering> = surreal_tables.make_coverings(&items);
-    let covering_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let active_items = base_data.get_active_items();
+    let covering = base_data.get_coverings();
+    let covering_until_date_time = base_data.get_coverings_until_date_time();
 
-    let list = DebugViewItem::make_list(&active_items);
+    let list = DebugViewItem::make_list(active_items);
 
     let selection = Select::new("Select an item to show the debug view of...", list).prompt();
     match selection {
@@ -179,15 +176,15 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
             let item: &Item = item.item;
             println!("{:#?}", item);
 
-            let covered_by = item.get_covered_by_another_item(&covering);
+            let covered_by = item.get_covered_by_another_item(covering);
             println!("Covered by: {:#?}", covered_by);
 
-            let cover_others = item.get_covering_another_item(&covering);
+            let cover_others = item.get_covering_another_item(covering);
             println!("Covering others: {:#?}", cover_others);
 
             let now = Local::now();
             let covered_by_date_time =
-                item.get_covered_by_date_time(&covering_until_date_time, &now);
+                item.get_covered_by_date_time(covering_until_date_time, &now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,

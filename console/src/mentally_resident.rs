@@ -6,11 +6,7 @@ use itertools::chain;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        covering::Covering,
-        hope::Hope,
-        item::{Item, ItemVecExtensions},
-    },
+    base_data::{covering::Covering, hope::Hope, item::Item, BaseData},
     menu::bullet_list_menu::bullet_list_single_item::cover_with_item,
     menu::top_menu::present_top_menu,
     node::hope_node::HopeNode,
@@ -73,7 +69,7 @@ impl<'a> ProjectHopeItem<'a> {
 }
 
 pub(crate) fn create_hope_nodes<'a>(
-    hopes: &'a [Hope<'a>],
+    hopes: &'a [&'a Hope<'a>],
     coverings: &[Covering<'a>],
     all_items: &'a [&Item<'_>],
 ) -> Vec<HopeNode<'a>> {
@@ -189,16 +185,16 @@ pub(crate) async fn view_mentally_resident_project_hopes(
         .await
         .unwrap();
 
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let coverings = surreal_tables.make_coverings(&items);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let active_items = base_data.get_active_items();
+    let coverings = base_data.get_coverings();
 
-    let hopes: Vec<Hope<'_>> = items
-        .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
-        .into_iter()
+    let hopes = base_data
+        .get_just_hopes()
+        .iter()
         .filter(|x| x.is_project() && x.is_mentally_resident())
-        .collect();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings, &active_items)
+        .collect::<Vec<_>>();
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items)
         .into_iter()
         .filter(|x| x.is_project())
         .collect();
@@ -265,16 +261,16 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
         .await
         .unwrap();
 
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let coverings = surreal_tables.make_coverings(&items);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let active_items = base_data.get_active_items();
+    let coverings = base_data.get_coverings();
 
-    let hopes: Vec<Hope<'_>> = items
-        .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
-        .into_iter()
+    let hopes = base_data
+        .get_just_hopes()
+        .iter()
         .filter(|x| x.is_maintenance())
-        .collect();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, &coverings, &active_items)
+        .collect::<Vec<_>>();
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items)
         .into_iter()
         .filter(|x| x.is_maintenance())
         .collect();

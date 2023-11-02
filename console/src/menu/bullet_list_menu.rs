@@ -15,6 +15,7 @@ use crate::{
         simple::{self, Simple},
         to_do::ToDo,
         undeclared::Undeclared,
+        BaseData,
     },
     display::display_item::DisplayItem,
     mentally_resident::{create_hope_nodes, present_mentally_resident_hope_selected_menu},
@@ -172,28 +173,30 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         .await
         .unwrap();
 
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let coverings = surreal_tables.make_coverings(&items);
-    let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+
+    let items = base_data.get_items();
+    let active_items = base_data.get_active_items();
+    let coverings = base_data.get_coverings();
+    let coverings_until_date_time = base_data.get_coverings_until_date_time();
 
     let to_dos = &items.filter_just_to_dos();
     let current_date_time = Local::now();
     let next_step_nodes = create_to_do_nodes(
         to_dos,
-        &coverings,
-        &coverings_until_date_time,
-        &active_items,
+        coverings,
+        coverings_until_date_time,
+        active_items,
         &current_date_time,
         false,
     );
 
-    let mentally_resident_hopes: Vec<Hope<'_>> = items
-        .filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
-        .into_iter()
+    let mentally_resident_hopes = base_data
+        .get_just_hopes()
+        .iter()
         .filter(|x| x.is_mentally_resident() && x.is_project())
-        .collect();
-    let hope_nodes = create_hope_nodes(&mentally_resident_hopes, &coverings, &active_items);
+        .collect::<Vec<_>>();
+    let hope_nodes = create_hope_nodes(&mentally_resident_hopes, coverings, active_items);
     let hope_nodes_needing_a_next_step: Vec<HopeNode<'_>> = hope_nodes
         .into_iter()
         .filter(|x| x.next_steps.is_empty())
@@ -201,13 +204,13 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     let persons_or_groups = items.filter_just_persons_or_groups();
     let person_or_groups_that_cover_an_item: Vec<PersonOrGroup> = persons_or_groups
         .into_iter()
-        .filter(|x| x.is_covering_another_item(&coverings))
+        .filter(|x| x.is_covering_another_item(coverings))
         .collect();
     let person_or_group_nodes_that_cover_an_item = create_person_or_group_nodes(
         &person_or_groups_that_cover_an_item,
-        &coverings,
-        &coverings_until_date_time,
-        &active_items,
+        coverings,
+        coverings_until_date_time,
+        active_items,
         &current_date_time,
         false,
     );
@@ -245,7 +248,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_bullet_list_item_selected(
                     to_do.get_item(),
                     &parents,
-                    &active_items,
+                    active_items,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -264,7 +267,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_bullet_list_item_selected(
                     undeclared.get_item(),
                     &[],
-                    &active_items,
+                    active_items,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -288,18 +291,19 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         .await
         .unwrap();
 
-    let items = surreal_tables.make_items();
-    let active_items = items.filter_active_items();
-    let coverings = surreal_tables.make_coverings(&items);
-    let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let items = base_data.get_items();
+    let active_items = base_data.get_active_items();
+    let coverings = base_data.get_coverings();
+    let coverings_until_date_time = base_data.get_coverings_until_date_time();
 
     let to_dos = &items.filter_just_to_dos();
     let current_date_time = Local::now();
     let next_step_nodes = create_to_do_nodes(
         to_dos,
-        &coverings,
-        &coverings_until_date_time,
-        &active_items,
+        coverings,
+        coverings_until_date_time,
+        active_items,
         &current_date_time,
         true,
     );
@@ -330,7 +334,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                 present_bullet_list_item_selected(
                     to_do.get_item(),
                     &parents,
-                    &active_items,
+                    active_items,
                     send_to_data_storage_layer,
                 )
                 .await

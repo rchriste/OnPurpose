@@ -10,6 +10,7 @@ use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
         to_do::ToDo,
+        BaseData,
     },
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     UnexpectedNextMenuAction,
@@ -226,7 +227,8 @@ async fn cover_with_existing_waiting_for_question(
         .await
         .unwrap();
 
-    let current = raw_current_items.make_items();
+    let base_data = BaseData::new_from_surreal_tables(raw_current_items);
+    let current = base_data.get_items();
     let to_dos = current.filter_just_to_dos();
 
     let list = CoverExistingItem::create_list(to_dos);

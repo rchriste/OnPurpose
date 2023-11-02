@@ -8,7 +8,7 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::item::{Item, ItemVecExtensions},
+    base_data::{item::Item, BaseData},
     display::display_item::DisplayItem,
     menu::{
         bullet_list_menu::bullet_list_single_item::{
@@ -466,15 +466,15 @@ async fn present_bullet_list_item_parent_selected(
             let raw_data = SurrealTables::new(send_to_data_storage_layer)
                 .await
                 .unwrap();
-            let items = raw_data.make_items();
-            let active_items = items.filter_active_items();
-            let coverings = raw_data.make_coverings(&items);
+            let base_data = BaseData::new_from_surreal_tables(raw_data);
+            let active_items = base_data.get_active_items();
+            let coverings = base_data.get_coverings();
             let visited = vec![];
-            let parents = selected_item.find_parents(&coverings, &active_items, &visited);
+            let parents = selected_item.find_parents(coverings, active_items, &visited);
             present_bullet_list_item_selected(
                 selected_item,
                 &parents,
-                &active_items,
+                active_items,
                 send_to_data_storage_layer,
             )
             .await
@@ -493,13 +493,10 @@ async fn parent_to_item(
     let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let items: Vec<Item> = raw_data
-        .make_items()
-        .into_iter()
-        .filter(|x| !x.is_finished())
-        .collect();
+    let base_data = BaseData::new_from_surreal_tables(raw_data);
+    let items = base_data.get_active_items();
 
-    let list = DisplayItem::make_list(&items);
+    let list = DisplayItem::make_list(items);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {
@@ -528,13 +525,10 @@ pub(crate) async fn cover_with_item(
     let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let items: Vec<Item> = raw_data
-        .make_items()
-        .into_iter()
-        .filter(|x| !x.is_finished())
-        .collect();
+    let base_data = BaseData::new_from_surreal_tables(raw_data);
+    let items = base_data.get_active_items();
 
-    let list = DisplayItem::make_list(&items);
+    let list = DisplayItem::make_list(items);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {
