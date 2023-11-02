@@ -86,7 +86,7 @@ async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLay
         }
         let items_covered = item.get_covering_another_item(&coverings);
         if items_covered.len() == 1 {
-            let item_covered = items_covered[0];
+            let item_covered = items_covered.into_iter().next().unwrap();
             assert!(item_covered != *item); //Make sure the code is correct and I don't have the same item covering itself
             let these_coverings = coverings
                 .iter()

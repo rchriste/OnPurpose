@@ -21,7 +21,7 @@ impl<'s> PersonOrGroup<'s> {
     }
 
     pub(crate) fn get_summary(&self) -> &str {
-        self.item.summary
+        self.item.get_summary()
     }
 
     pub(crate) fn get_item(&self) -> &Item<'s> {

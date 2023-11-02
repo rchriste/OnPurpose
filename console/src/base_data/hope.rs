@@ -11,7 +11,7 @@ use super::{covering::Covering, item::Item};
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Hope<'a> {
     pub(crate) id: &'a Thing,
-    pub(crate) summary: &'a String,
+    pub(crate) summary: &'a str,
     pub(crate) finished: &'a Option<Datetime>,
     pub(crate) hope_specific: SurrealSpecificToHope,
     item: &'a Item<'a>,
@@ -57,9 +57,9 @@ impl<'a> Hope<'a> {
     pub(crate) fn new(item: &'a Item, hope_specific: SurrealSpecificToHope) -> Self {
         //TODO: Add assert that it is a hope
         Hope {
-            id: item.id,
-            summary: item.summary,
-            finished: item.finished,
+            id: item.get_id(),
+            summary: item.get_summary(),
+            finished: item.get_finished(),
             hope_specific,
             item,
         }
@@ -99,7 +99,7 @@ impl<'a> Hope<'a> {
     }
 
     pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {
-        self.item.surreal_item
+        self.item.get_surreal_item()
     }
 
     pub(crate) fn get_item(&self) -> &'a Item<'a> {

@@ -324,12 +324,20 @@ impl<'b> Item<'b> {
             .collect()
     }
 
+    pub(crate) fn get_id(&self) -> &'b Thing {
+        self.id
+    }
+
     pub(crate) fn get_surreal_item(&self) -> &'b SurrealItem {
         self.surreal_item
     }
 
     pub(crate) fn get_summary(&self) -> &'b str {
         self.summary
+    }
+
+    pub(crate) fn get_finished(&self) -> &'b Option<Datetime> {
+        self.finished
     }
 
     pub(crate) fn is_type_undeclared(&self) -> bool {
@@ -387,7 +395,8 @@ impl Item<'_> {
         other_items: &'a [&'a Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
-        let mut result: Vec<&'a Item<'a>> = linkage
+        //TODO: Update the below code to use the chain! macros rather than this manual extend thing
+        let mut result = linkage
             .iter()
             .filter_map(|x| {
                 if x.smaller == self && !visited.contains(&x.parent) {
@@ -396,7 +405,7 @@ impl Item<'_> {
                     None
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         result.extend(other_items.iter().filter_map(|other_item| {
             if other_item.is_this_a_smaller_item(self) {

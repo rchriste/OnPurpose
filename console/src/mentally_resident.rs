@@ -1,7 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, iter::once};
 
 use async_recursion::async_recursion;
 use inquire::{Editor, InquireError, Select, Text};
+use itertools::chain;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
     },
     menu::bullet_list_menu::bullet_list_single_item::cover_with_item,
     menu::top_menu::present_top_menu,
+    node::hope_node::HopeNode,
     surrealdb_layer::{
         surreal_item::SurrealItem,
         surreal_specific_to_hope::{Permanence, Staging},
@@ -107,11 +109,7 @@ fn calculate_next_steps<'a>(
     let covered_by = hope.covered_by(coverings, all_items);
     covered_by
         .into_iter()
-        .flat_map(|x| {
-            let mut covered_by = vec![x];
-            covered_by.extend(x.covered_by(coverings, all_items));
-            covered_by
-        })
+        .flat_map(|x| chain!(once(x), x.covered_by(coverings, all_items)))
         .collect()
 }
 
@@ -128,34 +126,6 @@ fn build_towards_motivation_chain<'a>(
             v
         })
         .collect()
-}
-
-pub(crate) struct HopeNode<'a> {
-    pub(crate) hope: &'a Hope<'a>,
-    pub(crate) next_steps: Vec<&'a Item<'a>>,
-    pub(crate) towards_motivation_chain: Vec<&'a Item<'a>>,
-}
-
-impl<'a> From<&'a HopeNode<'a>> for &'a Hope<'a> {
-    fn from(value: &HopeNode<'a>) -> Self {
-        value.hope
-    }
-}
-
-impl<'a> From<&'a HopeNode<'a>> for &'a SurrealItem {
-    fn from(value: &'a HopeNode<'a>) -> Self {
-        value.hope.into()
-    }
-}
-
-impl<'a> HopeNode<'a> {
-    pub(crate) fn is_maintenance(&self) -> bool {
-        self.hope.is_maintenance()
-    }
-
-    pub(crate) fn is_project(&self) -> bool {
-        self.hope.is_project()
-    }
 }
 
 enum HopeMenuItem {

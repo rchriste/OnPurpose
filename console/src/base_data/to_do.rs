@@ -9,7 +9,7 @@ use super::{covering::Covering, covering_until_date_time::CoveringUntilDateTime,
 pub(crate) struct ToDo<'a> {
     //TODO: turn these things into get methods and use that derive get thing
     pub(crate) id: &'a Thing,
-    pub(crate) summary: &'a String,
+    pub(crate) summary: &'a str,
     pub(crate) finished: &'a Option<Datetime>,
     item: &'a Item<'a>,
 }
@@ -59,9 +59,9 @@ impl<'a> PartialEq<Item<'a>> for ToDo<'a> {
 impl<'a> ToDo<'a> {
     pub(crate) fn new(item: &'a Item) -> Self {
         ToDo {
-            id: item.id,
-            summary: item.summary,
-            finished: item.finished,
+            id: item.get_id(),
+            summary: item.get_summary(),
+            finished: item.get_finished(),
             item,
         }
     }
@@ -94,6 +94,6 @@ impl<'a> ToDo<'a> {
     }
 
     pub(crate) fn get_surreal_item(&self) -> &'a SurrealItem {
-        self.item.surreal_item
+        self.item.get_surreal_item()
     }
 }

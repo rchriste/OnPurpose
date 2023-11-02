@@ -17,11 +17,10 @@ use crate::{
         undeclared::Undeclared,
     },
     display::display_item::DisplayItem,
-    mentally_resident::{
-        create_hope_nodes, present_mentally_resident_hope_selected_menu, HopeNode,
-    },
+    mentally_resident::{create_hope_nodes, present_mentally_resident_hope_selected_menu},
     menu::top_menu::present_top_menu,
     node::{
+        hope_node::HopeNode,
         person_or_group_node::{create_person_or_group_nodes, PersonOrGroupNode},
         to_do_node::{create_to_do_nodes, ToDoNode},
     },

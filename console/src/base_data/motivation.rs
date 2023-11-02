@@ -6,7 +6,7 @@ use super::item::Item;
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Motivation<'s> {
     pub(crate) id: &'s Thing,
-    pub(crate) summary: &'s String,
+    pub(crate) summary: &'s str,
     pub(crate) finished: &'s Option<Datetime>,
     item: &'s Item<'s>,
 }
@@ -21,9 +21,9 @@ impl<'s> Motivation<'s> {
     pub(crate) fn new(item: &'s Item<'s>) -> Self {
         //TODO: Assert to ensure that it is a motivation
         Self {
-            id: item.id,
-            summary: item.summary,
-            finished: item.finished,
+            id: item.get_id(),
+            summary: item.get_summary(),
+            finished: item.get_finished(),
             item,
         }
     }
