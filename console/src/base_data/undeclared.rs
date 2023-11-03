@@ -13,6 +13,7 @@ impl<'s> Undeclared<'s> {
         self.item
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_finished(&self) -> bool {
         self.item.is_finished()
     }

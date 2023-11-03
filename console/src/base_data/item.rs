@@ -41,9 +41,11 @@ impl From<Item<'_>> for SurrealItem {
     }
 }
 
-pub(crate) trait ItemVecExtensions {
+pub(crate) trait ItemVecExtensions<'t> {
+    type ToDoIterator: Iterator<Item = ToDo<'t>>;
+
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
-    fn filter_just_to_dos(&self) -> Vec<ToDo<'_>>;
+    fn filter_just_to_dos(&'t self) -> Self::ToDoIterator;
     fn filter_just_hopes<'a>(
         &'a self,
         surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
@@ -56,21 +58,24 @@ pub(crate) trait ItemVecExtensions {
     fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
 }
 
-impl<'s> ItemVecExtensions for [Item<'s>] {
+impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
+    type ToDoIterator = std::iter::FilterMap<
+        std::slice::Iter<'s, Item<'s>>,
+        Box<dyn FnMut(&'s Item<'s>) -> Option<ToDo<'s>>>,
+    >;
+
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
         self.iter().find(|x| x.id == record_id)
     }
 
-    fn filter_just_to_dos(&self) -> Vec<ToDo<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::ToDo {
-                    Some(ToDo::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_to_dos(&'s self) -> Self::ToDoIterator {
+        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
+            if x.item_type == &ItemType::ToDo {
+                Some(ToDo::new(x))
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_hopes<'a>(
@@ -157,6 +162,113 @@ impl<'s> ItemVecExtensions for [Item<'s>] {
                 }
             })
             .collect()
+    }
+}
+
+impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
+    type ToDoIterator = std::iter::FilterMap<
+        std::slice::Iter<'s, &'s Item<'s>>,
+        Box<dyn FnMut(&'s &'s Item<'s>) -> Option<ToDo<'s>>>,
+    >;
+
+    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
+        self.iter().find(|x| x.id == record_id).copied()
+    }
+
+    fn filter_just_to_dos(&'s self) -> Self::ToDoIterator {
+        self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
+            if x.item_type == &ItemType::ToDo {
+                Some(ToDo::new(x))
+            } else {
+                None
+            }
+        }))
+    }
+
+    fn filter_just_hopes<'a>(
+        &'a self,
+        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
+    ) -> Vec<Hope<'a>> {
+        //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
+        let mut just_hopes = Vec::default();
+        for x in self.iter() {
+            if x.item_type == &ItemType::Hope {
+                let hope_specific: Option<&SurrealSpecificToHope> =
+                    surreal_specific_to_hopes.get_by_id(x.id);
+                let hope_specific = hope_specific.unwrap().clone(); //TODO: Figure out how to use borrow rather than clone()
+                let hope = Hope::new(x, hope_specific);
+                just_hopes.push(hope);
+            }
+        }
+        just_hopes
+    }
+
+    fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::Motivation {
+                    Some(Motivation::new(x))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::PersonOrGroup {
+                    Some(PersonOrGroup::new(x))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_undeclared_items(&self) -> Vec<Undeclared<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::Undeclared {
+                    Some(Undeclared::new(x))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_simple_items(&self) -> Vec<Simple<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::Simple {
+                    Some(Simple::new(x))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
+        self.iter()
+            .filter_map(|x| {
+                if x.item_type == &ItemType::Motivation {
+                    Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
+                } else if x.responsibility == &Responsibility::ReactiveBeAvailableToAct {
+                    Some(MotivationOrResponsiveItem::ResponsiveItem(
+                        ResponsiveItem::new(x),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn filter_active_items(&self) -> Vec<&Item> {
+        self.iter().filter(|x| !x.is_finished()).map(|x| *x).collect()
     }
 }
 

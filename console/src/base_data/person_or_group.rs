@@ -24,7 +24,7 @@ impl<'s> PersonOrGroup<'s> {
         self.item.get_summary()
     }
 
-    pub(crate) fn get_item(&self) -> &Item<'s> {
+    pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
     }
 

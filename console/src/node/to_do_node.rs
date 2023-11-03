@@ -7,7 +7,7 @@ use crate::base_data::{
 use super::item_node::{GrowingItemNode, ItemNode};
 
 pub(crate) struct ToDoNode<'s> {
-    to_do: &'s ToDo<'s>,
+    to_do: ToDo<'s>,
     item_node: ItemNode<'s>,
 }
 
@@ -17,7 +17,7 @@ impl<'s> ToDoNode<'s> {
     }
 
     pub(crate) fn new(
-        to_do: &'s ToDo<'s>,
+        to_do: ToDo<'s>,
         coverings: &'s [Covering<'s>],
         possible_parents: &'s [&'s Item<'s>],
     ) -> Self {
@@ -32,8 +32,8 @@ impl<'s> ToDoNode<'s> {
         self.item_node.get_summary()
     }
 
-    pub(crate) fn get_to_do(&'s self) -> &'s ToDo<'s> {
-        self.to_do
+    pub(crate) fn get_to_do<'a>(&'a self) -> &'a ToDo<'s> {
+        &self.to_do
     }
 
     #[allow(dead_code)] //Used by unit test
@@ -43,30 +43,27 @@ impl<'s> ToDoNode<'s> {
 }
 
 pub(crate) fn create_to_do_nodes<'a>(
-    next_steps: &'a [ToDo],
+    next_steps: impl Iterator<Item = ToDo<'a>> + 'a,
     coverings: &'a [Covering<'a>],
     coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
     possible_parents: &'a [&'a Item<'a>],
-    current_date: &DateTime<Local>,
+    current_date: DateTime<Local>,
     currently_in_focus_time: bool,
-) -> Vec<ToDoNode<'a>> {
-    next_steps
-        .iter()
-        .filter_map(|x| {
-            if !x.is_covered(
-                coverings,
-                coverings_until_date_time,
-                possible_parents,
-                current_date,
-            ) && !x.is_finished()
-                && x.is_circumstances_met(current_date, currently_in_focus_time)
-            {
-                Some(ToDoNode::new(x, coverings, possible_parents))
-            } else {
-                None
-            }
-        })
-        .collect()
+) -> impl Iterator<Item = ToDoNode<'a>> + 'a {
+    next_steps.filter_map(move |x| {
+        if !x.is_covered(
+            coverings,
+            coverings_until_date_time,
+            possible_parents,
+            &current_date,
+        ) && !x.is_finished()
+            && x.is_circumstances_met(&current_date, currently_in_focus_time)
+        {
+            Some(ToDoNode::new(x, coverings, possible_parents))
+        } else {
+            None
+        }
+    })
 }
 
 #[cfg(test)]
@@ -121,13 +118,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday_ignore,
+            wednesday_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
     }
@@ -163,13 +161,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday_ignore,
+            wednesday_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 0);
     }
@@ -210,13 +209,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &sunday,
+            sunday,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert!(next_step_nodes.is_empty()); //Not shown because it is Sunday
     }
@@ -256,13 +256,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday,
+            wednesday,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, next_step_nodes.len());
     }
@@ -294,7 +295,6 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let saturday =
@@ -302,13 +302,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &saturday,
+            saturday,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, next_step_nodes.len());
     }
@@ -364,13 +365,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday_ignore,
+            wednesday_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
         assert_eq!(
@@ -426,16 +428,20 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday_ignore,
+            wednesday_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
-        assert_eq!(next_step_nodes.iter().next().unwrap().to_do, &items[0]);
+        assert_eq!(
+            next_step_nodes.iter().next().unwrap().get_to_do(),
+            &items[0]
+        );
     }
 
     #[test]
@@ -474,13 +480,14 @@ mod tests {
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert!(next_steps_nodes.is_empty());
     }
@@ -522,13 +529,14 @@ mod tests {
 
         let to_dos = items.filter_just_to_dos();
         let next_steps_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, next_steps_nodes.len());
     }
@@ -567,19 +575,19 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now = Local::now();
 
         let bullet_list = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert!(bullet_list.is_empty());
     }
@@ -618,19 +626,19 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now = Local::now();
 
         let bullet_list = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             true,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, bullet_list.len());
     }
@@ -685,19 +693,19 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now = Local::now();
 
         let bullet_list = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             true,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, bullet_list.len());
     }
@@ -752,19 +760,19 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now = Local::now();
 
         let bullet_list = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert!(bullet_list.is_empty());
     }
@@ -807,19 +815,19 @@ mod tests {
         };
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now = Local::now();
 
         let bullet_list = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now,
+            now,
             true,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(1, bullet_list.len());
         assert_eq!("Focus item", bullet_list[0].get_summary());
@@ -859,19 +867,19 @@ mod tests {
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
 
-        let to_dos = items.filter_just_to_dos();
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
         let now_ignore = Local::now();
 
         let next_steps_nodes = create_to_do_nodes(
-            &to_dos,
+            items.filter_just_to_dos(),
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &now_ignore,
+            now_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         let smaller_item_node = next_steps_nodes
             .iter()

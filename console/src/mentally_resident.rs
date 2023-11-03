@@ -69,7 +69,7 @@ impl<'a> ProjectHopeItem<'a> {
 }
 
 pub(crate) fn create_hope_nodes<'a>(
-    hopes: &'a [&'a Hope<'a>],
+    hopes: &[&'a Hope<'a>],
     coverings: &[Covering<'a>],
     all_items: &'a [&Item<'_>],
 ) -> Vec<HopeNode<'a>> {

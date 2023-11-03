@@ -229,7 +229,7 @@ async fn cover_with_existing_waiting_for_question(
 
     let base_data = BaseData::new_from_surreal_tables(raw_current_items);
     let current = base_data.get_items();
-    let to_dos = current.filter_just_to_dos();
+    let to_dos = current.filter_just_to_dos().collect::<Vec<_>>();
 
     let list = CoverExistingItem::create_list(to_dos);
 

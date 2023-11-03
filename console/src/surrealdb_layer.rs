@@ -191,6 +191,7 @@ pub(crate) async fn data_storage_start_and_run(
 }
 
 pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
+    //TODO: I should do some timings to see if starting all of these get_all requests and then doing awaits on them later really is faster in Rust. Or if they just for sure don't start until the await. For example I could call this function as many times as possible in 10 sec and time that and then see how many times I can call that function written like this and then again with the get_all being right with the await to make sure that code like this is worth it perf wise.
     let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);

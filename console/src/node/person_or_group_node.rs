@@ -11,17 +11,18 @@ use crate::{
 use super::item_node::ItemNode;
 
 pub(crate) struct PersonOrGroupNode<'s> {
-    person_or_group: &'s PersonOrGroup<'s>,
+    person_or_group: PersonOrGroup<'s>,
     item_node: ItemNode<'s>,
 }
 
 impl<'s> PersonOrGroupNode<'s> {
     pub(crate) fn new(
-        person_or_group: &'s PersonOrGroup<'s>,
+        person_or_group: PersonOrGroup<'s>,
         coverings: &'s [Covering<'s>],
         possible_parents: &'s [&'s Item<'s>],
     ) -> Self {
-        let item_node = ItemNode::new(person_or_group.get_item(), coverings, possible_parents);
+        let item: &Item = person_or_group.get_item();
+        let item_node = ItemNode::new(item, coverings, possible_parents);
 
         Self {
             person_or_group,
@@ -29,8 +30,8 @@ impl<'s> PersonOrGroupNode<'s> {
         }
     }
 
-    pub(crate) fn person_or_group(&self) -> &'s PersonOrGroup<'s> {
-        self.person_or_group
+    pub(crate) fn person_or_group<'a>(&'a self) -> &'a PersonOrGroup<'s> {
+        &self.person_or_group
     }
 
     pub(crate) fn create_parent_chain(&'s self) -> Vec<&'s Item<'s>> {
@@ -43,7 +44,7 @@ impl<'s> PersonOrGroupNode<'s> {
 }
 
 pub(crate) fn create_person_or_group_nodes<'s>(
-    create_nodes_from: &'s [PersonOrGroup<'s>],
+    create_nodes_from: impl Iterator<Item = PersonOrGroup<'s>>,
     coverings: &'s [Covering<'s>],
     coverings_until_date_time: &'s [CoveringUntilDateTime<'s>],
     items: &'s [&'s Item<'s>],
@@ -51,7 +52,6 @@ pub(crate) fn create_person_or_group_nodes<'s>(
     currently_in_focus_time: bool,
 ) -> Vec<PersonOrGroupNode<'s>> {
     create_nodes_from
-        .iter()
         .filter_map(|x| {
             if !x.is_covered(coverings, coverings_until_date_time, items, current_date)
                 && !x.is_finished()

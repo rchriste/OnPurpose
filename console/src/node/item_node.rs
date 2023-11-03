@@ -180,13 +180,14 @@ mod tests {
                 .unwrap()
                 .into();
         let next_step_nodes = create_to_do_nodes(
-            &to_dos,
+            to_dos,
             &coverings,
             &coverings_until_date_time,
             &active_items,
-            &wednesday_ignore,
+            wednesday_ignore,
             false,
-        );
+        )
+        .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
         assert_eq!(

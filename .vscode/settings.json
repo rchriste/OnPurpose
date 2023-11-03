@@ -16,6 +16,7 @@
         "protobuf",
         "rocksdb",
         "serde",
+        "struct",
         "surrealdb",
         "thiserror",
         "Ｗｏｒｋ"
