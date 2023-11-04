@@ -14,7 +14,7 @@ use crate::surrealdb_layer::{
 use super::{
     covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
     motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
-    responsive_item::ResponsiveItem, to_do::ToDo,
+    responsive_item::ResponsiveItem,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -41,11 +41,10 @@ impl From<Item<'_>> for SurrealItem {
 }
 
 pub(crate) trait ItemVecExtensions<'t> {
-    type ToDoIterator: Iterator<Item = ToDo<'t>>;
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
-    fn filter_just_to_dos(&'t self) -> Self::ToDoIterator;
+    fn filter_just_to_dos(&'t self) -> Self::ItemIterator;
     fn filter_just_hopes<'a>(
         &'a self,
         surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
@@ -59,11 +58,6 @@ pub(crate) trait ItemVecExtensions<'t> {
 }
 
 impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
-    type ToDoIterator = std::iter::FilterMap<
-        std::slice::Iter<'s, Item<'s>>,
-        Box<dyn FnMut(&'s Item<'s>) -> Option<ToDo<'s>>>,
-    >;
-
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, Item<'s>>,
         Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>,
@@ -73,10 +67,10 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         self.iter().find(|x| x.id == record_id)
     }
 
-    fn filter_just_to_dos(&'s self) -> Self::ToDoIterator {
+    fn filter_just_to_dos(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if x.item_type == &ItemType::ToDo {
-                Some(ToDo::new(x))
+                Some(x)
             } else {
                 None
             }
@@ -165,10 +159,6 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 }
 
 impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
-    type ToDoIterator = std::iter::FilterMap<
-        std::slice::Iter<'s, &'s Item<'s>>,
-        Box<dyn FnMut(&'s &'s Item<'s>) -> Option<ToDo<'s>>>,
-    >;
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, &'s Item<'s>>,
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
@@ -178,10 +168,10 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         self.iter().find(|x| x.id == record_id).copied()
     }
 
-    fn filter_just_to_dos(&'s self) -> Self::ToDoIterator {
+    fn filter_just_to_dos(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
             if x.item_type == &ItemType::ToDo {
-                Some(ToDo::new(x))
+                Some(x)
             } else {
                 None
             }

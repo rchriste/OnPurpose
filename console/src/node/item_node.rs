@@ -42,14 +42,6 @@ impl<'s> ItemNode<'s> {
         self.item.surreal_item
     }
 
-    pub(crate) fn get_summary(&self) -> &str {
-        &self.item.surreal_item.summary
-    }
-
-    pub(crate) fn get_larger(&self) -> &Vec<GrowingItemNode<'s>> {
-        &self.larger
-    }
-
     pub(crate) fn is_person_or_group(&self) -> bool {
         self.item.is_person_or_group()
     }
@@ -133,7 +125,7 @@ mod tests {
 
     use crate::{
         base_data::item::ItemVecExtensions,
-        node::to_do_node::create_to_do_nodes,
+        node::item_node::create_item_nodes,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_item::{ItemType, Responsibility, SurrealItem},
@@ -209,7 +201,7 @@ mod tests {
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()
                 .into();
-        let next_step_nodes = create_to_do_nodes(
+        let next_step_nodes = create_item_nodes(
             to_dos,
             &coverings,
             &coverings_until_date_time,

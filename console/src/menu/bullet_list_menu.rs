@@ -7,11 +7,11 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{hope::Hope, item::Item, to_do::ToDo, BaseData},
+    base_data::{hope::Hope, item::Item, BaseData},
     display::display_item::DisplayItem,
     mentally_resident::present_mentally_resident_hope_selected_menu,
     menu::top_menu::present_top_menu,
-    node::{hope_node::HopeNode, item_node::ItemNode, to_do_node::ToDoNode},
+    node::{hope_node::HopeNode, item_node::ItemNode},
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::BulletList,
 };
@@ -24,10 +24,6 @@ pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
     Item {
         item_node: &'e ItemNode<'e>,
-        parents: Vec<&'e Item<'e>>,
-    },
-    NextStepToDo {
-        to_do: &'e ToDo<'e>,
         parents: Vec<&'e Item<'e>>,
     },
     NeedsNextStepHope {
@@ -52,14 +48,6 @@ impl Display for InquireBulletListItem<'_> {
                     write!(f, " ⬅ {}", display_item)?;
                 }
             }
-            Self::NextStepToDo { to_do, parents } => {
-                let display_item = DisplayItem::new(to_do.into());
-                write!(f, "{} ", display_item)?;
-                for item in parents {
-                    let display_item = DisplayItem::new(item);
-                    write!(f, " ⬅ {}", display_item)?;
-                }
-            }
             Self::NeedsNextStepHope { hope, parents } => {
                 let display_item = DisplayItem::new(hope.into());
                 write!(f, "[NEEDS NEXT STEP] ⬅ {}", display_item)?;
@@ -76,42 +64,30 @@ impl Display for InquireBulletListItem<'_> {
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
         item_nodes: &'a [ItemNode<'a>],
-        next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        let mut list =
-            Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len() + 1);
+        let mut list = Vec::with_capacity(item_nodes.len() + hopes_without_a_next_step.len() + 1);
         list.push(Self::ViewFocusItems);
-        Self::add_items_to_list(list, item_nodes, next_step_nodes, hopes_without_a_next_step)
+        Self::add_items_to_list(list, item_nodes, hopes_without_a_next_step)
     }
 
     pub(crate) fn create_list_just_items(
         item_nodes: &'a [ItemNode<'a>],
-        next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        let list = Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len());
-        Self::add_items_to_list(list, item_nodes, next_step_nodes, hopes_without_a_next_step)
+        let list = Vec::with_capacity(item_nodes.len() + hopes_without_a_next_step.len());
+        Self::add_items_to_list(list, item_nodes, hopes_without_a_next_step)
     }
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
         item_nodes: &'a [ItemNode<'a>],
-        next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         list.extend(item_nodes.iter().map(|x| InquireBulletListItem::Item {
             item_node: x,
             parents: x.create_next_step_parents(),
         }));
-        list.extend(
-            next_step_nodes
-                .iter()
-                .map(|x| InquireBulletListItem::NextStepToDo {
-                    to_do: x.get_to_do(),
-                    parents: x.create_next_step_parents(),
-                }),
-        );
         list.extend(hopes_without_a_next_step.iter().map(|x| {
             InquireBulletListItem::NeedsNextStepHope {
                 hope: x.hope,
@@ -133,12 +109,10 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_unfocused_bullet_list(base_data);
 
-    let (item_nodes, next_step_nodes, hope_nodes_needing_a_next_step) =
-        bullet_list.get_bullet_list();
+    let (item_nodes, hope_nodes_needing_a_next_step) = bullet_list.get_bullet_list();
 
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
         item_nodes,
-        next_step_nodes,
         hope_nodes_needing_a_next_step,
     );
 
@@ -165,15 +139,6 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                     .await
                 }
             }
-            Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
-                present_bullet_list_item_selected(
-                    to_do.get_item(),
-                    &parents,
-                    bullet_list.get_active_items(),
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
             Ok(InquireBulletListItem::NeedsNextStepHope { hope, parents: _ }) => {
                 present_mentally_resident_hope_selected_menu(hope, send_to_data_storage_layer).await
             }
@@ -196,13 +161,10 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
-    let (item_nodes, next_step_nodes, hopes_without_a_next_step) = bullet_list.get_bullet_list();
+    let (item_nodes, hopes_without_a_next_step) = bullet_list.get_bullet_list();
 
-    let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
-        item_nodes,
-        next_step_nodes,
-        hopes_without_a_next_step,
-    );
+    let inquire_bullet_list =
+        InquireBulletListItem::create_list_just_items(item_nodes, hopes_without_a_next_step);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("", inquire_bullet_list)
@@ -216,15 +178,6 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::Item { item_node, parents }) => {
                 present_bullet_list_item_selected(
                     item_node.get_item(),
-                    &parents,
-                    bullet_list.get_active_items(),
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
-                present_bullet_list_item_selected(
-                    to_do.get_item(),
                     &parents,
                     bullet_list.get_active_items(),
                     send_to_data_storage_layer,

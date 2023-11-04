@@ -11,7 +11,6 @@ use crate::{
     node::{
         hope_node::HopeNode,
         item_node::{create_item_nodes, ItemNode},
-        to_do_node::{create_to_do_nodes, ToDoNode},
     },
 };
 
@@ -26,10 +25,6 @@ pub(crate) struct BulletList {
     #[borrows(base_data)]
     #[covariant]
     hope_nodes_needing_a_next_step: Vec<HopeNode<'this>>,
-
-    #[borrows(base_data)]
-    #[covariant]
-    next_step_nodes: Vec<ToDoNode<'this>>,
 }
 
 impl BulletList {
@@ -43,11 +38,13 @@ impl BulletList {
                 let person_or_groups_that_cover_an_item = persons_or_groups
                     .into_iter()
                     .filter(|x| x.is_covering_another_item(base_data.get_coverings()));
+                let to_dos = active_items.filter_just_to_dos();
 
                 let bullet_list = chain!(
                     base_data.get_active_items().filter_just_undeclared_items(),
                     base_data.get_active_items().filter_just_simple_items(),
                     person_or_groups_that_cover_an_item,
+                    to_dos,
                 );
 
                 create_item_nodes(
@@ -76,19 +73,6 @@ impl BulletList {
                     .filter(|x| x.next_steps.is_empty())
                     .collect()
             },
-            next_step_nodes_builder: |base_data| {
-                let active_items = base_data.get_active_items();
-                let to_dos = active_items.filter_just_to_dos();
-                create_to_do_nodes(
-                    to_dos,
-                    base_data.get_coverings(),
-                    base_data.get_coverings_until_date_time(),
-                    active_items,
-                    current_date_time,
-                    false,
-                )
-                .collect::<Vec<_>>()
-            },
         }
         .build()
     }
@@ -97,14 +81,13 @@ impl BulletList {
         let current_date_time = Local::now();
         BulletListBuilder {
             base_data,
-            item_nodes_builder: |_| vec![],
             hope_nodes_needing_a_next_step_builder: |_| {
                 vec![] //Hopes without a next step cannot be focus items
             },
-            next_step_nodes_builder: |base_data| {
+            item_nodes_builder: |base_data| {
                 let active_items = base_data.get_active_items();
                 let to_dos = active_items.filter_just_to_dos();
-                create_to_do_nodes(
+                create_item_nodes(
                     to_dos,
                     base_data.get_coverings(),
                     base_data.get_coverings_until_date_time(),
@@ -118,10 +101,9 @@ impl BulletList {
         .build()
     }
 
-    pub(crate) fn get_bullet_list(&self) -> (&[ItemNode<'_>], &[ToDoNode<'_>], &[HopeNode<'_>]) {
+    pub(crate) fn get_bullet_list(&self) -> (&[ItemNode<'_>], &[HopeNode<'_>]) {
         (
             self.borrow_item_nodes(),
-            self.borrow_next_step_nodes(),
             self.borrow_hope_nodes_needing_a_next_step(),
         )
     }

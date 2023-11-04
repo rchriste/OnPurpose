@@ -8,7 +8,6 @@ pub(crate) mod motivation;
 pub(crate) mod motivation_or_responsive_item;
 pub(crate) mod responsive_item;
 pub(crate) mod routine;
-pub(crate) mod to_do;
 
 use ouroboros::self_referencing;
 

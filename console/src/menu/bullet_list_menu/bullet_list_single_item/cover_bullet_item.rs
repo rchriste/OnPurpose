@@ -9,7 +9,6 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
-        to_do::ToDo,
         BaseData,
     },
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
@@ -198,7 +197,7 @@ async fn cover_with_new_waiting_for_question<'a>(
 }
 
 enum CoverExistingItem<'e> {
-    ExistingToDo(ToDo<'e>),
+    ExistingToDo(&'e Item<'e>),
 }
 
 impl Display for CoverExistingItem<'_> {
@@ -210,7 +209,7 @@ impl Display for CoverExistingItem<'_> {
 }
 
 impl<'e> CoverExistingItem<'e> {
-    fn create_list(to_dos: Vec<ToDo<'e>>) -> Vec<Self> {
+    fn create_list(to_dos: impl Iterator<Item = &'e Item<'e>>) -> Vec<Self> {
         to_dos
             .into_iter()
             .map(CoverExistingItem::ExistingToDo)
@@ -229,9 +228,8 @@ async fn cover_with_existing_waiting_for_question(
 
     let base_data = BaseData::new_from_surreal_tables(raw_current_items);
     let current = base_data.get_items();
-    let to_dos = current.filter_just_to_dos().collect::<Vec<_>>();
 
-    let list = CoverExistingItem::create_list(to_dos);
+    let list = CoverExistingItem::create_list(current.filter_just_to_dos());
 
     let selection = Select::new("Start typing to search the list", list).prompt();
     match selection {
