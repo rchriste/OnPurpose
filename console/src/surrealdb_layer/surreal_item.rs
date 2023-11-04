@@ -1,4 +1,3 @@
-#[cfg(test)]
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -11,8 +10,11 @@ use super::{
     surreal_specific_to_hope::SurrealSpecificToHope,
 };
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[cfg_attr(test, derive(Builder), builder(setter(into)))]
+//derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
+//gave me false errors in the editor (rust-analyzer) so I am just going to try including
+//it always to see if that addresses these phantom errors. Nov2023.
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
+#[builder(setter(into))]
 #[table(name = "item")] //TODO: This should be renamed items
 pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,

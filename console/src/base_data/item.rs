@@ -14,9 +14,8 @@ use crate::surrealdb_layer::{
 };
 
 use super::{
-    covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
-    motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
-    responsive_item::ResponsiveItem,
+    covering::Covering, covering_until_date_time::CoveringUntilDateTime, motivation::Motivation,
+    motivation_or_responsive_item::MotivationOrResponsiveItem, responsive_item::ResponsiveItem,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -47,7 +46,7 @@ pub(crate) trait ItemVecExtensions<'t> {
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&'t self) -> Self::ItemIterator;
-    fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
+    fn filter_just_hopes(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
@@ -76,16 +75,14 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
-        //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
-        let mut just_hopes = Vec::default();
-        for x in self.iter() {
+    fn filter_just_hopes(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if x.item_type == &ItemType::Hope {
-                let hope = Hope::new(x);
-                just_hopes.push(hope);
+                Some(x)
+            } else {
+                None
             }
-        }
-        just_hopes
+        }))
     }
 
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
@@ -171,16 +168,14 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
-        //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
-        let mut just_hopes = Vec::default();
-        for x in self.iter() {
+    fn filter_just_hopes(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
             if x.item_type == &ItemType::Hope {
-                let hope = Hope::new(x);
-                just_hopes.push(hope);
+                Some(x)
+            } else {
+                None
             }
-        }
-        just_hopes
+        }))
     }
 
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
@@ -374,13 +369,13 @@ impl<'b> Item<'b> {
             || self.is_covered_by_date_time(coverings_until_date_time, now)
     }
 
-    pub(crate) fn covered_by<'a>(
-        &self,
-        coverings: &[Covering<'a>],
-        all_items: &'a [&Item<'a>],
-    ) -> Vec<&'a Item<'a>> {
+    pub(crate) fn covered_by(
+        &'b self,
+        coverings: &'b [Covering<'b>],
+        all_items: &'b [&Item<'b>],
+    ) -> impl Iterator<Item = &'b Item<'b>> + 'b {
         chain!(
-            coverings.iter().filter_map(|x| {
+            coverings.iter().filter_map(move |x| {
                 if x.parent == self && !x.smaller.is_finished() {
                     Some(x.smaller)
                 } else {
@@ -398,20 +393,6 @@ impl<'b> Item<'b> {
                     SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
                 })
         )
-        .collect()
-    }
-
-    pub(crate) fn who_am_i_covering<'a>(&self, coverings: &[Covering<'a>]) -> Vec<&'a Item<'a>> {
-        coverings
-            .iter()
-            .filter_map(|x| {
-                if x.smaller == self {
-                    Some(x.parent)
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 
     pub(crate) fn get_id(&self) -> &'b Thing {
@@ -504,6 +485,19 @@ impl<'b> Item<'b> {
     pub(crate) fn is_maintenance(&self) -> bool {
         self.get_permanence() == &Permanence::Maintenance
     }
+
+    pub(crate) fn is_goal(&self) -> bool {
+        self.item_type == &ItemType::Hope
+    }
+
+    pub(crate) fn is_covered_by_a_hope(
+        &self,
+        coverings: &[Covering<'_>],
+        all_items: &[&Item<'_>],
+    ) -> bool {
+        self.covered_by(coverings, all_items)
+            .any(|x| x.is_type_hope() && !x.is_finished())
+    }
 }
 
 impl Item<'_> {
@@ -526,7 +520,35 @@ impl Item<'_> {
             .collect::<Vec<_>>();
 
         result.extend(other_items.iter().filter_map(|other_item| {
-            if other_item.is_this_a_smaller_item(self) {
+            if other_item.is_this_a_smaller_item(self) && !visited.contains(other_item) {
+                Some(*other_item)
+            } else {
+                None
+            }
+        }));
+        result
+    }
+
+    pub(crate) fn find_children<'a>(
+        &self,
+        linkage: &'a [Covering<'a>],
+        other_items: &'a [&'a Item<'a>],
+        visited: &[&Item<'_>],
+    ) -> Vec<&'a Item<'a>> {
+        //TODO: Update the below code to use the chain macro rather than this manual extend thing
+        let mut result = linkage
+            .iter()
+            .filter_map(|x| {
+                if x.parent == self && !visited.contains(&x.smaller) {
+                    Some(x.smaller)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        result.extend(other_items.iter().filter_map(|other_item| {
+            if self.is_this_a_smaller_item(other_item) && !visited.contains(other_item) {
                 Some(*other_item)
             } else {
                 None
@@ -769,7 +791,9 @@ mod tests {
             .find(|x| parent_item.id.as_ref().unwrap() == x.id)
             .unwrap();
 
-        let covered_by = under_test_parent_item.covered_by(&coverings, &active_items);
+        let covered_by = under_test_parent_item
+            .covered_by(&coverings, &active_items)
+            .collect::<Vec<_>>();
 
         assert_eq!(covered_by.len(), 1);
         assert_eq!(

@@ -7,11 +7,7 @@ use crate::{
         item::{Item, ItemVecExtensions},
         BaseData,
     },
-    mentally_resident::create_hope_nodes,
-    node::{
-        hope_node::HopeNode,
-        item_node::{create_item_nodes, ItemNode},
-    },
+    node::item_node::{create_item_nodes, ItemNode},
 };
 
 #[self_referencing]
@@ -21,10 +17,6 @@ pub(crate) struct BulletList {
     #[borrows(base_data)]
     #[covariant]
     item_nodes: Vec<ItemNode<'this>>,
-
-    #[borrows(base_data)]
-    #[covariant]
-    hope_nodes_needing_a_next_step: Vec<HopeNode<'this>>,
 }
 
 impl BulletList {
@@ -40,11 +32,17 @@ impl BulletList {
                     .filter(|x| x.is_covering_another_item(base_data.get_coverings()));
                 let to_dos = active_items.filter_just_to_dos();
 
+                let mentally_resident_hopes = active_items.filter_just_hopes().filter(|x| {
+                    (x.is_mentally_resident() || x.is_staging_not_set())
+                        && (x.is_project() || x.is_permanence_not_set())
+                });
+
                 let bullet_list = chain!(
                     base_data.get_active_items().filter_just_undeclared_items(),
                     base_data.get_active_items().filter_just_simple_items(),
                     person_or_groups_that_cover_an_item,
                     to_dos,
+                    mentally_resident_hopes
                 );
 
                 create_item_nodes(
@@ -55,23 +53,8 @@ impl BulletList {
                     current_date_time,
                     false,
                 )
+                .filter(|x| !x.is_goal() || x.is_goal() && x.get_smaller().is_empty())
                 .collect::<Vec<_>>()
-            },
-            hope_nodes_needing_a_next_step_builder: |base_data| {
-                let mentally_resident_hopes = base_data
-                    .get_just_hopes()
-                    .iter()
-                    .filter(|x| x.is_mentally_resident() && x.is_project())
-                    .collect::<Vec<_>>();
-                let hope_nodes = create_hope_nodes(
-                    &mentally_resident_hopes,
-                    base_data.get_coverings(),
-                    base_data.get_active_items(),
-                );
-                hope_nodes
-                    .into_iter()
-                    .filter(|x| x.next_steps.is_empty())
-                    .collect()
             },
         }
         .build()
@@ -81,9 +64,6 @@ impl BulletList {
         let current_date_time = Local::now();
         BulletListBuilder {
             base_data,
-            hope_nodes_needing_a_next_step_builder: |_| {
-                vec![] //Hopes without a next step cannot be focus items
-            },
             item_nodes_builder: |base_data| {
                 let active_items = base_data.get_active_items();
                 let to_dos = active_items.filter_just_to_dos();
@@ -101,11 +81,8 @@ impl BulletList {
         .build()
     }
 
-    pub(crate) fn get_bullet_list(&self) -> (&[ItemNode<'_>], &[HopeNode<'_>]) {
-        (
-            self.borrow_item_nodes(),
-            self.borrow_hope_nodes_needing_a_next_step(),
-        )
+    pub(crate) fn get_bullet_list(&self) -> &[ItemNode<'_>] {
+        self.borrow_item_nodes()
     }
 
     pub(crate) fn get_active_items(&self) -> &[&Item<'_>] {

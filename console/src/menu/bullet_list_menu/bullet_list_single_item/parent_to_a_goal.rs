@@ -2,7 +2,10 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{
+        item::{Item, ItemVecExtensions},
+        BaseData,
+    },
     display::display_item::DisplayItem,
     menu::bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
     new_item,
@@ -22,10 +25,9 @@ pub(crate) async fn parent_to_a_goal(
         .unwrap();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let active_items = base_data.get_active_items();
-    let goals = base_data.get_just_hopes();
-    let list = goals
-        .iter()
-        .map(|x| DisplayItem::new(x.get_item()))
+    let list = active_items
+        .filter_just_hopes()
+        .map(DisplayItem::new)
         .collect::<Vec<_>>();
 
     let selection = Select::new("", list).prompt();

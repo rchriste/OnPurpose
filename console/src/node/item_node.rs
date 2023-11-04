@@ -8,6 +8,19 @@ use crate::{
 pub(crate) struct ItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
+    pub(crate) smaller: Vec<ShrinkingItemNode<'s>>,
+}
+
+impl<'a> From<&'a ItemNode<'a>> for &'a Item<'a> {
+    fn from(value: &ItemNode<'a>) -> Self {
+        value.item
+    }
+}
+
+impl<'a> From<&'a ItemNode<'a>> for &'a SurrealItem {
+    fn from(value: &'a ItemNode<'a>) -> Self {
+        value.item.into()
+    }
 }
 
 impl<'s> ItemNode<'s> {
@@ -18,13 +31,18 @@ impl<'s> ItemNode<'s> {
     ) -> Self {
         let visited = vec![];
         let parents = item.find_parents(coverings, possible_parents, &visited);
-        let larger = create_growing_nodes(parents, coverings, possible_parents, visited);
+        let larger = create_growing_nodes(parents, coverings, possible_parents, visited.clone());
+        let children = item.find_children(coverings, possible_parents, &visited);
+        let smaller = create_shrinking_nodes(children, coverings, possible_parents, visited);
 
-        ItemNode { item, larger }
+        ItemNode {
+            item,
+            larger,
+            smaller,
+        }
     }
 
-    pub(crate) fn create_next_step_parents(&'s self) -> Vec<&'s Item<'s>> {
-        //TODO: Rename to create_parent_chain
+    pub(crate) fn create_parent_chain(&'s self) -> Vec<&'s Item<'s>> {
         let mut result = Vec::default();
         for i in self.larger.iter() {
             result.push(i.item);
@@ -32,6 +50,10 @@ impl<'s> ItemNode<'s> {
             result.extend(parents.iter());
         }
         result
+    }
+
+    pub(crate) fn get_smaller(&'s self) -> &'s [ShrinkingItemNode<'s>] {
+        &self.smaller
     }
 
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
@@ -44,6 +66,14 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_person_or_group(&self) -> bool {
         self.item.is_person_or_group()
+    }
+
+    pub(crate) fn is_maintenance(&self) -> bool {
+        self.item.is_maintenance()
+    }
+
+    pub(crate) fn is_goal(&self) -> bool {
+        self.item.is_goal()
     }
 }
 
@@ -97,6 +127,49 @@ pub(crate) fn create_growing_node<'a>(
     let parents = item.find_parents(coverings, all_items, &visited);
     let larger = create_growing_nodes(parents, coverings, all_items, visited);
     GrowingItemNode { item, larger }
+}
+
+pub(crate) struct ShrinkingItemNode<'a> {
+    _item: &'a Item<'a>,
+    _smaller: Vec<ShrinkingItemNode<'a>>,
+}
+
+pub(crate) fn create_shrinking_nodes<'a>(
+    items: Vec<&'a Item<'a>>,
+    coverings: &'a [Covering<'a>],
+    possible_children: &'a [&'a Item<'a>],
+    visited: Vec<&'a Item<'a>>,
+) -> Vec<ShrinkingItemNode<'a>> {
+    items
+        .iter()
+        .map(|x| {
+            if !visited.contains(x) {
+                //TODO: Add a unit test for this circular reference in smaller and bigger
+                let mut visited = visited.clone();
+                visited.push(x);
+                create_shrinking_node(x, coverings, possible_children, visited)
+            } else {
+                ShrinkingItemNode {
+                    _item: x,
+                    _smaller: vec![],
+                }
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn create_shrinking_node<'a>(
+    item: &'a Item<'a>,
+    coverings: &'a [Covering<'a>],
+    all_items: &'a [&'a Item<'a>],
+    visited: Vec<&'a Item<'a>>,
+) -> ShrinkingItemNode<'a> {
+    let children = item.find_children(coverings, all_items, &visited);
+    let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
+    ShrinkingItemNode {
+        _item: item,
+        _smaller: smaller,
+    }
 }
 
 pub(crate) fn create_item_nodes<'s>(
@@ -204,7 +277,7 @@ mod tests {
                 .iter()
                 .next()
                 .unwrap()
-                .create_next_step_parents()
+                .create_parent_chain()
                 .len(),
             2
         );

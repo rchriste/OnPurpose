@@ -1,15 +1,18 @@
-use std::{fmt::Display, iter::once};
+use std::fmt::Display;
 
 use async_recursion::async_recursion;
 use inquire::{Editor, InquireError, Select, Text};
-use itertools::chain;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{covering::Covering, hope::Hope, item::Item, BaseData},
+    base_data::{
+        covering::Covering,
+        item::{Item, ItemVecExtensions},
+        BaseData,
+    },
     menu::bullet_list_menu::bullet_list_single_item::cover_with_item,
     menu::top_menu::present_top_menu,
-    node::hope_node::HopeNode,
+    node::item_node::ItemNode,
     surrealdb_layer::{
         surreal_item::{Permanence, Staging, SurrealItem},
         surreal_tables::SurrealTables,
@@ -21,30 +24,36 @@ use crate::{
 //TODO: Move things from this file into the menu folder and menu mod
 
 struct ProjectHopeItem<'a> {
-    pub(crate) hope_node: &'a HopeNode<'a>,
+    pub(crate) hope_node: &'a ItemNode<'a>,
 }
 
 impl<'a> Display for ProjectHopeItem<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.hope_node.next_steps.is_empty() {
+        if self.hope_node.get_smaller().is_empty() {
             write!(f, "[NEEDS NEXT STEP] ")?;
         }
-        write!(f, "{}", self.hope_node.hope.summary)?;
-        for i in self.hope_node.towards_motivation_chain.iter() {
+        write!(f, "{}", self.hope_node.item.summary)?;
+        for i in self.hope_node.create_parent_chain().iter() {
             write!(f, " ⬅  {}", i.summary)?;
         }
         Ok(())
     }
 }
 
-impl<'a> From<ProjectHopeItem<'a>> for &'a Hope<'a> {
+impl<'a> From<ProjectHopeItem<'a>> for &'a ItemNode<'a> {
     fn from(value: ProjectHopeItem<'a>) -> Self {
-        value.hope_node.hope
+        value.hope_node
     }
 }
 
-impl<'a> From<&'a HopeNode<'a>> for ProjectHopeItem<'a> {
-    fn from(value: &'a HopeNode<'a>) -> Self {
+impl<'a> From<ProjectHopeItem<'a>> for &'a Item<'a> {
+    fn from(value: ProjectHopeItem<'a>) -> Self {
+        value.hope_node.item
+    }
+}
+
+impl<'a> From<&'a ItemNode<'a>> for ProjectHopeItem<'a> {
+    fn from(value: &'a ItemNode<'a>) -> Self {
         ProjectHopeItem { hope_node: value }
     }
 }
@@ -62,63 +71,24 @@ impl<'a> From<&'a ProjectHopeItem<'a>> for &'a SurrealItem {
 }
 
 impl<'a> ProjectHopeItem<'a> {
-    fn create_list<'b>(hope_nodes: &'b [HopeNode<'b>]) -> Vec<ProjectHopeItem<'b>> {
+    fn create_list<'b>(hope_nodes: &'b [ItemNode<'b>]) -> Vec<ProjectHopeItem<'b>> {
         hope_nodes.iter().map(|x| x.into()).collect()
     }
 }
 
 pub(crate) fn create_hope_nodes<'a>(
-    hopes: &[&'a Hope<'a>],
-    coverings: &[Covering<'a>],
+    hopes: &[&'a Item<'a>],
+    coverings: &'a [Covering<'a>],
     all_items: &'a [&Item<'_>],
-) -> Vec<HopeNode<'a>> {
+) -> Vec<ItemNode<'a>> {
     hopes
         .iter()
         .filter_map(|x| {
-            if !x.is_covered_by_another_hope(coverings) && !x.is_finished() {
-                Some(create_hope_node(x, coverings, all_items))
+            if !x.is_covered_by_a_hope(coverings, all_items) && !x.is_finished() {
+                Some(ItemNode::new(x, coverings, all_items))
             } else {
                 None
             }
-        })
-        .collect()
-}
-
-fn create_hope_node<'a>(
-    hope: &'a Hope<'a>,
-    coverings: &[Covering<'a>],
-    all_items: &'a [&Item<'_>],
-) -> HopeNode<'a> {
-    HopeNode {
-        hope,
-        next_steps: calculate_next_steps(hope, coverings, all_items),
-        towards_motivation_chain: build_towards_motivation_chain(hope.get_item(), coverings),
-    }
-}
-
-fn calculate_next_steps<'a>(
-    hope: &Hope<'a>,
-    coverings: &[Covering<'a>],
-    all_items: &'a [&Item<'a>],
-) -> Vec<&'a Item<'a>> {
-    let covered_by = hope.covered_by(coverings, all_items);
-    covered_by
-        .into_iter()
-        .flat_map(|x| chain!(once(x), x.covered_by(coverings, all_items)))
-        .collect()
-}
-
-fn build_towards_motivation_chain<'a>(
-    item: &Item<'a>,
-    coverings: &[Covering<'a>],
-) -> Vec<&'a Item<'a>> {
-    let who_i_am_covering = item.who_am_i_covering(coverings);
-    who_i_am_covering
-        .into_iter()
-        .flat_map(|x| {
-            let mut v = vec![x];
-            v.extend(build_towards_motivation_chain(x, coverings));
-            v
         })
         .collect()
 }
@@ -188,15 +158,14 @@ pub(crate) async fn view_mentally_resident_project_hopes(
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
 
-    let hopes = base_data
-        .get_just_hopes()
-        .iter()
+    let hopes = active_items
+        .filter_just_hopes()
         .filter(|x| {
             (x.is_project() || x.is_permanence_not_set())
                 && (x.is_mentally_resident() || x.is_staging_not_set())
         })
         .collect::<Vec<_>>();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items);
+    let hope_nodes: Vec<ItemNode> = create_hope_nodes(&hopes, coverings, active_items);
 
     let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
@@ -225,18 +194,18 @@ pub(crate) async fn view_mentally_resident_project_hopes(
 }
 
 enum MaintenanceHopeItem<'a> {
-    MaintenanceHope(&'a HopeNode<'a>),
+    MaintenanceHope(&'a ItemNode<'a>),
 }
 
 impl Display for MaintenanceHopeItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MaintenanceHope(hope_node) => {
-                if hope_node.next_steps.is_empty() {
+                if hope_node.get_smaller().is_empty() {
                     write!(f, "[NEEDS NEXT STEP] ")?;
                 }
-                write!(f, "{}", hope_node.hope.summary)?;
-                for i in hope_node.towards_motivation_chain.iter() {
+                write!(f, "{}", hope_node.item.summary)?;
+                for i in hope_node.create_parent_chain().iter() {
                     write!(f, " ⬅  {}", i.summary)?;
                 }
                 Ok(())
@@ -246,7 +215,7 @@ impl Display for MaintenanceHopeItem<'_> {
 }
 
 impl<'a> MaintenanceHopeItem<'a> {
-    fn create_list(hope_nodes: &'a [HopeNode<'a>]) -> Vec<MaintenanceHopeItem<'a>> {
+    fn create_list(hope_nodes: &'a [ItemNode<'a>]) -> Vec<MaintenanceHopeItem<'a>> {
         hope_nodes
             .iter()
             .map(MaintenanceHopeItem::MaintenanceHope)
@@ -264,15 +233,14 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
 
-    let hopes = base_data
-        .get_just_hopes()
-        .iter()
+    let hopes = active_items
+        .filter_just_hopes()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items)
+    let hope_nodes = create_hope_nodes(&hopes, coverings, active_items)
         .into_iter()
         .filter(|x| x.is_maintenance())
-        .collect();
+        .collect::<Vec<_>>();
 
     let list = MaintenanceHopeItem::create_list(&hope_nodes);
 
@@ -333,7 +301,7 @@ impl MentallyResidentHopeSelectedMenuItem {
 }
 
 pub(crate) async fn present_mentally_resident_hope_selected_menu(
-    hope_selected: &Hope<'_>,
+    hope_selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = MentallyResidentHopeSelectedMenuItem::create_list();
@@ -341,7 +309,7 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
     let selection = Select::new("", list).with_page_size(15).prompt();
     match selection {
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithNextStep) => {
-            cover_with_item(hope_selected.get_item(), send_to_data_storage_layer).await
+            cover_with_item(hope_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithMilestone) => {
             present_add_milestone(hope_selected, send_to_data_storage_layer).await
@@ -350,31 +318,21 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
             process_and_finish_hope(hope_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
-            switch_to_maintenance_item(hope_selected.get_item(), send_to_data_storage_layer).await
+            switch_to_maintenance_item(hope_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToOnDeckHope) => {
-            update_item_staging(
-                hope_selected.get_item(),
-                send_to_data_storage_layer,
-                Staging::OnDeck,
-            )
-            .await
+            update_item_staging(hope_selected, send_to_data_storage_layer, Staging::OnDeck).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToIntensionHope) => {
             update_item_staging(
-                hope_selected.get_item(),
+                hope_selected,
                 send_to_data_storage_layer,
                 Staging::Intension,
             )
             .await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::ReleaseHope) => {
-            update_item_staging(
-                hope_selected.get_item(),
-                send_to_data_storage_layer,
-                Staging::Released,
-            )
-            .await
+            update_item_staging(hope_selected, send_to_data_storage_layer, Staging::Released).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::UpdateSummary) => {
             update_item_summary(
@@ -409,7 +367,7 @@ impl AddMilestoneMenuItem {
 }
 
 async fn present_add_milestone(
-    selected_hope: &Hope<'_>,
+    selected_hope: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = AddMilestoneMenuItem::make_list();
@@ -425,7 +383,7 @@ async fn present_add_milestone(
 }
 
 async fn cover_hope_with_new_milestone(
-    existing_hope: &Hope<'_>,
+    existing_hope: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let new_milestone_text = Text::new("Enter milestone (Hope) ⍠").prompt().unwrap();
@@ -440,7 +398,7 @@ async fn cover_hope_with_new_milestone(
 }
 
 async fn process_and_finish_hope(
-    selected_hope: &Hope<'_>,
+    selected_hope: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();

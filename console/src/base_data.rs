@@ -1,7 +1,6 @@
 pub(crate) mod circumstance;
 pub(crate) mod covering;
 pub(crate) mod covering_until_date_time;
-pub(crate) mod hope;
 pub(crate) mod item;
 pub(crate) mod life_area;
 pub(crate) mod motivation;
@@ -16,7 +15,6 @@ use crate::surrealdb_layer::surreal_tables::SurrealTables;
 use self::{
     covering::Covering,
     covering_until_date_time::CoveringUntilDateTime,
-    hope::Hope,
     item::{Item, ItemVecExtensions},
     life_area::LifeArea,
     routine::Routine,
@@ -33,10 +31,6 @@ pub(crate) struct BaseData {
     #[borrows(items)]
     #[covariant]
     active_items: Vec<&'this Item<'this>>,
-
-    #[borrows(items)]
-    #[covariant]
-    just_hopes: Vec<Hope<'this>>,
 
     #[borrows(items, surreal_tables)]
     #[covariant]
@@ -61,7 +55,6 @@ impl BaseData {
             surreal_tables,
             items_builder: |surreal_tables| surreal_tables.make_items(),
             active_items_builder: |items| items.filter_active_items(),
-            just_hopes_builder: |items| items.filter_just_hopes(),
             coverings_builder: |items, surreal_tables| surreal_tables.make_coverings(items),
             coverings_until_date_time_builder: |items, surreal_tables| {
                 surreal_tables.make_coverings_until_date_time(items)
@@ -78,10 +71,6 @@ impl BaseData {
 
     pub(crate) fn get_active_items(&self) -> &[&Item] {
         self.borrow_active_items()
-    }
-
-    pub(crate) fn get_just_hopes(&self) -> &[Hope] {
-        self.borrow_just_hopes()
     }
 
     pub(crate) fn get_coverings(&self) -> &[Covering] {
