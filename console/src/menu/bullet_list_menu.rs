@@ -3,14 +3,13 @@ pub(crate) mod bullet_list_single_item;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use chrono::Local;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
         hope::Hope,
-        item::{Item, ItemVecExtensions},
+        item::Item,
         simple::{self, Simple},
         to_do::ToDo,
         undeclared::Undeclared,
@@ -22,7 +21,7 @@ use crate::{
     node::{
         hope_node::HopeNode,
         person_or_group_node::PersonOrGroupNode,
-        to_do_node::{create_to_do_nodes, ToDoNode},
+        to_do_node::ToDoNode,
     },
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::BulletList,
@@ -249,26 +248,16 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         .unwrap();
 
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
-    let items = base_data.get_items();
-    let active_items = base_data.get_active_items();
-    let coverings = base_data.get_coverings();
-    let coverings_until_date_time = base_data.get_coverings_until_date_time();
+    let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
-    let current_date_time = Local::now();
-    let next_step_nodes = create_to_do_nodes(
-        items.filter_just_to_dos(), //TODO: I should switch this to active_items rather than items
-        coverings,
-        coverings_until_date_time,
-        active_items,
-        current_date_time,
-        true,
-    )
-    .collect::<Vec<_>>();
+    let (
+        undeclared_items,
+        simple_items,
+        persons_or_groups_that_cover_an_item,
+        next_step_nodes,
+        hopes_without_a_next_step,
+    ) = bullet_list.get_bullet_list();
 
-    let hopes_without_a_next_step = vec![]; //Hopes without a next step cannot be focus items
-    let persons_or_groups_that_cover_an_item = vec![]; //Sync'ing up with someone cannot be a focus item
-    let undeclared_items = vec![]; //Newly captured items cannot be a focus item
-    let simple_items = vec![]; //Simple items cannot be a focus item
 
     let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
         &undeclared_items,
@@ -291,7 +280,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                 present_bullet_list_item_selected(
                     to_do.get_item(),
                     &parents,
-                    active_items,
+                    bullet_list.get_active_items(),
                     send_to_data_storage_layer,
                 )
                 .await

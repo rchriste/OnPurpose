@@ -102,6 +102,39 @@ impl BulletList {
         .build()
     }
 
+    pub(crate) fn new_focused_bullet_list(base_data: BaseData) -> Self {
+        let current_date_time = Local::now();
+        BulletListBuilder {
+            base_data,
+            hope_nodes_needing_a_next_step_builder: |_| {
+                vec![] //Hopes without a next step cannot be focus items
+            },
+            next_step_nodes_builder: |base_data| {
+                let current_date_time = current_date_time.clone();
+                let active_items = base_data.get_active_items();
+                let to_dos = active_items.filter_just_to_dos();
+                create_to_do_nodes(
+                    to_dos,
+                    base_data.get_coverings(),
+                    base_data.get_coverings_until_date_time(),
+                    active_items,
+                    current_date_time,
+                    true,
+                )
+                .collect::<Vec<_>>()
+            },
+            person_or_group_nodes_that_cover_an_item_builder: |_| {
+                vec![] //Sync'ing up with someone cannot be a focus item
+            },
+            undeclared_items_builder: |_| {
+                vec![] //Newly captured items cannot be a focus item
+            },
+            simple_items_builder: |_| {
+                vec![] //Simple items cannot be a focus item
+            },
+        }.build()
+    }
+
     pub(crate) fn get_bullet_list(
         &self,
     ) -> (
