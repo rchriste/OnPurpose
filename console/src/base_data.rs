@@ -6,7 +6,6 @@ pub(crate) mod item;
 pub(crate) mod life_area;
 pub(crate) mod motivation;
 pub(crate) mod motivation_or_responsive_item;
-pub(crate) mod person_or_group;
 pub(crate) mod responsive_item;
 pub(crate) mod routine;
 pub(crate) mod to_do;

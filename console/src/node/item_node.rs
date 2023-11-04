@@ -1,5 +1,7 @@
+use chrono::{DateTime, Local};
+
 use crate::{
-    base_data::{covering::Covering, item::Item},
+    base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
     surrealdb_layer::surreal_item::SurrealItem,
 };
 
@@ -46,6 +48,10 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn get_larger(&self) -> &Vec<GrowingItemNode<'s>> {
         &self.larger
+    }
+
+    pub(crate) fn is_person_or_group(&self) -> bool {
+        self.item.is_person_or_group()
     }
 }
 
@@ -99,6 +105,26 @@ pub(crate) fn create_growing_node<'a>(
     let parents = item.find_parents(coverings, all_items, &visited);
     let larger = create_growing_nodes(parents, coverings, all_items, visited);
     GrowingItemNode { item, larger }
+}
+
+pub(crate) fn create_item_nodes<'s>(
+    create_nodes_from: impl Iterator<Item = &'s Item<'s>> + 's,
+    coverings: &'s [Covering<'s>],
+    coverings_until_date_time: &'s [CoveringUntilDateTime<'s>],
+    items: &'s [&'s Item<'s>],
+    current_date: DateTime<Local>,
+    currently_in_focus_time: bool,
+) -> impl Iterator<Item = ItemNode<'s>> + 's {
+    create_nodes_from.filter_map(move |x| {
+        if !x.is_covered(coverings, coverings_until_date_time, items, &current_date)
+            && !x.is_finished()
+            && x.is_circumstances_met(&current_date, currently_in_focus_time)
+        {
+            Some(ItemNode::new(x, coverings, items))
+        } else {
+            None
+        }
+    })
 }
 
 #[cfg(test)]

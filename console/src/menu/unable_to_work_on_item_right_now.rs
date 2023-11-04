@@ -11,10 +11,9 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
-        person_or_group::PersonOrGroup,
         BaseData,
     },
-    display::display_person_or_group::DisplayPersonOrGroup,
+    display::display_item::DisplayItem,
     new_item::NewItem,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
@@ -164,7 +163,7 @@ pub(crate) async fn place_to_contact_is_not_open(
 }
 
 enum PersonOrGroupSelection<'e> {
-    ExistingPersonOrGroup(DisplayPersonOrGroup<'e>),
+    ExistingPersonOrGroup(DisplayItem<'e>),
     NewPersonOrGroup,
 }
 
@@ -182,11 +181,9 @@ impl Display for PersonOrGroupSelection<'_> {
 }
 
 impl<'e> PersonOrGroupSelection<'e> {
-    fn make_list(persons_or_groups: &'e [PersonOrGroup<'e>]) -> Vec<Self> {
+    fn make_list(persons_or_groups: impl Iterator<Item = &'e Item<'e>>) -> Vec<Self> {
         chain!(
-            persons_or_groups
-                .iter()
-                .map(|x| Self::ExistingPersonOrGroup(DisplayPersonOrGroup::new(x))),
+            persons_or_groups.map(|x| Self::ExistingPersonOrGroup(DisplayItem::new(x))),
             once(Self::NewPersonOrGroup)
         )
         .collect()
@@ -202,13 +199,12 @@ pub(crate) async fn person_or_group_is_not_available(
         .unwrap();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let items = base_data.get_items();
-    let persons_or_groups = items.filter_just_persons_or_groups();
-    let list = PersonOrGroupSelection::make_list(&persons_or_groups);
+    let list = PersonOrGroupSelection::make_list(items.filter_just_persons_or_groups());
 
     let selection = Select::new("", list).prompt();
     match selection {
         Ok(PersonOrGroupSelection::ExistingPersonOrGroup(person_or_group)) => {
-            let person_or_group: &PersonOrGroup = person_or_group.into();
+            let person_or_group: &Item = person_or_group.into();
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithAnExistingItem {
                     item_to_be_covered: unable_to_do.get_surreal_item().clone(),

@@ -11,10 +11,7 @@ use crate::{
     display::display_item::DisplayItem,
     mentally_resident::present_mentally_resident_hope_selected_menu,
     menu::top_menu::present_top_menu,
-    node::{
-        hope_node::HopeNode, item_node::ItemNode, person_or_group_node::PersonOrGroupNode,
-        to_do_node::ToDoNode,
-    },
+    node::{hope_node::HopeNode, item_node::ItemNode, to_do_node::ToDoNode},
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::BulletList,
 };
@@ -37,7 +34,6 @@ pub(crate) enum InquireBulletListItem<'e> {
         hope: &'e Hope<'e>,
         parents: Vec<&'e Item<'e>>,
     },
-    IsAPersonOrGroupAround(&'e PersonOrGroupNode<'e>),
 }
 
 impl Display for InquireBulletListItem<'_> {
@@ -46,7 +42,11 @@ impl Display for InquireBulletListItem<'_> {
             Self::ViewFocusItems => write!(f, "⏲️  [View Focus Items] ⏲️")?,
             Self::Item { item_node, parents } => {
                 let display_item = DisplayItem::new(item_node.get_item());
-                write!(f, "{} ", display_item)?;
+                if item_node.is_person_or_group() {
+                    write!(f, "Is {} around?", display_item)?;
+                } else {
+                    write!(f, "{} ", display_item)?;
+                }
                 for item in parents {
                     let display_item = DisplayItem::new(item);
                     write!(f, " ⬅ {}", display_item)?;
@@ -68,15 +68,6 @@ impl Display for InquireBulletListItem<'_> {
                     write!(f, " ⬅  {}", display_item)?;
                 }
             }
-            Self::IsAPersonOrGroupAround(person_or_group_node) => {
-                let display_item =
-                    DisplayItem::new(person_or_group_node.person_or_group().get_item());
-                write!(f, "Is {} around?", display_item)?;
-                for item in person_or_group_node.create_parent_chain() {
-                    let display_item = DisplayItem::new(item);
-                    write!(f, " ⬅ {}", display_item)?;
-                }
-            }
         }
         Ok(())
     }
@@ -85,42 +76,27 @@ impl Display for InquireBulletListItem<'_> {
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
         item_nodes: &'a [ItemNode<'a>],
-        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let mut list =
             Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len() + 1);
         list.push(Self::ViewFocusItems);
-        Self::add_items_to_list(
-            list,
-            item_nodes,
-            person_or_group_nodes,
-            next_step_nodes,
-            hopes_without_a_next_step,
-        )
+        Self::add_items_to_list(list, item_nodes, next_step_nodes, hopes_without_a_next_step)
     }
 
     pub(crate) fn create_list_just_items(
         item_nodes: &'a [ItemNode<'a>],
-        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let list = Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len());
-        Self::add_items_to_list(
-            list,
-            item_nodes,
-            person_or_group_nodes,
-            next_step_nodes,
-            hopes_without_a_next_step,
-        )
+        Self::add_items_to_list(list, item_nodes, next_step_nodes, hopes_without_a_next_step)
     }
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
         item_nodes: &'a [ItemNode<'a>],
-        person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
@@ -128,11 +104,6 @@ impl<'a> InquireBulletListItem<'a> {
             item_node: x,
             parents: x.create_next_step_parents(),
         }));
-        list.extend(
-            person_or_group_nodes
-                .iter()
-                .map(InquireBulletListItem::IsAPersonOrGroupAround),
-        );
         list.extend(
             next_step_nodes
                 .iter()
@@ -162,16 +133,11 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_unfocused_bullet_list(base_data);
 
-    let (
-        item_nodes,
-        person_or_group_nodes_that_cover_an_item,
-        next_step_nodes,
-        hope_nodes_needing_a_next_step,
-    ) = bullet_list.get_bullet_list();
+    let (item_nodes, next_step_nodes, hope_nodes_needing_a_next_step) =
+        bullet_list.get_bullet_list();
 
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
         item_nodes,
-        person_or_group_nodes_that_cover_an_item,
         next_step_nodes,
         hope_nodes_needing_a_next_step,
     );
@@ -186,13 +152,18 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 present_focused_bullet_list_menu(send_to_data_storage_layer).await
             }
             Ok(InquireBulletListItem::Item { item_node, parents }) => {
-                present_bullet_list_item_selected(
-                    item_node.get_item(),
-                    &parents,
-                    bullet_list.get_active_items(),
-                    send_to_data_storage_layer,
-                )
-                .await
+                if item_node.is_person_or_group() {
+                    present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
+                        .await
+                } else {
+                    present_bullet_list_item_selected(
+                        item_node.get_item(),
+                        &parents,
+                        bullet_list.get_active_items(),
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
             }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
                 present_bullet_list_item_selected(
@@ -205,13 +176,6 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
             }
             Ok(InquireBulletListItem::NeedsNextStepHope { hope, parents: _ }) => {
                 present_mentally_resident_hope_selected_menu(hope, send_to_data_storage_layer).await
-            }
-            Ok(InquireBulletListItem::IsAPersonOrGroupAround(person_or_group_node)) => {
-                present_is_person_or_group_around_menu(
-                    person_or_group_node,
-                    send_to_data_storage_layer,
-                )
-                .await
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
@@ -232,16 +196,10 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
-    let (
-        item_nodes,
-        persons_or_groups_that_cover_an_item,
-        next_step_nodes,
-        hopes_without_a_next_step,
-    ) = bullet_list.get_bullet_list();
+    let (item_nodes, next_step_nodes, hopes_without_a_next_step) = bullet_list.get_bullet_list();
 
     let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
         item_nodes,
-        persons_or_groups_that_cover_an_item,
         next_step_nodes,
         hopes_without_a_next_step,
     );
@@ -272,9 +230,6 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                     send_to_data_storage_layer,
                 )
                 .await
-            }
-            Ok(InquireBulletListItem::IsAPersonOrGroupAround(_)) => {
-                panic!("The focus list should not present this option")
             }
             Ok(InquireBulletListItem::NeedsNextStepHope {
                 hope: _,

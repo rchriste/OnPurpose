@@ -14,7 +14,7 @@ use crate::surrealdb_layer::{
 use super::{
     covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
     motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
-    person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, to_do::ToDo,
+    responsive_item::ResponsiveItem, to_do::ToDo,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -51,7 +51,7 @@ pub(crate) trait ItemVecExtensions<'t> {
         surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
     ) -> Vec<Hope<'a>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
-    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>>;
+    fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
     fn filter_just_simple_items(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
@@ -133,16 +133,14 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         self.iter().filter(|x| !x.is_finished()).collect()
     }
 
-    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::PersonOrGroup {
-                    Some(PersonOrGroup::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::PersonOrGroup {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
@@ -220,16 +218,14 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
             .collect()
     }
 
-    fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::PersonOrGroup {
-                    Some(PersonOrGroup::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::PersonOrGroup {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
@@ -287,6 +283,10 @@ impl<'b> Item<'b> {
             required_circumstances,
             surreal_item,
         }
+    }
+
+    pub(crate) fn is_person_or_group(&self) -> bool {
+        self.item_type == &ItemType::PersonOrGroup
     }
 
     pub(crate) fn is_circumstances_met(

@@ -17,7 +17,7 @@ use crate::{
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
-    node::person_or_group_node::PersonOrGroupNode,
+    node::item_node::ItemNode,
     surrealdb_layer::{
         surreal_item::{ItemType, Responsibility},
         surreal_tables::SurrealTables,
@@ -942,7 +942,7 @@ impl IsAPersonOrGroupAroundSelection {
 }
 
 pub(crate) async fn present_is_person_or_group_around_menu(
-    person_or_group_node: &PersonOrGroupNode<'_>,
+    person_or_group_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = IsAPersonOrGroupAroundSelection::create_list();

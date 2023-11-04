@@ -10,8 +10,7 @@ use crate::{
     mentally_resident::create_hope_nodes,
     node::{
         hope_node::HopeNode,
-        item_node::ItemNode,
-        person_or_group_node::{create_person_or_group_nodes, PersonOrGroupNode},
+        item_node::{create_item_nodes, ItemNode},
         to_do_node::{create_to_do_nodes, ToDoNode},
     },
 };
@@ -31,10 +30,6 @@ pub(crate) struct BulletList {
     #[borrows(base_data)]
     #[covariant]
     next_step_nodes: Vec<ToDoNode<'this>>,
-
-    #[borrows(base_data)]
-    #[covariant]
-    person_or_group_nodes_that_cover_an_item: Vec<PersonOrGroupNode<'this>>,
 }
 
 impl BulletList {
@@ -43,15 +38,26 @@ impl BulletList {
         BulletListBuilder {
             base_data,
             item_nodes_builder: |base_data| {
-                chain!(
+                let active_items = base_data.get_active_items();
+                let persons_or_groups = active_items.filter_just_persons_or_groups();
+                let person_or_groups_that_cover_an_item = persons_or_groups
+                    .into_iter()
+                    .filter(|x| x.is_covering_another_item(base_data.get_coverings()));
+
+                let bullet_list = chain!(
                     base_data.get_active_items().filter_just_undeclared_items(),
                     base_data.get_active_items().filter_just_simple_items(),
+                    person_or_groups_that_cover_an_item,
+                );
+
+                create_item_nodes(
+                    bullet_list,
+                    base_data.get_coverings(),
+                    base_data.get_coverings_until_date_time(),
+                    base_data.get_active_items(),
+                    current_date_time,
+                    false,
                 )
-                .map(|x| {
-                    let coverings = base_data.get_coverings();
-                    let possible_parents = base_data.get_active_items();
-                    ItemNode::new(x, coverings, possible_parents)
-                })
                 .collect::<Vec<_>>()
             },
             hope_nodes_needing_a_next_step_builder: |base_data| {
@@ -83,22 +89,6 @@ impl BulletList {
                 )
                 .collect::<Vec<_>>()
             },
-            person_or_group_nodes_that_cover_an_item_builder: |base_data| {
-                let active_items = base_data.get_active_items();
-                let persons_or_groups = active_items.filter_just_persons_or_groups();
-                let person_or_groups_that_cover_an_item = persons_or_groups
-                    .into_iter()
-                    .filter(|x| x.is_covering_another_item(base_data.get_coverings()));
-
-                create_person_or_group_nodes(
-                    person_or_groups_that_cover_an_item,
-                    base_data.get_coverings(),
-                    base_data.get_coverings_until_date_time(),
-                    active_items,
-                    &current_date_time,
-                    false,
-                )
-            },
         }
         .build()
     }
@@ -124,24 +114,13 @@ impl BulletList {
                 )
                 .collect::<Vec<_>>()
             },
-            person_or_group_nodes_that_cover_an_item_builder: |_| {
-                vec![] //Sync'ing up with someone cannot be a focus item
-            },
         }
         .build()
     }
 
-    pub(crate) fn get_bullet_list(
-        &self,
-    ) -> (
-        &[ItemNode<'_>],
-        &[PersonOrGroupNode<'_>],
-        &[ToDoNode<'_>],
-        &[HopeNode<'_>],
-    ) {
+    pub(crate) fn get_bullet_list(&self) -> (&[ItemNode<'_>], &[ToDoNode<'_>], &[HopeNode<'_>]) {
         (
             self.borrow_item_nodes(),
-            self.borrow_person_or_group_nodes_that_cover_an_item(),
             self.borrow_next_step_nodes(),
             self.borrow_hope_nodes_needing_a_next_step(),
         )
