@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use tokio::sync::mpsc::Sender;
 
+#[cfg(test)]
+use derive_builder::Builder;
+
 use crate::base_data::{
     covering::Covering,
     covering_until_date_time::CoveringUntilDateTime,
@@ -13,18 +16,28 @@ use super::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime, surreal_item::SurrealItem,
     surreal_life_area::SurrealLifeArea, surreal_required_circumstance::SurrealRequiredCircumstance,
-    surreal_routine::SurrealRoutine, surreal_specific_to_hope::SurrealSpecificToHope,
-    DataLayerCommands,
+    surreal_routine::SurrealRoutine, DataLayerCommands,
 };
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(Builder), builder(setter(into)))]
 pub(crate) struct SurrealTables {
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_items: Vec<SurrealItem>,
-    pub(crate) surreal_specific_to_hopes: Vec<SurrealSpecificToHope>,
+
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_coverings: Vec<SurrealCovering>,
+
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
+
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_coverings_until_date_time: Vec<SurrealCoveringUntilDatetime>,
+
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_life_areas: Vec<SurrealLifeArea>,
+
+    #[cfg_attr(test, builder(default))]
     pub(crate) surreal_routines: Vec<SurrealRoutine>,
 }
 

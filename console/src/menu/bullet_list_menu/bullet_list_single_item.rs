@@ -607,12 +607,12 @@ pub(crate) async fn parent_to_new_item(
     match selection {
         Ok(ItemTypeSelection::ProactiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::ToDo,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::ToDo)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -623,12 +623,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::ToDo,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::ToDo)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -639,12 +639,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -655,12 +655,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let _new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Hope,
-            };
+            let _new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             todo!("I need to also set this hope to be a milestone");
             // send_to_data_storage_layer.send(DataLayerCommands::ParentItemWithANewItem{
             //     child: parent_this.get_surreal_item().clone(),
@@ -669,12 +669,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveGoal) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -685,12 +685,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ProactiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Motivation,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Motivation)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -701,12 +701,12 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::Motivation,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::Motivation)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -731,12 +731,12 @@ pub(crate) async fn cover_with_new_item(
     match selection {
         Ok(ItemTypeSelection::ProactiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::ToDo,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::ToDo)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),
@@ -747,12 +747,12 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveAction) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::ToDo,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::ToDo)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),
@@ -763,12 +763,12 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),
@@ -779,13 +779,13 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let _new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Hope,
-            };
-            todo!("I need to also set this hope to be a milestone");
+            let _new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
+            todo!("I need to also set. this hope to be a milestone");
             // send_to_data_storage_layer.send(DataLayerCommands::CoverWithANewItem{
             //     cover_this: cover_this.get_surreal_item().clone(),
             //     cover_with: new_item,
@@ -793,12 +793,12 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveGoal) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),
@@ -809,12 +809,12 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ProactiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Motivation,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Motivation)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),
@@ -825,12 +825,12 @@ pub(crate) async fn cover_with_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveMotivation) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::Motivation,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::Motivation)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverWithANewItem {
                     cover_this: cover_this.get_surreal_item().clone(),

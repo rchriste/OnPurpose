@@ -62,12 +62,12 @@ async fn parent_to_a_goal_new_goal(
     match selection {
         Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ProactiveActionToTake,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -81,12 +81,12 @@ async fn parent_to_a_goal_new_goal(
         }
         Ok(ItemTypeSelection::ResponsiveGoal) => {
             let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItem {
-                summary,
-                finished: None,
-                responsibility: Responsibility::ReactiveBeAvailableToAct,
-                item_type: ItemType::Hope,
-            };
+            let new_item = new_item::NewItemBuilder::default()
+                .summary(summary)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(ItemType::Hope)
+                .build()
+                .expect("Filled out required fields");
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),

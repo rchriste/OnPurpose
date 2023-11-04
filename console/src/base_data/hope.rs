@@ -1,9 +1,6 @@
 use surrealdb::sql::{Datetime, Thing};
 
-use crate::surrealdb_layer::{
-    surreal_item::{ItemType, SurrealItem},
-    surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
-};
+use crate::surrealdb_layer::surreal_item::{ItemType, SurrealItem};
 
 use super::{covering::Covering, item::Item};
 
@@ -13,7 +10,6 @@ pub(crate) struct Hope<'a> {
     pub(crate) id: &'a Thing,
     pub(crate) summary: &'a str,
     pub(crate) finished: &'a Option<Datetime>,
-    pub(crate) hope_specific: SurrealSpecificToHope,
     item: &'a Item<'a>,
 }
 
@@ -54,28 +50,34 @@ impl PartialEq<Item<'_>> for Hope<'_> {
 }
 
 impl<'a> Hope<'a> {
-    pub(crate) fn new(item: &'a Item, hope_specific: SurrealSpecificToHope) -> Self {
+    pub(crate) fn new(item: &'a Item) -> Self {
         //TODO: Add assert that it is a hope
         Hope {
             id: item.get_id(),
             summary: item.get_summary(),
             finished: item.get_finished(),
-            hope_specific,
             item,
         }
     }
 
     pub(crate) fn is_mentally_resident(&self) -> bool {
-        self.hope_specific.staging == Staging::MentallyResident
+        self.item.is_mentally_resident()
+    }
+
+    pub(crate) fn is_staging_not_set(&self) -> bool {
+        self.item.is_staging_not_set()
     }
 
     pub(crate) fn is_project(&self) -> bool {
-        self.hope_specific.permanence == Permanence::Project
-            && self.hope_specific.staging == Staging::MentallyResident
+        self.item.is_project()
+    }
+
+    pub(crate) fn is_permanence_not_set(&self) -> bool {
+        self.item.is_permanence_not_set()
     }
 
     pub(crate) fn is_maintenance(&self) -> bool {
-        self.hope_specific.permanence == Permanence::Maintenance
+        self.item.is_maintenance()
     }
 
     pub(crate) fn is_finished(&self) -> bool {

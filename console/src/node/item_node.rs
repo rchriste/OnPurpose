@@ -128,8 +128,8 @@ mod tests {
         node::item_node::create_item_nodes,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
-            surreal_item::{ItemType, Responsibility, SurrealItem},
-            surreal_tables::SurrealTables,
+            surreal_item::{ItemType, SurrealItemBuilder},
+            surreal_tables::SurrealTablesBuilder,
         },
     };
 
@@ -137,33 +137,24 @@ mod tests {
     fn when_coverings_causes_a_circular_reference_create_growing_node_detects_this_and_terminates()
     {
         let surreal_items = vec![
-            SurrealItem {
-                id: Some(("surreal_item", "1").into()),
-                summary: "Main Item that covers something else".into(),
-                finished: None,
-                item_type: ItemType::ToDo,
-                smaller_items_in_priority_order: vec![],
-                responsibility: Responsibility::default(),
-                notes_location: Default::default(),
-            },
-            SurrealItem {
-                id: Some(("surreal_item", "2").into()),
-                summary: "Item that is covered by main item and the item this covers".into(),
-                finished: None,
-                item_type: ItemType::ToDo,
-                smaller_items_in_priority_order: vec![],
-                responsibility: Responsibility::default(),
-                notes_location: Default::default(),
-            },
-            SurrealItem {
-                id: Some(("surreal_item", "3").into()),
-                summary: "Item that is covers the item it is covered by, circular reference".into(),
-                finished: None,
-                item_type: ItemType::ToDo,
-                smaller_items_in_priority_order: vec![],
-                responsibility: Responsibility::default(),
-                notes_location: Default::default(),
-            },
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "1").into()))
+                .summary("Main Item that covers something else")
+                .item_type(ItemType::ToDo)
+                .build()
+                .unwrap(),
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "2").into()))
+                .summary("Item that is covered by main item and the item this covers")
+                .item_type(ItemType::ToDo)
+                .build()
+                .unwrap(),
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "3").into()))
+                .summary("Item that is covers the item it is covered by, circular reference")
+                .item_type(ItemType::ToDo)
+                .build()
+                .unwrap(),
         ];
         let surreal_coverings = vec![
             SurrealCovering {
@@ -182,15 +173,11 @@ mod tests {
                 parent: surreal_items[1].id.as_ref().expect("set above").clone(),
             },
         ];
-        let surreal_tables = SurrealTables {
-            surreal_items,
-            surreal_specific_to_hopes: vec![],
-            surreal_coverings,
-            surreal_required_circumstances: vec![],
-            surreal_coverings_until_date_time: vec![],
-            surreal_life_areas: vec![],
-            surreal_routines: vec![],
-        };
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(surreal_items)
+            .surreal_coverings(surreal_coverings)
+            .build()
+            .expect("no required fields");
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
         let coverings = surreal_tables.make_coverings(&items);

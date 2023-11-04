@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use surrealdb::{opt::RecordId, sql::Thing};
 use surrealdb_extra::table::Table;
 
+use super::surreal_item::{Permanence, Staging};
+
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
 #[table(name = "specific_to_hopes")]
 pub(crate) struct SurrealSpecificToHope {
@@ -9,33 +11,6 @@ pub(crate) struct SurrealSpecificToHope {
     pub(crate) for_item: RecordId,
     pub(crate) permanence: Permanence,
     pub(crate) staging: Staging,
-}
-
-impl SurrealSpecificToHope {
-    pub(crate) fn new_defaults(for_item: RecordId) -> Self {
-        Self {
-            id: Option::<Thing>::default(),
-            for_item,
-            permanence: Permanence::default(),
-            staging: Staging::default(),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum Permanence {
-    Maintenance,
-    #[default]
-    Project,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum Staging {
-    #[default]
-    MentallyResident,
-    OnDeck,
-    Intension,
-    Released,
 }
 
 pub(crate) trait SurrealSpecificToHopes<'a> {

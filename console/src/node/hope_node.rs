@@ -25,8 +25,4 @@ impl<'a> HopeNode<'a> {
     pub(crate) fn is_maintenance(&self) -> bool {
         self.hope.is_maintenance()
     }
-
-    pub(crate) fn is_project(&self) -> bool {
-        self.hope.is_project()
-    }
 }

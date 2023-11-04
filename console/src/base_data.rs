@@ -34,7 +34,7 @@ pub(crate) struct BaseData {
     #[covariant]
     active_items: Vec<&'this Item<'this>>,
 
-    #[borrows(items, surreal_tables)]
+    #[borrows(items)]
     #[covariant]
     just_hopes: Vec<Hope<'this>>,
 
@@ -61,9 +61,7 @@ impl BaseData {
             surreal_tables,
             items_builder: |surreal_tables| surreal_tables.make_items(),
             active_items_builder: |items| items.filter_active_items(),
-            just_hopes_builder: |items, surreal_tables| {
-                items.filter_just_hopes(&surreal_tables.surreal_specific_to_hopes)
-            },
+            just_hopes_builder: |items| items.filter_just_hopes(),
             coverings_builder: |items, surreal_tables| surreal_tables.make_coverings(items),
             coverings_until_date_time_builder: |items, surreal_tables| {
                 surreal_tables.make_coverings_until_date_time(items)

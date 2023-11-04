@@ -11,10 +11,11 @@ pub(crate) mod surreal_tables;
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
+    error::Api,
     sql::Thing,
-    Surreal,
+    Error, Surreal,
 };
-use surrealdb_extra::table::Table;
+use surrealdb_extra::table::{Table, TableError};
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     oneshot::{self, error::RecvError},
@@ -25,12 +26,15 @@ use crate::new_item::NewItem;
 use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
-    surreal_item::{ItemType, NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
+    surreal_item::{
+        ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
+        SurrealItemOldVersion, SurrealOrderedSubItem,
+    },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
-    surreal_specific_to_hope::{Permanence, Staging, SurrealSpecificToHope},
+    surreal_specific_to_hope::SurrealSpecificToHope,
     surreal_tables::SurrealTables,
 };
 
@@ -63,8 +67,8 @@ pub(crate) enum DataLayerCommands {
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
     UpdateResponsibilityAndItemType(SurrealItem, Responsibility, ItemType),
-    UpdateHopePermanence(SurrealSpecificToHope, Permanence),
-    UpdateHopeStaging(SurrealSpecificToHope, Staging),
+    UpdateItemPermanence(SurrealItem, Permanence),
+    UpdateItemStaging(SurrealItem, Staging),
     UpdateItemSummary(SurrealItem, String),
 }
 
@@ -165,11 +169,11 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::AddCircumstanceDuringFocusTime(add_circumstance_to_this)) => {
                 add_circumstance_during_focus_time(add_circumstance_to_this, &db).await
             }
-            Some(DataLayerCommands::UpdateHopePermanence(specific_to_hope, new_permanence)) => {
-                update_hope_permanence(specific_to_hope, new_permanence, &db).await
+            Some(DataLayerCommands::UpdateItemPermanence(item, new_permanence)) => {
+                update_hope_permanence(item, new_permanence, &db).await
             }
-            Some(DataLayerCommands::UpdateHopeStaging(specific_to_hope, new_staging)) => {
-                update_hope_staging(specific_to_hope, new_staging, &db).await
+            Some(DataLayerCommands::UpdateItemStaging(item, new_staging)) => {
+                update_hope_staging(item, new_staging, &db).await
             }
             Some(DataLayerCommands::UpdateItemSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
@@ -191,7 +195,6 @@ pub(crate) async fn data_storage_start_and_run(
 
 pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     //TODO: I should do some timings to see if starting all of these get_all requests and then doing awaits on them later really is faster in Rust. Or if they just for sure don't start until the await. For example I could call this function as many times as possible in 10 sec and time that and then see how many times I can call that function written like this and then again with the get_all being right with the await to make sure that code like this is worth it perf wise.
-    let all_specific_to_hopes = SurrealSpecificToHope::get_all(db);
     let all_items = SurrealItem::get_all(db);
     let all_coverings = SurrealCovering::get_all(db);
     let all_required_circumstances = SurrealRequiredCircumstance::get_all(db);
@@ -199,29 +202,43 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let all_life_areas = SurrealLifeArea::get_all(db);
     let all_routines = SurrealRoutine::get_all(db);
 
-    let all_items = all_items.await.unwrap();
-    let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
-    let all_specific_to_hopes = all_items
-        .iter()
-        .map(|x| {
-            match all_specific_to_hopes
-                .iter()
-                .find(|y| x.id.as_ref().expect("In DB") == &y.for_item)
-            {
-                Some(s) => s.clone(),
-                None => SurrealSpecificToHope::new_defaults(x.id.as_ref().expect("In DB").clone()),
-            }
-        })
-        .collect();
+    let all_items = match all_items.await {
+        Ok(all_items) => all_items,
+        Err(TableError::Db(Error::Api(Api::FromValue { value: _, error }))) => {
+            println!("Upgrading items table because of issue: {}", error);
+            upgrade_items_table(db).await;
+            SurrealItem::get_all(db).await.unwrap()
+        }
+        _ => todo!(),
+    };
 
     SurrealTables {
         surreal_items: all_items,
         surreal_coverings: all_coverings.await.unwrap(),
         surreal_required_circumstances: all_required_circumstances.await.unwrap(),
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
-        surreal_specific_to_hopes: all_specific_to_hopes,
         surreal_life_areas: all_life_areas.await.unwrap(),
         surreal_routines: all_routines.await.unwrap(),
+    }
+}
+
+async fn upgrade_items_table(db: &Surreal<Any>) {
+    let all_hopes = SurrealSpecificToHope::get_all(db).await.unwrap();
+    for item_old_version in SurrealItemOldVersion::get_all(db)
+        .await
+        .unwrap()
+        .into_iter()
+    {
+        let hope_additional_data = all_hopes
+            .iter()
+            .find(|x| &x.for_item == item_old_version.id.as_ref().expect("In DB"));
+        let item: SurrealItem = match hope_additional_data {
+            Some(hope_additional_data) => {
+                item_old_version.into_with_hope_data(hope_additional_data.clone())
+            }
+            None => item_old_version.into(),
+        };
+        item.update(db).await.unwrap();
     }
 }
 
@@ -315,6 +332,8 @@ async fn cover_item_with_a_new_next_step(
         smaller_items_in_priority_order: Vec::default(),
         responsibility: responsibility.clone(),
         notes_location: NotesLocation::default(),
+        permanence: Permanence::default(),
+        staging: Staging::default(),
     }
     .create(db)
     .await
@@ -340,6 +359,7 @@ async fn cover_item_with_a_new_milestone(
     milestone_text: String,
     db: &Surreal<Any>,
 ) {
+    //TODO: This should be removed. I am not ever doing anything to encode the idea of milestone into the saved data.
     //This would be best done as a single transaction but I am not quite sure how to do that so do it separate for now
 
     let new_milestone = SurrealItem {
@@ -350,6 +370,8 @@ async fn cover_item_with_a_new_milestone(
         smaller_items_in_priority_order: Vec::default(),
         responsibility: Responsibility::default(),
         notes_location: NotesLocation::default(),
+        permanence: Permanence::default(),
+        staging: Staging::default(),
     }
     .create(db)
     .await
@@ -449,34 +471,34 @@ async fn parent_item_with_a_new_item(
 }
 
 async fn update_hope_permanence(
-    mut surreal_specific_to_hope: SurrealSpecificToHope,
+    mut surreal_item: SurrealItem,
     new_permanence: Permanence,
     db: &Surreal<Any>,
 ) {
-    surreal_specific_to_hope.permanence = new_permanence;
+    surreal_item.permanence = new_permanence;
 
-    if surreal_specific_to_hope.id.is_some() {
+    if surreal_item.id.is_some() {
         //Update
-        surreal_specific_to_hope.update(db).await.unwrap();
+        surreal_item.update(db).await.unwrap();
     } else {
         //Create record
-        surreal_specific_to_hope.create(db).await.unwrap();
+        surreal_item.create(db).await.unwrap();
     }
 }
 
 async fn update_hope_staging(
-    mut surreal_specific_to_hope: SurrealSpecificToHope,
+    mut surreal_item: SurrealItem,
     new_staging: Staging,
     db: &Surreal<Any>,
 ) {
-    surreal_specific_to_hope.staging = new_staging;
+    surreal_item.staging = new_staging;
 
-    if surreal_specific_to_hope.id.is_some() {
+    if surreal_item.id.is_some() {
         //Update
-        surreal_specific_to_hope.update(db).await.unwrap();
+        surreal_item.update(db).await.unwrap();
     } else {
         //Create record
-        surreal_specific_to_hope.create(db).await.unwrap();
+        surreal_item.create(db).await.unwrap();
     }
 }
 
@@ -494,9 +516,9 @@ async fn update_item_summary(
 mod tests {
     use tokio::sync::mpsc;
 
-    use crate::new_item;
-
     use super::*;
+
+    use crate::new_item::NewItemBuilder;
 
     #[tokio::test]
     async fn data_starts_empty() {
@@ -645,12 +667,12 @@ mod tests {
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
         let item_to_cover = surreal_tables.surreal_items.first().unwrap();
 
-        let new_item = NewItem {
-            summary: "Covering item".into(),
-            finished: None,
-            responsibility: Responsibility::ProactiveActionToTake,
-            item_type: ItemType::ToDo,
-        };
+        let new_item = NewItemBuilder::default()
+            .summary("Covering item")
+            .responsibility(Responsibility::ProactiveActionToTake)
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
 
         sender
             .send(DataLayerCommands::CoverWithANewItem {
@@ -931,12 +953,11 @@ mod tests {
         sender
             .send(DataLayerCommands::ParentItemWithANewItem {
                 child: surreal_tables.surreal_items.into_iter().next().unwrap(),
-                parent_new_item: new_item::NewItem {
-                    summary: "Parent Item".into(),
-                    item_type: ItemType::Hope,
-                    responsibility: Responsibility::default(),
-                    finished: None,
-                },
+                parent_new_item: NewItemBuilder::default()
+                    .summary("Parent Item")
+                    .item_type(ItemType::Hope)
+                    .build()
+                    .unwrap(),
             })
             .await
             .unwrap();

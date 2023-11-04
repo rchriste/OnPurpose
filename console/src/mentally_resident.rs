@@ -11,8 +11,7 @@ use crate::{
     menu::top_menu::present_top_menu,
     node::hope_node::HopeNode,
     surrealdb_layer::{
-        surreal_item::SurrealItem,
-        surreal_specific_to_hope::{Permanence, Staging},
+        surreal_item::{Permanence, Staging, SurrealItem},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -192,12 +191,12 @@ pub(crate) async fn view_mentally_resident_project_hopes(
     let hopes = base_data
         .get_just_hopes()
         .iter()
-        .filter(|x| x.is_project() && x.is_mentally_resident())
+        .filter(|x| {
+            (x.is_project() || x.is_permanence_not_set())
+                && (x.is_mentally_resident() || x.is_staging_not_set())
+        })
         .collect::<Vec<_>>();
-    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items)
-        .into_iter()
-        .filter(|x| x.is_project())
-        .collect();
+    let hope_nodes: Vec<HopeNode> = create_hope_nodes(&hopes, coverings, active_items);
 
     let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
@@ -351,21 +350,31 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
             process_and_finish_hope(hope_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToMaintenanceHope) => {
-            switch_to_maintenance_hope(hope_selected, send_to_data_storage_layer).await
+            switch_to_maintenance_item(hope_selected.get_item(), send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToOnDeckHope) => {
-            update_hope_staging(hope_selected, send_to_data_storage_layer, Staging::OnDeck).await
+            update_item_staging(
+                hope_selected.get_item(),
+                send_to_data_storage_layer,
+                Staging::OnDeck,
+            )
+            .await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToIntensionHope) => {
-            update_hope_staging(
-                hope_selected,
+            update_item_staging(
+                hope_selected.get_item(),
                 send_to_data_storage_layer,
                 Staging::Intension,
             )
             .await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::ReleaseHope) => {
-            update_hope_staging(hope_selected, send_to_data_storage_layer, Staging::Released).await
+            update_item_staging(
+                hope_selected.get_item(),
+                send_to_data_storage_layer,
+                Staging::Released,
+            )
+            .await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::UpdateSummary) => {
             update_item_summary(
@@ -453,27 +462,27 @@ async fn process_and_finish_hope(
         .unwrap();
 }
 
-async fn switch_to_maintenance_hope(
-    selected_hope: &Hope<'_>,
+async fn switch_to_maintenance_item(
+    selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     send_to_data_storage_layer
-        .send(DataLayerCommands::UpdateHopePermanence(
-            selected_hope.hope_specific.clone(),
+        .send(DataLayerCommands::UpdateItemPermanence(
+            selected.get_surreal_item().clone(),
             Permanence::Maintenance,
         ))
         .await
         .unwrap();
 }
 
-async fn update_hope_staging(
-    selected_hope: &Hope<'_>,
+async fn update_item_staging(
+    selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     new_staging: Staging,
 ) {
     send_to_data_storage_layer
-        .send(DataLayerCommands::UpdateHopeStaging(
-            selected_hope.hope_specific.clone(),
+        .send(DataLayerCommands::UpdateItemStaging(
+            selected.get_surreal_item().clone(),
             new_staging,
         ))
         .await

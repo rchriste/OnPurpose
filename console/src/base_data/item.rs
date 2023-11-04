@@ -6,9 +6,11 @@ use surrealdb::{
 };
 
 use crate::surrealdb_layer::{
-    surreal_item::{ItemType, NotesLocation, Responsibility, SurrealItem, SurrealOrderedSubItem},
+    surreal_item::{
+        ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
+        SurrealOrderedSubItem,
+    },
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
-    surreal_specific_to_hope::{SurrealSpecificToHope, SurrealSpecificToHopes},
 };
 
 use super::{
@@ -45,10 +47,7 @@ pub(crate) trait ItemVecExtensions<'t> {
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&'t self) -> Self::ItemIterator;
-    fn filter_just_hopes<'a>(
-        &'a self,
-        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
-    ) -> Vec<Hope<'a>>;
+    fn filter_just_hopes(&self) -> Vec<Hope<'_>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
@@ -77,18 +76,12 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes<'a>(
-        &'a self,
-        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
-    ) -> Vec<Hope<'a>> {
+    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
         //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
         let mut just_hopes = Vec::default();
         for x in self.iter() {
             if x.item_type == &ItemType::Hope {
-                let hope_specific: Option<&SurrealSpecificToHope> =
-                    surreal_specific_to_hopes.get_by_id(x.id);
-                let hope_specific = hope_specific.unwrap().clone(); //TODO: Figure out how to use borrow rather than clone()
-                let hope = Hope::new(x, hope_specific);
+                let hope = Hope::new(x);
                 just_hopes.push(hope);
             }
         }
@@ -178,18 +171,12 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes<'a>(
-        &'a self,
-        surreal_specific_to_hopes: &'a [SurrealSpecificToHope],
-    ) -> Vec<Hope<'a>> {
+    fn filter_just_hopes(&self) -> Vec<Hope<'_>> {
         //Initially I had this with a iter().filter_map() but then I had some issue with the borrow checker and surreal_specific_to_hopes that I didn't understand so I refactored it to this code to work around that issue
         let mut just_hopes = Vec::default();
         for x in self.iter() {
             if x.item_type == &ItemType::Hope {
-                let hope_specific: Option<&SurrealSpecificToHope> =
-                    surreal_specific_to_hopes.get_by_id(x.id);
-                let hope_specific = hope_specific.unwrap().clone(); //TODO: Figure out how to use borrow rather than clone()
-                let hope = Hope::new(x, hope_specific);
+                let hope = Hope::new(x);
                 just_hopes.push(hope);
             }
         }
@@ -489,6 +476,34 @@ impl<'b> Item<'b> {
     pub(crate) fn is_there_notes(&self) -> bool {
         self.surreal_item.notes_location != NotesLocation::None
     }
+
+    pub(crate) fn get_staging(&self) -> &Staging {
+        &self.surreal_item.staging
+    }
+
+    pub(crate) fn is_mentally_resident(&self) -> bool {
+        self.get_staging() == &Staging::MentallyResident
+    }
+
+    pub(crate) fn is_staging_not_set(&self) -> bool {
+        self.get_staging() == &Staging::NotSet
+    }
+
+    pub(crate) fn get_permanence(&self) -> &Permanence {
+        &self.surreal_item.permanence
+    }
+
+    pub(crate) fn is_project(&self) -> bool {
+        self.get_permanence() == &Permanence::Project
+    }
+
+    pub(crate) fn is_permanence_not_set(&self) -> bool {
+        self.get_permanence() == &Permanence::NotSet
+    }
+
+    pub(crate) fn is_maintenance(&self) -> bool {
+        self.get_permanence() == &Permanence::Maintenance
+    }
 }
 
 impl Item<'_> {
@@ -543,23 +558,21 @@ impl Item<'_> {
 #[cfg(test)]
 mod tests {
     use crate::surrealdb_layer::{
-        surreal_item::SurrealOrderedSubItem, surreal_required_circumstance::CircumstanceType,
-        surreal_tables::SurrealTables,
+        surreal_item::{SurrealItemBuilder, SurrealOrderedSubItem},
+        surreal_required_circumstance::CircumstanceType,
+        surreal_tables::SurrealTablesBuilder,
     };
 
     use super::*;
 
     #[test]
     fn is_circumstances_met_returns_false_if_circumstance_type_is_not_sunday_and_it_is_sunday() {
-        let surreal_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Circumstance type is not Sunday".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: Vec::default(),
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
+        let surreal_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Circumstance type is not Sunday")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
 
         let required_circumstance = SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -579,15 +592,12 @@ mod tests {
 
     #[test]
     fn is_circumstances_met_returns_true_if_circumstance_type_is_not_sunday_and_it_is_not_sunday() {
-        let surreal_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Circumstance type is not Sunday".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: Vec::default(),
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
+        let surreal_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Circumstance type is not Sunday")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
 
         let required_circumstance = SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -608,15 +618,12 @@ mod tests {
     #[test]
     fn is_circumstances_met_returns_false_if_focus_time_is_not_active_and_circumstance_type_is_during_focus_time(
     ) {
-        let surreal_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Circumstance type is not Sunday".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: Vec::default(),
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
+        let surreal_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Circumstance type is not Sunday")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
 
         let required_circumstance = SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -637,15 +644,12 @@ mod tests {
     #[test]
     fn is_circumstances_met_returns_true_if_focus_time_is_active_and_circumstance_type_is_during_focus_time(
     ) {
-        let surreal_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Circumstance type is not Sunday".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: Vec::default(),
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
+        let surreal_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Circumstance type is not Sunday")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
 
         let required_circumstance = SurrealRequiredCircumstance {
             id: Some(("surreal_required_circumstance", "1").into()),
@@ -665,35 +669,26 @@ mod tests {
 
     #[test]
     fn to_do_item_with_a_parent_returns_the_parent_when_find_parents_is_called() {
-        let smaller_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Smaller item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let parent_item = SurrealItem {
-            id: Some(("surreal_item", "2").into()),
-            summary: "Parent item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+        let smaller_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Smaller item")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
+        let parent_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Parent item")
+            .finished(None)
+            .item_type(ItemType::ToDo)
+            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
-            }],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let surreal_tables = SurrealTables {
-            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
-            surreal_specific_to_hopes: vec![],
-            surreal_coverings: vec![],
-            surreal_required_circumstances: vec![],
-            surreal_coverings_until_date_time: vec![],
-            surreal_life_areas: vec![],
-            surreal_routines: vec![],
-        };
+            }])
+            .build()
+            .unwrap();
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
+            .build()
+            .unwrap();
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
         let coverings = surreal_tables.make_coverings(&items);
@@ -714,35 +709,25 @@ mod tests {
 
     #[test]
     fn when_active_smaller_items_in_priority_order_exist_has_children_returns_true() {
-        let smaller_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Smaller item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let parent_item = SurrealItem {
-            id: Some(("surreal_item", "2").into()),
-            summary: "Parent item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+        let smaller_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Smaller item")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
+        let parent_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Parent item")
+            .item_type(ItemType::ToDo)
+            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
-            }],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let surreal_tables = SurrealTables {
-            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
-            surreal_specific_to_hopes: vec![],
-            surreal_coverings: vec![],
-            surreal_required_circumstances: vec![],
-            surreal_coverings_until_date_time: vec![],
-            surreal_life_areas: vec![],
-            surreal_routines: vec![],
-        };
+            }])
+            .build()
+            .unwrap();
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
+            .build()
+            .unwrap();
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
 
@@ -756,35 +741,25 @@ mod tests {
 
     #[test]
     fn when_active_smaller_items_in_priority_order_exist_covered_by_returns_the_items() {
-        let smaller_item = SurrealItem {
-            id: Some(("surreal_item", "1").into()),
-            summary: "Smaller item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let parent_item = SurrealItem {
-            id: Some(("surreal_item", "2").into()),
-            summary: "Parent item".into(),
-            finished: None,
-            item_type: ItemType::ToDo,
-            smaller_items_in_priority_order: vec![SurrealOrderedSubItem::SubItem {
+        let smaller_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("Smaller item")
+            .item_type(ItemType::ToDo)
+            .build()
+            .unwrap();
+        let parent_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Parent item")
+            .item_type(ItemType::ToDo)
+            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
-            }],
-            responsibility: Responsibility::default(),
-            notes_location: Default::default(),
-        };
-        let surreal_tables = SurrealTables {
-            surreal_items: vec![smaller_item.clone(), parent_item.clone()],
-            surreal_specific_to_hopes: vec![],
-            surreal_coverings: vec![],
-            surreal_required_circumstances: vec![],
-            surreal_coverings_until_date_time: vec![],
-            surreal_life_areas: vec![],
-            surreal_routines: vec![],
-        };
+            }])
+            .build()
+            .unwrap();
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
+            .build()
+            .unwrap();
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
         let coverings = surreal_tables.make_coverings(&items);
