@@ -14,7 +14,7 @@ use crate::surrealdb_layer::{
 use super::{
     covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
     motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
-    person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, simple::Simple, to_do::ToDo,
+    person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, to_do::ToDo,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -53,7 +53,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
     fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>>;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
-    fn filter_just_simple_items(&self) -> Vec<Simple<'_>>;
+    fn filter_just_simple_items(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
     fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
 }
@@ -64,8 +64,10 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         Box<dyn FnMut(&'s Item<'s>) -> Option<ToDo<'s>>>,
     >;
 
-    type ItemIterator = std::iter::FilterMap<std::slice::Iter<'s, Item<'s>>, Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>>;
-
+    type ItemIterator = std::iter::FilterMap<
+        std::slice::Iter<'s, Item<'s>>,
+        Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>,
+    >;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
         self.iter().find(|x| x.id == record_id)
@@ -144,24 +146,23 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
     }
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
-        self.iter()
-            .filter_map(Box::new(|x: &'s Item<'s>| {
-                if x.item_type == &ItemType::Undeclared {
-                    Some(x)
-                } else { None }
-            }))
+        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
+            if x.item_type == &ItemType::Undeclared {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
-    fn filter_just_simple_items(&self) -> Vec<Simple<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::Simple {
-                    Some(Simple::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::Simple {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 }
 
@@ -232,24 +233,23 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     }
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
-        self.iter()
-            .filter_map(Box::new(|x| {
-                if x.item_type == &ItemType::Undeclared {
-                    Some(*x)
-                } else { None }
-            }))
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::Undeclared {
+                Some(*x)
+            } else {
+                None
+            }
+        }))
     }
 
-    fn filter_just_simple_items(&self) -> Vec<Simple<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.item_type == &ItemType::Simple {
-                    Some(Simple::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+    fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::Simple {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
@@ -269,7 +269,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     }
 
     fn filter_active_items(&self) -> Vec<&Item> {
-        self.iter().filter(|x| !x.is_finished()).map(|x| *x).collect()
+        self.iter().filter(|x| !x.is_finished()).copied().collect()
     }
 }
 
