@@ -12,7 +12,6 @@ use crate::{
         item::Item,
         simple::{self, Simple},
         to_do::ToDo,
-        undeclared::Undeclared,
         BaseData,
     },
     display::display_item::DisplayItem,
@@ -21,7 +20,7 @@ use crate::{
     node::{
         hope_node::HopeNode,
         person_or_group_node::PersonOrGroupNode,
-        to_do_node::ToDoNode,
+        to_do_node::ToDoNode, item_node::ItemNode,
     },
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::BulletList,
@@ -33,6 +32,10 @@ use self::bullet_list_single_item::{
 
 pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
+    Item {
+        item_node: &'e ItemNode<'e>,
+        parents: Vec<&'e Item<'e>>,
+    },
     NextStepToDo {
         to_do: &'e ToDo<'e>,
         parents: Vec<&'e Item<'e>>,
@@ -42,7 +45,6 @@ pub(crate) enum InquireBulletListItem<'e> {
         parents: Vec<&'e Item<'e>>,
     },
     IsAPersonOrGroupAround(&'e PersonOrGroupNode<'e>),
-    NewlyCapturedItem(&'e Undeclared<'e>),
     SimpleItem(&'e simple::Simple<'e>),
 }
 
@@ -50,6 +52,14 @@ impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ViewFocusItems => write!(f, "⏲️  [View Focus Items] ⏲️")?,
+            Self::Item { item_node, parents } => {
+                let display_item = DisplayItem::new(item_node.get_item());
+                write!(f, "{} ", display_item)?;
+                for item in parents {
+                    let display_item = DisplayItem::new(item);
+                    write!(f, " ⬅ {}", display_item)?;
+                }
+            },
             Self::NextStepToDo { to_do, parents } => {
                 let display_item = DisplayItem::new(to_do.into());
                 write!(f, "{} ", display_item)?;
@@ -75,10 +85,6 @@ impl Display for InquireBulletListItem<'_> {
                     write!(f, " ⬅ {}", display_item)?;
                 }
             }
-            Self::NewlyCapturedItem(undeclared) => {
-                let display_item = DisplayItem::new(undeclared.get_item());
-                write!(f, "{}", display_item)?;
-            }
             Self::SimpleItem(simple) => {
                 let display_item = DisplayItem::new(simple.get_item());
                 write!(f, "{}", display_item)?;
@@ -90,7 +96,7 @@ impl Display for InquireBulletListItem<'_> {
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
-        undeclared_items: &'a [Undeclared<'a>],
+        item_nodes: &'a [ItemNode<'a>],
         simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
@@ -101,7 +107,7 @@ impl<'a> InquireBulletListItem<'a> {
         list.push(Self::ViewFocusItems);
         Self::add_items_to_list(
             list,
-            undeclared_items,
+            item_nodes,
             simple_items,
             person_or_group_nodes,
             next_step_nodes,
@@ -110,7 +116,7 @@ impl<'a> InquireBulletListItem<'a> {
     }
 
     pub(crate) fn create_list_just_items(
-        undeclared_items: &'a [Undeclared<'a>],
+        item_nodes: &'a [ItemNode<'a>],
         simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
@@ -119,7 +125,7 @@ impl<'a> InquireBulletListItem<'a> {
         let list = Vec::with_capacity(next_step_nodes.len() + hopes_without_a_next_step.len());
         Self::add_items_to_list(
             list,
-            undeclared_items,
+            item_nodes,
             simple_items,
             person_or_group_nodes,
             next_step_nodes,
@@ -129,17 +135,18 @@ impl<'a> InquireBulletListItem<'a> {
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
-        undeclared_items: &'a [Undeclared<'a>],
+        item_nodes: &'a [ItemNode<'a>],
         simple_items: &'a [Simple<'a>],
         person_or_group_nodes: &'a [PersonOrGroupNode<'a>],
         next_step_nodes: &'a [ToDoNode<'a>],
         hopes_without_a_next_step: &'a [HopeNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        list.extend(
-            undeclared_items
-                .iter()
-                .map(InquireBulletListItem::NewlyCapturedItem),
-        );
+        list.extend(item_nodes.iter().map(|x| 
+            InquireBulletListItem::Item {
+                item_node: x,
+                parents: x.create_next_step_parents(),
+            }
+        ));
         list.extend(simple_items.iter().map(InquireBulletListItem::SimpleItem));
         list.extend(
             person_or_group_nodes
@@ -176,7 +183,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     let bullet_list = BulletList::new_unfocused_bullet_list(base_data);
 
     let (
-        undeclared_items,
+        item_nodes,
         simple_items,
         person_or_group_nodes_that_cover_an_item,
         next_step_nodes,
@@ -184,7 +191,7 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     ) = bullet_list.get_bullet_list();
 
     let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
-        undeclared_items,
+        item_nodes,
         simple_items,
         person_or_group_nodes_that_cover_an_item,
         next_step_nodes,
@@ -199,6 +206,15 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         match selected {
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 present_focused_bullet_list_menu(send_to_data_storage_layer).await
+            }
+            Ok(InquireBulletListItem::Item { item_node, parents }) => {
+                present_bullet_list_item_selected(
+                    item_node.get_item(),
+                    &parents,
+                    bullet_list.get_active_items(),
+                    send_to_data_storage_layer,
+                )
+                .await
             }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
                 present_bullet_list_item_selected(
@@ -215,15 +231,6 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
             Ok(InquireBulletListItem::IsAPersonOrGroupAround(person_or_group_node)) => {
                 present_is_person_or_group_around_menu(
                     person_or_group_node,
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            Ok(InquireBulletListItem::NewlyCapturedItem(undeclared)) => {
-                present_bullet_list_item_selected(
-                    undeclared.get_item(),
-                    &[],
-                    bullet_list.get_active_items(),
                     send_to_data_storage_layer,
                 )
                 .await
@@ -251,7 +258,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
     let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
     let (
-        undeclared_items,
+        item_nodes,
         simple_items,
         persons_or_groups_that_cover_an_item,
         next_step_nodes,
@@ -260,11 +267,11 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
 
 
     let inquire_bullet_list = InquireBulletListItem::create_list_just_items(
-        &undeclared_items,
-        &simple_items,
-        &persons_or_groups_that_cover_an_item,
-        &next_step_nodes,
-        &hopes_without_a_next_step,
+        item_nodes,
+        simple_items,
+        persons_or_groups_that_cover_an_item,
+        next_step_nodes,
+        hopes_without_a_next_step,
     );
 
     if !inquire_bullet_list.is_empty() {
@@ -276,6 +283,15 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 panic!("The focus list should not present this option")
             }
+            Ok(InquireBulletListItem::Item {item_node, parents}) => {
+                present_bullet_list_item_selected(
+                    item_node.get_item(),
+                    &parents,
+                    bullet_list.get_active_items(),
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
             Ok(InquireBulletListItem::NextStepToDo { to_do, parents }) => {
                 present_bullet_list_item_selected(
                     to_do.get_item(),
@@ -286,9 +302,6 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                 .await
             }
             Ok(InquireBulletListItem::IsAPersonOrGroupAround(_)) => {
-                panic!("The focus list should not present this option")
-            }
-            Ok(InquireBulletListItem::NewlyCapturedItem(_)) => {
                 panic!("The focus list should not present this option")
             }
             Ok(InquireBulletListItem::SimpleItem(_)) => {

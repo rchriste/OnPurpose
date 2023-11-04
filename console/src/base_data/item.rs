@@ -15,7 +15,6 @@ use super::{
     covering::Covering, covering_until_date_time::CoveringUntilDateTime, hope::Hope,
     motivation::Motivation, motivation_or_responsive_item::MotivationOrResponsiveItem,
     person_or_group::PersonOrGroup, responsive_item::ResponsiveItem, simple::Simple, to_do::ToDo,
-    undeclared::Undeclared,
 };
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -43,6 +42,7 @@ impl From<Item<'_>> for SurrealItem {
 
 pub(crate) trait ItemVecExtensions<'t> {
     type ToDoIterator: Iterator<Item = ToDo<'t>>;
+    type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&'t self) -> Self::ToDoIterator;
@@ -52,7 +52,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     ) -> Vec<Hope<'a>>;
     fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
     fn filter_just_persons_or_groups(&self) -> Vec<PersonOrGroup<'_>>;
-    fn filter_just_undeclared_items(&self) -> Vec<Undeclared<'_>>;
+    fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
     fn filter_just_simple_items(&self) -> Vec<Simple<'_>>;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
     fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
@@ -63,6 +63,9 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         std::slice::Iter<'s, Item<'s>>,
         Box<dyn FnMut(&'s Item<'s>) -> Option<ToDo<'s>>>,
     >;
+
+    type ItemIterator = std::iter::FilterMap<std::slice::Iter<'s, Item<'s>>, Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>>;
+
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
         self.iter().find(|x| x.id == record_id)
@@ -140,16 +143,13 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
             .collect()
     }
 
-    fn filter_just_undeclared_items(&self) -> Vec<Undeclared<'_>> {
+    fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
         self.iter()
-            .filter_map(|x| {
+            .filter_map(Box::new(|x: &'s Item<'s>| {
                 if x.item_type == &ItemType::Undeclared {
-                    Some(Undeclared::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+                    Some(x)
+                } else { None }
+            }))
     }
 
     fn filter_just_simple_items(&self) -> Vec<Simple<'_>> {
@@ -169,6 +169,10 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     type ToDoIterator = std::iter::FilterMap<
         std::slice::Iter<'s, &'s Item<'s>>,
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<ToDo<'s>>>,
+    >;
+    type ItemIterator = std::iter::FilterMap<
+        std::slice::Iter<'s, &'s Item<'s>>,
+        Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
@@ -227,16 +231,13 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
             .collect()
     }
 
-    fn filter_just_undeclared_items(&self) -> Vec<Undeclared<'_>> {
+    fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
         self.iter()
-            .filter_map(|x| {
+            .filter_map(Box::new(|x| {
                 if x.item_type == &ItemType::Undeclared {
-                    Some(Undeclared::new(x))
-                } else {
-                    None
-                }
-            })
-            .collect()
+                    Some(*x)
+                } else { None }
+            }))
     }
 
     fn filter_just_simple_items(&self) -> Vec<Simple<'_>> {

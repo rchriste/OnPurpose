@@ -5,20 +5,23 @@ use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
         simple::Simple,
-        undeclared::Undeclared,
         BaseData,
     },
     mentally_resident::create_hope_nodes,
     node::{
         hope_node::HopeNode,
         person_or_group_node::{create_person_or_group_nodes, PersonOrGroupNode},
-        to_do_node::{create_to_do_nodes, ToDoNode},
+        to_do_node::{create_to_do_nodes, ToDoNode}, item_node::ItemNode,
     },
 };
 
 #[self_referencing]
 pub(crate) struct BulletList {
     base_data: BaseData,
+
+    #[borrows(base_data)]
+    #[covariant]
+    item_nodes: Vec<ItemNode<'this>>,
 
     #[borrows(base_data)]
     #[covariant]
@@ -34,10 +37,6 @@ pub(crate) struct BulletList {
 
     #[borrows(base_data)]
     #[covariant]
-    undeclared_items: Vec<Undeclared<'this>>,
-
-    #[borrows(base_data)]
-    #[covariant]
     simple_items: Vec<Simple<'this>>,
 }
 
@@ -46,6 +45,13 @@ impl BulletList {
         let current_date_time = Local::now();
         BulletListBuilder {
             base_data,
+            item_nodes_builder: |base_data| {
+                base_data.get_active_items().filter_just_undeclared_items().map(|x| {
+                    let coverings = base_data.get_coverings();
+                    let possible_parents = base_data.get_active_items();
+                    ItemNode::new(x, coverings, possible_parents)
+                }).collect::<Vec<_>>()
+            },
             hope_nodes_needing_a_next_step_builder: |base_data| {
                 let mentally_resident_hopes = base_data
                     .get_just_hopes()
@@ -92,9 +98,6 @@ impl BulletList {
                     false,
                 )
             },
-            undeclared_items_builder: |base_data| {
-                base_data.get_active_items().filter_just_undeclared_items()
-            },
             simple_items_builder: |base_data| {
                 base_data.get_active_items().filter_just_simple_items()
             },
@@ -106,6 +109,9 @@ impl BulletList {
         let current_date_time = Local::now();
         BulletListBuilder {
             base_data,
+            item_nodes_builder: |_| {
+                vec![]
+            },
             hope_nodes_needing_a_next_step_builder: |_| {
                 vec![] //Hopes without a next step cannot be focus items
             },
@@ -126,9 +132,6 @@ impl BulletList {
             person_or_group_nodes_that_cover_an_item_builder: |_| {
                 vec![] //Sync'ing up with someone cannot be a focus item
             },
-            undeclared_items_builder: |_| {
-                vec![] //Newly captured items cannot be a focus item
-            },
             simple_items_builder: |_| {
                 vec![] //Simple items cannot be a focus item
             },
@@ -138,14 +141,14 @@ impl BulletList {
     pub(crate) fn get_bullet_list(
         &self,
     ) -> (
-        &[Undeclared<'_>],
+        &[ItemNode<'_>],
         &[Simple<'_>],
         &[PersonOrGroupNode<'_>],
         &[ToDoNode<'_>],
         &[HopeNode<'_>],
     ) {
         (
-            self.borrow_undeclared_items(),
+            self.borrow_item_nodes(),
             self.borrow_simple_items(),
             self.borrow_person_or_group_nodes_that_cover_an_item(),
             self.borrow_next_step_nodes(),

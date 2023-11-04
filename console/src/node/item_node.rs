@@ -32,6 +32,10 @@ impl<'s> ItemNode<'s> {
         result
     }
 
+    pub(crate) fn get_item(&self) -> &'s Item<'s> {
+        self.item
+    }
+
     pub(crate) fn get_surreal_item(&self) -> &'s SurrealItem {
         self.item.surreal_item
     }

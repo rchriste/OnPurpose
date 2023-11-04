@@ -11,7 +11,6 @@ pub(crate) mod responsive_item;
 pub(crate) mod routine;
 pub(crate) mod simple;
 pub(crate) mod to_do;
-pub(crate) mod undeclared;
 
 use ouroboros::self_referencing;
 
