@@ -11,17 +11,16 @@ pub(crate) mod surreal_tables;
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
-    error::Api,
     sql::Thing,
-    Error, Surreal,
+    Surreal,
 };
-use surrealdb_extra::table::{Table, TableError};
+use surrealdb_extra::table::Table;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     oneshot::{self, error::RecvError},
 };
 
-use crate::{new_item::NewItem, surrealdb_layer::surreal_item::SurrealItemOldVersion};
+use crate::new_item::NewItem;
 
 use self::{
     surreal_covering::SurrealCovering,
@@ -200,15 +199,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let all_life_areas = SurrealLifeArea::get_all(db);
     let all_routines = SurrealRoutine::get_all(db);
 
-    let all_items = match all_items.await {
-        Ok(all_items) => all_items,
-        Err(TableError::Db(Error::Api(Api::FromValue { value: _, error }))) => {
-            println!("Upgrading items table because of issue: {}", error);
-            upgrade_items_table(db).await;
-            SurrealItem::get_all(db).await.unwrap()
-        }
-        _ => todo!(),
-    };
+    let all_items = all_items.await.unwrap();
     let all_specific_to_hopes = all_specific_to_hopes.await.unwrap();
     let all_specific_to_hopes = all_items
         .iter()
@@ -231,17 +222,6 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         surreal_specific_to_hopes: all_specific_to_hopes,
         surreal_life_areas: all_life_areas.await.unwrap(),
         surreal_routines: all_routines.await.unwrap(),
-    }
-}
-
-async fn upgrade_items_table(db: &Surreal<Any>) {
-    for item_old_version in SurrealItemOldVersion::get_all(db)
-        .await
-        .unwrap()
-        .into_iter()
-    {
-        let item: SurrealItem = item_old_version.into();
-        item.update(db).await.unwrap();
     }
 }
 

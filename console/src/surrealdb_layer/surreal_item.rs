@@ -107,26 +107,3 @@ pub(crate) enum NotesLocation {
     OneNoteLink(String),
     WebLink(String),
 }
-
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "item")] //TODO: Remove this after the upgrade is complete
-pub(crate) struct SurrealItemOldVersion {
-    pub(crate) id: Option<Thing>,
-    pub(crate) summary: String,
-    pub(crate) finished: Option<Datetime>,
-    pub(crate) item_type: ItemType,
-}
-
-impl From<SurrealItemOldVersion> for SurrealItem {
-    fn from(old: SurrealItemOldVersion) -> Self {
-        SurrealItem {
-            id: old.id,
-            summary: old.summary,
-            finished: old.finished,
-            item_type: old.item_type,
-            responsibility: Responsibility::default(),
-            smaller_items_in_priority_order: Vec::default(),
-            notes_location: NotesLocation::default(),
-        }
-    }
-}
