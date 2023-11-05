@@ -8,9 +8,8 @@ mod node;
 mod surrealdb_layer;
 pub(crate) mod systems;
 
-use base_data::BaseData;
 use inquire::Text;
-use surrealdb_layer::{surreal_item::SurrealItem, surreal_tables::SurrealTables};
+use surrealdb_layer::surreal_item::SurrealItem;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
@@ -58,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    convert_covering_to_a_child(&send_to_data_storage_layer_tx).await;
     present_unfocused_bullet_list_menu(&send_to_data_storage_layer_tx).await;
 
     if data_storage_join_handle.is_finished() {
@@ -71,59 +69,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     data_storage_join_handle.await.unwrap();
 
     Ok(())
-}
-
-async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    //TODO: I should consider removing this code. As I have now upgraded the database and covering should now just be used for the purpose of stating
-    //that you are blocked on something else needing to happen first. In fact maybe I should just rename the SurrealTable to SurrealMustHappenBeforeTable
-    //or something that is more standard so Covering is a term that is used to explain the idea to people but that it doesn't really exist in the data layer.
-    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
-        .await
-        .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
-    let coverings = base_data.get_coverings();
-    let active_items = base_data.get_active_items();
-    for item in active_items.iter() {
-        if item.has_active_children(active_items) {
-            continue;
-        }
-        let items_covered = item.get_covering_another_item(coverings);
-        if items_covered.len() == 1 {
-            let item_covered = items_covered.into_iter().next().unwrap();
-            assert!(item_covered != *item); //Make sure the code is correct and I don't have the same item covering itself
-            let these_coverings = coverings
-                .iter()
-                .filter(|x| x.parent == item_covered && x.smaller == *item)
-                .collect::<Vec<_>>();
-            assert!(!these_coverings.is_empty()); //Make sure the code is correct and I have the order right to find the covering
-            assert!(these_coverings.len() == 1); //Make sure the code is correct and I don't have the same item covering itself
-            println!(
-                "Converting {} to a child of {}",
-                item.summary, item_covered.summary
-            );
-            let add_after_this = if item_covered.has_active_children(active_items) {
-                todo!("I need to work out where to add this item into the children, or just remove this function if this conversion is not needed anymore")
-            } else {
-                None
-            };
-
-            send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: item.get_surreal_item().clone(),
-                    parent: item_covered.get_surreal_item().clone(),
-                    higher_priority_than_this: add_after_this,
-                })
-                .await
-                .unwrap();
-            for covering in these_coverings {
-                send_to_data_storage_layer
-                    .send(DataLayerCommands::RemoveCoveringItem(
-                        covering.get_surreal_covering().clone(),
-                    ))
-                    .await
-                    .unwrap();
-                println!("Removing covering {:?}", covering.get_surreal_covering().id);
-            }
-        }
-    }
 }

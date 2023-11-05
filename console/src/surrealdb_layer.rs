@@ -44,7 +44,7 @@ pub(crate) enum DataLayerCommands {
     AddProcessedText(String, SurrealItem),
     FinishItem(SurrealItem),
     NewItem(NewItem),
-    CoverWithANewItem {
+    CoverItemWithANewItem {
         cover_this: SurrealItem,
         cover_with: NewItem,
     },
@@ -54,6 +54,8 @@ pub(crate) enum DataLayerCommands {
         item_to_be_covered: SurrealItem,
         item_that_should_do_the_covering: SurrealItem,
     },
+    #[allow(dead_code)]
+    //This was initially added for data migration that is now removed but I expect to want it again in the future
     RemoveCoveringItem(SurrealCovering),
     CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
     ParentItemWithExistingItem {
@@ -126,7 +128,7 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::NewItem(new_item)) => {
                 super::surrealdb_layer::new_item(new_item, &db).await
             }
-            Some(DataLayerCommands::CoverWithANewItem {
+            Some(DataLayerCommands::CoverItemWithANewItem {
                 cover_this,
                 cover_with,
             }) => cover_with_a_new_item(cover_this, cover_with, &db).await,
@@ -703,7 +705,7 @@ mod tests {
             .unwrap();
 
         sender
-            .send(DataLayerCommands::CoverWithANewItem {
+            .send(DataLayerCommands::CoverItemWithANewItem {
                 cover_this: item_to_cover.clone(),
                 cover_with: new_item,
             })

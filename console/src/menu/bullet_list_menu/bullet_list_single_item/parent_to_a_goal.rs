@@ -1,4 +1,4 @@
-use inquire::{InquireError, Select, Text};
+use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -8,12 +8,7 @@ use crate::{
     },
     display::display_item::DisplayItem,
     menu::bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
-    new_item,
-    surrealdb_layer::{
-        surreal_item::{ItemType, Responsibility},
-        surreal_tables::SurrealTables,
-        DataLayerCommands,
-    },
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 pub(crate) async fn parent_to_a_motivation(
@@ -106,30 +101,8 @@ async fn parent_to_a_motivation_new_motivation(
     let list = ItemTypeSelection::create_list_just_motivations();
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(ItemTypeSelection::ProactiveMotivation) => {
-            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItemBuilder::default()
-                .summary(summary)
-                .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Motivation)
-                .build()
-                .expect("Filled out required fields");
-            send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithANewItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent_new_item: new_item,
-                })
-                .await
-                .unwrap();
-        }
-        Ok(ItemTypeSelection::ResponsiveMotivation) => {
-            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItemBuilder::default()
-                .summary(summary)
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Motivation)
-                .build()
-                .expect("Filled out required fields");
+        Ok(item_type_selection) => {
+            let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -143,15 +116,6 @@ async fn parent_to_a_motivation_new_motivation(
         }
         Err(err) => {
             todo!("Error: {:?}", err);
-        }
-        Ok(
-            ItemTypeSelection::ProactiveAction
-            | ItemTypeSelection::ResponsiveAction
-            | ItemTypeSelection::ProactiveGoalThatIsAHope
-            | ItemTypeSelection::ProactiveGoalThatIsAMilestone
-            | ItemTypeSelection::ResponsiveGoal,
-        ) => {
-            panic!("This items should never be offered when selecting a goal to parent to");
         }
     }
 }
@@ -163,33 +127,8 @@ async fn parent_to_a_goal_new_goal(
     let list = ItemTypeSelection::create_list_just_goals();
     let selection = Select::new("", list).prompt();
     match selection {
-        Ok(ItemTypeSelection::ProactiveGoalThatIsAHope) => {
-            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItemBuilder::default()
-                .summary(summary)
-                .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Hope)
-                .build()
-                .expect("Filled out required fields");
-            send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithANewItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent_new_item: new_item,
-                })
-                .await
-                .unwrap();
-        }
-        Ok(ItemTypeSelection::ProactiveGoalThatIsAMilestone) => {
-            todo!("Implement the ability to set a goal to be a milestone right away in the data layer and then this can be written")
-        }
-        Ok(ItemTypeSelection::ResponsiveGoal) => {
-            let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-            let new_item = new_item::NewItemBuilder::default()
-                .summary(summary)
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Hope)
-                .build()
-                .expect("Filled out required fields");
+        Ok(item_type_selection) => {
+            let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewItem {
                     child: parent_this.get_surreal_item().clone(),
@@ -203,14 +142,6 @@ async fn parent_to_a_goal_new_goal(
         }
         Err(err) => {
             todo!("Error: {:?}", err);
-        }
-        Ok(
-            ItemTypeSelection::ProactiveAction
-            | ItemTypeSelection::ResponsiveAction
-            | ItemTypeSelection::ProactiveMotivation
-            | ItemTypeSelection::ResponsiveMotivation,
-        ) => {
-            panic!("This items should never be offered when selecting a goal to parent to");
         }
     }
 }

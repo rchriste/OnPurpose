@@ -61,7 +61,7 @@ impl SurrealTables {
             .map(|x| Covering {
                 smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
                 parent: items.lookup_from_record_id(&x.parent).unwrap(),
-                surreal_covering: x,
+                _surreal_covering: x,
             })
             .collect()
     }
