@@ -26,6 +26,8 @@ use crate::{
     update_item_summary, UnexpectedNextMenuAction,
 };
 
+use self::parent_to_a_goal::parent_to_a_motivation;
+
 enum BulletListSingleItemSelection<'e> {
     ASimpleThingICanDoRightNow,
     ASimpleThingButICanDoItWhenever,
@@ -313,7 +315,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement PlanWhenToDoThis");
         }
         Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
-            todo!("TODO: Implement ParentToAMotivation");
+            parent_to_a_motivation(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::DoInAFocusPeriod) => {
             todo!("TODO: Implement DoInAFocusPeriod");
@@ -594,6 +596,10 @@ impl ItemTypeSelection {
             Self::ProactiveGoalThatIsAMilestone,
             Self::ResponsiveGoal,
         ]
+    }
+
+    pub(crate) fn create_list_just_motivations() -> Vec<Self> {
+        vec![Self::ProactiveMotivation, Self::ResponsiveMotivation]
     }
 }
 

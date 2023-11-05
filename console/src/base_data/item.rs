@@ -47,7 +47,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
     fn filter_just_to_dos(&'t self) -> Self::ItemIterator;
     fn filter_just_hopes(&'t self) -> Self::ItemIterator;
-    fn filter_just_motivations(&self) -> Vec<Motivation<'_>>;
+    fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
     fn filter_just_simple_items(&'t self) -> Self::ItemIterator;
@@ -85,16 +85,15 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         }))
     }
 
-    fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
+    fn filter_just_motivations(&'s self) -> Self::ItemIterator {
         self.iter()
-            .filter_map(|x| {
+            .filter_map(Box::new(|x| {
                 if x.item_type == &ItemType::Motivation {
-                    Some(Motivation::new(x))
+                    Some(x)
                 } else {
                     None
                 }
-            })
-            .collect()
+            }))
     }
 
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
@@ -178,16 +177,15 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         }))
     }
 
-    fn filter_just_motivations(&self) -> Vec<Motivation<'_>> {
+    fn filter_just_motivations(&'s self) -> Self::ItemIterator {
         self.iter()
-            .filter_map(|x| {
+            .filter_map(Box::new(|x| {
                 if x.item_type == &ItemType::Motivation {
-                    Some(Motivation::new(x))
+                    Some(x)
                 } else {
                     None
                 }
-            })
-            .collect()
+            }))
     }
 
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
