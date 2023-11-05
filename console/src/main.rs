@@ -74,6 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    //TODO: I should consider removing this code. As I have now upgraded the database and covering should now just be used for the purpose of stating
+    //that you are blocked on something else needing to happen first. In fact maybe I should just rename the SurrealTable to SurrealMustHappenBeforeTable
+    //or something that is more standard so Covering is a term that is used to explain the idea to people but that it doesn't really exist in the data layer.
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -81,7 +84,7 @@ async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLay
     let coverings = base_data.get_coverings();
     let active_items = base_data.get_active_items();
     for item in active_items.iter() {
-        if item.has_children(active_items) {
+        if item.has_active_children(active_items) {
             continue;
         }
         let items_covered = item.get_covering_another_item(coverings);
@@ -98,10 +101,17 @@ async fn convert_covering_to_a_child(send_to_data_storage_layer: &Sender<DataLay
                 "Converting {} to a child of {}",
                 item.summary, item_covered.summary
             );
+            let add_after_this = if item_covered.has_active_children(active_items) {
+                todo!("I need to work out where to add this item into the children, or just remove this function if this conversion is not needed anymore")
+            } else {
+                None
+            };
+
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: item.get_surreal_item().clone(),
                     parent: item_covered.get_surreal_item().clone(),
+                    higher_priority_than_this: add_after_this,
                 })
                 .await
                 .unwrap();

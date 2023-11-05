@@ -59,6 +59,7 @@ pub(crate) enum DataLayerCommands {
     ParentItemWithExistingItem {
         child: SurrealItem,
         parent: SurrealItem,
+        higher_priority_than_this: Option<SurrealItem>,
     },
     ParentItemWithANewItem {
         child: SurrealItem,
@@ -156,8 +157,12 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
                 cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
             }
-            Some(DataLayerCommands::ParentItemWithExistingItem { child, parent }) => {
-                parent_item_with_existing_item(child, parent, &db).await
+            Some(DataLayerCommands::ParentItemWithExistingItem {
+                child,
+                parent,
+                higher_priority_than_this,
+            }) => {
+                parent_item_with_existing_item(child, parent, higher_priority_than_this, &db).await
             }
             Some(DataLayerCommands::ParentItemWithANewItem {
                 child,
@@ -446,13 +451,36 @@ async fn add_circumstance(item: SurrealItem, circumstance: CircumstanceType, db:
 async fn parent_item_with_existing_item(
     child: SurrealItem,
     mut parent: SurrealItem,
+    higher_priority_than_this: Option<SurrealItem>,
     db: &Surreal<Any>,
 ) {
-    parent
-        .smaller_items_in_priority_order
-        .push(SurrealOrderedSubItem::SubItem {
-            surreal_item_id: child.id.expect("Already in DB"),
-        });
+    if let Some(higher_priority_than_this) = higher_priority_than_this {
+        let higher_priority_than_this = higher_priority_than_this.id.expect("Already in DB");
+        let index_of_higher_priority = parent.smaller_items_in_priority_order
+            .iter()
+            .position(|x| match x {
+                //Note that position() is short-circuiting. If there are multiple matches it could be argued that I should panic or assert but
+                //I am just matching the first one and then I just keep going. Because I am still figuring out the design and this is 
+                //more in the vein of hardening work I think this is fine but feel free to revisit this.
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                    surreal_item_id == &higher_priority_than_this
+                }
+                SurrealOrderedSubItem::Split { .. } => todo!("I need to understand more about how split will be used before I can implement this"),
+            })
+            .expect("Should already be in the list");
+        parent.smaller_items_in_priority_order.insert(
+            index_of_higher_priority,
+            SurrealOrderedSubItem::SubItem {
+                surreal_item_id: child.id.expect("Already in DB"),
+            },
+        );
+    } else {
+        parent
+            .smaller_items_in_priority_order
+            .push(SurrealOrderedSubItem::SubItem {
+                surreal_item_id: child.id.expect("Already in DB"),
+            });
+    }
     parent.update(db).await.unwrap();
 }
 
@@ -1002,7 +1030,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn parent_item_with_existing_item() {
+    async fn parent_item_with_an_existing_item_that_has_no_children() {
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
@@ -1037,6 +1065,7 @@ mod tests {
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
                     .clone(),
+                higher_priority_than_this: None,
             })
             .await
             .unwrap();

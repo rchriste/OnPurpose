@@ -159,7 +159,7 @@ pub(crate) async fn view_mentally_resident_project_hopes(
     let coverings = base_data.get_coverings();
 
     let hopes = active_items
-        .filter_just_hopes()
+        .filter_just_goals()
         .filter(|x| {
             (x.is_project() || x.is_permanence_not_set())
                 && (x.is_mentally_resident() || x.is_staging_not_set())
@@ -234,7 +234,7 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
     let coverings = base_data.get_coverings();
 
     let hopes = active_items
-        .filter_just_hopes()
+        .filter_just_goals()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();
     let hope_nodes = create_hope_nodes(&hopes, coverings, active_items)

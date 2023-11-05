@@ -1,5 +1,6 @@
 mod cover_bullet_item;
 mod parent_to_a_goal;
+mod state_a_smaller_next_step;
 
 use std::fmt::Display;
 
@@ -13,6 +14,7 @@ use crate::{
     menu::{
         bullet_list_menu::bullet_list_single_item::{
             cover_bullet_item::cover_bullet_item, parent_to_a_goal::parent_to_a_goal,
+            state_a_smaller_next_step::state_a_smaller_next_step,
         },
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
@@ -152,11 +154,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ParentToAGoal);
         }
 
-        if item.is_type_hope() && parent_items.is_empty() {
+        if item.is_type_goal() && parent_items.is_empty() {
             list.push(Self::ParentToAMotivation);
         }
 
-        if !item.is_type_hope() && !item.is_type_motivation() {
+        if !item.is_type_goal() && !item.is_type_motivation() {
             list.push(Self::PlanWhenToDoThis);
         }
 
@@ -166,7 +168,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::DeclareItemType);
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
             list.push(Self::WorkedOnThis);
         }
 
@@ -177,7 +179,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
 
-        if item.is_type_action() || item.is_type_hope() && !item.has_children(all_items) {
+        if item.is_type_action() || item.is_type_goal() && !item.has_active_children(all_items) {
             list.push(Self::StateASmallerNextStep);
         }
 
@@ -193,12 +195,12 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if item.is_type_action() || item.is_type_hope() {
+        if item.is_type_action() || item.is_type_goal() {
             list.push(Self::WaitUntilSimilarWorkIsDone);
             list.push(Self::SearchForSimilarWork);
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
             if item.is_there_notes() {
                 list.push(Self::OpenNotesForThisItem);
             } else {
@@ -211,8 +213,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
-            if item.has_children(all_items) {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
+            if item.has_active_children(all_items) {
                 list.push(Self::UpdateChildActions);
             } else {
                 list.push(Self::DefineChildActions);
@@ -220,22 +222,22 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if item.is_type_motivation() {
-            if item.has_children(all_items) {
+            if item.has_active_children(all_items) {
                 list.push(Self::UpdateChildHopes);
             } else {
                 list.push(Self::DefineChildHopes);
             }
         }
 
-        if item.is_type_hope() {
-            if item.has_children(all_items) {
+        if item.is_type_goal() {
+            if item.has_active_children(all_items) {
                 list.push(Self::UpdateMilestones);
             } else {
                 list.push(Self::DefineMilestones);
             }
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
             if parent_items.is_empty() {
                 list.push(Self::ParentToItem);
             } else {
@@ -255,15 +257,15 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
             list.push(Self::CaptureAFork);
         }
 
-        if item.is_type_action() || item.is_type_hope() {
+        if item.is_type_action() || item.is_type_goal() {
             list.push(Self::ThisIsARepeatingItem);
         }
 
-        if item.is_type_action() || item.is_type_hope() || item.is_type_motivation() {
+        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
             list.push(Self::ChangeType);
         }
 
@@ -306,7 +308,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             declare_item_type(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            todo!("TODO: Implement DefineASmallerItemOrPickASmallerItem");
+            state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
             parent_to_a_goal(menu_for, send_to_data_storage_layer).await
@@ -364,9 +366,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             let next_item = parents_iter.next();
             if let Some(next_item) = next_item {
                 let display_item = DisplayItem::new(next_item);
-                println!(
-                    "{}", display_item
-                );
+                println!("{}", display_item);
                 let parents = parents_iter.copied().collect::<Vec<_>>();
                 present_bullet_list_item_selected(
                     next_item,
@@ -520,10 +520,16 @@ async fn parent_to_item(
     match selection {
         Ok(display_item) => {
             let item: &Item = display_item.into();
+            let higher_priority_than_this = if item.has_children() {
+                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+            } else {
+                None
+            };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: parent_this.get_surreal_item().clone(),
                     parent: item.get_surreal_item().clone(),
+                    higher_priority_than_this,
                 })
                 .await
                 .unwrap();
@@ -552,10 +558,16 @@ pub(crate) async fn cover_with_item(
     match selection {
         Ok(display_item) => {
             let item: &Item = display_item.into();
+            let higher_priority_than_this = if item.has_children() {
+                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+            } else {
+                None
+            };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: item.get_surreal_item().clone(),
                     parent: parent_this.get_surreal_item().clone(),
+                    higher_priority_than_this,
                 })
                 .await
                 .unwrap();

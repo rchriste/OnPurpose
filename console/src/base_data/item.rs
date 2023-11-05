@@ -45,8 +45,8 @@ pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
-    fn filter_just_to_dos(&'t self) -> Self::ItemIterator;
-    fn filter_just_hopes(&'t self) -> Self::ItemIterator;
+    fn filter_just_actions(&'t self) -> Self::ItemIterator;
+    fn filter_just_goals(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
@@ -65,7 +65,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         self.iter().find(|x| x.id == record_id)
     }
 
-    fn filter_just_to_dos(&'s self) -> Self::ItemIterator {
+    fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if x.item_type == &ItemType::ToDo {
                 Some(x)
@@ -75,7 +75,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes(&'s self) -> Self::ItemIterator {
+    fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if x.item_type == &ItemType::Hope {
                 Some(x)
@@ -86,14 +86,13 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
     }
 
     fn filter_just_motivations(&'s self) -> Self::ItemIterator {
-        self.iter()
-            .filter_map(Box::new(|x| {
-                if x.item_type == &ItemType::Motivation {
-                    Some(x)
-                } else {
-                    None
-                }
-            }))
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::Motivation {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
@@ -157,7 +156,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         self.iter().find(|x| x.id == record_id).copied()
     }
 
-    fn filter_just_to_dos(&'s self) -> Self::ItemIterator {
+    fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
             if x.item_type == &ItemType::ToDo {
                 Some(x)
@@ -167,7 +166,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         }))
     }
 
-    fn filter_just_hopes(&'s self) -> Self::ItemIterator {
+    fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
             if x.item_type == &ItemType::Hope {
                 Some(x)
@@ -178,14 +177,13 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     }
 
     fn filter_just_motivations(&'s self) -> Self::ItemIterator {
-        self.iter()
-            .filter_map(Box::new(|x| {
-                if x.item_type == &ItemType::Motivation {
-                    Some(x)
-                } else {
-                    None
-                }
-            }))
+        self.iter().filter_map(Box::new(|x| {
+            if x.item_type == &ItemType::Motivation {
+                Some(x)
+            } else {
+                None
+            }
+        }))
     }
 
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
@@ -362,7 +360,7 @@ impl<'b> Item<'b> {
         all_items: &[&Item<'_>],
         now: &DateTime<Local>,
     ) -> bool {
-        self.has_children(all_items)
+        self.has_active_children(all_items)
             || self.is_covered_by_another_item(coverings)
             || self.is_covered_by_date_time(coverings_until_date_time, now)
     }
@@ -421,12 +419,16 @@ impl<'b> Item<'b> {
         self.item_type == &ItemType::ToDo
     }
 
-    pub(crate) fn is_type_hope(&self) -> bool {
+    pub(crate) fn is_type_goal(&self) -> bool {
         self.item_type == &ItemType::Hope
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
         self.item_type == &ItemType::Motivation
+    }
+
+    pub(crate) fn is_motivation(&self) -> bool {
+        self.is_type_motivation()
     }
 
     pub(crate) fn is_circumstance_focus_time(&self) -> bool {
@@ -439,7 +441,11 @@ impl<'b> Item<'b> {
         todo!("I need to ensure that we are storing this data with an Item and then I can implement this method")
     }
 
-    pub(crate) fn has_children(&self, all_items: &[&Item<'_>]) -> bool {
+    pub(crate) fn has_children(&self) -> bool {
+        !self.surreal_item.smaller_items_in_priority_order.is_empty()
+    }
+
+    pub(crate) fn has_active_children(&self, all_items: &[&Item<'_>]) -> bool {
         self.surreal_item
             .smaller_items_in_priority_order
             .iter()
@@ -488,13 +494,17 @@ impl<'b> Item<'b> {
         self.item_type == &ItemType::Hope
     }
 
+    pub(crate) fn is_action(&self) -> bool {
+        self.item_type == &ItemType::ToDo
+    }
+
     pub(crate) fn is_covered_by_a_hope(
         &self,
         coverings: &[Covering<'_>],
         all_items: &[&Item<'_>],
     ) -> bool {
         self.covered_by(coverings, all_items)
-            .any(|x| x.is_type_hope() && !x.is_finished())
+            .any(|x| x.is_type_goal() && !x.is_finished())
     }
 }
 
@@ -756,7 +766,7 @@ mod tests {
             .find(|x| parent_item.id.as_ref().unwrap() == x.id)
             .unwrap();
 
-        assert!(under_test_parent_item.has_children(&active_items));
+        assert!(under_test_parent_item.has_active_children(&active_items));
     }
 
     #[test]

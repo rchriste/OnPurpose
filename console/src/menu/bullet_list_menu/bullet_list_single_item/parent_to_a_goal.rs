@@ -19,8 +19,7 @@ use crate::{
 pub(crate) async fn parent_to_a_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-)
-{
+) {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -35,20 +34,21 @@ pub(crate) async fn parent_to_a_motivation(
     match selection {
         Ok(parent) => {
             let parent: &Item<'_> = parent.into();
-            if parent.has_children(active_items) {
-                todo!("I need to pick a priority for this item among the children of the parent");
+            let higher_priority_than_this = if parent.has_active_children(active_items) {
+                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
             } else {
-                send_to_data_storage_layer
-                    .send(DataLayerCommands::ParentItemWithExistingItem {
-                        child: parent_this.get_surreal_item().clone(),
-                        parent: parent.get_surreal_item().clone(),
-                    })
-                    .await
-                    .unwrap();
-            }
+                None
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemWithExistingItem {
+                    child: parent_this.get_surreal_item().clone(),
+                    parent: parent.get_surreal_item().clone(),
+                    higher_priority_than_this,
+                })
+                .await
+                .unwrap();
         }
-        Err(InquireError::OperationCanceled |
-            InquireError::InvalidConfiguration(_)) => {
+        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             parent_to_a_motivation_new_motivation(parent_this, send_to_data_storage_layer).await;
         }
         Err(err) => {
@@ -67,7 +67,7 @@ pub(crate) async fn parent_to_a_goal(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let active_items = base_data.get_active_items();
     let list = active_items
-        .filter_just_hopes()
+        .filter_just_goals()
         .map(DisplayItem::new)
         .collect::<Vec<_>>();
 
@@ -75,17 +75,20 @@ pub(crate) async fn parent_to_a_goal(
     match selection {
         Ok(parent) => {
             let parent: &Item<'_> = parent.into();
-            if parent.has_children(active_items) {
-                todo!("I need to pick a priority for this item among the children of the parent");
+
+            let higher_priority_than_this = if parent.has_active_children(active_items) {
+                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
             } else {
-                send_to_data_storage_layer
-                    .send(DataLayerCommands::ParentItemWithExistingItem {
-                        child: parent_this.get_surreal_item().clone(),
-                        parent: parent.get_surreal_item().clone(),
-                    })
-                    .await
-                    .unwrap();
-            }
+                None
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemWithExistingItem {
+                    child: parent_this.get_surreal_item().clone(),
+                    parent: parent.get_surreal_item().clone(),
+                    higher_priority_than_this,
+                })
+                .await
+                .unwrap();
         }
         Err(InquireError::OperationCanceled) => {
             parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await;
@@ -151,7 +154,6 @@ async fn parent_to_a_motivation_new_motivation(
             panic!("This items should never be offered when selecting a goal to parent to");
         }
     }
-
 }
 
 async fn parent_to_a_goal_new_goal(

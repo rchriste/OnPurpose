@@ -256,7 +256,7 @@ mod tests {
         let coverings = surreal_tables.make_coverings(&items);
         let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
 
-        let to_dos = items.filter_just_to_dos();
+        let to_dos = items.filter_just_actions();
         let wednesday_ignore =
             DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
                 .unwrap()

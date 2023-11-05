@@ -229,7 +229,7 @@ async fn cover_with_existing_waiting_for_question(
     let base_data = BaseData::new_from_surreal_tables(raw_current_items);
     let current = base_data.get_items();
 
-    let list = CoverExistingItem::create_list(current.filter_just_to_dos());
+    let list = CoverExistingItem::create_list(current.filter_just_actions());
 
     let selection = Select::new("Start typing to search the list", list).prompt();
     match selection {
