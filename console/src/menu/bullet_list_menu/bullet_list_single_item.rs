@@ -360,6 +360,22 @@ pub(crate) async fn present_bullet_list_item_selected(
                 ))
                 .await
                 .unwrap();
+            let mut parents_iter = parents.iter();
+            let next_item = parents_iter.next();
+            if let Some(next_item) = next_item {
+                let display_item = DisplayItem::new(next_item);
+                println!(
+                    "{}", display_item
+                );
+                let parents = parents_iter.copied().collect::<Vec<_>>();
+                present_bullet_list_item_selected(
+                    next_item,
+                    &parents,
+                    all_items,
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
         }
         Ok(BulletListSingleItemSelection::ThisIsARepeatingItem) => {
             todo!("TODO: Implement ThisIsARepeatingItem");
