@@ -10,7 +10,7 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{item::Item, BaseData, covering::Covering},
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
@@ -68,9 +68,7 @@ enum BulletListSingleItemSelection<'e> {
     ProcessAndFinish,
     Cover,
     UpdateSummary,
-    //Take a DisplayItem rather than a reference because it is felt that this type is only created
-    //for this scenario rather than kept around.
-    SwitchToParentItem(DisplayItem<'e>, &'e ItemNode<'e>),
+    SwitchToParentItem(DisplayItem<'e>, ItemNode<'e>),
     ParentToItem,
     CaptureAFork,
     DebugPrintItem,
@@ -145,7 +143,7 @@ impl Display for BulletListSingleItemSelection<'_> {
 }
 
 impl<'e> BulletListSingleItemSelection<'e> {
-    fn create_list(item_node: &'e ItemNode<'e>, all_nodes: &'e [ItemNode<'e>]) -> Vec<Self> {
+    fn create_list(item_node: &'e ItemNode<'e>, all_coverings: &'e [Covering<'e>], all_items: &'e [&Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();
@@ -249,7 +247,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
                 list.push(Self::ParentToItem);
             } else {
                 list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                    let item_node = all_nodes.iter().find(|y| y.get_item() == *x).unwrap();
+                    let item_node = ItemNode::new(x, all_coverings, all_items);
                     Self::SwitchToParentItem(DisplayItem::new(x), item_node)
                 }));
             }
@@ -293,11 +291,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemNode<'_>,
+    all_coverings: &[Covering<'_>],
     all_items: &[&Item<'_>],
-    all_item_nodes: &[ItemNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list(menu_for, all_item_nodes);
+    let list = BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items);
 
     let selection = Select::new("", list).with_page_size(14).prompt();
 
@@ -374,16 +372,13 @@ pub(crate) async fn present_bullet_list_item_selected(
             let mut parents_iter = menu_for.get_larger().iter();
             let next_item = parents_iter.next();
             if let Some(next_item) = next_item {
-                let next_item = all_item_nodes
-                    .iter()
-                    .find(|x| x.get_item() == next_item.get_item())
-                    .unwrap();
-                let display_item = DisplayItemNode::new(next_item);
+                let next_item = ItemNode::new(next_item.get_item(), all_coverings, all_items);
+                let display_item = DisplayItemNode::new(&next_item);
                 println!("{}", display_item);
                 present_bullet_list_item_selected(
-                    next_item,
+                    &next_item,
+                    all_coverings,
                     all_items,
-                    all_item_nodes,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -431,8 +426,8 @@ pub(crate) async fn present_bullet_list_item_selected(
                 Err(UnexpectedNextMenuAction::Back) => {
                     present_bullet_list_item_selected(
                         menu_for,
+                        all_coverings,
                         all_items,
-                        all_item_nodes,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -449,9 +444,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(
-                selected,
+                &selected,
+                all_coverings,
                 all_items,
-                all_item_nodes,
                 send_to_data_storage_layer,
             )
             .await
@@ -495,16 +490,16 @@ async fn process_and_finish_bullet_item(
 
 async fn present_bullet_list_item_parent_selected(
     selected_item: &ItemNode<'_>,
+    all_coverings: &[Covering<'_>],
     all_items: &[&Item<'_>],
-    all_item_nodes: &[ItemNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     match selected_item.get_type() {
         ItemType::ToDo | ItemType::Hope => {
             present_bullet_list_item_selected(
                 selected_item,
+                all_coverings,
                 all_items,
-                all_item_nodes,
                 send_to_data_storage_layer,
             )
             .await

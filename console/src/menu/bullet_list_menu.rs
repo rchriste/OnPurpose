@@ -94,8 +94,8 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                 } else {
                     present_bullet_list_item_selected(
                         item_node,
+                        bullet_list.get_coverings(),
                         bullet_list.get_active_items(),
-                        item_nodes,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -136,8 +136,8 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::Item(item_node)) => {
                 present_bullet_list_item_selected(
                     item_node,
+                    bullet_list.get_coverings(),
                     bullet_list.get_active_items(),
-                    item_nodes,
                     send_to_data_storage_layer,
                 )
                 .await

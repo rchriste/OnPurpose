@@ -7,7 +7,7 @@ use ouroboros::self_referencing;
 use crate::{
     base_data::{
         item::{Item, ItemVecExtensions},
-        BaseData,
+        BaseData, covering::Covering,
     },
     node::item_node::{create_item_nodes, ItemNode},
 };
@@ -101,6 +101,10 @@ impl BulletList {
 
     pub(crate) fn get_active_items(&self) -> &[&Item<'_>] {
         self.borrow_base_data().get_active_items()
+    }
+
+    pub(crate) fn get_coverings(&self) -> &[Covering<'_>] {
+        self.borrow_base_data().get_coverings()
     }
 }
 
