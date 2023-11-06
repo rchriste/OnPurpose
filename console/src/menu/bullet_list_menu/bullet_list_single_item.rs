@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{item::Item, BaseData},
-    display::display_item::DisplayItem,
+    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
             cover_bullet_item::cover_bullet_item, parent_to_a_goal::parent_to_a_goal,
@@ -70,7 +70,7 @@ enum BulletListSingleItemSelection<'e> {
     UpdateSummary,
     //Take a DisplayItem rather than a reference because it is felt that this type is only created
     //for this scenario rather than kept around.
-    SwitchToParentItem(DisplayItem<'e>),
+    SwitchToParentItem(DisplayItem<'e>, &'e ItemNode<'e>),
     ParentToItem,
     CaptureAFork,
     DebugPrintItem,
@@ -82,7 +82,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
-            Self::SwitchToParentItem(parent_item) => write!(f, "Switch to: {}", parent_item),
+            Self::SwitchToParentItem(parent_item, _) => write!(f, "Switch to: {}", parent_item),
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
@@ -145,65 +145,69 @@ impl Display for BulletListSingleItemSelection<'_> {
 }
 
 impl<'e> BulletListSingleItemSelection<'e> {
-    fn create_list(
-        item: &'e Item<'e>,
-        parent_items: &[&'e Item<'e>],
-        all_items: &[&Item<'_>],
-    ) -> Vec<Self> {
+    fn create_list(item_node: &'e ItemNode<'e>, all_nodes: &'e [ItemNode<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
 
-        if item.is_type_action() && parent_items.is_empty() {
+        let is_type_action = item_node.is_type_action();
+        let has_no_parent = item_node.get_larger().is_empty();
+        let is_type_goal = item_node.is_type_goal();
+        let is_type_motivation = item_node.is_type_motivation();
+        let is_type_undeclared = item_node.is_type_undeclared();
+
+        if is_type_action && has_no_parent {
             list.push(Self::ParentToAGoal);
         }
 
-        if item.is_type_goal() && parent_items.is_empty() {
+        if is_type_goal && has_no_parent {
             list.push(Self::ParentToAMotivation);
         }
 
-        if !item.is_type_goal() && !item.is_type_motivation() {
+        if !is_type_goal && !is_type_motivation {
             list.push(Self::PlanWhenToDoThis);
         }
 
-        if item.is_type_undeclared() {
+        if is_type_undeclared {
             list.push(Self::ASimpleThingICanDoRightNow);
             list.push(Self::ASimpleThingButICanDoItWhenever);
             list.push(Self::DeclareItemType);
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
+        if is_type_action || is_type_goal || is_type_motivation {
             list.push(Self::WorkedOnThis);
         }
 
         list.push(Self::Finished);
 
-        if item.is_type_action() {
+        if is_type_action {
             list.push(Self::UnableToDoThisRightNow);
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
 
-        if item.is_type_action() || item.is_type_goal() && !item.has_active_children(all_items) {
+        let has_active_children = item_node.has_active_children();
+        if is_type_action || is_type_goal && !has_active_children {
             list.push(Self::StateASmallerNextStep);
         }
 
-        if !item.is_type_undeclared() {
+        if !is_type_undeclared {
             list.push(Self::SomethingElseShouldBeDoneFirst);
         }
 
-        if item.is_type_action() {
-            if !item.is_circumstance_focus_time() {
+        let is_circumstance_focus_time = item_node.is_circumstance_focus_time();
+        if is_type_action {
+            if !is_circumstance_focus_time {
                 list.push(Self::DoInAFocusPeriod);
-            } else if item.get_estimated_focus_periods().is_none() {
+            } else if item_node.get_estimated_focus_periods().is_none() {
                 list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
             }
         }
 
-        if item.is_type_action() || item.is_type_goal() {
+        if is_type_action || is_type_goal {
             list.push(Self::WaitUntilSimilarWorkIsDone);
             list.push(Self::SearchForSimilarWork);
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
-            if item.is_there_notes() {
+        if is_type_action || is_type_goal || is_type_motivation {
+            if item_node.is_there_notes() {
                 list.push(Self::OpenNotesForThisItem);
             } else {
                 list.push(Self::CreateNotesForThisItem);
@@ -211,43 +215,43 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if item.is_type_simple() {
+        if item_node.is_type_simple() {
             list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
-            if item.has_active_children(all_items) {
+        if is_type_action || is_type_goal || is_type_motivation {
+            if has_active_children {
                 list.push(Self::UpdateChildActions);
             } else {
                 list.push(Self::DefineChildActions);
             }
         }
 
-        if item.is_type_motivation() {
-            if item.has_active_children(all_items) {
+        if is_type_motivation {
+            if has_active_children {
                 list.push(Self::UpdateChildHopes);
             } else {
                 list.push(Self::DefineChildHopes);
             }
         }
 
-        if item.is_type_goal() {
-            if item.has_active_children(all_items) {
+        if is_type_goal {
+            if has_active_children {
                 list.push(Self::UpdateMilestones);
             } else {
                 list.push(Self::DefineMilestones);
             }
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
-            if parent_items.is_empty() {
+        let parent_items = item_node.create_parent_chain();
+        if is_type_action || is_type_goal || is_type_motivation {
+            if has_no_parent {
                 list.push(Self::ParentToItem);
             } else {
-                list.extend(
-                    parent_items
-                        .iter()
-                        .map(|x: &&'e Item<'e>| Self::SwitchToParentItem(DisplayItem::new(x))),
-                );
+                list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
+                    let item_node = all_nodes.iter().find(|y| y.get_item() == *x).unwrap();
+                    Self::SwitchToParentItem(DisplayItem::new(x), item_node)
+                }));
             }
         }
 
@@ -259,19 +263,20 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
+        if is_type_action || is_type_goal || is_type_motivation {
             list.push(Self::CaptureAFork);
         }
 
-        if item.is_type_action() || item.is_type_goal() {
+        if is_type_action || is_type_goal {
             list.push(Self::ThisIsARepeatingItem);
         }
 
-        if item.is_type_action() || item.is_type_goal() || item.is_type_motivation() {
+        if is_type_action || is_type_goal || is_type_motivation {
             list.push(Self::ChangeType);
         }
 
-        if !item.is_type_simple() && !item.is_type_undeclared() {
+        let is_type_simple = item_node.is_type_simple();
+        if !is_type_simple && !is_type_undeclared {
             list.extend(vec![
                 Self::ProcessAndFinish,
                 Self::Cover,
@@ -287,12 +292,12 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
-    menu_for: &Item<'_>, //TODO: This should take an Item and the other functions that take a Hope should be folded into this
-    parents: &[&Item<'_>],
+    menu_for: &ItemNode<'_>,
     all_items: &[&Item<'_>],
+    all_item_nodes: &[ItemNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list(menu_for, parents, all_items);
+    let list = BulletListSingleItemSelection::create_list(menu_for, all_item_nodes);
 
     let selection = Select::new("", list).with_page_size(14).prompt();
 
@@ -307,19 +312,19 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement ICannotDoThisSimpleThingRightNowRemindMeLater");
         }
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
-            declare_item_type(menu_for, send_to_data_storage_layer).await
+            declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
+            state_a_smaller_next_step(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
-            parent_to_a_goal(menu_for, send_to_data_storage_layer).await
+            parent_to_a_goal(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
             todo!("TODO: Implement PlanWhenToDoThis");
         }
         Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
-            parent_to_a_motivation(menu_for, send_to_data_storage_layer).await
+            parent_to_a_motivation(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::DoInAFocusPeriod) => {
             todo!("TODO: Implement DoInAFocusPeriod");
@@ -328,13 +333,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
         }
         Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
-            unable_to_work_on_item_right_now(menu_for, send_to_data_storage_layer).await
+            unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
             todo!("TODO: Implement NotInTheMoodToDoThisRightNow");
         }
         Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
-            something_else_should_be_done_first(menu_for, send_to_data_storage_layer).await
+            something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
+                .await
         }
         Ok(BulletListSingleItemSelection::DefineChildActions) => {
             todo!("TODO: Implement DefineChildActions");
@@ -364,16 +370,20 @@ pub(crate) async fn present_bullet_list_item_selected(
                 ))
                 .await
                 .unwrap();
-            let mut parents_iter = parents.iter();
+
+            let mut parents_iter = menu_for.get_larger().iter();
             let next_item = parents_iter.next();
             if let Some(next_item) = next_item {
-                let display_item = DisplayItem::new(next_item);
+                let next_item = all_item_nodes
+                    .iter()
+                    .find(|x| x.get_item() == next_item.get_item())
+                    .unwrap();
+                let display_item = DisplayItemNode::new(next_item);
                 println!("{}", display_item);
-                let parents = parents_iter.copied().collect::<Vec<_>>();
                 present_bullet_list_item_selected(
                     next_item,
-                    &parents,
                     all_items,
+                    all_item_nodes,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -409,20 +419,20 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement CaptureAFork");
         }
         Ok(BulletListSingleItemSelection::ChangeType) => {
-            declare_item_type(menu_for, send_to_data_storage_layer).await
+            declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
-            process_and_finish_bullet_item(menu_for, send_to_data_storage_layer).await;
+            process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
         }
         Ok(BulletListSingleItemSelection::Cover) => {
-            let r = cover_bullet_item(menu_for, send_to_data_storage_layer).await;
+            let r = cover_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
             match r {
                 Ok(()) => (),
                 Err(UnexpectedNextMenuAction::Back) => {
                     present_bullet_list_item_selected(
                         menu_for,
-                        parents,
                         all_items,
+                        all_item_nodes,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -437,11 +447,17 @@ pub(crate) async fn present_bullet_list_item_selected(
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::SwitchToParentItem(item)) => {
-            present_bullet_list_item_parent_selected(item.into(), send_to_data_storage_layer).await
+        Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
+            present_bullet_list_item_parent_selected(
+                selected,
+                all_items,
+                all_item_nodes,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::ParentToItem) => {
-            parent_to_item(menu_for, send_to_data_storage_layer).await
+            parent_to_item(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::DebugPrintItem) => {
             println!("{:?}", menu_for);
@@ -478,23 +494,17 @@ async fn process_and_finish_bullet_item(
 }
 
 async fn present_bullet_list_item_parent_selected(
-    selected_item: &Item<'_>,
+    selected_item: &ItemNode<'_>,
+    all_items: &[&Item<'_>],
+    all_item_nodes: &[ItemNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    match selected_item.item_type {
+    match selected_item.get_type() {
         ItemType::ToDo | ItemType::Hope => {
-            let raw_data = SurrealTables::new(send_to_data_storage_layer)
-                .await
-                .unwrap();
-            let base_data = BaseData::new_from_surreal_tables(raw_data);
-            let active_items = base_data.get_active_items();
-            let coverings = base_data.get_coverings();
-            let visited = vec![];
-            let parents = selected_item.find_parents(coverings, active_items, &visited);
             present_bullet_list_item_selected(
                 selected_item,
-                &parents,
-                active_items,
+                all_items,
+                all_item_nodes,
                 send_to_data_storage_layer,
             )
             .await

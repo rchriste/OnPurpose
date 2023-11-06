@@ -32,7 +32,7 @@ impl<'a> Display for ProjectHopeItem<'a> {
         if self.hope_node.get_smaller().is_empty() {
             write!(f, "[NEEDS NEXT STEP] ")?;
         }
-        write!(f, "{}", self.hope_node.item.summary)?;
+        write!(f, "{}", self.hope_node.get_item().summary)?;
         for i in self.hope_node.create_parent_chain().iter() {
             write!(f, " ⬅  {}", i.summary)?;
         }
@@ -48,7 +48,7 @@ impl<'a> From<ProjectHopeItem<'a>> for &'a ItemNode<'a> {
 
 impl<'a> From<ProjectHopeItem<'a>> for &'a Item<'a> {
     fn from(value: ProjectHopeItem<'a>) -> Self {
-        value.hope_node.item
+        value.hope_node.into()
     }
 }
 
@@ -204,7 +204,7 @@ impl Display for MaintenanceHopeItem<'_> {
                 if hope_node.get_smaller().is_empty() {
                     write!(f, "[NEEDS NEXT STEP] ")?;
                 }
-                write!(f, "{}", hope_node.item.summary)?;
+                write!(f, "{}", hope_node.get_item().summary)?;
                 for i in hope_node.create_parent_chain().iter() {
                     write!(f, " ⬅  {}", i.summary)?;
                 }

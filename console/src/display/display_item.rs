@@ -31,15 +31,14 @@ impl<'s> From<DisplayItem<'s>> for &'s Item<'s> {
 }
 
 impl Display for DisplayItem<'_> {
-    //TODO: Update the code to use this rather than have this rewritten in multiple places
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.item.item_type {
-            ItemType::Hope => write!(f, "🪧  {}", self.item.summary),
-            ItemType::Motivation => write!(f, "🎯  {}", self.item.summary),
-            ItemType::ToDo => write!(f, "🪜  {}", self.item.summary),
-            ItemType::Simple => write!(f, "📌  {}", self.item.summary),
-            ItemType::Undeclared => write!(f, "❓  {}", self.item.summary),
-            ItemType::PersonOrGroup => write!(f, "👤  {}", self.item.summary),
+            ItemType::Hope => write!(f, "🪧 {}", self.item.summary),
+            ItemType::Motivation => write!(f, "🎯 {}", self.item.summary),
+            ItemType::ToDo => write!(f, "🪜 {}", self.item.summary),
+            ItemType::Simple => write!(f, "📌 {}", self.item.summary),
+            ItemType::Undeclared => write!(f, "❓ {}", self.item.summary),
+            ItemType::PersonOrGroup => write!(f, "👤 {}", self.item.summary),
         }
     }
 }

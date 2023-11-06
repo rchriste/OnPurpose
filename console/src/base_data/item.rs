@@ -407,6 +407,10 @@ impl<'b> Item<'b> {
         self.finished
     }
 
+    pub(crate) fn get_type(&self) -> &'b ItemType {
+        self.item_type
+    }
+
     pub(crate) fn is_type_undeclared(&self) -> bool {
         self.item_type == &ItemType::Undeclared
     }

@@ -7,8 +7,8 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
-    display::display_item::DisplayItem,
+    base_data::BaseData,
+    display::display_item_node::DisplayItemNode,
     menu::top_menu::present_top_menu,
     node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
@@ -21,29 +21,16 @@ use self::bullet_list_single_item::{
 
 pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
-    Item {
-        item_node: &'e ItemNode<'e>,
-        parents: Vec<&'e Item<'e>>,
-    },
+    Item(&'e ItemNode<'e>),
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ViewFocusItems => write!(f, "⏲️  [View Focus Items] ⏲️")?,
-            Self::Item { item_node, parents } => {
-                let display_item = DisplayItem::new(item_node.get_item());
-                if item_node.is_person_or_group() {
-                    write!(f, "Is {} around?", display_item)?;
-                } else if item_node.is_goal() && item_node.get_smaller().is_empty() {
-                    write!(f, "[NEEDS NEXT STEP] ⬅ {}", display_item)?;
-                } else {
-                    write!(f, "{} ", display_item)?;
-                }
-                for item in parents {
-                    let display_item = DisplayItem::new(item);
-                    write!(f, " ⬅ {}", display_item)?;
-                }
+            Self::Item(item_node) => {
+                let display_item_node = DisplayItemNode::new(item_node);
+                write!(f, "{}", display_item_node)?;
             }
         }
         Ok(())
@@ -70,10 +57,7 @@ impl<'a> InquireBulletListItem<'a> {
         mut list: Vec<InquireBulletListItem<'a>>,
         item_nodes: &'a [ItemNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        list.extend(item_nodes.iter().map(|x| InquireBulletListItem::Item {
-            item_node: x,
-            parents: x.create_parent_chain(),
-        }));
+        list.extend(item_nodes.iter().map(|x| InquireBulletListItem::Item(x)));
         list
     }
 }
@@ -103,15 +87,15 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 present_focused_bullet_list_menu(send_to_data_storage_layer).await
             }
-            Ok(InquireBulletListItem::Item { item_node, parents }) => {
+            Ok(InquireBulletListItem::Item(item_node)) => {
                 if item_node.is_person_or_group() {
                     present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
                         .await
                 } else {
                     present_bullet_list_item_selected(
-                        item_node.get_item(),
-                        &parents,
+                        item_node,
                         bullet_list.get_active_items(),
+                        item_nodes,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -149,11 +133,11 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::ViewFocusItems) => {
                 panic!("The focus list should not present this option")
             }
-            Ok(InquireBulletListItem::Item { item_node, parents }) => {
+            Ok(InquireBulletListItem::Item(item_node)) => {
                 present_bullet_list_item_selected(
-                    item_node.get_item(),
-                    &parents,
+                    item_node,
                     bullet_list.get_active_items(),
+                    item_nodes,
                     send_to_data_storage_layer,
                 )
                 .await

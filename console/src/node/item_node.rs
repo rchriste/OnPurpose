@@ -2,13 +2,14 @@ use chrono::{DateTime, Local};
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::SurrealItem,
+    surrealdb_layer::surreal_item::{ItemType, Staging, SurrealItem},
 };
 
+#[derive(Debug)]
 pub(crate) struct ItemNode<'s> {
-    pub(crate) item: &'s Item<'s>,
-    pub(crate) larger: Vec<GrowingItemNode<'s>>,
-    pub(crate) smaller: Vec<ShrinkingItemNode<'s>>,
+    item: &'s Item<'s>,
+    larger: Vec<GrowingItemNode<'s>>,
+    smaller: Vec<ShrinkingItemNode<'s>>,
 }
 
 impl<'a> From<&'a ItemNode<'a>> for &'a Item<'a> {
@@ -27,13 +28,13 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
         coverings: &'s [Covering<'s>],
-        possible_parents: &'s [&'s Item<'s>],
+        all_items: &'s [&'s Item<'s>],
     ) -> Self {
         let visited = vec![];
-        let parents = item.find_parents(coverings, possible_parents, &visited);
-        let larger = create_growing_nodes(parents, coverings, possible_parents, visited.clone());
-        let children = item.find_children(coverings, possible_parents, &visited);
-        let smaller = create_shrinking_nodes(children, coverings, possible_parents, visited);
+        let parents = item.find_parents(coverings, all_items, &visited);
+        let larger = create_growing_nodes(parents, coverings, all_items, visited.clone());
+        let children = item.find_children(coverings, all_items, &visited);
+        let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
 
         ItemNode {
             item,
@@ -75,15 +76,83 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn is_goal(&self) -> bool {
         self.item.is_goal()
     }
+
+    pub(crate) fn is_mentally_resident(&self) -> bool {
+        if self.item.get_staging() == &Staging::NotSet {
+            //Look to parents for a setting
+            self.get_larger().iter().any(|x| x.is_mentally_resident())
+        } else {
+            //Value is set so use it
+            self.item.is_mentally_resident()
+        }
+    }
+
+    pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
+        &self.larger
+    }
+
+    pub(crate) fn get_type(&self) -> &ItemType {
+        self.item.get_type()
+    }
+
+    pub(crate) fn is_type_action(&self) -> bool {
+        if self.item.get_type() == &ItemType::Undeclared {
+            //Look to parents for a setting
+            self.get_larger().iter().any(|x| x.is_type_action())
+        } else {
+            //Value is set so use it
+            self.item.is_type_action()
+        }
+    }
+
+    pub(crate) fn is_type_undeclared(&self) -> bool {
+        let is_type_undeclared = self.item.is_type_undeclared();
+        if is_type_undeclared && self.is_type_action() {
+            //This type can be inferred from the parent so check that first
+            false
+        } else {
+            is_type_undeclared
+        }
+    }
+
+    pub(crate) fn is_type_goal(&self) -> bool {
+        self.item.is_type_goal()
+    }
+
+    pub(crate) fn is_type_motivation(&self) -> bool {
+        self.item.is_type_motivation()
+    }
+
+    pub(crate) fn is_type_simple(&self) -> bool {
+        self.item.is_type_simple()
+    }
+
+    pub(crate) fn has_active_children(&self) -> bool {
+        self.smaller.iter().any(|x| !x.get_item().is_finished())
+    }
+
+    pub(crate) fn is_circumstance_focus_time(&self) -> bool {
+        self.item.is_circumstance_focus_time()
+    }
+
+    pub(crate) fn get_estimated_focus_periods(&self) -> Option<u32> {
+        self.item.get_estimated_focus_periods()
+    }
+
+    pub(crate) fn is_there_notes(&self) -> bool {
+        //I should probably change this to search through the parents as well, but going with this for now to maintain backwards compatibility with the code already written before I switched over to this ItemNode type
+        self.item.is_there_notes()
+    }
 }
 
-pub(crate) struct GrowingItemNode<'a> {
-    pub(crate) item: &'a Item<'a>,
-    pub(crate) larger: Vec<GrowingItemNode<'a>>,
+#[derive(Debug)]
+pub(crate) struct GrowingItemNode<'s> {
+    pub(crate) item: &'s Item<'s>,
+    pub(crate) larger: Vec<GrowingItemNode<'s>>,
 }
 
-impl<'a> GrowingItemNode<'a> {
-    pub(crate) fn create_growing_parents(&self) -> Vec<&'a Item<'a>> {
+impl<'s> GrowingItemNode<'s> {
+    pub(crate) fn create_growing_parents(&self) -> Vec<&'s Item<'s>> {
         let mut result = Vec::default();
         for i in self.larger.iter() {
             result.push(i.item);
@@ -91,6 +160,30 @@ impl<'a> GrowingItemNode<'a> {
             result.extend(parents.iter());
         }
         result
+    }
+
+    pub(crate) fn is_mentally_resident(&self) -> bool {
+        if self.item.get_staging() == &Staging::NotSet {
+            //Look to parents for a setting
+            self.larger.iter().any(|x| x.is_mentally_resident())
+        } else {
+            //Value is set so use it
+            self.item.is_mentally_resident()
+        }
+    }
+
+    pub(crate) fn is_type_action(&self) -> bool {
+        if self.item.get_type() == &ItemType::Undeclared {
+            //Look to parents for a setting
+            self.larger.iter().any(|x| x.is_type_action())
+        } else {
+            //Value is set so use it
+            self.item.is_type_action()
+        }
+    }
+
+    pub(crate) fn get_item(&self) -> &'s Item<'s> {
+        self.item
     }
 }
 
@@ -129,9 +222,16 @@ pub(crate) fn create_growing_node<'a>(
     GrowingItemNode { item, larger }
 }
 
-pub(crate) struct ShrinkingItemNode<'a> {
-    _item: &'a Item<'a>,
-    _smaller: Vec<ShrinkingItemNode<'a>>,
+#[derive(Debug)]
+pub(crate) struct ShrinkingItemNode<'s> {
+    item: &'s Item<'s>,
+    _smaller: Vec<ShrinkingItemNode<'s>>,
+}
+
+impl<'s> ShrinkingItemNode<'s> {
+    pub(crate) fn get_item(&self) -> &'s Item<'s> {
+        self.item
+    }
 }
 
 pub(crate) fn create_shrinking_nodes<'a>(
@@ -150,7 +250,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
                 create_shrinking_node(x, coverings, possible_children, visited)
             } else {
                 ShrinkingItemNode {
-                    _item: x,
+                    item: x,
                     _smaller: vec![],
                 }
             }
@@ -167,7 +267,7 @@ pub(crate) fn create_shrinking_node<'a>(
     let children = item.find_children(coverings, all_items, &visited);
     let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
     ShrinkingItemNode {
-        _item: item,
+        item,
         _smaller: smaller,
     }
 }
