@@ -57,7 +57,7 @@ impl<'a> InquireBulletListItem<'a> {
         mut list: Vec<InquireBulletListItem<'a>>,
         item_nodes: &'a [ItemNode<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        list.extend(item_nodes.iter().map(|x| InquireBulletListItem::Item(x)));
+        list.extend(item_nodes.iter().map(InquireBulletListItem::Item));
         list
     }
 }

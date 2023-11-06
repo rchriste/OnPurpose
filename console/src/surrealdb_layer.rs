@@ -5,7 +5,6 @@ pub(crate) mod surreal_life_area;
 pub(crate) mod surreal_processed_text;
 pub(crate) mod surreal_required_circumstance;
 pub(crate) mod surreal_routine;
-pub(crate) mod surreal_specific_to_hope;
 pub(crate) mod surreal_tables;
 
 use chrono::{DateTime, Local, Utc};
@@ -34,7 +33,6 @@ use self::{
     surreal_processed_text::SurrealProcessedText,
     surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
     surreal_routine::SurrealRoutine,
-    surreal_specific_to_hope::SurrealSpecificToHope,
     surreal_tables::SurrealTables,
 };
 
@@ -230,21 +228,12 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 }
 
 async fn upgrade_items_table(db: &Surreal<Any>) {
-    let all_hopes = SurrealSpecificToHope::get_all(db).await.unwrap();
     for item_old_version in SurrealItemOldVersion::get_all(db)
         .await
         .unwrap()
         .into_iter()
     {
-        let hope_additional_data = all_hopes
-            .iter()
-            .find(|x| &x.for_item == item_old_version.id.as_ref().expect("In DB"));
-        let item: SurrealItem = match hope_additional_data {
-            Some(hope_additional_data) => {
-                item_old_version.into_with_hope_data(hope_additional_data.clone())
-            }
-            None => item_old_version.into(),
-        };
+        let item: SurrealItem = item_old_version.into();
         item.update(db).await.unwrap();
     }
 }

@@ -10,7 +10,7 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData, covering::Covering},
+    base_data::{covering::Covering, item::Item, BaseData},
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
@@ -143,7 +143,11 @@ impl Display for BulletListSingleItemSelection<'_> {
 }
 
 impl<'e> BulletListSingleItemSelection<'e> {
-    fn create_list(item_node: &'e ItemNode<'e>, all_coverings: &'e [Covering<'e>], all_items: &'e [&Item<'e>]) -> Vec<Self> {
+    fn create_list(
+        item_node: &'e ItemNode<'e>,
+        all_coverings: &'e [Covering<'e>],
+        all_items: &'e [&Item<'e>],
+    ) -> Vec<Self> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();

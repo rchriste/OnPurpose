@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use chrono::{DateTime, Local, Utc};
+use duration_str::parse;
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
@@ -300,6 +302,21 @@ impl MentallyResidentHopeSelectedMenuItem {
     }
 }
 
+enum YesOrNo {
+    Yes,
+    No,
+}
+
+impl Display for YesOrNo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            YesOrNo::Yes => write!(f, "Yes"),
+            YesOrNo::No => write!(f, "No"),
+        }
+    }
+}
+
+#[async_recursion]
 pub(crate) async fn present_mentally_resident_hope_selected_menu(
     hope_selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -321,7 +338,50 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
             switch_to_maintenance_item(hope_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToOnDeckHope) => {
-            update_item_staging(hope_selected, send_to_data_storage_layer, Staging::OnDeck).await
+            let now = Local::now();
+            let wait_until = loop {
+                let result = Text::new("Can wait for how long?").prompt();
+                match result {
+                    Ok(wait_string) => {
+                        let wait_duration = parse(&wait_string).unwrap();
+                        let wait_until = now + wait_duration;
+                        println!("Can wait until {}?", wait_until);
+                        let result = Select::new("", vec![YesOrNo::Yes, YesOrNo::No]).prompt();
+                        match result {
+                            Ok(YesOrNo::Yes) => break wait_until,
+                            Ok(YesOrNo::No) => continue,
+                            Err(InquireError::OperationCanceled) => {
+                                present_mentally_resident_hope_selected_menu(
+                                    hope_selected,
+                                    send_to_data_storage_layer,
+                                )
+                                .await
+                            }
+                            Err(err) => todo!("{}", err),
+                        }
+                    }
+                    Err(InquireError::OperationCanceled) => {
+                        present_mentally_resident_hope_selected_menu(
+                            hope_selected,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    Err(err) => todo!("{}", err),
+                }
+            };
+
+            let wait_until = Into::<DateTime<Utc>>::into(wait_until);
+            let started = Into::<DateTime<Utc>>::into(now);
+            update_item_staging(
+                hope_selected,
+                send_to_data_storage_layer,
+                Staging::OnDeck {
+                    began_waiting: started.into(),
+                    can_wait_until: wait_until.into(),
+                },
+            )
+            .await
         }
         Ok(MentallyResidentHopeSelectedMenuItem::SwitchToIntensionHope) => {
             update_item_staging(

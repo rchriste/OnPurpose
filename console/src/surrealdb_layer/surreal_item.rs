@@ -5,10 +5,7 @@ use surrealdb_extra::table::Table;
 
 use crate::{base_data::item::Item, new_item::NewItem};
 
-use super::{
-    surreal_required_circumstance::SurrealRequiredCircumstance,
-    surreal_specific_to_hope::SurrealSpecificToHope,
-};
+use super::surreal_required_circumstance::SurrealRequiredCircumstance;
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
@@ -119,6 +116,19 @@ pub(crate) enum Staging {
     #[default]
     NotSet,
     MentallyResident,
+    OnDeck {
+        began_waiting: Datetime,
+        can_wait_until: Datetime,
+    },
+    Intension,
+    Released,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum StagingOldVersion {
+    #[default]
+    NotSet,
+    MentallyResident,
     OnDeck,
     Intension,
     Released,
@@ -170,6 +180,12 @@ pub(crate) struct SurrealItemOldVersion {
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
 
+    #[cfg_attr(test, builder(default))]
+    pub(crate) permanence: Permanence,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) staging: StagingOldVersion,
+
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
@@ -184,25 +200,21 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             responsibility: value.responsibility,
             item_type: value.item_type,
             notes_location: value.notes_location,
-            permanence: Permanence::default(),
-            staging: Staging::default(),
+            permanence: value.permanence,
+            staging: value.staging.into(),
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
         }
     }
 }
 
-impl SurrealItemOldVersion {
-    pub(crate) fn into_with_hope_data(self, extra_hope_data: SurrealSpecificToHope) -> SurrealItem {
-        SurrealItem {
-            id: self.id,
-            summary: self.summary,
-            finished: self.finished,
-            responsibility: self.responsibility,
-            item_type: self.item_type,
-            notes_location: self.notes_location,
-            permanence: extra_hope_data.permanence,
-            staging: extra_hope_data.staging,
-            smaller_items_in_priority_order: self.smaller_items_in_priority_order,
+impl From<StagingOldVersion> for Staging {
+    fn from(value: StagingOldVersion) -> Self {
+        match value {
+            StagingOldVersion::NotSet => Staging::NotSet,
+            StagingOldVersion::MentallyResident => Staging::MentallyResident,
+            StagingOldVersion::OnDeck => Staging::NotSet,
+            StagingOldVersion::Intension => Staging::Intension,
+            StagingOldVersion::Released => Staging::Released,
         }
     }
 }

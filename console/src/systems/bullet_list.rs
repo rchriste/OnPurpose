@@ -6,8 +6,9 @@ use ouroboros::self_referencing;
 
 use crate::{
     base_data::{
+        covering::Covering,
         item::{Item, ItemVecExtensions},
-        BaseData, covering::Covering,
+        BaseData,
     },
     node::item_node::{create_item_nodes, ItemNode},
 };
@@ -57,18 +58,18 @@ impl BulletList {
                 )
                 .filter(|x| !x.is_goal() || x.is_goal() && x.get_smaller().is_empty())
                 .collect::<Vec<_>>();
-            item_nodes.sort_by(|a, b| {
-                let a_is_mentally_resident = a.is_mentally_resident();
-                let b_is_mentally_resident = b.is_mentally_resident();
-                if a_is_mentally_resident && !b_is_mentally_resident {
-                    Ordering::Less
-                } else if !a_is_mentally_resident && b_is_mentally_resident {
-                    Ordering::Greater
-                } else {
-                    Ordering::Equal
-                }
-            });
-            item_nodes
+                item_nodes.sort_by(|a, b| {
+                    let a_is_mentally_resident = a.is_mentally_resident();
+                    let b_is_mentally_resident = b.is_mentally_resident();
+                    if a_is_mentally_resident && !b_is_mentally_resident {
+                        Ordering::Less
+                    } else if !a_is_mentally_resident && b_is_mentally_resident {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Equal
+                    }
+                });
+                item_nodes
             },
         }
         .build()
