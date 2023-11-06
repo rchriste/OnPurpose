@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use chrono::Local;
 use itertools::chain;
 use ouroboros::self_referencing;
@@ -45,7 +47,7 @@ impl BulletList {
                     mentally_resident_hopes
                 );
 
-                create_item_nodes(
+                let mut item_nodes = create_item_nodes(
                     bullet_list,
                     base_data.get_coverings(),
                     base_data.get_coverings_until_date_time(),
@@ -54,7 +56,19 @@ impl BulletList {
                     false,
                 )
                 .filter(|x| !x.is_goal() || x.is_goal() && x.get_smaller().is_empty())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            item_nodes.sort_by(|a, b| {
+                let a_is_mentally_resident = a.is_mentally_resident();
+                let b_is_mentally_resident = b.is_mentally_resident();
+                if a_is_mentally_resident && !b_is_mentally_resident {
+                    Ordering::Less
+                } else if !a_is_mentally_resident && b_is_mentally_resident {
+                    Ordering::Greater
+                } else {
+                    Ordering::Equal
+                }
+            });
+            item_nodes
             },
         }
         .build()
