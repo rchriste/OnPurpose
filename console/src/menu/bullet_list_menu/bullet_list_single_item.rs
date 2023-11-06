@@ -156,7 +156,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
 
-        if is_type_action && has_no_parent {
+        if (is_type_action) && has_no_parent {
             list.push(Self::ParentToAGoal);
         }
 
@@ -246,7 +246,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         let parent_items = item_node.create_parent_chain();
-        if is_type_action || is_type_goal || is_type_motivation {
+        if is_type_action || is_type_goal || is_type_motivation || is_type_undeclared {
             if has_no_parent {
                 list.push(Self::ParentToItem);
             } else {
