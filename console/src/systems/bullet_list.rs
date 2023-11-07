@@ -28,15 +28,10 @@ impl BulletList {
             base_data,
             item_nodes_builder: |base_data| {
                 let active_items = base_data.get_active_items();
-                let all_item_nodes = create_item_nodes(
-                    active_items.iter().copied(),
-                    base_data.get_coverings(),
-                    base_data.get_coverings_until_date_time(),
-                    active_items,
-                    Local::now(),
-                    false,
-                );
-                let all_item_nodes = all_item_nodes.collect::<Vec<_>>();
+                let all_item_nodes = active_items
+                    .iter()
+                    .map(|x| ItemNode::new(x, base_data.get_coverings(), active_items))
+                    .collect::<Vec<_>>();
 
                 //Note that some of these bottom items might be from detecting a circular dependency
                 let mut all_leaf_nodes = all_item_nodes

@@ -6,11 +6,12 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::BaseData,
     change_routine::change_routine,
-    display::display_item::DisplayItem,
+    display::display_item_node::DisplayItemNode,
     mentally_resident::view_hopes,
     new_item::NewItem,
+    node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
@@ -139,7 +140,7 @@ async fn view_motivations() {
 }
 
 enum DebugViewItem<'e> {
-    Item(DisplayItem<'e>),
+    Item(DisplayItemNode<'e>),
 }
 
 impl Display for DebugViewItem<'_> {
@@ -151,11 +152,12 @@ impl Display for DebugViewItem<'_> {
 }
 
 impl<'e> DebugViewItem<'e> {
-    fn make_list(items: &'e [&'e Item<'e>]) -> Vec<DebugViewItem<'e>> {
-        items
-            .iter()
-            .map(|x| DebugViewItem::Item(DisplayItem::new(x)))
-            .collect()
+    fn make_list(items: &'e [&'e ItemNode<'e>]) -> Vec<DebugViewItem<'e>> {
+        items.iter().copied().map(DebugViewItem::new).collect()
+    }
+
+    fn new(item: &'e ItemNode<'e>) -> Self {
+        Self::Item(DisplayItemNode::new(item))
     }
 }
 
@@ -167,16 +169,22 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let active_items = base_data.get_active_items();
     let covering = base_data.get_coverings();
+    let item_nodes = active_items
+        .iter()
+        .map(|x| ItemNode::new(x, covering, active_items))
+        .collect::<Vec<_>>();
     let covering_until_date_time = base_data.get_coverings_until_date_time();
 
-    let list = DebugViewItem::make_list(active_items);
+    let item_nodes = item_nodes.iter().collect::<Vec<_>>();
+    let list = DebugViewItem::make_list(&item_nodes);
 
     let selection = Select::new("Select an item to show the debug view of...", list).prompt();
     match selection {
         Ok(DebugViewItem::Item(item)) => {
-            let item: &Item = item.item;
-            println!("{:#?}", item);
+            println!("{}", item);
+            println!("{:#?}", item.get_item_node());
 
+            let item = item.get_item_node().get_item();
             let covered_by = item.get_covered_by_another_item(covering);
             println!("Covered by: {:#?}", covered_by);
 

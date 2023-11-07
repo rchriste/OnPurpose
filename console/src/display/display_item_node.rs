@@ -38,4 +38,8 @@ impl<'s> DisplayItemNode<'s> {
     pub(crate) fn is_mentally_resident(&self) -> bool {
         self.item_node.is_mentally_resident()
     }
+
+    pub(crate) fn get_item_node(&self) -> &'s ItemNode<'s> {
+        self.item_node
+    }
 }
