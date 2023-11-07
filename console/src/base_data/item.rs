@@ -729,7 +729,7 @@ mod tests {
             .unwrap();
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&items);
+        let coverings = surreal_tables.make_coverings(&active_items);
 
         let smaller_item = items
             .iter()
@@ -800,7 +800,7 @@ mod tests {
             .unwrap();
         let items: Vec<Item> = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&items);
+        let coverings = surreal_tables.make_coverings(&active_items);
 
         let under_test_parent_item = items
             .iter()

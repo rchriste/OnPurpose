@@ -414,8 +414,9 @@ mod tests {
             .expect("no required fields");
         let items = surreal_tables.make_items();
         let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&items);
-        let coverings_until_date_time = surreal_tables.make_coverings_until_date_time(&items);
+        let coverings = surreal_tables.make_coverings(&active_items);
+        let coverings_until_date_time =
+            surreal_tables.make_coverings_until_date_time(&active_items);
 
         let to_dos = items.filter_just_actions();
         let wednesday_ignore =

@@ -55,29 +55,35 @@ impl SurrealTables {
             .collect()
     }
 
-    pub(crate) fn make_coverings<'a>(&'a self, items: &'a [Item<'a>]) -> Vec<Covering<'a>> {
+    pub(crate) fn make_coverings<'a>(&'a self, items: &'a [&'a Item<'a>]) -> Vec<Covering<'a>> {
         self.surreal_coverings
             .iter()
-            .map(|x| Covering {
-                smaller: items.lookup_from_record_id(&x.smaller).unwrap(),
-                parent: items.lookup_from_record_id(&x.parent).unwrap(),
-                _surreal_covering: x,
+            .filter_map(|x| {
+                //Items that are not found should just be filtered out. The main scenario for this is to filter out covering for items that are finished
+                let smaller = items.lookup_from_record_id(&x.smaller)?;
+                let parent = items.lookup_from_record_id(&x.parent)?;
+                Some(Covering {
+                    smaller,
+                    parent,
+                    _surreal_covering: x,
+                })
             })
             .collect()
     }
 
     pub(crate) fn make_coverings_until_date_time<'a>(
         &'a self,
-        items: &'a [Item<'a>],
+        items: &'a [&'a Item<'a>],
     ) -> Vec<CoveringUntilDateTime<'a>> {
         self.surreal_coverings_until_date_time
             .iter()
-            .map(|x| {
+            .filter_map(|x| {
+                let cover_this = items.lookup_from_record_id(&x.cover_this)?;
                 let until_utc: DateTime<Utc> = x.until.clone().into();
-                CoveringUntilDateTime {
-                    cover_this: items.lookup_from_record_id(&x.cover_this).unwrap(),
+                Some(CoveringUntilDateTime {
+                    cover_this,
                     until: until_utc.into(),
-                }
+                })
             })
             .collect()
     }

@@ -32,11 +32,11 @@ pub(crate) struct BaseData {
     #[covariant]
     active_items: Vec<&'this Item<'this>>,
 
-    #[borrows(items, surreal_tables)]
+    #[borrows(active_items, surreal_tables)]
     #[covariant]
     coverings: Vec<Covering<'this>>,
 
-    #[borrows(items, surreal_tables)]
+    #[borrows(active_items, surreal_tables)]
     #[covariant]
     coverings_until_date_time: Vec<CoveringUntilDateTime<'this>>,
 
@@ -55,9 +55,11 @@ impl BaseData {
             surreal_tables,
             items_builder: |surreal_tables| surreal_tables.make_items(),
             active_items_builder: |items| items.filter_active_items(),
-            coverings_builder: |items, surreal_tables| surreal_tables.make_coverings(items),
-            coverings_until_date_time_builder: |items, surreal_tables| {
-                surreal_tables.make_coverings_until_date_time(items)
+            coverings_builder: |active_items, surreal_tables| {
+                surreal_tables.make_coverings(active_items)
+            },
+            coverings_until_date_time_builder: |active_items, surreal_tables| {
+                surreal_tables.make_coverings_until_date_time(active_items)
             },
             life_areas_builder: |surreal_tables| surreal_tables.make_life_areas(),
             routines_builder: |surreal_tables| surreal_tables.make_routines(),
