@@ -3,7 +3,10 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     menu::on_deck_query::on_deck_query,
     node::item_node::ItemNode,
-    surrealdb_layer::{surreal_item::Staging, DataLayerCommands},
+    surrealdb_layer::{
+        surreal_item::{Responsibility, Staging},
+        DataLayerCommands,
+    },
 };
 use inquire::{InquireError, Select};
 use std::fmt::Display;
@@ -14,6 +17,7 @@ enum StagingMenuSelection {
     OnDeck,
     Intension,
     Released,
+    MakeItemReactive,
 }
 
 impl Display for StagingMenuSelection {
@@ -24,6 +28,7 @@ impl Display for StagingMenuSelection {
             StagingMenuSelection::OnDeck => write!(f, "On Deck"),
             StagingMenuSelection::Intension => write!(f, "Intension"),
             StagingMenuSelection::Released => write!(f, "Released"),
+            StagingMenuSelection::MakeItemReactive => write!(f, "Make Item Reactive"),
         }
     }
 }
@@ -36,6 +41,7 @@ impl StagingMenuSelection {
             StagingMenuSelection::Intension,
             StagingMenuSelection::Released,
             StagingMenuSelection::NotSet,
+            StagingMenuSelection::MakeItemReactive,
         ]
     }
 }
@@ -62,6 +68,15 @@ pub(crate) async fn present_set_staging_menu(
         }
         StagingMenuSelection::Intension => Staging::Intension,
         StagingMenuSelection::Released => Staging::Released,
+        StagingMenuSelection::MakeItemReactive => {
+            return send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateItemResponsibility(
+                    selected.get_surreal_item().clone(),
+                    Responsibility::ReactiveBeAvailableToAct,
+                ))
+                .await
+                .unwrap();
+        }
     };
 
     send_to_data_storage_layer

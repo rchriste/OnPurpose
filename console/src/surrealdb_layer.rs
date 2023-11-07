@@ -68,6 +68,7 @@ pub(crate) enum DataLayerCommands {
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
     UpdateResponsibilityAndItemType(SurrealItem, Responsibility, ItemType),
+    UpdateItemResponsibility(SurrealItem, Responsibility),
     UpdateItemPermanence(SurrealItem, Permanence),
     UpdateItemStaging(SurrealItem, Staging),
     UpdateItemSummary(SurrealItem, String),
@@ -191,6 +192,11 @@ pub(crate) async fn data_storage_start_and_run(
                 let mut item = item;
                 item.responsibility = new_responsibility;
                 item.item_type = new_item_type;
+                item.update(&db).await.unwrap();
+            }
+            Some(DataLayerCommands::UpdateItemResponsibility(item, new_responsibility)) => {
+                let mut item = item;
+                item.responsibility = new_responsibility;
                 item.update(&db).await.unwrap();
             }
             None => return, //Channel closed, time to shutdown down, exit
