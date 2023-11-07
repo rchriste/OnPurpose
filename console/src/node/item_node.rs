@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local};
+use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
@@ -153,6 +154,26 @@ impl<'s> ItemNode<'s> {
             is_staging_not_set
         }
     }
+
+    pub(crate) fn get_staging(&'s self) -> &'s Staging {
+        let staging = self.item.get_staging();
+        if staging == &Staging::NotSet {
+            //This type can be inferred from the parent so check that first
+            for parent in self.get_larger().iter() {
+                let staging = parent.get_staging();
+                if staging != &Staging::NotSet {
+                    return staging;
+                }
+            }
+            &Staging::NotSet
+        } else {
+            staging
+        }
+    }
+
+    pub(crate) fn get_thing(&self) -> &'s Thing {
+        self.item.get_thing()
+    }
 }
 
 #[derive(Debug)]
@@ -202,8 +223,28 @@ impl<'s> GrowingItemNode<'s> {
         }
     }
 
+    pub(crate) fn get_staging(&'s self) -> &'s Staging {
+        let staging = self.item.get_staging();
+        if staging == &Staging::NotSet {
+            //This type can be inferred from the parent so check that first
+            for parent in self.get_larger().iter() {
+                let staging = parent.get_staging();
+                if staging != &Staging::NotSet {
+                    return staging;
+                }
+            }
+            &Staging::NotSet
+        } else {
+            staging
+        }
+    }
+
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
+    }
+
+    pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
+        &self.larger
     }
 }
 

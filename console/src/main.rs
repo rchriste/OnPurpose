@@ -13,7 +13,7 @@ use surrealdb_layer::surreal_item::SurrealItem;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
-    menu::bullet_list_menu::present_unfocused_bullet_list_menu,
+    menu::bullet_list_menu::present_normal_bullet_list_menu,
     surrealdb_layer::{data_storage_start_and_run, DataLayerCommands},
 };
 
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    present_unfocused_bullet_list_menu(&send_to_data_storage_layer_tx).await;
+    present_normal_bullet_list_menu(&send_to_data_storage_layer_tx).await;
 
     if data_storage_join_handle.is_finished() {
         println!("Data Storage Layer closed early, unexpectedly");

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -122,6 +124,42 @@ pub(crate) enum Staging {
     },
     Intension,
     Released,
+}
+
+impl PartialOrd for Staging {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Staging {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self {
+            Staging::NotSet => match other {
+                Staging::NotSet => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+            Staging::MentallyResident => match other {
+                Staging::NotSet => Ordering::Greater,
+                Staging::MentallyResident => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+            Staging::OnDeck { .. } => match other {
+                Staging::NotSet | Staging::MentallyResident => Ordering::Greater,
+                Staging::OnDeck { .. } => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+            Staging::Intension => match other {
+                Staging::Released => Ordering::Less,
+                Staging::Intension => Ordering::Equal,
+                _ => Ordering::Greater,
+            },
+            Staging::Released => match other {
+                Staging::Released => Ordering::Equal,
+                _ => Ordering::Greater,
+            },
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]

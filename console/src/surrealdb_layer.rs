@@ -512,10 +512,8 @@ async fn update_hope_staging(
 ) {
     surreal_item.staging = new_staging;
 
-    println!("Updating Staging to {:?}", &surreal_item);
-
     if surreal_item.id.is_some() {
-        let updated: SurrealItem = db
+        let _: SurrealItem = db
             .update((
                 SurrealItem::TABLE_NAME,
                 surreal_item.get_id().clone().unwrap().id.clone().to_raw(),
@@ -528,8 +526,6 @@ async fn update_hope_staging(
             .await
             .unwrap()
             .unwrap();
-
-        println!("Updated Staging to {:?}", updated);
     } else {
         //Create record
         surreal_item.create(db).await.unwrap();

@@ -510,6 +510,10 @@ impl<'b> Item<'b> {
         self.covered_by(coverings, all_items)
             .any(|x| x.is_type_goal() && !x.is_finished())
     }
+
+    pub(crate) fn get_thing(&self) -> &Thing {
+        self.surreal_item.id.as_ref().expect("Already in DB")
+    }
 }
 
 impl Item<'_> {

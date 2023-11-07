@@ -23,6 +23,60 @@ pub(crate) struct BulletList {
 }
 
 impl BulletList {
+    pub(crate) fn new_bullet_list(base_data: BaseData) -> Self {
+        BulletListBuilder {
+            base_data,
+            item_nodes_builder: |base_data| {
+                let active_items = base_data.get_active_items();
+                let all_item_nodes = create_item_nodes(
+                    active_items.iter().copied(),
+                    base_data.get_coverings(),
+                    base_data.get_coverings_until_date_time(),
+                    active_items,
+                    Local::now(),
+                    false,
+                );
+                let all_item_nodes = all_item_nodes.collect::<Vec<_>>();
+
+                //Note that some of these bottom items might be from detecting a circular dependency
+                let mut all_leaf_nodes = all_item_nodes
+                    .into_iter()
+                    .filter(|x| x.get_smaller().is_empty())
+                    .collect::<Vec<_>>();
+
+                //This first sort is just to give a stable order to the items. Another way of sorting would
+                //work as well.
+                all_leaf_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
+
+                all_leaf_nodes.sort_by(|a, b| {
+                    (if a.is_type_undeclared() || a.is_type_simple() {
+                        if b.is_type_undeclared() || b.is_type_simple() {
+                            Ordering::Equal
+                        } else {
+                            Ordering::Less
+                        }
+                    } else if b.is_type_undeclared() || b.is_type_simple() {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Equal
+                    })
+                    .then_with(|| {
+                        //TODO: I need to put on_deck expired items here
+                        a.get_staging().cmp(b.get_staging())
+                    })
+                    //TODO: I need to sort on_deck items by how much percentage time is left before they expire
+                });
+
+                //TODO: Sort order the first of all top items
+                all_leaf_nodes
+                    .into_iter()
+                    .map(BulletListReason::new)
+                    .collect::<Vec<_>>()
+            },
+        }
+        .build()
+    }
+
     pub(crate) fn new_unfocused_bullet_list(base_data: BaseData) -> Self {
         let current_date_time = Local::now();
         BulletListBuilder {
@@ -58,26 +112,10 @@ impl BulletList {
                 )
                 .filter(|x| !x.is_goal() || x.is_goal() && x.get_smaller().is_empty())
                 .collect::<Vec<_>>();
-                item_nodes.sort_by(|a, b| {
-                    let a_is_mentally_resident = a.is_mentally_resident();
-                    let b_is_mentally_resident = b.is_mentally_resident();
-                    if a_is_mentally_resident && !b_is_mentally_resident {
-                        Ordering::Less
-                    } else if !a_is_mentally_resident && b_is_mentally_resident {
-                        Ordering::Greater
-                    } else {
-                        Ordering::Equal
-                    }
-                });
+                item_nodes.sort_by(|a, b| a.get_staging().cmp(b.get_staging()));
                 let mut item_nodes = item_nodes
                     .into_iter()
-                    .map(|x| {
-                        if x.is_staging_not_set() {
-                            BulletListReason::SetStaging(x)
-                        } else {
-                            BulletListReason::WorkOn(x)
-                        }
-                    })
+                    .map(BulletListReason::new)
                     .collect::<Vec<_>>();
                 item_nodes.sort_by(|a, b| {
                     let a_is_set_staging = matches!(a, BulletListReason::SetStaging(_));
@@ -134,6 +172,16 @@ impl BulletList {
 pub(crate) enum BulletListReason<'e> {
     SetStaging(ItemNode<'e>),
     WorkOn(ItemNode<'e>),
+}
+
+impl<'e> BulletListReason<'e> {
+    pub(crate) fn new(item_node: ItemNode<'e>) -> Self {
+        if item_node.is_staging_not_set() {
+            BulletListReason::SetStaging(item_node)
+        } else {
+            BulletListReason::WorkOn(item_node)
+        }
+    }
 }
 
 #[cfg(test)]

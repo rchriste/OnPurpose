@@ -10,10 +10,11 @@ use crate::{
     change_routine::change_routine,
     display::display_item::DisplayItem,
     mentally_resident::view_hopes,
-    menu::bullet_list_menu::present_unfocused_bullet_list_menu,
     new_item::NewItem,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
+
+use super::bullet_list_menu::present_normal_bullet_list_menu;
 
 enum TopMenuSelection {
     Capture,
@@ -83,7 +84,7 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
         TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
         TopMenuSelection::ViewBulletList => {
-            present_unfocused_bullet_list_menu(send_to_data_storage_layer).await
+            present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
         TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
         TopMenuSelection::ViewMotivations => view_motivations().await,
