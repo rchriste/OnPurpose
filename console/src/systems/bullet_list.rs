@@ -37,6 +37,8 @@ impl BulletList {
                 let mut all_leaf_nodes = all_item_nodes
                     .into_iter()
                     .filter(|x| x.get_smaller().is_empty())
+                    //Reactive items should not be leaf nodes
+                    .filter(|x| !x.is_responsibility_reactive())
                     .collect::<Vec<_>>();
 
                 //This first sort is just to give a stable order to the items. Another way of sorting would

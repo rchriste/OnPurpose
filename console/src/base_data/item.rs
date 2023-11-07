@@ -591,6 +591,14 @@ impl Item<'_> {
                 }
             })
     }
+
+    pub(crate) fn is_responsibility_reactive(&self) -> bool {
+        self.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct
+    }
+
+    pub(crate) fn get_responsibility(&self) -> &Responsibility {
+        &self.surreal_item.responsibility
+    }
 }
 
 #[cfg(test)]

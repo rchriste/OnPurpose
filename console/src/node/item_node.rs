@@ -174,6 +174,10 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn get_thing(&self) -> &'s Thing {
         self.item.get_thing()
     }
+
+    pub(crate) fn is_responsibility_reactive(&self) -> bool {
+        self.item.is_responsibility_reactive()
+    }
 }
 
 #[derive(Debug)]
