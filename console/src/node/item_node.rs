@@ -143,6 +143,16 @@ impl<'s> ItemNode<'s> {
         //I should probably change this to search through the parents as well, but going with this for now to maintain backwards compatibility with the code already written before I switched over to this ItemNode type
         self.item.is_there_notes()
     }
+
+    pub(crate) fn is_staging_not_set(&self) -> bool {
+        let is_staging_not_set = self.item.is_staging_not_set();
+        if is_staging_not_set {
+            //This type can be inferred from the parent so check that first
+            !self.get_larger().iter().any(|x| !x.is_staging_not_set())
+        } else {
+            is_staging_not_set
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -179,6 +189,16 @@ impl<'s> GrowingItemNode<'s> {
         } else {
             //Value is set so use it
             self.item.is_type_action()
+        }
+    }
+
+    pub(crate) fn is_staging_not_set(&self) -> bool {
+        let is_staging_not_set = self.item.is_staging_not_set();
+        if is_staging_not_set {
+            //This type can be inferred from the parent so check that first
+            !self.larger.iter().any(|x| !x.is_staging_not_set())
+        } else {
+            is_staging_not_set
         }
     }
 

@@ -1,5 +1,6 @@
 mod cover_bullet_item;
 mod parent_to_a_goal;
+pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod state_a_smaller_next_step;
 

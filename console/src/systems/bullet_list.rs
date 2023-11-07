@@ -19,7 +19,7 @@ pub(crate) struct BulletList {
 
     #[borrows(base_data)]
     #[covariant]
-    item_nodes: Vec<ItemNode<'this>>,
+    item_nodes: Vec<BulletListReason<'this>>,
 }
 
 impl BulletList {
@@ -69,6 +69,27 @@ impl BulletList {
                         Ordering::Equal
                     }
                 });
+                let mut item_nodes = item_nodes
+                    .into_iter()
+                    .map(|x| {
+                        if x.is_staging_not_set() {
+                            BulletListReason::SetStaging(x)
+                        } else {
+                            BulletListReason::WorkOn(x)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                item_nodes.sort_by(|a, b| {
+                    let a_is_set_staging = matches!(a, BulletListReason::SetStaging(_));
+                    let b_is_set_staging = matches!(b, BulletListReason::SetStaging(_));
+                    if a_is_set_staging && !b_is_set_staging {
+                        Ordering::Less
+                    } else if !a_is_set_staging && b_is_set_staging {
+                        Ordering::Greater
+                    } else {
+                        Ordering::Equal
+                    }
+                });
                 item_nodes
             },
         }
@@ -90,13 +111,14 @@ impl BulletList {
                     current_date_time,
                     true,
                 )
+                .map(BulletListReason::WorkOn)
                 .collect::<Vec<_>>()
             },
         }
         .build()
     }
 
-    pub(crate) fn get_bullet_list(&self) -> &[ItemNode<'_>] {
+    pub(crate) fn get_bullet_list(&self) -> &[BulletListReason<'_>] {
         self.borrow_item_nodes()
     }
 
@@ -107,6 +129,11 @@ impl BulletList {
     pub(crate) fn get_coverings(&self) -> &[Covering<'_>] {
         self.borrow_base_data().get_coverings()
     }
+}
+
+pub(crate) enum BulletListReason<'e> {
+    SetStaging(ItemNode<'e>),
+    WorkOn(ItemNode<'e>),
 }
 
 #[cfg(test)]

@@ -12,15 +12,17 @@ use crate::{
     menu::top_menu::present_top_menu,
     node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
-    systems::bullet_list::BulletList,
+    systems::bullet_list::{BulletList, BulletListReason},
 };
 
 use self::bullet_list_single_item::{
     present_bullet_list_item_selected, present_is_person_or_group_around_menu,
+    set_staging::present_set_staging_menu,
 };
 
 pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
+    SetStaging(&'e ItemNode<'e>),
     Item(&'e ItemNode<'e>),
 }
 
@@ -32,6 +34,10 @@ impl Display for InquireBulletListItem<'_> {
                 let display_item_node = DisplayItemNode::new(item_node);
                 write!(f, "{}", display_item_node)?;
             }
+            Self::SetStaging(item_node) => {
+                let display_item_node = DisplayItemNode::new(item_node);
+                write!(f, "[SET STAGING] {}", display_item_node)?;
+            }
         }
         Ok(())
     }
@@ -39,7 +45,7 @@ impl Display for InquireBulletListItem<'_> {
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
-        item_nodes: &'a [ItemNode<'a>],
+        item_nodes: &'a [BulletListReason<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let mut list = Vec::with_capacity(item_nodes.len() + 1);
         list.push(Self::ViewFocusItems);
@@ -47,7 +53,7 @@ impl<'a> InquireBulletListItem<'a> {
     }
 
     pub(crate) fn create_list_just_items(
-        item_nodes: &'a [ItemNode<'a>],
+        item_nodes: &'a [BulletListReason<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         let list = Vec::with_capacity(item_nodes.len());
         Self::add_items_to_list(list, item_nodes)
@@ -55,9 +61,12 @@ impl<'a> InquireBulletListItem<'a> {
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
-        item_nodes: &'a [ItemNode<'a>],
+        item_nodes: &'a [BulletListReason<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
-        list.extend(item_nodes.iter().map(InquireBulletListItem::Item));
+        list.extend(item_nodes.iter().map(|x| match x {
+            BulletListReason::SetStaging(item_node) => InquireBulletListItem::SetStaging(item_node),
+            BulletListReason::WorkOn(item_node) => InquireBulletListItem::Item(item_node),
+        }));
         list
     }
 }
@@ -101,6 +110,9 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
                     .await
                 }
             }
+            Ok(InquireBulletListItem::SetStaging(item_node)) => {
+                present_set_staging_menu(item_node, send_to_data_storage_layer).await
+            }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
             }
@@ -141,6 +153,9 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                     send_to_data_storage_layer,
                 )
                 .await
+            }
+            Ok(InquireBulletListItem::SetStaging(item_node)) => {
+                present_set_staging_menu(item_node, send_to_data_storage_layer).await
             }
             Err(InquireError::OperationCanceled) => {
                 present_unfocused_bullet_list_menu(send_to_data_storage_layer).await

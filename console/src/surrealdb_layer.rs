@@ -512,9 +512,24 @@ async fn update_hope_staging(
 ) {
     surreal_item.staging = new_staging;
 
+    println!("Updating Staging to {:?}", &surreal_item);
+
     if surreal_item.id.is_some() {
-        //Update
-        surreal_item.update(db).await.unwrap();
+        let updated: SurrealItem = db
+            .update((
+                SurrealItem::TABLE_NAME,
+                surreal_item.get_id().clone().unwrap().id.clone().to_raw(),
+            ))
+            //I am doing this directly rather than using the update method on the surreal_item type because I need to call content rather than update
+            //because I changed the type of Staging::OnDeck to include two parameters and update will silently not update and content will properly
+            //do this update. Although in theory content is creating a new record so that might cause more churn if it is not required. I might consider
+            //just migrating all records all at once and one time to prevent this need to use content for ever more.
+            .content(surreal_item)
+            .await
+            .unwrap()
+            .unwrap();
+
+        println!("Updated Staging to {:?}", updated);
     } else {
         //Create record
         surreal_item.create(db).await.unwrap();
