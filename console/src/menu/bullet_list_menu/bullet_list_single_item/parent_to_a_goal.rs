@@ -104,7 +104,7 @@ async fn parent_to_a_motivation_new_motivation(
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithANewItem {
+                .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_item().clone(),
                     parent_new_item: new_item,
                 })
@@ -130,7 +130,7 @@ async fn parent_to_a_goal_new_goal(
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithANewItem {
+                .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_item().clone(),
                     parent_new_item: new_item,
                 })

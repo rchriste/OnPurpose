@@ -20,6 +20,7 @@ use crate::{
             something_else_should_be_done_first::something_else_should_be_done_first,
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
+        select_higher_priority_than_this::select_higher_priority_than_this,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
@@ -320,7 +321,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            state_a_smaller_next_step(menu_for.get_item(), send_to_data_storage_layer).await
+            state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ParentToAGoal) => {
             parent_to_a_goal(menu_for.get_item(), send_to_data_storage_layer).await
@@ -532,22 +533,30 @@ async fn parent_to_item(
         .unwrap();
     let base_data = BaseData::new_from_surreal_tables(raw_data);
     let items = base_data.get_active_items();
-
-    let list = DisplayItem::make_list(items);
+    let item_nodes = items
+        .iter()
+        .map(|x| ItemNode::new(x, base_data.get_coverings(), items))
+        .collect::<Vec<_>>();
+    let list = DisplayItemNode::make_list(&item_nodes, None);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {
         Ok(display_item) => {
-            let item: &Item = display_item.into();
-            let higher_priority_than_this = if item.has_children() {
-                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+            let item_node: &ItemNode = display_item.get_item_node();
+            let higher_priority_than_this = if item_node.has_active_children() {
+                let items = item_node
+                    .get_smaller()
+                    .iter()
+                    .map(|x| x.get_item())
+                    .collect::<Vec<_>>();
+                select_higher_priority_than_this(&items)
             } else {
                 None
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: parent_this.get_surreal_item().clone(),
-                    parent: item.get_surreal_item().clone(),
+                    parent: item_node.get_surreal_item().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -598,7 +607,7 @@ pub(crate) async fn cover_with_item(
     }
 }
 
-enum ItemTypeSelection {
+pub(crate) enum ItemTypeSelection {
     ProactiveAction,
     ResponsiveAction,
     ProactiveGoal,
@@ -685,7 +694,7 @@ pub(crate) async fn parent_to_new_item(
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithANewItem {
+                .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_item().clone(),
                     parent_new_item: new_item,
                 })
@@ -720,7 +729,7 @@ pub(crate) async fn cover_with_new_item(
     }
 }
 
-async fn declare_item_type(
+pub(crate) async fn declare_item_type(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {

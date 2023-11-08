@@ -61,7 +61,12 @@ pub(crate) enum DataLayerCommands {
         parent: SurrealItem,
         higher_priority_than_this: Option<SurrealItem>,
     },
-    ParentItemWithANewItem {
+    ParentItemWithANewChildItem {
+        child: NewItem,
+        parent: SurrealItem,
+        higher_priority_than_this: Option<SurrealItem>,
+    },
+    ParentNewItemWithAnExistingChildItem {
         child: SurrealItem,
         parent_new_item: NewItem,
     },
@@ -125,7 +130,7 @@ pub(crate) async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
             Some(DataLayerCommands::NewItem(new_item)) => {
-                super::surrealdb_layer::new_item(new_item, &db).await
+                super::surrealdb_layer::new_item(new_item, &db).await;
             }
             Some(DataLayerCommands::CoverItemWithANewItem {
                 cover_this,
@@ -165,10 +170,15 @@ pub(crate) async fn data_storage_start_and_run(
             }) => {
                 parent_item_with_existing_item(child, parent, higher_priority_than_this, &db).await
             }
-            Some(DataLayerCommands::ParentItemWithANewItem {
+            Some(DataLayerCommands::ParentItemWithANewChildItem {
+                child,
+                parent,
+                higher_priority_than_this,
+            }) => parent_item_with_a_new_child(child, parent, higher_priority_than_this, &db).await,
+            Some(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                 child,
                 parent_new_item,
-            }) => parent_item_with_a_new_item(child, parent_new_item, &db).await,
+            }) => parent_new_item_with_an_existing_child_item(child, parent_new_item, &db).await,
             Some(DataLayerCommands::AddCircumstanceNotSunday(add_circumstance_to_this)) => {
                 add_circumstance_not_sunday(add_circumstance_to_this, &db).await
             }
@@ -280,9 +290,15 @@ pub(crate) async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>)
     finish_this.update(db).await.unwrap();
 }
 
-async fn new_item(new_item: NewItem, db: &Surreal<Any>) {
+async fn new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
     let surreal_item: SurrealItem = SurrealItem::new(new_item, vec![]);
-    surreal_item.create(db).await.unwrap();
+    surreal_item
+        .create(db)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("I just created one item it should be there")
 }
 
 async fn cover_item_with_a_new_waiting_for_question(
@@ -481,7 +497,17 @@ async fn parent_item_with_existing_item(
     parent.update(db).await.unwrap();
 }
 
-async fn parent_item_with_a_new_item(
+async fn parent_item_with_a_new_child(
+    child: NewItem,
+    parent: SurrealItem,
+    higher_priority_than_this: Option<SurrealItem>,
+    db: &Surreal<Any>,
+) {
+    let child = new_item(child, db).await;
+    parent_item_with_existing_item(child, parent, higher_priority_than_this, db).await
+}
+
+async fn parent_new_item_with_an_existing_child_item(
     child: SurrealItem,
     parent_new_item: NewItem,
     db: &Surreal<Any>,
@@ -987,7 +1013,7 @@ mod tests {
         assert_eq!(1, surreal_tables.surreal_items.len());
 
         sender
-            .send(DataLayerCommands::ParentItemWithANewItem {
+            .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                 child: surreal_tables.surreal_items.into_iter().next().unwrap(),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")

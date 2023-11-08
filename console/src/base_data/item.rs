@@ -431,10 +431,6 @@ impl<'b> Item<'b> {
         self.item_type == &ItemType::Motivation
     }
 
-    pub(crate) fn is_motivation(&self) -> bool {
-        self.is_type_motivation()
-    }
-
     pub(crate) fn is_circumstance_focus_time(&self) -> bool {
         self.required_circumstances
             .iter()
@@ -496,10 +492,6 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_goal(&self) -> bool {
         self.item_type == &ItemType::Hope
-    }
-
-    pub(crate) fn is_action(&self) -> bool {
-        self.item_type == &ItemType::ToDo
     }
 
     pub(crate) fn is_covered_by_a_hope(

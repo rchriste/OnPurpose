@@ -49,6 +49,16 @@ impl<'s> DisplayItemNode<'s> {
         }
     }
 
+    pub(crate) fn make_list(
+        item_nodes: &'s [ItemNode<'s>],
+        current_date_time: Option<&'s DateTime<Utc>>,
+    ) -> Vec<DisplayItemNode<'s>> {
+        item_nodes
+            .iter()
+            .map(|x| DisplayItemNode::new(x, current_date_time))
+            .collect()
+    }
+
     pub(crate) fn is_mentally_resident(&self) -> bool {
         self.item_node.is_mentally_resident()
     }
