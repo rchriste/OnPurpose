@@ -1,11 +1,14 @@
 use std::fmt::Display;
 
+use chrono::{DateTime, Utc};
+
 use crate::node::item_node::ItemNode;
 
 use super::display_item::DisplayItem;
 
 pub struct DisplayItemNode<'s> {
     item_node: &'s ItemNode<'s>,
+    current_date_time: Option<&'s DateTime<Utc>>,
 }
 
 impl Display for DisplayItemNode<'_> {
@@ -14,6 +17,11 @@ impl Display for DisplayItemNode<'_> {
             write!(f, "🧠 ")?;
         }
         let display_item = DisplayItem::new(self.item_node.get_item());
+        if let Some(current_date_time) = self.current_date_time {
+            if self.item_node.is_staging_on_deck_expired(current_date_time) {
+                write!(f, "❗ ")?;
+            }
+        }
         if self.item_node.is_person_or_group() {
             write!(f, "Is {} around?", display_item)?;
         } else if self.item_node.is_goal() && self.item_node.get_smaller().is_empty() {
@@ -31,8 +39,14 @@ impl Display for DisplayItemNode<'_> {
 }
 
 impl<'s> DisplayItemNode<'s> {
-    pub(crate) fn new(item_node: &'s ItemNode<'s>) -> Self {
-        DisplayItemNode { item_node }
+    pub(crate) fn new(
+        item_node: &'s ItemNode<'s>,
+        current_date_time: Option<&'s DateTime<Utc>>,
+    ) -> Self {
+        DisplayItemNode {
+            item_node,
+            current_date_time,
+        }
     }
 
     pub(crate) fn is_mentally_resident(&self) -> bool {

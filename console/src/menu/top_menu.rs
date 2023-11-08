@@ -157,7 +157,7 @@ impl<'e> DebugViewItem<'e> {
     }
 
     fn new(item: &'e ItemNode<'e>) -> Self {
-        Self::Item(DisplayItemNode::new(item))
+        Self::Item(DisplayItemNode::new(item, None))
     }
 }
 

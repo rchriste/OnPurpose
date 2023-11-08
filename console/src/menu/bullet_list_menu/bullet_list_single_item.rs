@@ -7,6 +7,7 @@ mod state_a_smaller_next_step;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
@@ -296,6 +297,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemNode<'_>,
+    current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -378,10 +380,11 @@ pub(crate) async fn present_bullet_list_item_selected(
             let next_item = parents_iter.next();
             if let Some(next_item) = next_item {
                 let next_item = ItemNode::new(next_item.get_item(), all_coverings, all_items);
-                let display_item = DisplayItemNode::new(&next_item);
+                let display_item = DisplayItemNode::new(&next_item, Some(current_date_time));
                 println!("{}", display_item);
                 present_bullet_list_item_selected(
                     &next_item,
+                    current_date_time,
                     all_coverings,
                     all_items,
                     send_to_data_storage_layer,
@@ -431,6 +434,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                 Err(UnexpectedNextMenuAction::Back) => {
                     present_bullet_list_item_selected(
                         menu_for,
+                        current_date_time,
                         all_coverings,
                         all_items,
                         send_to_data_storage_layer,
@@ -450,6 +454,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(
                 &selected,
+                current_date_time,
                 all_coverings,
                 all_items,
                 send_to_data_storage_layer,
@@ -495,6 +500,7 @@ async fn process_and_finish_bullet_item(
 
 async fn present_bullet_list_item_parent_selected(
     selected_item: &ItemNode<'_>,
+    current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -503,6 +509,7 @@ async fn present_bullet_list_item_parent_selected(
         ItemType::ToDo | ItemType::Hope => {
             present_bullet_list_item_selected(
                 selected_item,
+                current_date_time,
                 all_coverings,
                 all_items,
                 send_to_data_storage_layer,

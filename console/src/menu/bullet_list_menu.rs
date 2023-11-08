@@ -3,6 +3,7 @@ pub(crate) mod bullet_list_single_item;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use chrono::{DateTime, Utc};
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
@@ -24,7 +25,7 @@ pub(crate) enum InquireBulletListItem<'e> {
     ViewFocusItems,
     ViewOldBulletList,
     SetStaging(&'e ItemNode<'e>),
-    Item(&'e ItemNode<'e>),
+    Item(&'e ItemNode<'e>, &'e DateTime<Utc>),
 }
 
 impl Display for InquireBulletListItem<'_> {
@@ -32,12 +33,12 @@ impl Display for InquireBulletListItem<'_> {
         match self {
             Self::ViewFocusItems => write!(f, "⏲️  [View Focus Items] ⏲️")?,
             Self::ViewOldBulletList => write!(f, "⏲️  [View Old Bullet List] ⏲️")?,
-            Self::Item(item_node) => {
-                let display_item_node = DisplayItemNode::new(item_node);
+            Self::Item(item_node, current_date_time) => {
+                let display_item_node = DisplayItemNode::new(item_node, Some(current_date_time));
                 write!(f, "{}", display_item_node)?;
             }
             Self::SetStaging(item_node) => {
-                let display_item_node = DisplayItemNode::new(item_node);
+                let display_item_node = DisplayItemNode::new(item_node, None);
                 write!(f, "[SET STAGING] {}", display_item_node)?;
             }
         }
@@ -48,28 +49,33 @@ impl Display for InquireBulletListItem<'_> {
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list_with_view_focus_items_option(
         item_nodes: &'a [BulletListReason<'a>],
+        current_date_time: &'a DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         let mut list = Vec::with_capacity(item_nodes.len() + 2);
         list.push(Self::ViewFocusItems);
-        let mut list = Self::add_items_to_list(list, item_nodes);
+        let mut list = Self::add_items_to_list(list, item_nodes, current_date_time);
         list.push(Self::ViewOldBulletList);
         list
     }
 
     pub(crate) fn create_list_just_items(
         item_nodes: &'a [BulletListReason<'a>],
+        current_date_time: &'a DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         let list = Vec::with_capacity(item_nodes.len());
-        Self::add_items_to_list(list, item_nodes)
+        Self::add_items_to_list(list, item_nodes, current_date_time)
     }
 
     fn add_items_to_list(
         mut list: Vec<InquireBulletListItem<'a>>,
         item_nodes: &'a [BulletListReason<'a>],
+        current_date_time: &'a DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         list.extend(item_nodes.iter().map(|x| match x {
             BulletListReason::SetStaging(item_node) => InquireBulletListItem::SetStaging(item_node),
-            BulletListReason::WorkOn(item_node) => InquireBulletListItem::Item(item_node),
+            BulletListReason::WorkOn(item_node) => {
+                InquireBulletListItem::Item(item_node, current_date_time)
+            }
         }));
         list
     }
@@ -82,10 +88,11 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
+    let current_date_time = Utc::now();
 
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_unfocused_bullet_list(base_data);
-    present_bullet_list_menu(bullet_list, send_to_data_storage_layer).await;
+    present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
 }
 
 #[async_recursion]
@@ -95,20 +102,24 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
+    let current_date_time = Utc::now();
 
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
-    let bullet_list = BulletList::new_bullet_list(base_data);
-    present_bullet_list_menu(bullet_list, send_to_data_storage_layer).await;
+    let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
+    present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
 }
 
 pub(crate) async fn present_bullet_list_menu(
     bullet_list: BulletList,
+    current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let item_nodes = bullet_list.get_bullet_list();
 
-    let inquire_bullet_list =
-        InquireBulletListItem::create_list_with_view_focus_items_option(item_nodes);
+    let inquire_bullet_list = InquireBulletListItem::create_list_with_view_focus_items_option(
+        item_nodes,
+        current_date_time,
+    );
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("", inquire_bullet_list)
@@ -122,13 +133,14 @@ pub(crate) async fn present_bullet_list_menu(
             Ok(InquireBulletListItem::ViewOldBulletList) => {
                 present_unfocused_bullet_list_menu(send_to_data_storage_layer).await
             }
-            Ok(InquireBulletListItem::Item(item_node)) => {
+            Ok(InquireBulletListItem::Item(item_node, current_date_time)) => {
                 if item_node.is_person_or_group() {
                     present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
                         .await
                 } else {
                     present_bullet_list_item_selected(
                         item_node,
+                        current_date_time,
                         bullet_list.get_coverings(),
                         bullet_list.get_active_items(),
                         send_to_data_storage_layer,
@@ -154,13 +166,15 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
+    let current_date_time = Utc::now();
 
     let base_data = BaseData::new_from_surreal_tables(surreal_tables);
     let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
     let item_nodes = bullet_list.get_bullet_list();
 
-    let inquire_bullet_list = InquireBulletListItem::create_list_just_items(item_nodes);
+    let inquire_bullet_list =
+        InquireBulletListItem::create_list_just_items(item_nodes, &current_date_time);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("", inquire_bullet_list)
@@ -174,9 +188,10 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
             Ok(InquireBulletListItem::ViewOldBulletList) => {
                 present_unfocused_bullet_list_menu(send_to_data_storage_layer).await
             }
-            Ok(InquireBulletListItem::Item(item_node)) => {
+            Ok(InquireBulletListItem::Item(item_node, &current_date_time)) => {
                 present_bullet_list_item_selected(
                     item_node,
+                    &current_date_time,
                     bullet_list.get_coverings(),
                     bullet_list.get_active_items(),
                     send_to_data_storage_layer,

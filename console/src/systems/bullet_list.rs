@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use chrono::Local;
+use chrono::{Local, Utc, DateTime};
 use itertools::chain;
 use ouroboros::self_referencing;
 
@@ -23,7 +23,7 @@ pub(crate) struct BulletList {
 }
 
 impl BulletList {
-    pub(crate) fn new_bullet_list(base_data: BaseData) -> Self {
+    pub(crate) fn new_bullet_list(base_data: BaseData, current_date_time: &DateTime<Utc>) -> Self {
         BulletListBuilder {
             base_data,
             item_nodes_builder: |base_data| {
@@ -56,6 +56,19 @@ impl BulletList {
                         Ordering::Greater
                     } else {
                         Ordering::Equal
+                    })
+                    .then_with(|| {
+                        if a.is_staging_on_deck_expired(current_date_time) {
+                            if b.is_staging_on_deck_expired(current_date_time) {
+                                Ordering::Equal
+                            } else {
+                                Ordering::Less
+                            }
+                        } else if b.is_staging_on_deck_expired(current_date_time) {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
                     })
                     .then_with(|| {
                         //TODO: I need to put on_deck expired items here

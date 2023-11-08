@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use surrealdb::sql::Thing;
 
 use crate::{
@@ -177,6 +177,14 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_responsibility_reactive(&self) -> bool {
         self.item.is_responsibility_reactive()
+    }
+
+    pub(crate) fn is_staging_on_deck_expired(&self, current_date_time: &DateTime<Utc>) -> bool {
+        if let Staging::OnDeck { can_wait_until, .. } = self.get_staging() {
+            current_date_time > can_wait_until
+        } else {
+            false
+        }
     }
 }
 
