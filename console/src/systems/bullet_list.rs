@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use chrono::{Local, Utc, DateTime};
+use chrono::{DateTime, Local, Utc};
 use itertools::chain;
 use ouroboros::self_referencing;
 
@@ -186,7 +186,10 @@ pub(crate) enum BulletListReason<'e> {
 
 impl<'e> BulletListReason<'e> {
     pub(crate) fn new(item_node: ItemNode<'e>) -> Self {
-        if item_node.is_staging_not_set() {
+        if item_node.is_staging_not_set()
+            && !item_node.is_type_simple()
+            && !item_node.is_type_undeclared()
+        {
             BulletListReason::SetStaging(item_node)
         } else {
             BulletListReason::WorkOn(item_node)
