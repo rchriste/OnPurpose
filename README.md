@@ -33,7 +33,7 @@ Version 0.0.78
 
 Use Capture to type in an item you want _On Purpose_ to track. _On Purpose_ currently creates a directory at `c:\.on_purpose.db` and persists the data you enter into this directory.
 
-on_purpose currently exits frequency and when this happens you just run it again to continue. Also you can press _Esc_ to bring up another menu and in general _Esc_ will go back to the previous menu. After I make further progress I will update this section to be a more complete getting started guide.
+on_purpose currently exits frequently and when this happens you just run it again to continue. Also you can press _Esc_ to bring up another menu and in general _Esc_ will go back to the previous menu. After I make further progress I will update this section to be a more complete getting started guide.
 
 ## Trying On Purpose
 
