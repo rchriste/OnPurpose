@@ -1,5 +1,6 @@
 mod cover_bullet_item;
 mod parent_to_a_goal;
+mod define_child_goal;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod state_a_smaller_next_step;
@@ -19,6 +20,7 @@ use crate::{
     menu::{
         bullet_list_menu::bullet_list_single_item::{
             cover_bullet_item::cover_bullet_item, parent_to_a_goal::parent_to_a_goal,
+            define_child_goal::define_child_goals,
             something_else_should_be_done_first::something_else_should_be_done_first,
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
@@ -54,8 +56,8 @@ enum BulletListSingleItemSelection<'e> {
     SomethingElseShouldBeDoneFirst,
     DefineChildActions,
     UpdateChildActions,
-    DefineChildHopes, //For a motivation
-    UpdateChildHopes, //For a motivation
+    DefineChildGoals, //For a motivation
+    UpdateChildGoals, //For a motivation
     DefineMilestones, //For a hope
     UpdateMilestones, //For a hope
     WorkedOnThis,
@@ -122,8 +124,8 @@ impl Display for BulletListSingleItemSelection<'_> {
             }
             Self::DefineChildActions => write!(f, "Define actions to take"),
             Self::UpdateChildActions => write!(f, "Update actions to take"),
-            Self::DefineChildHopes => write!(f, "Define hopes to have"),
-            Self::UpdateChildHopes => write!(f, "Update hopes to have"),
+            Self::DefineChildGoals => write!(f, "Define goals to have"),
+            Self::UpdateChildGoals => write!(f, "Update goals to have"),
             Self::DefineMilestones => write!(f, "Define milestones"),
             Self::UpdateMilestones => write!(f, "Update milestones"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
@@ -239,9 +241,9 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if is_type_motivation {
             if has_active_children {
-                list.push(Self::UpdateChildHopes);
+                list.push(Self::UpdateChildGoals);
             } else {
-                list.push(Self::DefineChildHopes);
+                list.push(Self::DefineChildGoals);
             }
         }
 
@@ -362,11 +364,11 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::UpdateChildActions) => {
             todo!("TODO: Implement UpdateChildActions");
         }
-        Ok(BulletListSingleItemSelection::DefineChildHopes) => {
-            todo!("TODO: Implement DefineChildHopes");
+        Ok(BulletListSingleItemSelection::DefineChildGoals) => {
+            define_child_goals(menu_for.get_item(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::UpdateChildHopes) => {
-            todo!("TODO: Implement UpdateChildHopes");
+        Ok(BulletListSingleItemSelection::UpdateChildGoals) => {
+            todo!("TODO: Implement UpdateChildGoals");
         }
         Ok(BulletListSingleItemSelection::DefineMilestones) => {
             todo!("TODO: Implement DefineMilestones");
