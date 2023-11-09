@@ -1,3 +1,4 @@
+use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
@@ -18,7 +19,8 @@ pub(crate) async fn parent_to_a_motivation(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let list = active_items
         .filter_just_motivations()
@@ -59,7 +61,8 @@ pub(crate) async fn parent_to_a_goal(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let list = active_items
         .filter_just_goals()

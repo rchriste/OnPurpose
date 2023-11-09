@@ -2,7 +2,7 @@ use core::iter::once;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use chrono::Local;
+use chrono::{DateTime, Local, Utc};
 use inquire::{InquireError, Select, Text};
 use itertools::chain;
 use parse_datetime::{parse_datetime_at_date, ParseDateTimeError};
@@ -18,9 +18,12 @@ use crate::{
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
+use super::YesOrNo;
+
 enum UnableReason {
     SomeoneOrGroupIsNotAvailable,
     PlaceToContactIsNotOpen,
+    NeedToWaitBeforeWorkingOnThis,
 }
 
 impl Display for UnableReason {
@@ -32,6 +35,9 @@ impl Display for UnableReason {
             UnableReason::PlaceToContactIsNotOpen => {
                 write!(f, "Place to contact is not open")
             }
+            UnableReason::NeedToWaitBeforeWorkingOnThis => {
+                write!(f, "Need to wait before working on this further")
+            }
         }
     }
 }
@@ -41,6 +47,7 @@ impl UnableReason {
         vec![
             Self::SomeoneOrGroupIsNotAvailable,
             Self::PlaceToContactIsNotOpen,
+            Self::NeedToWaitBeforeWorkingOnThis,
         ]
     }
 }
@@ -59,6 +66,9 @@ pub(crate) async fn unable_to_work_on_item_right_now(
         }
         Ok(UnableReason::PlaceToContactIsNotOpen) => {
             place_to_contact_is_not_open(unable_to_do, send_to_data_storage_layer).await
+        }
+        Ok(UnableReason::NeedToWaitBeforeWorkingOnThis) => {
+            need_to_wait_before_working_on_this(unable_to_do, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => {
             todo!("I put in this todo because back at the time I would need to adjust some calling parameters to make this work")
@@ -197,7 +207,8 @@ pub(crate) async fn person_or_group_is_not_available(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let items = base_data.get_items();
     let list = PersonOrGroupSelection::make_list(items.filter_just_persons_or_groups());
 
@@ -231,4 +242,40 @@ pub(crate) async fn person_or_group_is_not_available(
         }
         Err(err) => todo!("{:?}", err),
     }
+}
+
+pub(crate) async fn need_to_wait_before_working_on_this(
+    unable_to_do: &Item<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    let now = Local::now();
+    let wait_until: DateTime<Utc> = loop {
+        let wait_for_how_long = Text::new("Wait for how long?").prompt().unwrap();
+        match duration_str::parse(&wait_for_how_long) {
+            Ok(wait_for_how_long) => {
+                let wait_until = now + wait_for_how_long;
+                let yes_or_no = YesOrNo::make_list();
+                let result = Select::new(&format!("Wait until {}", &wait_until), yes_or_no)
+                    .prompt()
+                    .unwrap();
+                match result {
+                    YesOrNo::Yes => break wait_until.into(),
+                    YesOrNo::No => continue,
+                }
+            }
+            Err(err) => {
+                println!(
+                    "Unable to parse string, error is {}, please try again.",
+                    err
+                );
+            }
+        }
+    };
+    send_to_data_storage_layer
+        .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
+            unable_to_do.get_surreal_item().clone(),
+            wait_until,
+        ))
+        .await
+        .unwrap();
 }

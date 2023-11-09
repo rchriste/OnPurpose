@@ -8,6 +8,7 @@ pub(crate) mod motivation_or_responsive_item;
 pub(crate) mod responsive_item;
 pub(crate) mod routine;
 
+use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 
 use crate::surrealdb_layer::surreal_tables::SurrealTables;
@@ -40,6 +41,12 @@ pub(crate) struct BaseData {
     #[covariant]
     coverings_until_date_time: Vec<CoveringUntilDateTime<'this>>,
 
+    #[borrows(coverings_until_date_time)]
+    #[covariant]
+    active_coverings_until_date_time: Vec<&'this CoveringUntilDateTime<'this>>,
+
+    now: DateTime<Utc>,
+
     #[borrows(surreal_tables)]
     #[covariant]
     life_areas: Vec<LifeArea<'this>>,
@@ -50,7 +57,10 @@ pub(crate) struct BaseData {
 }
 
 impl BaseData {
-    pub(crate) fn new_from_surreal_tables(surreal_tables: SurrealTables) -> Self {
+    pub(crate) fn new_from_surreal_tables(
+        surreal_tables: SurrealTables,
+        now: DateTime<Utc>,
+    ) -> Self {
         BaseDataBuilder {
             surreal_tables,
             items_builder: |surreal_tables| surreal_tables.make_items(),
@@ -60,6 +70,13 @@ impl BaseData {
             },
             coverings_until_date_time_builder: |active_items, surreal_tables| {
                 surreal_tables.make_coverings_until_date_time(active_items)
+            },
+            now,
+            active_coverings_until_date_time_builder: |coverings_until_date_time| {
+                coverings_until_date_time
+                    .iter()
+                    .filter(|x| x.until > now)
+                    .collect::<Vec<_>>()
             },
             life_areas_builder: |surreal_tables| surreal_tables.make_life_areas(),
             routines_builder: |surreal_tables| surreal_tables.make_routines(),
@@ -81,6 +98,10 @@ impl BaseData {
 
     pub(crate) fn get_coverings_until_date_time(&self) -> &[CoveringUntilDateTime] {
         self.borrow_coverings_until_date_time()
+    }
+
+    pub(crate) fn get_active_snoozed(&self) -> &[&CoveringUntilDateTime] {
+        self.borrow_active_coverings_until_date_time()
     }
 
     pub(crate) fn get_life_areas(&self) -> &[LifeArea] {

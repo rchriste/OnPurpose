@@ -90,7 +90,8 @@ pub(crate) async fn present_unfocused_bullet_list_menu(
         .unwrap();
     let current_date_time = Utc::now();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_unfocused_bullet_list(base_data);
     present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
 }
@@ -104,7 +105,8 @@ pub(crate) async fn present_normal_bullet_list_menu(
         .unwrap();
     let current_date_time = Utc::now();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
     present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
 }
@@ -142,6 +144,7 @@ pub(crate) async fn present_bullet_list_menu(
                         item_node,
                         current_date_time,
                         bullet_list.get_coverings(),
+                        bullet_list.get_active_snoozed(),
                         bullet_list.get_active_items(),
                         send_to_data_storage_layer,
                     )
@@ -168,7 +171,8 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         .unwrap();
     let current_date_time = Utc::now();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_focused_bullet_list(base_data);
 
     let item_nodes = bullet_list.get_bullet_list();
@@ -193,6 +197,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
                     item_node,
                     &current_date_time,
                     bullet_list.get_coverings(),
+                    bullet_list.get_active_snoozed(),
                     bullet_list.get_active_items(),
                     send_to_data_storage_layer,
                 )

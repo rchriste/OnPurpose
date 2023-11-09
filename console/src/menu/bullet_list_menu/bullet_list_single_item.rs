@@ -12,7 +12,9 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{covering::Covering, item::Item, BaseData},
+    base_data::{
+        covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
+    },
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
@@ -26,7 +28,7 @@ use crate::{
     new_item,
     node::item_node::ItemNode,
     surrealdb_layer::{
-        surreal_item::{ItemType, Responsibility},
+        surreal_item::{ItemType, Responsibility, Staging},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -150,6 +152,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         item_node: &'e ItemNode<'e>,
         all_coverings: &'e [Covering<'e>],
         all_items: &'e [&Item<'e>],
+        all_snoozed: &'e [&'e CoveringUntilDateTime<'e>],
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
@@ -254,7 +257,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
                 list.push(Self::ParentToItem);
             } else {
                 list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                    let item_node = ItemNode::new(x, all_coverings, all_items);
+                    let item_node = ItemNode::new(x, all_coverings, all_snoozed, all_items);
                     Self::SwitchToParentItem(DisplayItem::new(x), item_node)
                 }));
             }
@@ -300,10 +303,12 @@ pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemNode<'_>,
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
+    all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items);
+    let list =
+        BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items, all_snoozed);
 
     let selection = Select::new("", list).with_page_size(14).prompt();
 
@@ -367,7 +372,13 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            todo!("TODO: Implement WorkedOnThis");
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateItemStaging(
+                    menu_for.get_surreal_item().clone(),
+                    Staging::MentallyResident,
+                ))
+                .await
+                .unwrap();
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             send_to_data_storage_layer
@@ -380,13 +391,15 @@ pub(crate) async fn present_bullet_list_item_selected(
             let mut parents_iter = menu_for.get_larger().iter();
             let next_item = parents_iter.next();
             if let Some(next_item) = next_item {
-                let next_item = ItemNode::new(next_item.get_item(), all_coverings, all_items);
+                let next_item =
+                    ItemNode::new(next_item.get_item(), all_coverings, all_snoozed, all_items);
                 let display_item = DisplayItemNode::new(&next_item, Some(current_date_time));
                 println!("{}", display_item);
                 present_bullet_list_item_selected(
                     &next_item,
                     current_date_time,
                     all_coverings,
+                    all_snoozed,
                     all_items,
                     send_to_data_storage_layer,
                 )
@@ -437,6 +450,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                         menu_for,
                         current_date_time,
                         all_coverings,
+                        all_snoozed,
                         all_items,
                         send_to_data_storage_layer,
                     )
@@ -457,6 +471,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                 &selected,
                 current_date_time,
                 all_coverings,
+                all_snoozed,
                 all_items,
                 send_to_data_storage_layer,
             )
@@ -503,6 +518,7 @@ async fn present_bullet_list_item_parent_selected(
     selected_item: &ItemNode<'_>,
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
+    all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
@@ -512,6 +528,7 @@ async fn present_bullet_list_item_parent_selected(
                 selected_item,
                 current_date_time,
                 all_coverings,
+                all_snoozed,
                 all_items,
                 send_to_data_storage_layer,
             )
@@ -531,11 +548,19 @@ async fn parent_to_item(
     let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(raw_data);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(raw_data, now);
     let items = base_data.get_active_items();
     let item_nodes = items
         .iter()
-        .map(|x| ItemNode::new(x, base_data.get_coverings(), items))
+        .map(|x| {
+            ItemNode::new(
+                x,
+                base_data.get_coverings(),
+                base_data.get_active_snoozed(),
+                items,
+            )
+        })
         .collect::<Vec<_>>();
     let list = DisplayItemNode::make_list(&item_nodes, None);
 
@@ -577,7 +602,8 @@ pub(crate) async fn cover_with_item(
     let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(raw_data);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(raw_data, now);
     let items = base_data.get_active_items();
 
     let list = DisplayItem::make_list(items);

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
@@ -226,7 +226,8 @@ async fn cover_with_existing_waiting_for_question(
         .await
         .unwrap();
 
-    let base_data = BaseData::new_from_surreal_tables(raw_current_items);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(raw_current_items, now);
     let current = base_data.get_items();
 
     let list = CoverExistingItem::create_list(current.filter_just_actions());

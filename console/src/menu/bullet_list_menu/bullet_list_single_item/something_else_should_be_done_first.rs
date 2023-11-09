@@ -1,3 +1,4 @@
+use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
@@ -16,7 +17,8 @@ pub(crate) async fn something_else_should_be_done_first(
     let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let list = base_data
         .get_active_items()
         .iter()

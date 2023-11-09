@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
-use chrono::Local;
+use chrono::{Local, Utc};
 use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
@@ -166,14 +166,17 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
         .await
         .unwrap();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let covering = base_data.get_coverings();
+    let covering_until_date_time = base_data.get_coverings_until_date_time();
+    let active_covering_until_date_time = base_data.get_active_snoozed();
+
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, covering, active_items))
+        .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, active_items))
         .collect::<Vec<_>>();
-    let covering_until_date_time = base_data.get_coverings_until_date_time();
 
     let item_nodes = item_nodes.iter().collect::<Vec<_>>();
     let list = DebugViewItem::make_list(&item_nodes);
@@ -193,7 +196,7 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
 
             let now = Local::now();
             let covered_by_date_time =
-                item.get_covered_by_date_time(covering_until_date_time, &now);
+                item.get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,

@@ -340,7 +340,7 @@ impl<'b> Item<'b> {
         covered_by_date_time.any(|x| now < &x.until)
     }
 
-    pub(crate) fn get_covered_by_date_time<'a>(
+    pub(crate) fn get_covered_by_date_time_filter_out_the_past<'a>(
         &self,
         coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
         now: &DateTime<Local>,
@@ -351,6 +351,16 @@ impl<'b> Item<'b> {
         covered_by_date_time
             .filter_map(|x| if now < &x.until { Some(&x.until) } else { None })
             .collect()
+    }
+
+    pub(crate) fn get_covered_by_date_time<'a>(
+        &self,
+        coverings_until_date_time: &'a [&'a CoveringUntilDateTime<'a>],
+    ) -> Vec<&'a DateTime<Local>> {
+        let covered_by_date_time = coverings_until_date_time
+            .iter()
+            .filter(|x| self == x.cover_this);
+        covered_by_date_time.map(|x| &x.until).collect()
     }
 
     pub(crate) fn is_covered(

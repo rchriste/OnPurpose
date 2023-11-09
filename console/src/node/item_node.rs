@@ -11,6 +11,7 @@ pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     larger: Vec<GrowingItemNode<'s>>,
     smaller: Vec<ShrinkingItemNode<'s>>,
+    snoozed_until: Vec<&'s DateTime<Local>>,
 }
 
 impl<'a> From<&'a ItemNode<'a>> for &'a Item<'a> {
@@ -29,6 +30,7 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
         coverings: &'s [Covering<'s>],
+        snoozed: &'s [&'s CoveringUntilDateTime<'s>],
         all_items: &'s [&'s Item<'s>],
     ) -> Self {
         let visited = vec![];
@@ -36,11 +38,12 @@ impl<'s> ItemNode<'s> {
         let larger = create_growing_nodes(parents, coverings, all_items, visited.clone());
         let children = item.find_children(coverings, all_items, &visited);
         let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
-
+        let snoozed_until = item.get_covered_by_date_time(snoozed);
         ItemNode {
             item,
             larger,
             smaller,
+            snoozed_until,
         }
     }
 
@@ -185,6 +188,14 @@ impl<'s> ItemNode<'s> {
         } else {
             false
         }
+    }
+
+    pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Local>] {
+        &self.snoozed_until
+    }
+
+    pub(crate) fn is_snoozed(&self, now: DateTime<Local>) -> bool {
+        self.get_snoozed_until().iter().any(|x| x > &&now)
     }
 }
 
@@ -349,6 +360,7 @@ pub(crate) fn create_item_nodes<'s>(
     create_nodes_from: impl Iterator<Item = &'s Item<'s>> + 's,
     coverings: &'s [Covering<'s>],
     coverings_until_date_time: &'s [CoveringUntilDateTime<'s>],
+    active_snoozed: &'s [&'s CoveringUntilDateTime<'s>],
     items: &'s [&'s Item<'s>],
     current_date: DateTime<Local>,
     currently_in_focus_time: bool,
@@ -358,7 +370,7 @@ pub(crate) fn create_item_nodes<'s>(
             && !x.is_finished()
             && x.is_circumstances_met(&current_date, currently_in_focus_time)
         {
-            Some(ItemNode::new(x, coverings, items))
+            Some(ItemNode::new(x, coverings, active_snoozed, items))
         } else {
             None
         }
@@ -429,6 +441,7 @@ mod tests {
         let coverings = surreal_tables.make_coverings(&active_items);
         let coverings_until_date_time =
             surreal_tables.make_coverings_until_date_time(&active_items);
+        let active_snoozed = coverings_until_date_time.iter().collect::<Vec<_>>();
 
         let to_dos = items.filter_just_actions();
         let wednesday_ignore =
@@ -439,6 +452,7 @@ mod tests {
             to_dos,
             &coverings,
             &coverings_until_date_time,
+            &active_snoozed,
             &active_items,
             wednesday_ignore,
             false,

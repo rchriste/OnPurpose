@@ -7,6 +7,7 @@ use ouroboros::self_referencing;
 use crate::{
     base_data::{
         covering::Covering,
+        covering_until_date_time::CoveringUntilDateTime,
         item::{Item, ItemVecExtensions},
         BaseData,
     },
@@ -28,17 +29,23 @@ impl BulletList {
             base_data,
             item_nodes_builder: |base_data| {
                 let active_items = base_data.get_active_items();
+                let active_snoozed = base_data.get_active_snoozed();
                 let all_item_nodes = active_items
                     .iter()
-                    .map(|x| ItemNode::new(x, base_data.get_coverings(), active_items))
+                    .map(|x| {
+                        ItemNode::new(x, base_data.get_coverings(), active_snoozed, active_items)
+                    })
                     .collect::<Vec<_>>();
 
+                let local_current_date_time: DateTime<Local> = (*current_date_time).into();
                 //Note that some of these bottom items might be from detecting a circular dependency
                 let mut all_leaf_nodes = all_item_nodes
                     .into_iter()
                     .filter(|x| x.get_smaller().is_empty())
                     //Reactive items should not be leaf nodes
                     .filter(|x| !x.is_responsibility_reactive())
+                    //Snoozed items should not be shown
+                    .filter(|x| !x.is_snoozed(local_current_date_time))
                     .collect::<Vec<_>>();
 
                 //This first sort is just to give a stable order to the items. Another way of sorting would
@@ -116,6 +123,7 @@ impl BulletList {
                     bullet_list,
                     base_data.get_coverings(),
                     base_data.get_coverings_until_date_time(),
+                    base_data.get_active_snoozed(),
                     base_data.get_active_items(),
                     current_date_time,
                     false,
@@ -155,6 +163,7 @@ impl BulletList {
                     to_dos,
                     base_data.get_coverings(),
                     base_data.get_coverings_until_date_time(),
+                    base_data.get_active_snoozed(),
                     active_items,
                     current_date_time,
                     true,
@@ -176,6 +185,10 @@ impl BulletList {
 
     pub(crate) fn get_coverings(&self) -> &[Covering<'_>] {
         self.borrow_base_data().get_coverings()
+    }
+
+    pub(crate) fn get_active_snoozed(&self) -> &[&CoveringUntilDateTime<'_>] {
+        self.borrow_base_data().get_active_snoozed()
     }
 }
 

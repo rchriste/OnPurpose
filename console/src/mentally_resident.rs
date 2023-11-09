@@ -1,12 +1,14 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use chrono::Utc;
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{
         covering::Covering,
+        covering_until_date_time::CoveringUntilDateTime,
         item::{Item, ItemVecExtensions},
         BaseData,
     },
@@ -81,13 +83,14 @@ impl<'a> ProjectHopeItem<'a> {
 pub(crate) fn create_hope_nodes<'a>(
     hopes: &[&'a Item<'a>],
     coverings: &'a [Covering<'a>],
+    snoozed: &'a [&'a CoveringUntilDateTime<'a>],
     all_items: &'a [&Item<'_>],
 ) -> Vec<ItemNode<'a>> {
     hopes
         .iter()
         .filter_map(|x| {
             if !x.is_covered_by_a_hope(coverings, all_items) && !x.is_finished() {
-                Some(ItemNode::new(x, coverings, all_items))
+                Some(ItemNode::new(x, coverings, snoozed, all_items))
             } else {
                 None
             }
@@ -156,9 +159,11 @@ pub(crate) async fn view_mentally_resident_project_hopes(
         .await
         .unwrap();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
+    let active_snoozes = base_data.get_active_snoozed();
 
     let hopes = active_items
         .filter_just_goals()
@@ -167,7 +172,8 @@ pub(crate) async fn view_mentally_resident_project_hopes(
                 && (x.is_mentally_resident() || x.is_staging_not_set())
         })
         .collect::<Vec<_>>();
-    let hope_nodes: Vec<ItemNode> = create_hope_nodes(&hopes, coverings, active_items);
+    let hope_nodes: Vec<ItemNode> =
+        create_hope_nodes(&hopes, coverings, active_snoozes, active_items);
 
     let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
@@ -231,15 +237,17 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
         .await
         .unwrap();
 
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
+    let active_snoozes = base_data.get_active_snoozed();
 
     let hopes = active_items
         .filter_just_goals()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();
-    let hope_nodes = create_hope_nodes(&hopes, coverings, active_items)
+    let hope_nodes = create_hope_nodes(&hopes, coverings, active_snoozes, active_items)
         .into_iter()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();

@@ -1,30 +1,8 @@
-use std::fmt::Display;
-
 use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 
-use crate::surrealdb_layer::surreal_item::Staging;
-
-enum YesOrNo {
-    Yes,
-    No,
-}
-
-impl Display for YesOrNo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            YesOrNo::Yes => write!(f, "Yes"),
-            YesOrNo::No => write!(f, "No"),
-        }
-    }
-}
-
-impl YesOrNo {
-    fn make_list() -> Vec<Self> {
-        vec![YesOrNo::Yes, YesOrNo::No]
-    }
-}
+use crate::{menu::YesOrNo, surrealdb_layer::surreal_item::Staging};
 
 pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
     let now = Local::now();

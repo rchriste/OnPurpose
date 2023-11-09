@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
@@ -50,7 +51,8 @@ pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayer
     let raw_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    let base_data = BaseData::new_from_surreal_tables(raw_tables);
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(raw_tables, now);
     let life_areas = base_data.get_life_areas();
     let routines = base_data.get_routines();
     let list = LifeAreaItem::make_list(routines, life_areas);
