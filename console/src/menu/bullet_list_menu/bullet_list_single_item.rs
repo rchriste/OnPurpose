@@ -35,7 +35,7 @@ use crate::{
     update_item_summary, UnexpectedNextMenuAction,
 };
 
-use self::parent_to_a_goal::parent_to_a_motivation;
+use self::{parent_to_a_goal::parent_to_a_motivation, set_staging::present_set_staging_menu};
 
 enum BulletListSingleItemSelection<'e> {
     ASimpleThingICanDoRightNow,
@@ -46,6 +46,7 @@ enum BulletListSingleItemSelection<'e> {
     ParentToAGoal,
     ParentToAMotivation,
     PlanWhenToDoThis,
+    ChangeStaging,
     DoInAFocusPeriod,
     EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
@@ -143,6 +144,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
             Self::ChangeType => write!(f, "Change Type"),
+            Self::ChangeStaging => write!(f, "Change Staging"),
         }
     }
 }
@@ -281,6 +283,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if is_type_action || is_type_goal || is_type_motivation {
             list.push(Self::ChangeType);
+            list.push(Self::ChangeStaging);
         }
 
         let is_type_simple = item_node.is_type_simple();
@@ -437,6 +440,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::ChangeType) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
+        }
+        Ok(BulletListSingleItemSelection::ChangeStaging) => {
+            present_set_staging_menu(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
