@@ -366,7 +366,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateChildActions");
         }
         Ok(BulletListSingleItemSelection::DefineChildGoals) => {
-            define_child_goals(menu_for.get_item(), send_to_data_storage_layer).await
+            define_child_goals(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::UpdateChildGoals) => {
             todo!("TODO: Implement UpdateChildGoals");

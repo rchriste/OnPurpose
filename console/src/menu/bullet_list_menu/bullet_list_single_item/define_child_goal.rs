@@ -8,11 +8,15 @@ use crate::{
         BaseData,
     },
     display::display_item::DisplayItem,
+    menu::select_higher_priority_than_this::select_higher_priority_than_this,
+    node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
+use super::ItemTypeSelection;
+
 pub(crate) async fn define_child_goals(
-    wants_a_child: &Item<'_>,
+    wants_a_child: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
@@ -31,8 +35,13 @@ pub(crate) async fn define_child_goals(
         Ok(child) => {
             let child: &Item<'_> = child.into();
 
-            let higher_priority_than_this = if wants_a_child.has_active_children(active_items) {
-                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+            let higher_priority_than_this = if wants_a_child.has_active_children() {
+                let items = wants_a_child
+                    .get_smaller()
+                    .iter()
+                    .map(|x| x.get_item())
+                    .collect::<Vec<_>>();
+                select_higher_priority_than_this(&items)
             } else {
                 None
             };
@@ -56,8 +65,35 @@ pub(crate) async fn define_child_goals(
 }
 
 pub(crate) async fn define_child_goals_new_goal(
-    _wants_a_child: &Item<'_>,
-    _send_to_data_storage_layer: &Sender<DataLayerCommands>,
+    wants_a_child: &ItemNode<'_>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    todo!()
+    let list = ItemTypeSelection::create_list_just_goals();
+
+    let selection = Select::new("", list).prompt();
+    match selection {
+        Ok(item_type_selection) => {
+            let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
+            let higher_priority_than_this = if wants_a_child.has_active_children() {
+                let items = wants_a_child
+                    .get_smaller()
+                    .iter()
+                    .map(|x| x.get_item())
+                    .collect::<Vec<_>>();
+                select_higher_priority_than_this(&items)
+            } else {
+                None
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemWithANewChildItem {
+                    child: new_item,
+                    parent: wants_a_child.get_surreal_item().clone(),
+                    higher_priority_than_this,
+                })
+                .await
+                .unwrap();
+        }
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(err) => todo!("Unexpected {}", err),
+    }
 }
