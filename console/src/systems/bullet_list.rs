@@ -78,10 +78,21 @@ impl BulletList {
                         }
                     })
                     .then_with(|| {
-                        //TODO: I need to put on_deck expired items here
-                        a.get_staging().cmp(b.get_staging())
+                        if a.is_mentally_resident_expired(current_date_time) {
+                            if b.is_mentally_resident_expired(current_date_time) {
+                                Ordering::Equal
+                            } else {
+                                Ordering::Less
+                            }
+                        } else if b.is_mentally_resident_expired(current_date_time) {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
                     })
+                    .then_with(|| a.get_staging().cmp(b.get_staging()))
                     //TODO: I need to sort on_deck items by how much percentage time is left before they expire
+                    //TODO: I need to sort mentally resident items by how long until they expire
                 });
 
                 //TODO: Sort order the first of all top items

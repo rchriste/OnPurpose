@@ -250,7 +250,21 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
         .into_iter()
     {
         let item: SurrealItem = item_old_version.into();
-        item.update(db).await.unwrap();
+        let _: SurrealItem = db
+            .update((
+                SurrealItem::TABLE_NAME,
+                item.get_id()
+                    .clone()
+                    .ok_or(TableError::IdEmpty)
+                    .unwrap()
+                    .id
+                    .clone()
+                    .to_raw(),
+            ))
+            .content(item)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }
 

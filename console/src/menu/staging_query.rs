@@ -25,3 +25,26 @@ pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
         can_wait_until: wait_until.into(),
     })
 }
+
+pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
+    let now = Local::now();
+    let work_on_again_before = loop {
+        let deadline_string =
+            Text::new("How long until you need to work on this again?").prompt()?;
+        let deadline_duration = parse(&deadline_string).unwrap();
+        let work_on_again_before = now + deadline_duration;
+        println!("Set work on again before to {}?", work_on_again_before);
+        let result = Select::new("", YesOrNo::make_list()).prompt()?;
+        match result {
+            YesOrNo::Yes => break work_on_again_before,
+            YesOrNo::No => continue,
+        }
+    };
+
+    let now: DateTime<Utc> = now.into();
+    let work_on_again_before: DateTime<Utc> = work_on_again_before.into();
+    Ok(Staging::MentallyResident {
+        last_worked_on: now.into(),
+        work_on_again_before: work_on_again_before.into(),
+    })
+}

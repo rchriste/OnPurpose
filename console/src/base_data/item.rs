@@ -477,7 +477,7 @@ impl<'b> Item<'b> {
     }
 
     pub(crate) fn is_mentally_resident(&self) -> bool {
-        self.get_staging() == &Staging::MentallyResident
+        matches!(self.get_staging(), Staging::MentallyResident { .. })
     }
 
     pub(crate) fn is_staging_not_set(&self) -> bool {

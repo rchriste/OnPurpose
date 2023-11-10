@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -117,7 +118,10 @@ pub(crate) enum Permanence {
 pub(crate) enum Staging {
     #[default]
     NotSet,
-    MentallyResident,
+    MentallyResident {
+        last_worked_on: Datetime,
+        work_on_again_before: Datetime,
+    },
     OnDeck {
         began_waiting: Datetime,
         can_wait_until: Datetime,
@@ -139,13 +143,13 @@ impl Ord for Staging {
                 Staging::NotSet => Ordering::Equal,
                 _ => Ordering::Less,
             },
-            Staging::MentallyResident => match other {
+            Staging::MentallyResident { .. } => match other {
                 Staging::NotSet => Ordering::Greater,
-                Staging::MentallyResident => Ordering::Equal,
+                Staging::MentallyResident { .. } => Ordering::Equal,
                 _ => Ordering::Less,
             },
             Staging::OnDeck { .. } => match other {
-                Staging::NotSet | Staging::MentallyResident => Ordering::Greater,
+                Staging::NotSet | Staging::MentallyResident { .. } => Ordering::Greater,
                 Staging::OnDeck { .. } => Ordering::Equal,
                 _ => Ordering::Less,
             },
@@ -167,7 +171,10 @@ pub(crate) enum StagingOldVersion {
     #[default]
     NotSet,
     MentallyResident,
-    OnDeck,
+    OnDeck {
+        began_waiting: Datetime,
+        can_wait_until: Datetime,
+    },
     Intension,
     Released,
 }
@@ -249,8 +256,21 @@ impl From<StagingOldVersion> for Staging {
     fn from(value: StagingOldVersion) -> Self {
         match value {
             StagingOldVersion::NotSet => Staging::NotSet,
-            StagingOldVersion::MentallyResident => Staging::MentallyResident,
-            StagingOldVersion::OnDeck => Staging::NotSet,
+            StagingOldVersion::MentallyResident => {
+                let now = Utc::now();
+                let a_day_from_now = now + chrono::Duration::days(1);
+                Staging::MentallyResident {
+                    last_worked_on: now.into(),
+                    work_on_again_before: a_day_from_now.into(),
+                }
+            }
+            StagingOldVersion::OnDeck {
+                began_waiting,
+                can_wait_until,
+            } => Staging::OnDeck {
+                began_waiting,
+                can_wait_until,
+            },
             StagingOldVersion::Intension => Staging::Intension,
             StagingOldVersion::Released => Staging::Released,
         }

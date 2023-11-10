@@ -1,7 +1,8 @@
+use async_recursion::async_recursion;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    menu::on_deck_query::on_deck_query,
+    menu::staging_query::{mentally_resident_query, on_deck_query},
     node::item_node::ItemNode,
     surrealdb_layer::{
         surreal_item::{Responsibility, Staging},
@@ -46,6 +47,7 @@ impl StagingMenuSelection {
     }
 }
 
+#[async_recursion]
 pub(crate) async fn present_set_staging_menu(
     selected: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -55,13 +57,22 @@ pub(crate) async fn present_set_staging_menu(
     let selection = Select::new("", list).prompt().unwrap();
     let staging = match selection {
         StagingMenuSelection::NotSet => Staging::NotSet,
-        StagingMenuSelection::MentallyResident => Staging::MentallyResident,
+        StagingMenuSelection::MentallyResident => {
+            let result = mentally_resident_query().await;
+            match result {
+                Ok(mentally_resident) => mentally_resident,
+                Err(InquireError::OperationCanceled) => {
+                    return present_set_staging_menu(selected, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{:?}", err),
+            }
+        }
         StagingMenuSelection::OnDeck => {
             let result = on_deck_query().await;
             match result {
                 Ok(staging) => staging,
                 Err(InquireError::OperationCanceled) => {
-                    todo!("There are multiple places to go back to")
+                    return present_set_staging_menu(selected, send_to_data_storage_layer).await
                 }
                 Err(err) => todo!("{:?}", err),
             }

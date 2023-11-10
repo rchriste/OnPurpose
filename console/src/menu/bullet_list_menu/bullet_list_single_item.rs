@@ -25,12 +25,13 @@ use crate::{
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
         select_higher_priority_than_this::select_higher_priority_than_this,
+        staging_query::mentally_resident_query,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
     },
     new_item,
     node::item_node::ItemNode,
     surrealdb_layer::{
-        surreal_item::{ItemType, Responsibility, Staging},
+        surreal_item::{ItemType, Responsibility},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -377,10 +378,11 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
+            let new_mentally_resident_staging = mentally_resident_query().await.unwrap();
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateItemStaging(
                     menu_for.get_surreal_item().clone(),
-                    Staging::MentallyResident,
+                    new_mentally_resident_staging,
                 ))
                 .await
                 .unwrap();

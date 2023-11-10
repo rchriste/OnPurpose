@@ -190,6 +190,18 @@ impl<'s> ItemNode<'s> {
         }
     }
 
+    pub(crate) fn is_mentally_resident_expired(&self, current_date_time: &DateTime<Utc>) -> bool {
+        if let Staging::MentallyResident {
+            work_on_again_before,
+            ..
+        } = self.get_staging()
+        {
+            current_date_time > work_on_again_before
+        } else {
+            false
+        }
+    }
+
     pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Local>] {
         &self.snoozed_until
     }
