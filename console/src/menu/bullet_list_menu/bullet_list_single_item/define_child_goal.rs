@@ -1,8 +1,15 @@
 use chrono::Utc;
-use inquire::{Select, InquireError};
+use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
-use crate::{base_data::{item::{Item, ItemVecExtensions}, BaseData}, surrealdb_layer::{DataLayerCommands, surreal_tables::SurrealTables}, display::display_item::DisplayItem};
+use crate::{
+    base_data::{
+        item::{Item, ItemVecExtensions},
+        BaseData,
+    },
+    display::display_item::DisplayItem,
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
+};
 
 pub(crate) async fn define_child_goals(
     wants_a_child: &Item<'_>,
@@ -46,7 +53,6 @@ pub(crate) async fn define_child_goals(
         }
     }
     //TODO: I need to update this to ask if you want to define another child goal after you define one of them or stop
-
 }
 
 pub(crate) async fn define_child_goals_new_goal(

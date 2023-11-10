@@ -7,8 +7,12 @@ use crate::{
         item::{Item, ItemVecExtensions},
         BaseData,
     },
-    display::display_item::DisplayItem,
-    menu::bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
+    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
+    menu::{
+        bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
+        select_higher_priority_than_this::select_higher_priority_than_this,
+    },
+    node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
@@ -66,16 +70,35 @@ pub(crate) async fn parent_to_a_goal(
     let active_items = base_data.get_active_items();
     let list = active_items
         .filter_just_goals()
-        .map(DisplayItem::new)
+        .map(|item| {
+            ItemNode::new(
+                item,
+                base_data.get_coverings(),
+                base_data.get_active_snoozed(),
+                active_items,
+            )
+        })
+        //Collect the ItemNodes because they need a place to be so they don't go out of scope as DisplayItemNode
+        //only takes a reference.
+        .collect::<Vec<_>>();
+
+    let list = list
+        .iter()
+        .map(|x| DisplayItemNode::new(x, None))
         .collect::<Vec<_>>();
 
     let selection = Select::new("", list).prompt();
     match selection {
         Ok(parent) => {
-            let parent: &Item<'_> = parent.into();
+            let parent: &ItemNode<'_> = parent.get_item_node();
 
-            let higher_priority_than_this = if parent.has_active_children(active_items) {
-                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+            let higher_priority_than_this = if parent.has_active_children() {
+                let items = parent
+                    .get_smaller()
+                    .iter()
+                    .map(|x| x.get_item())
+                    .collect::<Vec<_>>();
+                select_higher_priority_than_this(&items)
             } else {
                 None
             };
