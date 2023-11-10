@@ -65,19 +65,6 @@ impl BulletList {
                         Ordering::Equal
                     })
                     .then_with(|| {
-                        if a.is_staging_on_deck_expired(current_date_time) {
-                            if b.is_staging_on_deck_expired(current_date_time) {
-                                Ordering::Equal
-                            } else {
-                                Ordering::Less
-                            }
-                        } else if b.is_staging_on_deck_expired(current_date_time) {
-                            Ordering::Greater
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                    .then_with(|| {
                         if a.is_mentally_resident_expired(current_date_time) {
                             if b.is_mentally_resident_expired(current_date_time) {
                                 Ordering::Equal
@@ -85,6 +72,19 @@ impl BulletList {
                                 Ordering::Less
                             }
                         } else if b.is_mentally_resident_expired(current_date_time) {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
+                    })
+                    .then_with(|| {
+                        if a.is_staging_on_deck_expired(current_date_time) {
+                            if b.is_staging_on_deck_expired(current_date_time) {
+                                Ordering::Equal
+                            } else {
+                                Ordering::Less
+                            }
+                        } else if b.is_staging_on_deck_expired(current_date_time) {
                             Ordering::Greater
                         } else {
                             Ordering::Equal
