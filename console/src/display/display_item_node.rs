@@ -18,7 +18,11 @@ impl Display for DisplayItemNode<'_> {
         }
         let display_item = DisplayItem::new(self.item_node.get_item());
         if let Some(current_date_time) = self.current_date_time {
-            if self.item_node.is_staging_on_deck_expired(current_date_time) {
+            if self.item_node.is_staging_on_deck_expired(current_date_time)
+                || self
+                    .item_node
+                    .is_mentally_resident_expired(current_date_time)
+            {
                 write!(f, "❗ ")?;
             }
         }
