@@ -41,8 +41,6 @@ use crate::{
 use self::{parent_to_a_goal::parent_to_a_motivation, set_staging::present_set_staging_menu};
 
 enum BulletListSingleItemSelection<'e> {
-    ASimpleThingICanDoRightNow,
-    ASimpleThingButICanDoItWhenever,
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
     StateASmallerNextStep,
@@ -100,12 +98,6 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Plan when to do this")
             }
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
-            Self::ASimpleThingICanDoRightNow => {
-                write!(f, "This is a simple thing I can do right now")
-            }
-            Self::ASimpleThingButICanDoItWhenever => {
-                write!(f, "This is a simple thing but I can do it whenever")
-            }
             Self::ICannotDoThisSimpleThingRightNowRemindMeLater => {
                 write!(f, "I cannot do this right now, remind me later")
             }
@@ -175,13 +167,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ParentToAMotivation);
         }
 
-        if !is_type_goal && !is_type_motivation {
+        if !is_type_goal && !is_type_motivation && !is_type_undeclared {
             list.push(Self::PlanWhenToDoThis);
         }
 
         if is_type_undeclared {
-            list.push(Self::ASimpleThingICanDoRightNow);
-            list.push(Self::ASimpleThingButICanDoItWhenever);
             list.push(Self::DeclareItemType);
         }
 
@@ -319,12 +309,6 @@ pub(crate) async fn present_bullet_list_item_selected(
     let selection = Select::new("", list).with_page_size(14).prompt();
 
     match selection {
-        Ok(BulletListSingleItemSelection::ASimpleThingICanDoRightNow) => {
-            todo!("TODO: Implement ASimpleThingICanDoRightNOw");
-        }
-        Ok(BulletListSingleItemSelection::ASimpleThingButICanDoItWhenever) => {
-            todo!("TODO: Implement ASimpleThingButICanDoItWhenever");
-        }
         Ok(BulletListSingleItemSelection::ICannotDoThisSimpleThingRightNowRemindMeLater) => {
             todo!("TODO: Implement ICannotDoThisSimpleThingRightNowRemindMeLater");
         }
@@ -655,12 +639,12 @@ pub(crate) enum ItemTypeSelection {
 impl Display for ItemTypeSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ProactiveAction => write!(f, "New Proactive Action"),
-            Self::ResponsiveAction => write!(f, "New Responsive Action"),
-            Self::ProactiveGoal => write!(f, "New Proactive Goal"),
-            Self::ResponsiveGoal => write!(f, "New Responsive Goal"),
-            Self::ProactiveMotivation => write!(f, "New Proactive Motivation"),
-            Self::ResponsiveMotivation => write!(f, "New Responsive Motivation"),
+            Self::ProactiveAction => write!(f, "New Action 🪜"),
+            Self::ResponsiveAction => write!(f, "New Supportive or Tracking"),
+            Self::ProactiveGoal => write!(f, "New Proactive Multi-Step Goal 🪧"),
+            Self::ResponsiveGoal => write!(f, "New Responsive Multi-Step Goal 🪧"),
+            Self::ProactiveMotivation => write!(f, "New Proactive Motivational Reason 🎯"),
+            Self::ResponsiveMotivation => write!(f, "New Responsive Motivational Reason 🎯"),
         }
     }
 }
