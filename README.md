@@ -4,7 +4,7 @@ Over the past few years I have been on a journey to rethink and re-imagine how a
 
 I believe software that helps one manage To Do's should be able to help with these problems but today's software seems to be concerned with helping the user create lists of things To Do and prioritize them but without consideration for the mental health challenges and the related practical problems that are also fundamental and need to be solved in order to reliably get things done without having a crises going on.
 
-The almost universal approach of having To Dos organized inside a collection of lists is confusing to over thinkers like me because it is just a lot to frequently consider, it is overwhelming because it is so mentally exhausting. But the mental health problems don't stop there. The issue is that some can feel very pressured each time they are reminded of the many things they have not done. When this is shown frequently to pick the next thing to do this negativity can be completely and utterly overwhelming. I expect that when all we had was a pen and paper or day planner then this was just a reality of how the world had to be. But if you use software on a computer or cell phone to track your work I believe there is probably an alternative way of presenting this information that is better for our mental health.
+The almost universal approach of having To Dos organized inside a collection of lists is confusing to over thinkers like me because it is just a lot to consider, doing this frequently is overwhelming because it is just so mentally exhausting. But the mental health problems don't stop there. The issue is that some can feel very pressured each time they are reminded of the many things they have not done. When this is shown frequently to pick the next thing to do this negativity can be completely and utterly overwhelming. I expect that when all we had was a pen and paper or day planner then this was just a reality of how the world had to be. But if you use software on a computer or cell phone to track your work I believe there is probably an alternative way of presenting this information that is better for our mental health.
 
 **Success for improving mental health should be measured by:**
 
@@ -124,9 +124,9 @@ Version 0.0.86
 
 **Make Item Reactive** This item should not be prompted as a proactive action to take in the dynamic bullet list but it should be findable when search for a parent item.
 
-## Trying On Purpose
+## Installing On Purpose
 
-If you want to try it now you will need to compile it. As of today I expect _On Purpose_ to work on both Windows and Linux however I do have plans to integrate with various Windows API in time. I will mention that setting up the Surreal DB build dependency is more of a pain in Windows proper than the convenient steps you can follow inside Windows' Linux WSL layer. But Windows is the target platform.
+If you want to try it now you will need to compile it and use the Rust tool `Cargo` to install it. As of today I expect _On Purpose_ to work on both Windows and Linux however I do have plans to integrate with various Windows API in time. I will mention that setting up the Surreal DB build dependency is more of a pain in Windows proper than the convenient steps you can follow inside Windows' Linux WSL layer. But Windows is the target platform.
 
 ### Compiling On Purpose
 

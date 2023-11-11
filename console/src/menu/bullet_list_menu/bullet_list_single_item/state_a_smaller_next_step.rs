@@ -8,7 +8,10 @@ use crate::{
         BaseData,
     },
     display::display_item::DisplayItem,
-    menu::select_higher_priority_than_this::select_higher_priority_than_this,
+    menu::{
+        bullet_list_menu::bullet_list_single_item::set_staging::present_set_staging_menu,
+        select_higher_priority_than_this::select_higher_priority_than_this,
+    },
     node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
@@ -64,6 +67,12 @@ pub(crate) async fn state_a_smaller_next_step(
                 })
                 .await
                 .unwrap();
+
+            println!(
+                "Please update Staging for {}",
+                DisplayItem::new(parent.get_item())
+            );
+            present_set_staging_menu(parent, send_to_data_storage_layer).await;
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await;
@@ -94,14 +103,21 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             } else {
                 None
             };
+            let parent = selected_item;
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewChildItem {
                     child: new_item,
-                    parent: selected_item.get_surreal_item().clone(),
+                    parent: parent.get_surreal_item().clone(),
                     higher_priority_than_this,
                 })
                 .await
                 .unwrap();
+
+            println!(
+                "Please update Staging for {}",
+                DisplayItem::new(parent.get_item())
+            );
+            present_set_staging_menu(parent, send_to_data_storage_layer).await;
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),
