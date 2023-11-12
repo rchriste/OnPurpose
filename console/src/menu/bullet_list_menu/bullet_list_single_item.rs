@@ -3,6 +3,7 @@ mod define_child_goal;
 mod parent_to_a_goal;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
+mod starting_to_work_on_this_now;
 mod state_a_smaller_next_step;
 
 use std::fmt::Display;
@@ -22,6 +23,7 @@ use crate::{
             cover_bullet_item::cover_bullet_item, define_child_goal::define_child_goals,
             parent_to_a_goal::parent_to_a_goal,
             something_else_should_be_done_first::something_else_should_be_done_first,
+            starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
         select_higher_priority_than_this::select_higher_priority_than_this,
@@ -44,6 +46,7 @@ enum BulletListSingleItemSelection<'e> {
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
     StateASmallerNextStep,
+    StartingToWorkOnThisNow,
     ParentToAGoal,
     ParentToAMotivation,
     PlanWhenToDoThis,
@@ -88,6 +91,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => write!(f, "Switch to: {}", parent_item),
+            Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
@@ -179,6 +183,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if is_type_action || is_type_goal || is_type_motivation {
+            list.push(Self::StartingToWorkOnThisNow);
             list.push(Self::WorkedOnThis);
         }
 
@@ -308,7 +313,9 @@ pub(crate) async fn present_bullet_list_item_selected(
     let list =
         BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items, all_snoozed);
 
-    let selection = Select::new("", list).with_page_size(14).prompt();
+    let selection = Select::new("Select from the below list", list)
+        .with_page_size(14)
+        .prompt();
 
     match selection {
         Ok(BulletListSingleItemSelection::ICannotDoThisSimpleThingRightNowRemindMeLater) => {
@@ -316,6 +323,17 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
+        }
+        Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
+            starting_to_work_on_this_now(
+                menu_for,
+                current_date_time,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
@@ -374,30 +392,15 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .unwrap();
         }
         Ok(BulletListSingleItemSelection::Finished) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::FinishItem(
-                    menu_for.get_surreal_item().clone(),
-                ))
-                .await
-                .unwrap();
-
-            let mut parents_iter = menu_for.get_larger().iter();
-            let next_item = parents_iter.next();
-            if let Some(next_item) = next_item {
-                let next_item =
-                    ItemNode::new(next_item.get_item(), all_coverings, all_snoozed, all_items);
-                let display_item = DisplayItemNode::new(&next_item, Some(current_date_time));
-                println!("{}", display_item);
-                present_bullet_list_item_selected(
-                    &next_item,
-                    current_date_time,
-                    all_coverings,
-                    all_snoozed,
-                    all_items,
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
+            finish_bullet_item(
+                menu_for,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                current_date_time,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::ThisIsARepeatingItem) => {
             todo!("TODO: Implement ThisIsARepeatingItem");
@@ -481,6 +484,39 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Err(InquireError::OperationCanceled) => (), //Nothing to do we just want to return to the bullet list
         Err(err) => todo!("Unexpected {}", err),
+    }
+}
+
+async fn finish_bullet_item(
+    finish_this: &ItemNode<'_>,
+    all_coverings: &[Covering<'_>],
+    all_snoozed: &[&CoveringUntilDateTime<'_>],
+    all_items: &[&Item<'_>],
+    current_date_time: &DateTime<Utc>,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) {
+    send_to_data_storage_layer
+        .send(DataLayerCommands::FinishItem(
+            finish_this.get_surreal_item().clone(),
+        ))
+        .await
+        .unwrap();
+
+    let mut parents_iter = finish_this.get_larger().iter();
+    let next_item = parents_iter.next();
+    if let Some(next_item) = next_item {
+        let next_item = ItemNode::new(next_item.get_item(), all_coverings, all_snoozed, all_items);
+        let display_item = DisplayItemNode::new(&next_item, Some(current_date_time));
+        println!("{}", display_item);
+        present_bullet_list_item_selected(
+            &next_item,
+            current_date_time,
+            all_coverings,
+            all_snoozed,
+            all_items,
+            send_to_data_storage_layer,
+        )
+        .await
     }
 }
 
@@ -715,7 +751,7 @@ pub(crate) async fn parent_to_new_item(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -738,7 +774,7 @@ pub(crate) async fn cover_with_new_item(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -761,7 +797,7 @@ pub(crate) async fn declare_item_type(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(ItemTypeSelection::ProactiveAction) => {
             send_to_data_storage_layer
@@ -854,7 +890,7 @@ pub(crate) async fn present_is_person_or_group_around_menu(
 ) {
     let list = IsAPersonOrGroupAroundSelection::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(IsAPersonOrGroupAroundSelection::Yes) => send_to_data_storage_layer
             .send(DataLayerCommands::FinishItem(

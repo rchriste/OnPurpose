@@ -91,6 +91,10 @@ impl<'s> ItemNode<'s> {
         }
     }
 
+    pub(crate) fn has_larger(&self) -> bool {
+        !self.larger.is_empty()
+    }
+
     pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
         &self.larger
     }
