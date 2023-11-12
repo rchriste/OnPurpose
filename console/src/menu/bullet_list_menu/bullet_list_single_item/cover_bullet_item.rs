@@ -58,7 +58,7 @@ pub(crate) async fn cover_bullet_item(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), UnexpectedNextMenuAction> {
     let choices = CoverBulletItem::create_list();
-    let selection = Select::new("", choices).prompt();
+    let selection = Select::new("Select from the below list", choices).prompt();
     match selection {
         Ok(CoverBulletItem::ItemOrNextStep) => {
             cover_with_item(item_to_cover, send_to_data_storage_layer).await;
@@ -121,7 +121,7 @@ pub(crate) async fn cover_with_waiting_for<'a>(
 ) -> Result<(), UnexpectedNextMenuAction> {
     let list = CoverWithWaitingFor::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(CoverWithWaitingFor::Event) => {
@@ -164,7 +164,7 @@ async fn cover_with_waiting_for_question<'a>(
 ) {
     let list = CoverWithQuestionItem::create_list();
 
-    let selected = Select::new("", list).prompt();
+    let selected = Select::new("Select from the below list", list).prompt();
 
     match selected {
         Ok(CoverWithQuestionItem::NewQuestion) => {
@@ -275,7 +275,7 @@ async fn cover_with_waiting_for_event<'a>(
 ) {
     let list = EventMenuItem::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(EventMenuItem::UntilAnExactDateTime) => {
@@ -328,7 +328,7 @@ async fn cover_with_circumstance_that_must_be_true_to_act(
 ) {
     let list = CircumstanceThatMustBeTrueToActMenuItem::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(CircumstanceThatMustBeTrueToActMenuItem::NotSunday) => {

@@ -76,7 +76,9 @@ impl TopMenuSelection {
 pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let top_menu = TopMenuSelection::make_list();
 
-    let selection = Select::new("", top_menu).prompt().unwrap();
+    let selection = Select::new("Select from the below list", top_menu)
+        .prompt()
+        .unwrap();
     match selection {
         TopMenuSelection::Capture => capture(send_to_data_storage_layer).await,
         TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
@@ -95,7 +97,7 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
     }
 }
 
-async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let new_item_summary = Text::new("Enter New Item ⍠").prompt().unwrap();
 
     let new_item = NewItem::new(new_item_summary);

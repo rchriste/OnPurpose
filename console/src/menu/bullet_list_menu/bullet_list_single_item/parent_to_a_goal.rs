@@ -31,7 +31,7 @@ pub(crate) async fn parent_to_a_motivation(
         .map(DisplayItem::new)
         .collect::<Vec<_>>();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(parent) => {
             let parent: &Item<'_> = parent.into();
@@ -87,7 +87,7 @@ pub(crate) async fn parent_to_a_goal(
         .map(|x| DisplayItemNode::new(x, None))
         .collect::<Vec<_>>();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(parent) => {
             let parent: &ItemNode<'_> = parent.get_item_node();
@@ -125,7 +125,7 @@ async fn parent_to_a_motivation_new_motivation(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = ItemTypeSelection::create_list_just_motivations();
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -151,7 +151,7 @@ async fn parent_to_a_goal_new_goal(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = ItemTypeSelection::create_list_just_goals();
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();

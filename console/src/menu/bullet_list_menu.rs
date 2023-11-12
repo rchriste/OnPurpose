@@ -124,7 +124,7 @@ pub(crate) async fn present_bullet_list_menu(
     );
 
     if !inquire_bullet_list.is_empty() {
-        let selected = Select::new("", inquire_bullet_list)
+        let selected = Select::new("Select from the below list", inquire_bullet_list)
             .with_page_size(10)
             .prompt();
 
@@ -181,7 +181,7 @@ async fn present_focused_bullet_list_menu(send_to_data_storage_layer: &Sender<Da
         InquireBulletListItem::create_list_just_items(item_nodes, &current_date_time);
 
     if !inquire_bullet_list.is_empty() {
-        let selected = Select::new("", inquire_bullet_list)
+        let selected = Select::new("Select from the below list", inquire_bullet_list)
             .with_page_size(10)
             .prompt();
 

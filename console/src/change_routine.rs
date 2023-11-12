@@ -57,7 +57,7 @@ pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayer
     let routines = base_data.get_routines();
     let list = LifeAreaItem::make_list(routines, life_areas);
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(LifeAreaItem::ExistingRoutine(routine)) => {

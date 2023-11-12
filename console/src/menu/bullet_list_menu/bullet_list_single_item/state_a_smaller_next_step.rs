@@ -47,7 +47,7 @@ pub(crate) async fn state_a_smaller_next_step(
         list.extend(active_items.filter_just_actions().map(DisplayItem::new));
     }
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(child) => {
@@ -89,7 +89,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
     match selection {
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();

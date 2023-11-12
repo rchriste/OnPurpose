@@ -11,7 +11,7 @@ pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
         let wait_duration = parse(&wait_string).unwrap();
         let wait_until = now + wait_duration;
         println!("Can wait until {}?", wait_until);
-        let result = Select::new("", YesOrNo::make_list()).prompt()?;
+        let result = Select::new("Select from the below list", YesOrNo::make_list()).prompt()?;
         match result {
             YesOrNo::Yes => break wait_until,
             YesOrNo::No => continue,
@@ -34,7 +34,7 @@ pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
         let deadline_duration = parse(&deadline_string).unwrap();
         let work_on_again_before = now + deadline_duration;
         println!("Set work on again before to {}?", work_on_again_before);
-        let result = Select::new("", YesOrNo::make_list()).prompt()?;
+        let result = Select::new("Select from the below list", YesOrNo::make_list()).prompt()?;
         match result {
             YesOrNo::Yes => break work_on_again_before,
             YesOrNo::No => continue,

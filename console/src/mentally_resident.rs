@@ -134,7 +134,7 @@ impl HopeMenuItem {
 pub(crate) async fn view_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let list = HopeMenuItem::make_list();
 
-    let selection = Select::new("", list).prompt();
+    let selection = Select::new("Select from the below list", list).prompt();
 
     match selection {
         Ok(HopeMenuItem::MentallyResidentProjects) => {
@@ -178,7 +178,9 @@ pub(crate) async fn view_mentally_resident_project_hopes(
     let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
     if !inquire_list.is_empty() {
-        let selected = Select::new("", inquire_list).with_page_size(30).prompt();
+        let selected = Select::new("Select from the below list", inquire_list)
+            .with_page_size(30)
+            .prompt();
 
         match selected {
             Ok(selected) => {
@@ -255,7 +257,7 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
     let list = MaintenanceHopeItem::create_list(&hope_nodes);
 
     if !list.is_empty() {
-        let selected = Select::new("", list).prompt();
+        let selected = Select::new("Select from the below list", list).prompt();
         match selected {
             Ok(MaintenanceHopeItem::MaintenanceHope(_hope_node)) => todo!(),
             Err(InquireError::OperationCanceled) => {
@@ -317,7 +319,9 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
 ) {
     let list = MentallyResidentHopeSelectedMenuItem::create_list();
 
-    let selection = Select::new("", list).with_page_size(15).prompt();
+    let selection = Select::new("Select from the below list", list)
+        .with_page_size(15)
+        .prompt();
     match selection {
         Ok(MentallyResidentHopeSelectedMenuItem::CoverWithNextStep) => {
             cover_with_item(hope_selected, send_to_data_storage_layer).await
@@ -402,7 +406,9 @@ async fn present_add_milestone(
 ) {
     let list = AddMilestoneMenuItem::make_list();
 
-    let selection = Select::new("", list).prompt().unwrap();
+    let selection = Select::new("Select from the below list", list)
+        .prompt()
+        .unwrap();
 
     match selection {
         AddMilestoneMenuItem::NewMilestone => {
