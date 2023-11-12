@@ -158,9 +158,12 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
+        let has_active_children = item_node.has_active_children();
 
         if (is_type_action) && has_no_parent {
             list.push(Self::ParentToAGoal);
+        } else if is_type_goal && !has_active_children {
+            list.push(Self::StateASmallerNextStep);
         }
 
         if is_type_goal && has_no_parent {
@@ -186,8 +189,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::NotInTheMoodToDoThisRightNow);
         }
 
-        let has_active_children = item_node.has_active_children();
-        if is_type_action || is_type_goal && !has_active_children {
+        if is_type_action {
             list.push(Self::StateASmallerNextStep);
         }
 
