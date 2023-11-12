@@ -645,8 +645,12 @@ impl Display for ItemTypeSelection {
             Self::ResponsiveAction => write!(f, "New Supportive or Tracking"),
             Self::ProactiveGoal => write!(f, "New Proactive Multi-Step Goal 🪧"),
             Self::ResponsiveGoal => write!(f, "New Responsive Multi-Step Goal 🪧"),
-            Self::ProactiveMotivation => write!(f, "New Proactive Motivational Reason 🎯"),
-            Self::ResponsiveMotivation => write!(f, "New Responsive Motivational Reason 🎯"),
+            Self::ProactiveMotivation => {
+                write!(f, "New Proactive Motivational Reason For Taking Action 🎯")
+            }
+            Self::ResponsiveMotivation => {
+                write!(f, "New Responsive Motivational Reason For Taking Action 🎯")
+            }
         }
     }
 }

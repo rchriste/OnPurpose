@@ -78,8 +78,8 @@ If this is a quick item that you just did or it should no longer be on the list 
   New Supportive or Tracking
   New Proactive Multi-Step Goal 🪧
   New Responsive Multi-Step Goal 🪧
-  New Proactive Motivational Reason 🎯
-  New Responsive Motivational Reason 🎯
+  New Proactive Motivational Reason For Taking Action 🎯
+  New Responsive Motivational Reason For Taking Action 🎯
 [↑↓ to move, enter to select, type to filter]
 ```
 
@@ -91,9 +91,9 @@ If this is a quick item that you just did or it should no longer be on the list 
 
 **New Responsive Multi-Step Goal** The word responsive means do **not** prompt for a next step but this goal should be findable when parenting an action to a goal.
 
-**New Proactive Motivational Reason** This is for stating that the item captured is a reason for doing something. Because there is almost always a diverse number of benefits to doing something the word motivational is also used. The test to know if a reason is motivational is to ask the question if this was not true would that significantly change the priority or cancel the work. _Emoji is a target 🎯 that provides something to aim for._
+**New Proactive Motivational Reason For Taking Action** This is for stating that the item captured is a reason for doing something. Because there is almost always a diverse number of benefits to doing something the word motivational is also used. The test to know if a reason is motivational is to ask the question if this was not true would that significantly change the priority or cancel the work. _Emoji is a target 🎯 that provides something to aim for._
 
-**New Responsive Motivational Reason** Once again the word responsive means that when something comes up this is a motivation for acting or responding but _On Purpose_ should **not** prompt to define goals or actions.
+**New Responsive Motivational Reason For Taking Action** Once again the word responsive means that when something comes up this is a motivation for acting or responding but _On Purpose_ should **not** prompt to define goals or actions.
 
 After you declare an _item type_ and before you are given the full contextual list you also need to set what I am currently calling the "Staging" for that item. This is required because the information is used to order the list. The following is what that menu looks like.
 
