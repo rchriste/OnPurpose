@@ -22,28 +22,20 @@ enum TopMenuSelection {
     ChangeRoutine,
     Reflection,
     ViewBulletList,
-    CaptureHope,
     ViewHopes,
-    CaptureMotivation,
     ViewMotivations,
     DebugViewAllItems,
-    CaptureToDo,
 }
 
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopMenuSelection::Capture => write!(f, "🗬   Capture                  🗭"),
-            TopMenuSelection::CaptureToDo => write!(f, "🗬 🗒️ Capture To Do             🗭"),
             TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝ Change Routine            ↜"),
             TopMenuSelection::Reflection => write!(f, "    Reflection                 "),
             TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️ View Bullet List (To Dos) 👁"),
-            TopMenuSelection::CaptureHope => write!(f, "🗬 🙏 Capture Hope              🗭"),
             TopMenuSelection::ViewHopes => {
                 write!(f, "👁 🙏 View Hopes                👁")
-            }
-            TopMenuSelection::CaptureMotivation => {
-                write!(f, "🗬 🎯 Capture Motivation        🗭")
             }
             TopMenuSelection::ViewMotivations => {
                 write!(f, "👁 🎯 View Motivations          👁")
@@ -62,12 +54,9 @@ impl TopMenuSelection {
             Self::ChangeRoutine,
             Self::Reflection,
             Self::ViewBulletList,
-            Self::CaptureHope,
             Self::ViewHopes,
-            Self::CaptureMotivation,
             Self::ViewMotivations,
             Self::DebugViewAllItems,
-            Self::CaptureToDo,
         ]
     }
 }
@@ -81,15 +70,12 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
         .unwrap();
     match selection {
         TopMenuSelection::Capture => capture(send_to_data_storage_layer).await,
-        TopMenuSelection::CaptureToDo => capture_to_do(send_to_data_storage_layer).await,
         TopMenuSelection::ChangeRoutine => change_routine(send_to_data_storage_layer).await,
         TopMenuSelection::Reflection => todo!("Implement Reflection"),
-        TopMenuSelection::CaptureHope => capture_hope(send_to_data_storage_layer).await,
         TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
         TopMenuSelection::ViewBulletList => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
-        TopMenuSelection::CaptureMotivation => capture_motivation(send_to_data_storage_layer).await,
         TopMenuSelection::ViewMotivations => view_motivations().await,
         TopMenuSelection::DebugViewAllItems => {
             debug_view_all_items(send_to_data_storage_layer).await

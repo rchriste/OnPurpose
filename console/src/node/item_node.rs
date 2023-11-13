@@ -372,34 +372,11 @@ pub(crate) fn create_shrinking_node<'a>(
     }
 }
 
-pub(crate) fn create_item_nodes<'s>(
-    create_nodes_from: impl Iterator<Item = &'s Item<'s>> + 's,
-    coverings: &'s [Covering<'s>],
-    coverings_until_date_time: &'s [CoveringUntilDateTime<'s>],
-    active_snoozed: &'s [&'s CoveringUntilDateTime<'s>],
-    items: &'s [&'s Item<'s>],
-    current_date: DateTime<Local>,
-    currently_in_focus_time: bool,
-) -> impl Iterator<Item = ItemNode<'s>> + 's {
-    create_nodes_from.filter_map(move |x| {
-        if !x.is_covered(coverings, coverings_until_date_time, items, &current_date)
-            && !x.is_finished()
-            && x.is_circumstances_met(&current_date, currently_in_focus_time)
-        {
-            Some(ItemNode::new(x, coverings, active_snoozed, items))
-        } else {
-            None
-        }
-    })
-}
-
 #[cfg(test)]
 mod tests {
-    use chrono::DateTime;
-
     use crate::{
         base_data::item::ItemVecExtensions,
-        node::item_node::create_item_nodes,
+        node::item_node::ItemNode,
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_item::{ItemType, SurrealItemBuilder},
@@ -460,20 +437,9 @@ mod tests {
         let active_snoozed = coverings_until_date_time.iter().collect::<Vec<_>>();
 
         let to_dos = items.filter_just_actions();
-        let wednesday_ignore =
-            DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
-                .unwrap()
-                .into();
-        let next_step_nodes = create_item_nodes(
-            to_dos,
-            &coverings,
-            &coverings_until_date_time,
-            &active_snoozed,
-            &active_items,
-            wednesday_ignore,
-            false,
-        )
-        .collect::<Vec<_>>();
+        let next_step_nodes = to_dos
+            .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &active_items))
+            .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
         assert_eq!(
