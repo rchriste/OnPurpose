@@ -24,6 +24,7 @@ enum UnableReason {
     SomeoneOrGroupIsNotAvailable,
     PlaceToContactIsNotOpen,
     NeedToWaitBeforeWorkingOnThis,
+    NotEnoughTime,
 }
 
 impl Display for UnableReason {
@@ -38,6 +39,9 @@ impl Display for UnableReason {
             UnableReason::NeedToWaitBeforeWorkingOnThis => {
                 write!(f, "Need to wait before working on this further")
             }
+            UnableReason::NotEnoughTime => {
+                write!(f, "I don't have enough time to do this right now")
+            }
         }
     }
 }
@@ -48,6 +52,7 @@ impl UnableReason {
             Self::SomeoneOrGroupIsNotAvailable,
             Self::PlaceToContactIsNotOpen,
             Self::NeedToWaitBeforeWorkingOnThis,
+            Self::NotEnoughTime,
         ]
     }
 }
@@ -69,6 +74,9 @@ pub(crate) async fn unable_to_work_on_item_right_now(
         }
         Ok(UnableReason::NeedToWaitBeforeWorkingOnThis) => {
             need_to_wait_before_working_on_this(unable_to_do, send_to_data_storage_layer).await
+        }
+        Ok(UnableReason::NotEnoughTime) => {
+            todo!()
         }
         Err(InquireError::OperationCanceled) => {
             todo!("I put in this todo because back at the time I would need to adjust some calling parameters to make this work")
