@@ -11,7 +11,7 @@ pub(crate) struct ResponsiveItem<'s> {
 impl<'s> ResponsiveItem<'s> {
     pub(crate) fn new(item: &'s Item<'s>) -> Self {
         assert_eq!(
-            *item.responsibility,
+            *item.get_responsibility(),
             Responsibility::ReactiveBeAvailableToAct
         );
         Self { item }

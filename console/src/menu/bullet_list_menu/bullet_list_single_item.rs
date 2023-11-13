@@ -385,7 +385,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             let new_mentally_resident_staging = mentally_resident_query().await.unwrap();
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateItemStaging(
-                    menu_for.get_surreal_item().clone(),
+                    menu_for.get_surreal_record_id().clone(),
                     new_mentally_resident_staging,
                 ))
                 .await

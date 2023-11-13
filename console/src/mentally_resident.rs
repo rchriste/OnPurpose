@@ -36,9 +36,9 @@ impl<'a> Display for ProjectHopeItem<'a> {
         if self.hope_node.get_smaller().is_empty() {
             write!(f, "[NEEDS NEXT STEP] ")?;
         }
-        write!(f, "{}", self.hope_node.get_item().summary)?;
+        write!(f, "{}", self.hope_node.get_item().get_summary())?;
         for i in self.hope_node.create_parent_chain().iter() {
-            write!(f, " ⬅  {}", i.summary)?;
+            write!(f, " ⬅  {}", i.get_summary())?;
         }
         Ok(())
     }
@@ -214,9 +214,9 @@ impl Display for MaintenanceHopeItem<'_> {
                 if hope_node.get_smaller().is_empty() {
                     write!(f, "[NEEDS NEXT STEP] ")?;
                 }
-                write!(f, "{}", hope_node.get_item().summary)?;
+                write!(f, "{}", hope_node.get_item().get_summary())?;
                 for i in hope_node.create_parent_chain().iter() {
-                    write!(f, " ⬅  {}", i.summary)?;
+                    write!(f, " ⬅  {}", i.get_summary())?;
                 }
                 Ok(())
             }
@@ -341,7 +341,7 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
                 Ok(staging) => {
                     send_to_data_storage_layer
                         .send(DataLayerCommands::UpdateItemStaging(
-                            hope_selected.get_surreal_item().clone(),
+                            hope_selected.get_surreal_record_id().clone(),
                             staging,
                         ))
                         .await
@@ -476,7 +476,7 @@ async fn update_item_staging(
 ) {
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemStaging(
-            selected.get_surreal_item().clone(),
+            selected.get_surreal_record_id().clone(),
             new_staging,
         ))
         .await

@@ -18,8 +18,8 @@ impl<'a> From<Covering<'a>> for SurrealCovering {
     fn from(value: Covering<'a>) -> Self {
         SurrealCovering {
             id: None,
-            smaller: value.smaller.id.clone(),
-            parent: value.parent.id.clone(),
+            smaller: value.smaller.get_id().clone(),
+            parent: value.parent.get_id().clone(),
         }
     }
 }

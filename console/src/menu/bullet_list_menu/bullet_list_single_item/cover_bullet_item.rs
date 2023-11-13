@@ -203,7 +203,7 @@ enum CoverExistingItem<'e> {
 impl Display for CoverExistingItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CoverExistingItem::ExistingToDo(to_do) => write!(f, "{}", to_do.summary),
+            CoverExistingItem::ExistingToDo(to_do) => write!(f, "{}", to_do.get_summary()),
         }
     }
 }

@@ -11,6 +11,7 @@ use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     error::Api,
+    opt::RecordId,
     sql::Thing,
     Error, Surreal,
 };
@@ -73,9 +74,9 @@ pub(crate) enum DataLayerCommands {
     AddCircumstanceNotSunday(SurrealItem),
     AddCircumstanceDuringFocusTime(SurrealItem),
     UpdateResponsibilityAndItemType(SurrealItem, Responsibility, ItemType),
-    UpdateItemResponsibility(SurrealItem, Responsibility),
+    UpdateItemResponsibility(RecordId, Responsibility),
     UpdateItemPermanence(SurrealItem, Permanence),
-    UpdateItemStaging(SurrealItem, Staging),
+    UpdateItemStaging(RecordId, Staging),
     UpdateItemSummary(SurrealItem, String),
 }
 
@@ -188,8 +189,8 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::UpdateItemPermanence(item, new_permanence)) => {
                 update_hope_permanence(item, new_permanence, &db).await
             }
-            Some(DataLayerCommands::UpdateItemStaging(item, new_staging)) => {
-                update_hope_staging(item, new_staging, &db).await
+            Some(DataLayerCommands::UpdateItemStaging(record_id, new_staging)) => {
+                update_hope_staging(record_id, new_staging, &db).await
             }
             Some(DataLayerCommands::UpdateItemSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
@@ -204,8 +205,11 @@ pub(crate) async fn data_storage_start_and_run(
                 item.item_type = new_item_type;
                 item.update(&db).await.unwrap();
             }
-            Some(DataLayerCommands::UpdateItemResponsibility(item, new_responsibility)) => {
-                let mut item = item;
+            Some(DataLayerCommands::UpdateItemResponsibility(record_id, new_responsibility)) => {
+                let mut item = SurrealItem::get_by_id(record_id.id.to_raw(), &db)
+                    .await
+                    .unwrap()
+                    .unwrap();
                 item.responsibility = new_responsibility;
                 item.update(&db).await.unwrap();
             }
@@ -508,7 +512,8 @@ async fn parent_item_with_existing_item(
                 surreal_item_id: child.id.expect("Already in DB"),
             });
     }
-    parent.update(db).await.unwrap();
+    let saved = parent.clone().update(db).await.unwrap().unwrap();
+    assert_eq!(parent, saved);
 }
 
 async fn parent_item_with_a_new_child(
@@ -551,11 +556,11 @@ async fn update_hope_permanence(
     }
 }
 
-async fn update_hope_staging(
-    mut surreal_item: SurrealItem,
-    new_staging: Staging,
-    db: &Surreal<Any>,
-) {
+async fn update_hope_staging(record_id: RecordId, new_staging: Staging, db: &Surreal<Any>) {
+    let mut surreal_item = SurrealItem::get_by_id(record_id.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
     surreal_item.staging = new_staging;
 
     if surreal_item.id.is_some() {

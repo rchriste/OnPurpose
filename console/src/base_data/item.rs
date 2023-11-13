@@ -20,13 +20,9 @@ use super::{
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
-    pub(crate) id: &'s Thing,
-    pub(crate) summary: &'s String,
-    pub(crate) finished: &'s Option<Datetime>,
-    pub(crate) responsibility: &'s Responsibility,
-    pub(crate) item_type: &'s ItemType,
-    pub(crate) required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
-    pub(crate) surreal_item: &'s SurrealItem,
+    id: &'s RecordId,
+    required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
+    surreal_item: &'s SurrealItem,
 }
 
 impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
@@ -67,7 +63,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.item_type == &ItemType::ToDo {
+            if x.get_item_type() == &ItemType::ToDo {
                 Some(x)
             } else {
                 None
@@ -77,7 +73,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.item_type == &ItemType::Hope {
+            if x.get_item_type() == &ItemType::Hope {
                 Some(x)
             } else {
                 None
@@ -87,7 +83,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_motivations(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::Motivation {
+            if x.get_item_type() == &ItemType::Motivation {
                 Some(x)
             } else {
                 None
@@ -98,9 +94,9 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == &ItemType::Motivation {
+                if x.get_item_type() == &ItemType::Motivation {
                     Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
-                } else if x.responsibility == &Responsibility::ReactiveBeAvailableToAct {
+                } else if x.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct {
                     Some(MotivationOrResponsiveItem::ResponsiveItem(
                         ResponsiveItem::new(x),
                     ))
@@ -117,7 +113,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::PersonOrGroup {
+            if x.get_item_type() == &ItemType::PersonOrGroup {
                 Some(x)
             } else {
                 None
@@ -127,7 +123,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.item_type == &ItemType::Undeclared {
+            if x.get_item_type() == &ItemType::Undeclared {
                 Some(x)
             } else {
                 None
@@ -137,7 +133,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::Simple {
+            if x.get_item_type() == &ItemType::Simple {
                 Some(x)
             } else {
                 None
@@ -158,7 +154,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if x.item_type == &ItemType::ToDo {
+            if x.get_item_type() == &ItemType::ToDo {
                 Some(x)
             } else {
                 None
@@ -168,7 +164,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if x.item_type == &ItemType::Hope {
+            if x.get_item_type() == &ItemType::Hope {
                 Some(x)
             } else {
                 None
@@ -178,7 +174,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_motivations(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::Motivation {
+            if x.get_item_type() == &ItemType::Motivation {
                 Some(x)
             } else {
                 None
@@ -188,7 +184,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::PersonOrGroup {
+            if x.get_item_type() == &ItemType::PersonOrGroup {
                 Some(x)
             } else {
                 None
@@ -198,7 +194,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::Undeclared {
+            if x.get_item_type() == &ItemType::Undeclared {
                 Some(*x)
             } else {
                 None
@@ -208,7 +204,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.item_type == &ItemType::Simple {
+            if x.get_item_type() == &ItemType::Simple {
                 Some(x)
             } else {
                 None
@@ -219,9 +215,9 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
         self.iter()
             .filter_map(|x| {
-                if x.item_type == &ItemType::Motivation {
+                if x.get_item_type() == &ItemType::Motivation {
                     Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
-                } else if x.responsibility == &Responsibility::ReactiveBeAvailableToAct {
+                } else if x.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct {
                     Some(MotivationOrResponsiveItem::ResponsiveItem(
                         ResponsiveItem::new(x),
                     ))
@@ -244,21 +240,21 @@ impl<'b> Item<'b> {
     ) -> Self {
         Self {
             id: surreal_item.id.as_ref().expect("Already in DB"),
-            summary: &surreal_item.summary,
-            finished: &surreal_item.finished,
-            item_type: &surreal_item.item_type,
-            responsibility: &surreal_item.responsibility,
             required_circumstances,
             surreal_item,
         }
     }
 
+    pub(crate) fn get_item_type(&self) -> &'b ItemType {
+        &self.surreal_item.item_type
+    }
+
     pub(crate) fn is_person_or_group(&self) -> bool {
-        self.item_type == &ItemType::PersonOrGroup
+        self.get_item_type() == &ItemType::PersonOrGroup
     }
 
     pub(crate) fn is_finished(&self) -> bool {
-        self.finished.is_some()
+        self.surreal_item.finished.is_some()
     }
 
     pub(crate) fn get_covered_by_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
@@ -346,36 +342,40 @@ impl<'b> Item<'b> {
         self.surreal_item
     }
 
+    pub(crate) fn get_surreal_record_id(&self) -> &'b RecordId {
+        &self.id
+    }
+
     pub(crate) fn get_summary(&self) -> &'b str {
-        self.summary
+        &self.surreal_item.summary
     }
 
     pub(crate) fn get_finished(&self) -> &'b Option<Datetime> {
-        self.finished
+        &self.surreal_item.finished
     }
 
     pub(crate) fn get_type(&self) -> &'b ItemType {
-        self.item_type
+        self.get_item_type()
     }
 
     pub(crate) fn is_type_undeclared(&self) -> bool {
-        self.item_type == &ItemType::Undeclared
+        self.get_item_type() == &ItemType::Undeclared
     }
 
     pub(crate) fn is_type_simple(&self) -> bool {
-        self.item_type == &ItemType::Simple
+        self.get_item_type() == &ItemType::Simple
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
-        self.item_type == &ItemType::ToDo
+        self.get_item_type() == &ItemType::ToDo
     }
 
     pub(crate) fn is_type_goal(&self) -> bool {
-        self.item_type == &ItemType::Hope
+        self.get_item_type() == &ItemType::Hope
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
-        self.item_type == &ItemType::Motivation
+        self.get_item_type() == &ItemType::Motivation
     }
 
     pub(crate) fn is_circumstance_focus_time(&self) -> bool {
@@ -438,7 +438,7 @@ impl<'b> Item<'b> {
     }
 
     pub(crate) fn is_goal(&self) -> bool {
-        self.item_type == &ItemType::Hope
+        self.get_item_type() == &ItemType::Hope
     }
 
     pub(crate) fn is_covered_by_a_hope(

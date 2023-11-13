@@ -66,7 +66,11 @@ impl<'s> ItemNode<'s> {
     }
 
     pub(crate) fn get_surreal_item(&self) -> &'s SurrealItem {
-        self.item.surreal_item
+        self.item.get_surreal_item()
+    }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
+        self.item.get_surreal_record_id()
     }
 
     pub(crate) fn is_person_or_group(&self) -> bool {

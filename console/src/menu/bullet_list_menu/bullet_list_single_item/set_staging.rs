@@ -84,7 +84,7 @@ pub(crate) async fn present_set_staging_menu(
         StagingMenuSelection::MakeItemReactive => {
             return send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateItemResponsibility(
-                    selected.get_surreal_item().clone(),
+                    selected.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
                 ))
                 .await
@@ -94,7 +94,7 @@ pub(crate) async fn present_set_staging_menu(
 
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemStaging(
-            selected.get_surreal_item().clone(),
+            selected.get_surreal_record_id().clone(),
             staging,
         ))
         .await
