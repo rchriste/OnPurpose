@@ -33,19 +33,12 @@ After _On Purpose_ is installed you launch _On Purpose_ by opening the Windows P
 PS C:\Users\russ-> on_purpose
 Welcome to On-Purpose: Time Management Rethought
 This is the console prototype using the inquire package
-Version 0.0.78
-?
-> 🗬    Capture                    🗭
-  ↝ ↝  Change Routine             ↜
-        Reflection
-  👁 🗒️ View Bullet List (To Dos) 👁
-  🗬 🙏 Capture Hope              🗭
-  👁 🙏 View Hopes                👁
-v 🗬 🎯 Capture Motivation        🗭
-[↑↓ to move, enter to select, type to filter]
-```
+Version 0.0.90
+? Select from the below list
+> 🗬   Capture New Item          🗭
+[↑↓ to move, enter to select, type to filter]```
 
-Press Enter
+What is being shown is a list with only one item so just press enter.
 
 ```Text
 >  🗬   Capture                  🗭
@@ -54,7 +47,7 @@ Press Enter
 
 Type in an item you want _On Purpose_ to track and press _Enter_. _On Purpose_ currently creates a directory at `c:\.on_purpose.db` to save the data. After you enter your first item _On Purpose_ will exit and whenever _On Purpose_ exits you are expected to type `on_purpose` and press enter to run the _On Purpose_ program again and continue.
 
-Now when you launch _On Purpose_ you are shown a _Dynamic Bullet List_ and as you capture more items that list will grow. To capture further items press _Esc_ from this menu. To search this list, just start typing but **in general _On Purpose_ is designed with the goal that you should mostly just pick the top item and then make a selection from the list for that item. If this item should not be the top item or you cannot take action at this time then you state such in the context list.** However that full list is not initially shown, once you select an item newly captured you are given the following contextual list of choices.
+Now when you launch _On Purpose_ you are shown a _Dynamic Bullet List_ and as you capture more items that list will grow. To search this list, start typing but **in general _On Purpose_ is designed with the goal that you should mostly just pick the top item and then make a selection from the list for that item. If this item should not be the top item or you cannot take action at this time then you state such in the context list after selecting that item.** However that full list is not initially shown, once you select an item newly captured you are given the following contextual list of choices.
 
 ```Text
 Welcome to On-Purpose: Time Management Rethought
