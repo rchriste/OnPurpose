@@ -8,7 +8,7 @@ The almost universal approach of having To Dos organized inside a collection of 
 
 **Success for improving mental health should be measured by:**
 
-1. If someone has a feeling of relief that the software is helping them track this mess they are in,
+1. If someone has a feeling of relief that the software is helping them track and manage this mess they are in,
 2. If they are excited and hopeful because they know what the next step is and,
 3. Do they have a hopeful belief that taking the next step will actually help.
 
@@ -29,14 +29,15 @@ This _On Purpose_ project was created as a place for me to implement, refine, an
 
 After _On Purpose_ is installed you launch _On Purpose_ by opening the Windows Program "Terminal" and then at the prompt typing `on_purpose` and pressing enter. On first launch you will see a menu item to Capture a new item.
 
-```text
+```Text
 PS C:\Users\russ-> on_purpose
 Welcome to On-Purpose: Time Management Rethought
 This is the console prototype using the inquire package
 Version 0.0.90
 ? Select from the below list
 > 🗬   Capture New Item          🗭
-[↑↓ to move, enter to select, type to filter]```
+[↑↓ to move, enter to select, type to filter]
+```
 
 What is being shown is a list with only one item so just press enter.
 
