@@ -39,45 +39,45 @@ use self::{
 
 pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
-    SendProcessedText(SurrealItem, oneshot::Sender<Vec<SurrealProcessedText>>),
-    AddProcessedText(String, SurrealItem),
-    FinishItem(SurrealItem),
+    SendProcessedText(RecordId, oneshot::Sender<Vec<SurrealProcessedText>>),
+    AddProcessedText(String, RecordId),
+    FinishItem(RecordId),
     NewItem(NewItem),
     CoverItemWithANewItem {
-        cover_this: SurrealItem,
+        cover_this: RecordId,
         cover_with: NewItem,
     },
-    CoverItemWithANewWaitingForQuestion(SurrealItem, String),
-    CoverItemWithANewMilestone(SurrealItem, String),
+    CoverItemWithANewWaitingForQuestion(RecordId, String),
+    CoverItemWithANewMilestone(RecordId, String),
     CoverItemWithAnExistingItem {
-        item_to_be_covered: SurrealItem,
-        item_that_should_do_the_covering: SurrealItem,
+        item_to_be_covered: RecordId,
+        item_that_should_do_the_covering: RecordId,
     },
     #[allow(dead_code)]
     //This was initially added for data migration that is now removed but I expect to want it again in the future
     RemoveCoveringItem(SurrealCovering),
-    CoverItemUntilAnExactDateTime(SurrealItem, DateTime<Utc>),
+    CoverItemUntilAnExactDateTime(RecordId, DateTime<Utc>),
     ParentItemWithExistingItem {
-        child: SurrealItem,
-        parent: SurrealItem,
-        higher_priority_than_this: Option<SurrealItem>,
+        child: RecordId,
+        parent: RecordId,
+        higher_priority_than_this: Option<RecordId>,
     },
     ParentItemWithANewChildItem {
         child: NewItem,
-        parent: SurrealItem,
-        higher_priority_than_this: Option<SurrealItem>,
+        parent: RecordId,
+        higher_priority_than_this: Option<RecordId>,
     },
     ParentNewItemWithAnExistingChildItem {
-        child: SurrealItem,
+        child: RecordId,
         parent_new_item: NewItem,
     },
-    AddCircumstanceNotSunday(SurrealItem),
-    AddCircumstanceDuringFocusTime(SurrealItem),
-    UpdateResponsibilityAndItemType(SurrealItem, Responsibility, ItemType),
+    AddCircumstanceNotSunday(RecordId),
+    AddCircumstanceDuringFocusTime(RecordId),
+    UpdateResponsibilityAndItemType(RecordId, Responsibility, ItemType),
     UpdateItemResponsibility(RecordId, Responsibility),
-    UpdateItemPermanence(SurrealItem, Permanence),
+    UpdateItemPermanence(RecordId, Permanence),
     UpdateItemStaging(RecordId, Staging),
-    UpdateItemSummary(SurrealItem, String),
+    UpdateItemSummary(RecordId, String),
 }
 
 impl DataLayerCommands {
@@ -95,7 +95,7 @@ impl DataLayerCommands {
     #[allow(dead_code)] //Remove after this is used beyond the unit tests
     pub(crate) async fn get_processed_text(
         sender: &Sender<DataLayerCommands>,
-        for_item: SurrealItem,
+        for_item: RecordId,
     ) -> Result<Vec<SurrealProcessedText>, RecvError> {
         let (processed_text_tx, processed_text_rx) = oneshot::channel();
         sender
@@ -200,7 +200,10 @@ pub(crate) async fn data_storage_start_and_run(
                 new_responsibility,
                 new_item_type,
             )) => {
-                let mut item = item;
+                let mut item = SurrealItem::get_by_id(item.id.to_raw(), &db)
+                    .await
+                    .unwrap()
+                    .unwrap();
                 item.responsibility = new_responsibility;
                 item.item_type = new_item_type;
                 item.update(&db).await.unwrap();
@@ -274,7 +277,7 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
 
 pub(crate) async fn add_processed_text(
     processed_text: String,
-    for_item: SurrealItem,
+    for_item: RecordId,
     db: &Surreal<Any>,
 ) {
     let for_item: Option<Thing> = for_item.into();
@@ -288,13 +291,13 @@ pub(crate) async fn add_processed_text(
 }
 
 pub(crate) async fn send_processed_text(
-    for_item: SurrealItem,
+    for_item: RecordId,
     send_response_here: oneshot::Sender<Vec<SurrealProcessedText>>,
     db: &Surreal<Any>,
 ) {
     let mut query_result = db
         .query("SELECT * FROM processed_text WHERE for_item = $for_item")
-        .bind(("for_item", for_item.id))
+        .bind(("for_item", for_item))
         .await
         .unwrap();
 
@@ -303,7 +306,11 @@ pub(crate) async fn send_processed_text(
     send_response_here.send(processed_text).unwrap();
 }
 
-pub(crate) async fn finish_item(mut finish_this: SurrealItem, db: &Surreal<Any>) {
+pub(crate) async fn finish_item(finish_this: RecordId, db: &Surreal<Any>) {
+    let mut finish_this = SurrealItem::get_by_id(finish_this.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
     finish_this.finished = Some(Local::now().naive_utc().and_utc().into());
     finish_this.update(db).await.unwrap();
 }
@@ -320,7 +327,7 @@ async fn new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
 }
 
 async fn cover_item_with_a_new_waiting_for_question(
-    item: SurrealItem,
+    item: RecordId,
     question: String,
     db: &Surreal<Any>,
 ) {
@@ -329,7 +336,7 @@ async fn cover_item_with_a_new_waiting_for_question(
     cover_item_with_a_new_next_step(item, question, Responsibility::WaitingFor, db).await
 }
 
-async fn cover_with_a_new_item(cover_this: SurrealItem, cover_with: NewItem, db: &Surreal<Any>) {
+async fn cover_with_a_new_item(cover_this: RecordId, cover_with: NewItem, db: &Surreal<Any>) {
     let cover_with = SurrealItem::new(cover_with, vec![]);
     let cover_with = cover_with
         .create(db)
@@ -352,13 +359,18 @@ async fn cover_with_a_new_item(cover_this: SurrealItem, cover_with: NewItem, db:
 }
 
 async fn cover_item_with_a_new_next_step(
-    item_to_cover: SurrealItem,
+    item_to_cover: RecordId,
     new_to_do_text: String,
     responsibility: Responsibility,
     db: &Surreal<Any>,
 ) {
     //Note that both of these things should really be happening inside of a single transaction but I don't know how to do that
     //easily so just do this for now.
+
+    let item_to_cover = SurrealItem::get_by_id(item_to_cover.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
 
     let new_to_do = SurrealItem {
         id: None,
@@ -391,7 +403,7 @@ async fn cover_item_with_a_new_next_step(
 }
 
 async fn cover_item_with_a_new_milestone(
-    item_to_cover: SurrealItem,
+    item_to_cover: RecordId,
     milestone_text: String,
     db: &Surreal<Any>,
 ) {
@@ -429,8 +441,8 @@ async fn cover_item_with_a_new_milestone(
 }
 
 async fn cover_item_with_an_existing_item(
-    existing_item_to_be_covered: SurrealItem,
-    existing_item_that_is_doing_the_covering: SurrealItem,
+    existing_item_to_be_covered: RecordId,
+    existing_item_that_is_doing_the_covering: RecordId,
     db: &Surreal<Any>,
 ) {
     let smaller_option: Option<Thing> = existing_item_that_is_doing_the_covering.into();
@@ -446,13 +458,13 @@ async fn cover_item_with_an_existing_item(
 }
 
 async fn cover_item_until_an_exact_date_time(
-    item_to_cover: SurrealItem,
+    item_to_cover: RecordId,
     cover_until: DateTime<Utc>,
     db: &Surreal<Any>,
 ) {
     SurrealCoveringUntilDatetime {
         id: None,
-        cover_this: item_to_cover.id.expect("Should already be in database"),
+        cover_this: item_to_cover,
         until: cover_until.into(),
     }
     .create(db)
@@ -460,18 +472,18 @@ async fn cover_item_until_an_exact_date_time(
     .unwrap();
 }
 
-async fn add_circumstance_not_sunday(item: SurrealItem, db: &Surreal<Any>) {
+async fn add_circumstance_not_sunday(item: RecordId, db: &Surreal<Any>) {
     add_circumstance(item, CircumstanceType::NotSunday, db).await
 }
 
-async fn add_circumstance_during_focus_time(item: SurrealItem, db: &Surreal<Any>) {
+async fn add_circumstance_during_focus_time(item: RecordId, db: &Surreal<Any>) {
     add_circumstance(item, CircumstanceType::DuringFocusTime, db).await
 }
 
-async fn add_circumstance(item: SurrealItem, circumstance: CircumstanceType, db: &Surreal<Any>) {
+async fn add_circumstance(item: RecordId, circumstance: CircumstanceType, db: &Surreal<Any>) {
     SurrealRequiredCircumstance {
         id: None,
-        required_for: item.id.unwrap(),
+        required_for: item,
         circumstance_type: circumstance,
     }
     .create(db)
@@ -480,13 +492,16 @@ async fn add_circumstance(item: SurrealItem, circumstance: CircumstanceType, db:
 }
 
 async fn parent_item_with_existing_item(
-    child: SurrealItem,
-    mut parent: SurrealItem,
-    higher_priority_than_this: Option<SurrealItem>,
+    child: RecordId,
+    parent: RecordId,
+    higher_priority_than_this: Option<RecordId>,
     db: &Surreal<Any>,
 ) {
+    let mut parent = SurrealItem::get_by_id(parent.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
     if let Some(higher_priority_than_this) = higher_priority_than_this {
-        let higher_priority_than_this = higher_priority_than_this.id.expect("Already in DB");
         let index_of_higher_priority = parent.smaller_items_in_priority_order
             .iter()
             .position(|x| match x {
@@ -502,14 +517,14 @@ async fn parent_item_with_existing_item(
         parent.smaller_items_in_priority_order.insert(
             index_of_higher_priority,
             SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child.id.expect("Already in DB"),
+                surreal_item_id: child,
             },
         );
     } else {
         parent
             .smaller_items_in_priority_order
             .push(SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child.id.expect("Already in DB"),
+                surreal_item_id: child,
             });
     }
     let saved = parent.clone().update(db).await.unwrap().unwrap();
@@ -518,22 +533,28 @@ async fn parent_item_with_existing_item(
 
 async fn parent_item_with_a_new_child(
     child: NewItem,
-    parent: SurrealItem,
-    higher_priority_than_this: Option<SurrealItem>,
+    parent: RecordId,
+    higher_priority_than_this: Option<RecordId>,
     db: &Surreal<Any>,
 ) {
     let child = new_item(child, db).await;
-    parent_item_with_existing_item(child, parent, higher_priority_than_this, db).await
+    parent_item_with_existing_item(
+        child.id.expect("In DB"),
+        parent,
+        higher_priority_than_this,
+        db,
+    )
+    .await
 }
 
 async fn parent_new_item_with_an_existing_child_item(
-    child: SurrealItem,
+    child: RecordId,
     parent_new_item: NewItem,
     db: &Surreal<Any>,
 ) {
     //TODO: Write a Unit Test for this
     let smaller_items_in_priority_order = vec![SurrealOrderedSubItem::SubItem {
-        surreal_item_id: child.id.expect("Already in DB"),
+        surreal_item_id: child,
     }];
 
     let parent_surreal_item = SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
@@ -541,10 +562,14 @@ async fn parent_new_item_with_an_existing_child_item(
 }
 
 async fn update_hope_permanence(
-    mut surreal_item: SurrealItem,
+    surreal_item: RecordId,
     new_permanence: Permanence,
     db: &Surreal<Any>,
 ) {
+    let mut surreal_item = SurrealItem::get_by_id(surreal_item.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
     surreal_item.permanence = new_permanence;
 
     if surreal_item.id.is_some() {
@@ -583,11 +608,11 @@ async fn update_hope_staging(record_id: RecordId, new_staging: Staging, db: &Sur
     }
 }
 
-async fn update_item_summary(
-    mut item_to_update: SurrealItem,
-    new_summary: String,
-    db: &Surreal<Any>,
-) {
+async fn update_item_summary(item_to_update: RecordId, new_summary: String, db: &Surreal<Any>) {
+    let mut item_to_update = SurrealItem::get_by_id(item_to_update.id.to_raw(), db)
+        .await
+        .unwrap()
+        .unwrap();
     item_to_update.summary = new_summary;
 
     item_to_update.update(db).await.unwrap();
@@ -661,16 +686,19 @@ mod tests {
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         let item = surreal_tables.surreal_items.first().unwrap();
-        let processed_text = DataLayerCommands::get_processed_text(&sender, item.clone())
-            .await
-            .unwrap();
+        let processed_text = DataLayerCommands::get_processed_text(
+            &sender,
+            item.get_id().as_ref().expect("Item exists in DB").clone(),
+        )
+        .await
+        .unwrap();
 
         assert!(processed_text.is_empty());
 
         sender
             .send(DataLayerCommands::AddProcessedText(
                 "Some user processed text".into(),
-                item.clone(),
+                item.get_id().as_ref().expect("Already in DB").clone(),
             ))
             .await
             .unwrap();
@@ -679,7 +707,11 @@ mod tests {
         let next_step = surreal_tables.surreal_items.first().unwrap();
         sender
             .send(DataLayerCommands::SendProcessedText(
-                next_step.clone(),
+                next_step
+                    .get_id()
+                    .as_ref()
+                    .expect("Item exists in DB")
+                    .clone(),
                 processed_text_tx,
             ))
             .await
@@ -721,7 +753,9 @@ mod tests {
         assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         sender
-            .send(DataLayerCommands::FinishItem(next_step_item.clone().into()))
+            .send(DataLayerCommands::FinishItem(
+                next_step_item.get_id().clone().into(),
+            ))
             .await
             .unwrap();
 
@@ -768,7 +802,7 @@ mod tests {
 
         sender
             .send(DataLayerCommands::CoverItemWithANewItem {
-                cover_this: item_to_cover.clone(),
+                cover_this: item_to_cover.get_id().as_ref().expect("In DB").clone(),
                 cover_with: new_item,
             })
             .await
@@ -823,7 +857,13 @@ mod tests {
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
-        let item_to_cover = surreal_tables.surreal_items.first().unwrap();
+        let item_to_cover = surreal_tables
+            .surreal_items
+            .first()
+            .unwrap()
+            .get_id()
+            .as_ref()
+            .expect("In DB");
 
         sender
             .send(DataLayerCommands::CoverItemWithANewWaitingForQuestion(
@@ -881,7 +921,13 @@ mod tests {
 
         assert_eq!(1, surreal_tables.surreal_items.len());
         assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
-        let item_to_cover = surreal_tables.surreal_items.first().unwrap();
+        let item_to_cover = surreal_tables
+            .surreal_items
+            .first()
+            .unwrap()
+            .get_id()
+            .as_ref()
+            .expect("In DB");
 
         sender
             .send(DataLayerCommands::CoverItemWithANewMilestone(
@@ -943,7 +989,13 @@ mod tests {
         let cover_until: chrono::DateTime<Utc> = Utc::now();
         sender
             .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                surreal_tables.surreal_items.into_iter().next().unwrap(),
+                surreal_tables
+                    .surreal_items
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .id
+                    .expect("In DB"),
                 cover_until.clone().into(),
             ))
             .await
@@ -1006,7 +1058,13 @@ mod tests {
 
         sender
             .send(DataLayerCommands::AddCircumstanceNotSunday(
-                surreal_tables.surreal_items.into_iter().next().unwrap(),
+                surreal_tables
+                    .surreal_items
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .id
+                    .expect("In DB"),
             ))
             .await
             .unwrap();
@@ -1064,7 +1122,13 @@ mod tests {
 
         sender
             .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
-                child: surreal_tables.surreal_items.into_iter().next().unwrap(),
+                child: surreal_tables
+                    .surreal_items
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .id
+                    .expect("In Db"),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")
                     .item_type(ItemType::Hope)
@@ -1150,12 +1214,18 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Item that needs a parent")
                     .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
                     .clone(),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
                     .clone(),
                 higher_priority_than_this: None,
             })

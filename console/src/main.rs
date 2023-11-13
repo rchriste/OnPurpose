@@ -9,7 +9,7 @@ mod surrealdb_layer;
 pub(crate) mod systems;
 
 use inquire::Text;
-use surrealdb_layer::surreal_item::SurrealItem;
+use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
@@ -24,7 +24,7 @@ pub(crate) enum UnexpectedNextMenuAction {
 }
 
 async fn update_item_summary(
-    item_to_cover: SurrealItem,
+    item_to_cover: RecordId,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();

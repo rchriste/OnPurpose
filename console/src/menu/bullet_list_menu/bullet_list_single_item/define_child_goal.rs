@@ -47,8 +47,8 @@ pub(crate) async fn define_child_goals(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: child.get_surreal_item().clone(),
-                    parent: wants_a_child.get_surreal_item().clone(),
+                    child: child.get_surreal_record_id().clone(),
+                    parent: wants_a_child.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -87,7 +87,7 @@ pub(crate) async fn define_child_goals_new_goal(
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewChildItem {
                     child: new_item,
-                    parent: wants_a_child.get_surreal_item().clone(),
+                    parent: wants_a_child.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await

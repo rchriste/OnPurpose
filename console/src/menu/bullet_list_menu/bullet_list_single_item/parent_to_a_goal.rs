@@ -42,8 +42,8 @@ pub(crate) async fn parent_to_a_motivation(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent: parent.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
+                    parent: parent.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -104,8 +104,8 @@ pub(crate) async fn parent_to_a_goal(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent: parent.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
+                    parent: parent.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -131,7 +131,7 @@ async fn parent_to_a_motivation_new_motivation(
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
-                    child: parent_this.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
                     parent_new_item: new_item,
                 })
                 .await
@@ -157,7 +157,7 @@ async fn parent_to_a_goal_new_goal(
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
-                    child: parent_this.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
                     parent_new_item: new_item,
                 })
                 .await

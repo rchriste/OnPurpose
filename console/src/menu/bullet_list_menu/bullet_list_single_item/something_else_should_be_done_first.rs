@@ -29,8 +29,10 @@ pub(crate) async fn something_else_should_be_done_first(
     match selection {
         Ok(should_be_done_first) => send_to_data_storage_layer
             .send(DataLayerCommands::CoverItemWithAnExistingItem {
-                item_to_be_covered: unable_to_do.get_surreal_item().clone(),
-                item_that_should_do_the_covering: should_be_done_first.get_surreal_item().clone(),
+                item_to_be_covered: unable_to_do.get_surreal_record_id().clone(),
+                item_that_should_do_the_covering: should_be_done_first
+                    .get_surreal_record_id()
+                    .clone(),
             })
             .await
             .unwrap(),
@@ -55,7 +57,7 @@ pub(crate) async fn something_else_should_be_done_first_new_item(
             let new_item = selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithANewItem {
-                    cover_this: unable_to_do.get_surreal_item().clone(),
+                    cover_this: unable_to_do.get_surreal_record_id().clone(),
                     cover_with: new_item,
                 })
                 .await

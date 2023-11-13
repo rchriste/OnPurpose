@@ -65,10 +65,6 @@ impl<'s> ItemNode<'s> {
         self.item
     }
 
-    pub(crate) fn get_surreal_item(&self) -> &'s SurrealItem {
-        self.item.get_surreal_item()
-    }
-
     pub(crate) fn get_surreal_record_id(&self) -> &Thing {
         self.item.get_surreal_record_id()
     }

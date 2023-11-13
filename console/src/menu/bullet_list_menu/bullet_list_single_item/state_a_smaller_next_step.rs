@@ -61,8 +61,8 @@ pub(crate) async fn state_a_smaller_next_step(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: child.get_surreal_item().clone(),
-                    parent: parent.get_surreal_item().clone(),
+                    child: child.get_surreal_record_id().clone(),
+                    parent: parent.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -107,7 +107,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewChildItem {
                     child: new_item,
-                    parent: parent.get_surreal_item().clone(),
+                    parent: parent.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await

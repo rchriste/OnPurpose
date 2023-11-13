@@ -338,12 +338,8 @@ impl<'b> Item<'b> {
         self.id
     }
 
-    pub(crate) fn get_surreal_item(&self) -> &'b SurrealItem {
-        self.surreal_item
-    }
-
     pub(crate) fn get_surreal_record_id(&self) -> &'b RecordId {
-        &self.id
+        self.id
     }
 
     pub(crate) fn get_summary(&self) -> &'b str {

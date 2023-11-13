@@ -460,7 +460,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(
-                menu_for.get_surreal_item().clone(),
+                menu_for.get_surreal_record_id().clone(),
                 send_to_data_storage_layer,
             )
             .await
@@ -497,7 +497,7 @@ async fn finish_bullet_item(
 ) {
     send_to_data_storage_layer
         .send(DataLayerCommands::FinishItem(
-            finish_this.get_surreal_item().clone(),
+            finish_this.get_surreal_record_id().clone(),
         ))
         .await
         .unwrap();
@@ -529,7 +529,7 @@ async fn process_and_finish_bullet_item(
     //should be prompted to pick which children to also process and finish.
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
 
-    let surreal_item = item.get_surreal_item();
+    let surreal_item = item.get_surreal_record_id();
     if !user_processed_text.is_empty() {
         send_to_data_storage_layer
             .send(DataLayerCommands::AddProcessedText(
@@ -612,8 +612,8 @@ async fn parent_to_item(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: parent_this.get_surreal_item().clone(),
-                    parent: item_node.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
+                    parent: item_node.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -651,8 +651,8 @@ pub(crate) async fn cover_with_item(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: item.get_surreal_item().clone(),
-                    parent: parent_this.get_surreal_item().clone(),
+                    child: item.get_surreal_record_id().clone(),
+                    parent: parent_this.get_surreal_record_id().clone(),
                     higher_priority_than_this,
                 })
                 .await
@@ -757,7 +757,7 @@ pub(crate) async fn parent_to_new_item(
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
-                    child: parent_this.get_surreal_item().clone(),
+                    child: parent_this.get_surreal_record_id().clone(),
                     parent_new_item: new_item,
                 })
                 .await
@@ -780,7 +780,7 @@ pub(crate) async fn cover_with_new_item(
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithANewItem {
-                    cover_this: cover_this.get_surreal_item().clone(),
+                    cover_this: cover_this.get_surreal_record_id().clone(),
                     cover_with: new_item,
                 })
                 .await
@@ -802,7 +802,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ProactiveAction) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
                     ItemType::ToDo,
                 ))
@@ -812,7 +812,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ResponsiveAction) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
                     ItemType::ToDo,
                 ))
@@ -822,7 +822,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ProactiveGoal) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
                     ItemType::Hope,
                 ))
@@ -832,7 +832,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ResponsiveGoal) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
                     ItemType::Hope,
                 ))
@@ -842,7 +842,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ProactiveMotivation) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
                     ItemType::Motivation,
                 ))
@@ -852,7 +852,7 @@ pub(crate) async fn declare_item_type(
         Ok(ItemTypeSelection::ResponsiveMotivation) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_item().clone(),
+                    item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
                     ItemType::Motivation,
                 ))
@@ -894,7 +894,7 @@ pub(crate) async fn present_is_person_or_group_around_menu(
     match selection {
         Ok(IsAPersonOrGroupAroundSelection::Yes) => send_to_data_storage_layer
             .send(DataLayerCommands::FinishItem(
-                person_or_group_node.get_surreal_item().clone(),
+                person_or_group_node.get_surreal_record_id().clone(),
             ))
             .await
             .unwrap(),

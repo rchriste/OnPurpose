@@ -189,7 +189,7 @@ async fn cover_with_new_waiting_for_question<'a>(
     let question = Text::new("Enter Waiting For Question ⍠").prompt().unwrap();
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithANewWaitingForQuestion(
-            item_to_cover.get_surreal_item().clone(),
+            item_to_cover.get_surreal_record_id().clone(),
             question,
         ))
         .await
@@ -236,8 +236,8 @@ async fn cover_with_existing_waiting_for_question(
     match selection {
         Ok(CoverExistingItem::ExistingToDo(selected_to_do)) => send_to_data_storage_layer
             .send(DataLayerCommands::CoverItemWithAnExistingItem {
-                item_to_be_covered: item_to_cover.get_surreal_item().clone(),
-                item_that_should_do_the_covering: selected_to_do.get_surreal_item().clone(),
+                item_to_be_covered: item_to_cover.get_surreal_record_id().clone(),
+                item_that_should_do_the_covering: selected_to_do.get_surreal_record_id().clone(),
             })
             .await
             .unwrap(),
@@ -363,7 +363,7 @@ async fn set_circumstance_not_sunday(
 ) {
     send_to_data_storage_layer
         .send(DataLayerCommands::AddCircumstanceNotSunday(
-            item_to_get_circumstance.get_surreal_item().clone(),
+            item_to_get_circumstance.get_surreal_record_id().clone(),
         ))
         .await
         .unwrap()
@@ -375,7 +375,7 @@ async fn set_circumstance_during_focus_time(
 ) {
     send_to_data_storage_layer
         .send(DataLayerCommands::AddCircumstanceDuringFocusTime(
-            item_to_get_circumstance.get_surreal_item().clone(),
+            item_to_get_circumstance.get_surreal_record_id().clone(),
         ))
         .await
         .unwrap()
@@ -398,7 +398,7 @@ async fn cover_for_an_amount_of_time(
             let wait_until = now + wait_duration;
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                    item_to_cover.get_surreal_item().clone(),
+                    item_to_cover.get_surreal_record_id().clone(),
                     wait_until.into(),
                 ))
                 .await

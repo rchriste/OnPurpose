@@ -370,7 +370,7 @@ pub(crate) async fn present_mentally_resident_hope_selected_menu(
         }
         Ok(MentallyResidentHopeSelectedMenuItem::UpdateSummary) => {
             update_item_summary(
-                hope_selected.get_surreal_item().clone(),
+                hope_selected.get_surreal_record_id().clone(),
                 send_to_data_storage_layer,
             )
             .await
@@ -426,7 +426,7 @@ async fn cover_hope_with_new_milestone(
 
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemWithANewMilestone(
-            existing_hope.get_surreal_item().clone(),
+            existing_hope.get_surreal_record_id().clone(),
             new_milestone_text,
         ))
         .await
@@ -439,7 +439,7 @@ async fn process_and_finish_hope(
 ) {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
 
-    let surreal_item = selected_hope.get_surreal_item();
+    let surreal_item = selected_hope.get_surreal_record_id();
     if !user_processed_text.is_empty() {
         send_to_data_storage_layer
             .send(DataLayerCommands::AddProcessedText(
@@ -462,7 +462,7 @@ async fn switch_to_maintenance_item(
 ) {
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemPermanence(
-            selected.get_surreal_item().clone(),
+            selected.get_surreal_record_id().clone(),
             Permanence::Maintenance,
         ))
         .await

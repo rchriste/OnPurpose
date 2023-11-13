@@ -1,11 +1,9 @@
 use std::fmt::Display;
 
 use inquire::Select;
+use surrealdb::opt::RecordId;
 
-use crate::{
-    base_data::item::Item, display::display_item::DisplayItem,
-    surrealdb_layer::surreal_item::SurrealItem,
-};
+use crate::{base_data::item::Item, display::display_item::DisplayItem};
 
 enum HigherPriorityThan<'e> {
     Item(DisplayItem<'e>),
@@ -33,14 +31,14 @@ impl<'e> HigherPriorityThan<'e> {
     }
 }
 
-pub(crate) fn select_higher_priority_than_this(items: &[&Item<'_>]) -> Option<SurrealItem> {
+pub(crate) fn select_higher_priority_than_this(items: &[&Item<'_>]) -> Option<RecordId> {
     let list = HigherPriorityThan::create_list(items);
     let selected = Select::new("Select higher priority than this", list)
         .prompt()
         .unwrap();
     match selected {
         HigherPriorityThan::Item(display_item) => {
-            let surreal_item = display_item.get_surreal_item();
+            let surreal_item = display_item.get_surreal_record_id();
             Some(surreal_item.clone())
         }
         HigherPriorityThan::PutAtTheBottom => None,

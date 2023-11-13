@@ -134,7 +134,7 @@ pub(crate) async fn place_to_contact_is_not_open(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                    unable_to_do.get_surreal_item().clone(),
+                    unable_to_do.get_surreal_record_id().clone(),
                     when_they_will_be_open,
                 ))
                 .await
@@ -156,7 +156,7 @@ pub(crate) async fn place_to_contact_is_not_open(
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                    unable_to_do.get_surreal_item().clone(),
+                    unable_to_do.get_surreal_record_id().clone(),
                     when_they_will_be_open.into(),
                 ))
                 .await
@@ -218,8 +218,10 @@ pub(crate) async fn person_or_group_is_not_available(
             let person_or_group: &Item = person_or_group.into();
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithAnExistingItem {
-                    item_to_be_covered: unable_to_do.get_surreal_item().clone(),
-                    item_that_should_do_the_covering: person_or_group.get_surreal_item().clone(),
+                    item_to_be_covered: unable_to_do.get_surreal_record_id().clone(),
+                    item_that_should_do_the_covering: person_or_group
+                        .get_surreal_record_id()
+                        .clone(),
                 })
                 .await
                 .unwrap()
@@ -231,7 +233,7 @@ pub(crate) async fn person_or_group_is_not_available(
             let new_item = NewItem::new_person_or_group(summary);
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithANewItem {
-                    cover_this: unable_to_do.get_surreal_item().clone(),
+                    cover_this: unable_to_do.get_surreal_record_id().clone(),
                     cover_with: new_item,
                 })
                 .await
@@ -273,7 +275,7 @@ pub(crate) async fn need_to_wait_before_working_on_this(
     };
     send_to_data_storage_layer
         .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-            unable_to_do.get_surreal_item().clone(),
+            unable_to_do.get_surreal_record_id().clone(),
             wait_until,
         ))
         .await

@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use crate::{
-    base_data::item::Item,
-    surrealdb_layer::surreal_item::{ItemType, SurrealItem},
-};
+use surrealdb::opt::RecordId;
+
+use crate::{base_data::item::Item, surrealdb_layer::surreal_item::ItemType};
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
 /// putting that onto the core Item type that should not be tied to specific display or printing logic for a console
@@ -52,7 +51,7 @@ impl<'s> DisplayItem<'s> {
         items.iter().map(|x| DisplayItem::new(x)).collect()
     }
 
-    pub(crate) fn get_surreal_item(&'s self) -> &'s SurrealItem {
-        self.item.get_surreal_item()
+    pub(crate) fn get_surreal_record_id(&'s self) -> &'s RecordId {
+        self.item.get_surreal_record_id()
     }
 }
