@@ -33,8 +33,7 @@ pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
             Text::new("How long until you need to work on this again?").prompt()?;
         let deadline_duration = parse(&deadline_string).unwrap();
         let work_on_again_before = now + deadline_duration;
-        println!("Set work on again before to {}?", work_on_again_before);
-        let result = Select::new("Select from the below list", YesOrNo::make_list()).prompt()?;
+        let result = Select::new(&format!("Set work on again before {}?", work_on_again_before), YesOrNo::make_list()).prompt()?;
         match result {
             YesOrNo::Yes => break work_on_again_before,
             YesOrNo::No => continue,
