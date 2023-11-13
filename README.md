@@ -118,6 +118,28 @@ Version 0.0.86
 
 **Make Item Reactive** This item should not be prompted as a proactive action to take in the dynamic bullet list but it should be findable when search for a parent item.
 
+## Major Features Currently Missing
+
+**Routines along with the Prioritization and Scheduling of Work** is currently missing. This is about being able to define a different set of priorities during different parts of the day, which I call a routine. Then it is about prioritizing work against other related work. And finally it is about the mostly rough scheduling of this work to do.
+
+**Along with work** is something that we desire to do along with something else even though it is not required and maybe not even related to the primary item. Doing something in the background during a meeting is an example of along with work. Another example is if you are programming and you make a not strictly or absolutely required change because it is a good idea and you are already editing that part of the code then this is also "along with work." The idea is that this is work that is done along with something else because that just makes and is more efficient.
+
+**Mood** is not really a perfect name but that is what I am calling it for now. This is about being able to define work based on certain qualities that account for our mental or physical state. For example:
+
+* Being able to say that I need to work on something right now that involves new information like being made aware of things versus being able to work or focus on something very expected and without surprises. Or,
+* Work that requires my full undivided attention versus things I can do with partial attention. Or,
+* Things that I can do even though I don't feel too well right now versus work that needs to wait until I feel physically fine.
+* Things that involve sitting still versus things when I need to be moving around.
+
+**Integration with the Microsoft Platform** is about making _On Purpose_ more reactive, smart, and useful to what is happening rather than needing to be told everything. For example:
+
+* When you flag and email it will automatically show up on the list. Or,
+* When you send someone or a group an email message or message over Microsoft Teams you can mark that you are waiting for a response. Or,
+* You can start a Windows Focus Session. Or,
+* When you create an Azure DevOps PR, Build or Deployment you can track this and be told when it return because there is something that you can do.
+* Watch your email or Azure DevOps PRs, and Work Items for new things coming your way that you should look at.
+* The ability to see your upcoming meetings in your Dynamic Bullet list, state if you are going to attend and be able to better schedule work around it.
+
 ## Installing On Purpose
 
 If you want to try it now you will need to compile it and use the Rust tool `Cargo` to install it. As of today I expect _On Purpose_ to work on both Windows and Linux however I do have plans to integrate with various Windows API in time. I will mention that setting up the Surreal DB build dependency is more of a pain in Windows proper than the convenient steps you can follow inside Windows' Linux WSL layer. But Windows is the target platform.
