@@ -5,10 +5,7 @@ use ouroboros::self_referencing;
 
 use crate::{
     base_data::{
-        covering::Covering,
-        covering_until_date_time::CoveringUntilDateTime,
-        item::Item,
-        BaseData,
+        covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
     },
     node::item_node::ItemNode,
 };

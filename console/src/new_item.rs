@@ -36,39 +36,6 @@ impl NewItem {
         }
     }
 
-    pub(crate) fn new_action(summary: String) -> Self {
-        NewItem {
-            summary,
-            finished: None,
-            responsibility: Responsibility::default(),
-            item_type: ItemType::ToDo,
-            permanence: Permanence::default(),
-            staging: Staging::default(),
-        }
-    }
-
-    pub(crate) fn new_goal(summary: String) -> Self {
-        NewItem {
-            summary,
-            finished: None,
-            responsibility: Responsibility::default(),
-            item_type: ItemType::Hope,
-            permanence: Permanence::default(),
-            staging: Staging::default(),
-        }
-    }
-
-    pub(crate) fn new_motivation(summary: String) -> Self {
-        NewItem {
-            summary,
-            finished: None,
-            responsibility: Responsibility::default(),
-            item_type: ItemType::Motivation,
-            permanence: Permanence::default(),
-            staging: Staging::default(),
-        }
-    }
-
     pub(crate) fn new_person_or_group(summary: String) -> Self {
         NewItem {
             summary,

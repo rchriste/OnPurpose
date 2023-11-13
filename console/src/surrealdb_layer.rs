@@ -644,7 +644,10 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_action = NewItem::new_action("New next step".into());
+        let new_action = NewItemBuilder::default()
+            .summary("New next step")
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_action))
             .await
@@ -694,7 +697,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_next_step = NewItem::new_action("New next step".into());
+        let new_next_step = NewItemBuilder::default()
+            .summary("New next step")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_next_step))
             .await
@@ -731,7 +738,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_action = NewItem::new_action("Item to be covered".into());
+        let new_action = NewItemBuilder::default()
+            .summary("Item to be covered")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_action))
             .await
@@ -793,7 +804,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_action = NewItem::new_action("Item to be covered".into());
+        let new_action = NewItemBuilder::default()
+            .summary("Item to be covered")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_action))
             .await
@@ -847,7 +862,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_goal = NewItem::new_goal("Hope to be covered".into());
+        let new_goal = NewItemBuilder::default()
+            .summary("Hope to be covered")
+            .item_type(ItemType::Hope)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_goal))
             .await
@@ -901,7 +920,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_action = NewItem::new_action("Item to be covered".into());
+        let new_action = NewItemBuilder::default()
+            .summary("Item to be covered")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_action))
             .await
@@ -961,7 +984,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_item = NewItem::new_action("Item to get requirement".into());
+        let new_item = NewItemBuilder::default()
+            .summary("Item to get requirement")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_item))
             .await
@@ -1016,7 +1043,11 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_action = NewItem::new_action("Item that needs a parent".into());
+        let new_action = NewItemBuilder::default()
+            .summary("Item that needs a parent")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(new_action))
             .await
@@ -1083,13 +1114,21 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let item_that_needs_a_parent = NewItem::new_action("Item that needs a parent".into());
+        let item_that_needs_a_parent = NewItemBuilder::default()
+            .summary("Item that needs a parent")
+            .item_type(ItemType::ToDo)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(item_that_needs_a_parent))
             .await
             .unwrap();
 
-        let parent_item = NewItem::new_action("Parent Item".into());
+        let parent_item = NewItemBuilder::default()
+            .summary("Parent Item")
+            .item_type(ItemType::Hope)
+            .build()
+            .expect("Filled out required fields");
         sender
             .send(DataLayerCommands::NewItem(parent_item))
             .await

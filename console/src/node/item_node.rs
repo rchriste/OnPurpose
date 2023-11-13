@@ -439,6 +439,7 @@ mod tests {
         let to_dos = items.filter_just_actions();
         let next_step_nodes = to_dos
             .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &active_items))
+            .filter(|x| x.get_smaller().is_empty())
             .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);

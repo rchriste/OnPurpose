@@ -93,36 +93,6 @@ pub(crate) async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommand
         .unwrap();
 }
 
-async fn capture_to_do(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let new_next_step_text = Text::new("Enter To Do ⍠").prompt().unwrap();
-
-    let new_action = NewItem::new_action(new_next_step_text);
-    send_to_data_storage_layer
-        .send(DataLayerCommands::NewItem(new_action))
-        .await
-        .unwrap();
-}
-
-async fn capture_hope(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let new_hope_text = Text::new("Enter Hope ⍠").prompt().unwrap();
-
-    let new_goal = NewItem::new_goal(new_hope_text);
-    send_to_data_storage_layer
-        .send(DataLayerCommands::NewItem(new_goal))
-        .await
-        .unwrap();
-}
-
-async fn capture_motivation(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let summary_text = Text::new("Enter Motivation ⍠").prompt().unwrap();
-
-    let new_motivation = NewItem::new_motivation(summary_text);
-    send_to_data_storage_layer
-        .send(DataLayerCommands::NewItem(new_motivation))
-        .await
-        .unwrap();
-}
-
 async fn view_motivations() {
     todo!()
 }

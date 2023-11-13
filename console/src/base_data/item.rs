@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Local};
 use itertools::chain;
 use surrealdb::{
     opt::RecordId,
@@ -257,42 +257,8 @@ impl<'b> Item<'b> {
         self.item_type == &ItemType::PersonOrGroup
     }
 
-    pub(crate) fn is_circumstances_met(
-        &self,
-        date: &DateTime<Local>,
-        are_we_in_focus_time: bool,
-    ) -> bool {
-        self.is_circumstances_met_sunday(date)
-            && self.is_circumstances_met_focus_time(are_we_in_focus_time)
-    }
-
-    pub(crate) fn is_circumstances_met_sunday(&self, date: &DateTime<Local>) -> bool {
-        !self
-            .required_circumstances
-            .iter()
-            .any(|x| match x.circumstance_type {
-                CircumstanceType::NotSunday => date.weekday().num_days_from_sunday() == 0,
-                _ => false,
-            })
-    }
-
-    pub(crate) fn is_circumstances_met_focus_time(&self, are_we_in_focus_time: bool) -> bool {
-        let should_this_be_done_during_focus_time = self
-            .required_circumstances
-            .iter()
-            .any(|x| matches!(x.circumstance_type, CircumstanceType::DuringFocusTime));
-
-        should_this_be_done_during_focus_time == are_we_in_focus_time
-    }
-
     pub(crate) fn is_finished(&self) -> bool {
         self.finished.is_some()
-    }
-
-    pub(crate) fn is_covered_by_another_item(&self, coverings: &[Covering<'_>]) -> bool {
-        let mut covered_by = coverings.iter().filter(|x| self == x.parent);
-        //Now see if the items that are covering are finished or active
-        covered_by.any(|x| !x.smaller.is_finished())
     }
 
     pub(crate) fn get_covered_by_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
@@ -309,12 +275,6 @@ impl<'b> Item<'b> {
             .collect()
     }
 
-    pub(crate) fn is_covering_another_item(&self, coverings: &[Covering<'_>]) -> bool {
-        let mut cover_others = coverings.iter().filter(|x| self == x.smaller);
-        //Now see if the items that are covering are finished or active
-        cover_others.any(|x| !x.parent.is_finished())
-    }
-
     pub(crate) fn get_covering_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
         let cover_others = coverings.iter().filter(|x| self == x.smaller);
         //Now see if the items that are covering are finished or active
@@ -327,17 +287,6 @@ impl<'b> Item<'b> {
                 }
             })
             .collect()
-    }
-
-    pub(crate) fn is_covered_by_date_time(
-        &self,
-        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
-        now: &DateTime<Local>,
-    ) -> bool {
-        let mut covered_by_date_time = coverings_until_date_time
-            .iter()
-            .filter(|x| self == x.cover_this);
-        covered_by_date_time.any(|x| now < &x.until)
     }
 
     pub(crate) fn get_covered_by_date_time_filter_out_the_past<'a>(
@@ -361,18 +310,6 @@ impl<'b> Item<'b> {
             .iter()
             .filter(|x| self == x.cover_this);
         covered_by_date_time.map(|x| &x.until).collect()
-    }
-
-    pub(crate) fn is_covered(
-        &self,
-        coverings: &[Covering<'_>],
-        coverings_until_date_time: &[CoveringUntilDateTime<'_>],
-        all_items: &[&Item<'_>],
-        now: &DateTime<Local>,
-    ) -> bool {
-        self.has_active_children(all_items)
-            || self.is_covered_by_another_item(coverings)
-            || self.is_covered_by_date_time(coverings_until_date_time, now)
     }
 
     pub(crate) fn covered_by(
@@ -607,113 +544,10 @@ impl Item<'_> {
 mod tests {
     use crate::surrealdb_layer::{
         surreal_item::{SurrealItemBuilder, SurrealOrderedSubItem},
-        surreal_required_circumstance::CircumstanceType,
         surreal_tables::SurrealTablesBuilder,
     };
 
     use super::*;
-
-    #[test]
-    fn is_circumstances_met_returns_false_if_circumstance_type_is_not_sunday_and_it_is_sunday() {
-        let surreal_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "1").into()))
-            .summary("Circumstance type is not Sunday")
-            .item_type(ItemType::ToDo)
-            .build()
-            .unwrap();
-
-        let required_circumstance = SurrealRequiredCircumstance {
-            id: Some(("surreal_required_circumstance", "1").into()),
-            required_for: surreal_item.id.as_ref().expect("set above").clone(),
-            circumstance_type: CircumstanceType::NotSunday,
-        };
-
-        let item = Item::new(&surreal_item, vec![&required_circumstance]);
-
-        let sunday =
-            DateTime::parse_from_str("1983 Apr 17 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
-                .unwrap()
-                .into();
-
-        assert!(!item.is_circumstances_met(&sunday, false));
-    }
-
-    #[test]
-    fn is_circumstances_met_returns_true_if_circumstance_type_is_not_sunday_and_it_is_not_sunday() {
-        let surreal_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "1").into()))
-            .summary("Circumstance type is not Sunday")
-            .item_type(ItemType::ToDo)
-            .build()
-            .unwrap();
-
-        let required_circumstance = SurrealRequiredCircumstance {
-            id: Some(("surreal_required_circumstance", "1").into()),
-            required_for: surreal_item.id.as_ref().expect("set above").clone(),
-            circumstance_type: CircumstanceType::NotSunday,
-        };
-
-        let item = Item::new(&surreal_item, vec![&required_circumstance]);
-
-        let wednesday =
-            DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
-                .unwrap()
-                .into();
-
-        assert!(item.is_circumstances_met(&wednesday, false));
-    }
-
-    #[test]
-    fn is_circumstances_met_returns_false_if_focus_time_is_not_active_and_circumstance_type_is_during_focus_time(
-    ) {
-        let surreal_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "1").into()))
-            .summary("Circumstance type is not Sunday")
-            .item_type(ItemType::ToDo)
-            .build()
-            .unwrap();
-
-        let required_circumstance = SurrealRequiredCircumstance {
-            id: Some(("surreal_required_circumstance", "1").into()),
-            required_for: surreal_item.id.as_ref().expect("set above").clone(),
-            circumstance_type: CircumstanceType::DuringFocusTime,
-        };
-
-        let item = Item::new(&surreal_item, vec![&required_circumstance]);
-
-        let wednesday_ignore =
-            DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
-                .unwrap()
-                .into();
-
-        assert!(item.is_circumstances_met(&wednesday_ignore, true));
-    }
-
-    #[test]
-    fn is_circumstances_met_returns_true_if_focus_time_is_active_and_circumstance_type_is_during_focus_time(
-    ) {
-        let surreal_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "1").into()))
-            .summary("Circumstance type is not Sunday")
-            .item_type(ItemType::ToDo)
-            .build()
-            .unwrap();
-
-        let required_circumstance = SurrealRequiredCircumstance {
-            id: Some(("surreal_required_circumstance", "1").into()),
-            required_for: surreal_item.id.as_ref().expect("set above").clone(),
-            circumstance_type: CircumstanceType::DuringFocusTime,
-        };
-
-        let item = Item::new(&surreal_item, vec![&required_circumstance]);
-
-        let wednesday_ignore =
-            DateTime::parse_from_str("1983 Apr 13 12:09:14.274 +0000", "%Y %b %d %H:%M:%S%.3f %z")
-                .unwrap()
-                .into();
-
-        assert!(!item.is_circumstances_met(&wednesday_ignore, false));
-    }
 
     #[test]
     fn to_do_item_with_a_parent_returns_the_parent_when_find_parents_is_called() {
