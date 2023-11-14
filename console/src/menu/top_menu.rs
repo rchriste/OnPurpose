@@ -65,7 +65,7 @@ impl TopMenuSelection {
 pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let top_menu = TopMenuSelection::make_list();
 
-    let selection = Select::new("Select from the below list", top_menu)
+    let selection = Select::new("Select from the below list|", top_menu)
         .prompt()
         .unwrap();
     match selection {

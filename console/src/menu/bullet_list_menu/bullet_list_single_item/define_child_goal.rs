@@ -31,7 +31,7 @@ pub(crate) async fn define_child_goals(
         .map(DisplayItem::new)
         .collect::<Vec<_>>();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(child) => {
             let child: &Item<'_> = child.into();
@@ -72,7 +72,7 @@ pub(crate) async fn define_child_goals_new_goal(
 ) {
     let list = ItemTypeSelection::create_list_just_goals();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();

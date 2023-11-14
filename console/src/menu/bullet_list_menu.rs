@@ -91,7 +91,7 @@ pub(crate) async fn present_bullet_list_menu(
     let inquire_bullet_list = InquireBulletListItem::create_list(item_nodes, current_date_time);
 
     if !inquire_bullet_list.is_empty() {
-        let selected = Select::new("Select from the below list", inquire_bullet_list)
+        let selected = Select::new("Select from the below list|", inquire_bullet_list)
             .with_page_size(10)
             .prompt();
 

@@ -65,31 +65,17 @@ Version 0.0.85
 If this is a quick item that you just did or it should no longer be on the list then select `I finished`. Otherwise you should select `Declare Item Type`.
 
 ```Text
->  ❓ Respond to Robert's text message
->  Declare Item Type
-?
-> New Action 🪜
-  New Supportive or Tracking
-  New Proactive Multi-Step Goal 🪧
-  New Responsive Multi-Step Goal 🪧
-  New Proactive Motivational Reason For Taking Action 🎯
-  New Responsive Motivational Reason For Taking Action 🎯
+> Select from the below list ❓ Respond to Robert's text message
+> Select from the below list Declare Item Type
+? Select from the below list  
+> Action 🪜
+  Multi-Step Goal 🪧
+  Motivational Reason 🎯
+  Help
 [↑↓ to move, enter to select, type to filter]
 ```
 
-**New Action** Means the item captured is an action you should take. _Emoji is a ladder 🪜 with next steps._
-
-**New Supportive or Tracking** Means this is something expected to take some of your time, but in response to something that will probably or maybe happen. As of today this is an underdeveloped feature. Integration with the Microsoft Graph APIs & Azure DevOps is not hooked up. Also detection for if you are maybe over committed is not implemented. If you select this option now it will just hide the Item from showing up in the dynamic bullet list.
-
-**New Proactive Multi-Step Goal** Is for a milestone or hopeful outcome that will need to be broken down to smaller next steps. _Emoji is a Milestone sign 🪧 or goal post._
-
-**New Responsive Multi-Step Goal** The word responsive means do **not** prompt for a next step but this goal should be findable when parenting an action to a goal.
-
-**New Proactive Motivational Reason For Taking Action** This is for stating that the item captured is a reason for doing something. Because there is almost always a diverse number of benefits to doing something the word motivational is also used. The test to know if a reason is motivational is to ask the question if this was not true would that significantly change the priority or cancel the work. _Emoji is a target 🎯 that provides something to aim for._
-
-**New Responsive Motivational Reason For Taking Action** Once again the word responsive means that when something comes up this is a motivation for acting or responding but _On Purpose_ should **not** prompt to define goals or actions.
-
-After you declare an _item type_ and before you are given the full contextual list you also need to set what I am currently calling the "Staging" for that item. This is required because the information is used to order the list. The following is what that menu looks like.
+The goal here is to state if this is an action to take or something that will need to be broken down further to get to the next step. There is also an option to state if rather than an item to do this is a reason for doing things.
 
 ```Text
 Welcome to On-Purpose: Time Management Rethought

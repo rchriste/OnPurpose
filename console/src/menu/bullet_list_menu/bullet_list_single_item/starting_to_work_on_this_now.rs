@@ -60,7 +60,7 @@ pub(crate) async fn starting_to_work_on_this_now(
 ) {
     let list = WorkingOnNow::make_list(currently_working_on);
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(WorkingOnNow::CaptureAnUnrelatedItem) => {
             capture(send_to_data_storage_layer).await;

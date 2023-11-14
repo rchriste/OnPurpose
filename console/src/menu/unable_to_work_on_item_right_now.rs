@@ -63,7 +63,7 @@ pub(crate) async fn unable_to_work_on_item_right_now(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = UnableReason::make_list();
-    let selection = inquire::Select::new("Select from the below list", list).prompt();
+    let selection = inquire::Select::new("Select from the below list|", list).prompt();
 
     match selection {
         Ok(UnableReason::SomeoneOrGroupIsNotAvailable) => {
@@ -220,7 +220,7 @@ pub(crate) async fn person_or_group_is_not_available(
     let items = base_data.get_items();
     let list = PersonOrGroupSelection::make_list(items.filter_just_persons_or_groups());
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(PersonOrGroupSelection::ExistingPersonOrGroup(person_or_group)) => {
             let person_or_group: &Item = person_or_group.into();

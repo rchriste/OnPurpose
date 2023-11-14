@@ -11,7 +11,7 @@ pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
         let wait_duration = parse(&wait_string).unwrap();
         let wait_until = now + wait_duration;
         println!("Can wait until {}?", wait_until);
-        let result = Select::new("Select from the below list", YesOrNo::make_list()).prompt()?;
+        let result = Select::new("Select from the below list|", YesOrNo::make_list()).prompt()?;
         match result {
             YesOrNo::Yes => break wait_until,
             YesOrNo::No => continue,

@@ -26,7 +26,7 @@ pub(crate) async fn something_else_should_be_done_first(
         .copied()
         .map(DisplayItem::new)
         .collect::<Vec<_>>();
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(should_be_done_first) => send_to_data_storage_layer
             .send(DataLayerCommands::CoverItemWithAnExistingItem {
@@ -53,7 +53,7 @@ pub(crate) async fn something_else_should_be_done_first_new_item(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     let list = ItemTypeSelection::create_list();
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();

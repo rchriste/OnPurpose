@@ -314,7 +314,7 @@ pub(crate) async fn present_bullet_list_item_selected(
     let list =
         BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items, all_snoozed);
 
-    let selection = Select::new("Select from the below list", list)
+    let selection = Select::new("Select from the below list|", list)
         .with_page_size(14)
         .prompt();
 
@@ -817,7 +817,7 @@ pub(crate) async fn parent_to_new_item(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
@@ -849,7 +849,7 @@ pub(crate) async fn cover_with_new_item(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
@@ -881,7 +881,7 @@ pub(crate) async fn declare_item_type(
 ) {
     let list = ItemTypeSelection::create_list();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::Action) => {
             send_to_data_storage_layer
@@ -972,7 +972,7 @@ pub(crate) async fn present_is_person_or_group_around_menu(
 ) {
     let list = IsAPersonOrGroupAroundSelection::create_list();
 
-    let selection = Select::new("Select from the below list", list).prompt();
+    let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(IsAPersonOrGroupAroundSelection::Yes) => send_to_data_storage_layer
             .send(DataLayerCommands::FinishItem(

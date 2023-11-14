@@ -54,7 +54,7 @@ pub(crate) async fn present_set_staging_menu(
 ) {
     let list = StagingMenuSelection::make_list();
 
-    let selection = Select::new("Select from the below list", list)
+    let selection = Select::new("Select from the below list|", list)
         .prompt()
         .unwrap();
     let staging = match selection {
