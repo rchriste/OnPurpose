@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -83,6 +84,7 @@ pub(crate) async fn state_a_smaller_next_step(
     }
 }
 
+#[async_recursion]
 pub(crate) async fn state_a_smaller_next_step_new_item(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -91,6 +93,14 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
 
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let higher_priority_than_this = if selected_item.has_active_children() {

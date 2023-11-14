@@ -9,6 +9,7 @@ mod state_a_smaller_next_step;
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
+use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
@@ -666,85 +667,150 @@ pub(crate) async fn cover_with_item(
 }
 
 pub(crate) enum ItemTypeSelection {
-    ProactiveAction,
-    ResponsiveAction,
-    ProactiveGoal,
+    Action,
+    Goal,
     ResponsiveGoal,
-    ProactiveMotivation,
+    Motivation,
     ResponsiveMotivation,
+    NormalHelp,
+    ResponsiveHelp,
 }
 
 impl Display for ItemTypeSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ProactiveAction => write!(f, "New Action 🪜"),
-            Self::ResponsiveAction => write!(f, "New Supportive or Tracking"),
-            Self::ProactiveGoal => write!(f, "New Proactive Multi-Step Goal 🪧"),
-            Self::ResponsiveGoal => write!(f, "New Responsive Multi-Step Goal 🪧"),
-            Self::ProactiveMotivation => {
-                write!(f, "New Proactive Motivational Reason For Taking Action 🎯")
+            Self::Action => write!(f, "Action 🪜"),
+            Self::Goal => write!(f, "Multi-Step Goal 🪧"),
+            Self::ResponsiveGoal => write!(f, "Responsive Multi-Step Goal 🪧"),
+            Self::Motivation => {
+                write!(f, "Motivational Reason 🎯")
             }
             Self::ResponsiveMotivation => {
-                write!(f, "New Responsive Motivational Reason For Taking Action 🎯")
+                write!(f, "Responsive Motivational Reason 🎯")
             }
+            Self::NormalHelp | Self::ResponsiveHelp => write!(f, "Help"),
         }
     }
 }
 
 impl ItemTypeSelection {
     pub(crate) fn create_list() -> Vec<Self> {
-        vec![
-            Self::ProactiveAction,
-            Self::ResponsiveAction,
-            Self::ProactiveGoal,
-            Self::ResponsiveGoal,
-            Self::ProactiveMotivation,
-            Self::ResponsiveMotivation,
-        ]
+        vec![Self::Action, Self::Goal, Self::Motivation, Self::NormalHelp]
     }
 
     pub(crate) fn create_list_just_goals() -> Vec<Self> {
-        vec![Self::ProactiveGoal, Self::ResponsiveGoal]
+        vec![Self::Goal, Self::ResponsiveGoal, Self::ResponsiveHelp]
     }
 
     pub(crate) fn create_list_just_motivations() -> Vec<Self> {
-        vec![Self::ProactiveMotivation, Self::ResponsiveMotivation]
+        vec![
+            Self::Motivation,
+            Self::ResponsiveMotivation,
+            Self::ResponsiveHelp,
+        ]
     }
 
     pub(crate) fn create_new_item_prompt_user_for_summary(&self) -> new_item::NewItem {
         let summary = Text::new("Enter Summary ⍠").prompt().unwrap();
-        self.create_new_item_prompt(summary)
+        self.create_new_item(summary)
     }
 
-    pub(crate) fn create_new_item_prompt(&self, summary: String) -> new_item::NewItem {
+    pub(crate) fn create_new_item(&self, summary: String) -> new_item::NewItem {
         let mut new_item_builder = new_item::NewItemBuilder::default();
         let new_item_builder = new_item_builder.summary(summary);
         let new_item_builder = match self {
-            ItemTypeSelection::ProactiveAction => new_item_builder
+            ItemTypeSelection::Action => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(ItemType::ToDo),
-            ItemTypeSelection::ResponsiveAction => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::ToDo),
-            ItemTypeSelection::ProactiveGoal => new_item_builder
+            ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(ItemType::Hope),
             ItemTypeSelection::ResponsiveGoal => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
                 .item_type(ItemType::Hope),
-            ItemTypeSelection::ProactiveMotivation => new_item_builder
+            ItemTypeSelection::Motivation => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(ItemType::Motivation),
             ItemTypeSelection::ResponsiveMotivation => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
                 .item_type(ItemType::Motivation),
+            ItemTypeSelection::NormalHelp => {
+                panic!("NormalHelp should be handled before this point")
+            }
+            ItemTypeSelection::ResponsiveHelp => {
+                panic!("ResponsiveHelp should be handled before this point")
+            }
         };
         new_item_builder
             .build()
             .expect("Filled out required fields")
     }
+
+    pub(crate) fn print_normal_help() {
+        println!("{}Action{}", Style::default().bold(), Style::default());
+        println!("A thing to do and an action or step to take.");
+        println!(
+            "{}The emoji is a ladder 🪜 with steps.{}",
+            Style::default().italic(),
+            Style::default()
+        );
+        println!();
+        println!(
+            "{}Multi-Step Goal{}",
+            Style::default().bold(),
+            Style::default()
+        );
+        println!("A milestone or hopeful outcome that should be broken down to smaller steps to accomplish.");
+        println!(
+            "{}The emoji is a Milestone sign 🪧 or goal post.{}",
+            Style::default().italic(),
+            Style::default()
+        );
+        println!();
+        println!(
+            "{}Motivational Reason{}",
+            Style::default().bold(),
+            Style::default()
+        );
+        println!(
+            "For stating that the item captured is a reason for doing something. Because there is"
+        );
+        println!("almost always a diverse number of benefits to doing something the word motivational is");
+        println!("also used. The test to know if a reason is motivational is to ask the question if this");
+        println!("was not true would that significantly change the priority or cancel the work.");
+        println!(
+            "{}Emoji is a target 🎯 that provides something to aim for.{}",
+            Style::default().italic(),
+            Style::default()
+        );
+        println!();
+    }
+
+    pub(crate) fn print_responsive_help() {
+        println!(
+            "The word responsive means do {}not{} prompt for a next step but do be searchable so",
+            Style::default().bold(),
+            Style::default()
+        );
+        println!(
+            "work can be parented to this. {}Responsive{} should be used when the work to do is or",
+            Style::default().bold(),
+            Style::default()
+        );
+        println!(
+            "will be in response to something that has or might come up. A {}Responsive Goal or ",
+            Style::default().bold()
+        );
+        println!("Motivation{} does not need the user to define a next step. Rather this is considered as", Style::default());
+        println!(
+            "a scenario that if it occurs will require your time to address and take care of but"
+        );
+        println!("otherwise there is nothing to do. This is supportive work.");
+        println!();
+    }
 }
 
+#[async_recursion]
 pub(crate) async fn parent_to_new_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -753,6 +819,14 @@ pub(crate) async fn parent_to_new_item(
 
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            parent_to_new_item(parent_this, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            parent_to_new_item(parent_this, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
@@ -768,6 +842,7 @@ pub(crate) async fn parent_to_new_item(
     }
 }
 
+#[async_recursion]
 pub(crate) async fn cover_with_new_item(
     cover_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -776,6 +851,14 @@ pub(crate) async fn cover_with_new_item(
 
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            cover_with_new_item(cover_this, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            cover_with_new_item(cover_this, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
@@ -791,6 +874,7 @@ pub(crate) async fn cover_with_new_item(
     }
 }
 
+#[async_recursion]
 pub(crate) async fn declare_item_type(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -799,7 +883,7 @@ pub(crate) async fn declare_item_type(
 
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
-        Ok(ItemTypeSelection::ProactiveAction) => {
+        Ok(ItemTypeSelection::Action) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
@@ -809,17 +893,7 @@ pub(crate) async fn declare_item_type(
                 .await
                 .unwrap();
         }
-        Ok(ItemTypeSelection::ResponsiveAction) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    ItemType::ToDo,
-                ))
-                .await
-                .unwrap();
-        }
-        Ok(ItemTypeSelection::ProactiveGoal) => {
+        Ok(ItemTypeSelection::Goal) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
@@ -839,7 +913,7 @@ pub(crate) async fn declare_item_type(
                 .await
                 .unwrap();
         }
-        Ok(ItemTypeSelection::ProactiveMotivation) => {
+        Ok(ItemTypeSelection::Motivation) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
@@ -858,6 +932,14 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+        }
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            declare_item_type(item, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            declare_item_type(item, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),

@@ -274,6 +274,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "better_term"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d37760a0880fe412d875d772d6d41fa39ebe7b3e6cc7e92777fe881b347b0886"
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1970,9 +1976,10 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.95"
+version = "0.0.96"
 dependencies = [
  "async-recursion",
+ "better_term",
  "chrono",
  "dateparser",
  "derive_builder",

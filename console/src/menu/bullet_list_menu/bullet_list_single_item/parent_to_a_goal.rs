@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -120,6 +121,7 @@ pub(crate) async fn parent_to_a_goal(
     }
 }
 
+#[async_recursion]
 async fn parent_to_a_motivation_new_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -127,6 +129,14 @@ async fn parent_to_a_motivation_new_motivation(
     let list = ItemTypeSelection::create_list_just_motivations();
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            parent_to_a_motivation_new_motivation(parent_this, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            parent_to_a_motivation_new_motivation(parent_this, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer
@@ -146,6 +156,7 @@ async fn parent_to_a_motivation_new_motivation(
     }
 }
 
+#[async_recursion]
 async fn parent_to_a_goal_new_goal(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -153,6 +164,14 @@ async fn parent_to_a_goal_new_goal(
     let list = ItemTypeSelection::create_list_just_goals();
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer

@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -64,6 +65,7 @@ pub(crate) async fn define_child_goals(
     //TODO: I need to update this to ask if you want to define another child goal after you define one of them or stop
 }
 
+#[async_recursion]
 pub(crate) async fn define_child_goals_new_goal(
     wants_a_child: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -72,6 +74,14 @@ pub(crate) async fn define_child_goals_new_goal(
 
     let selection = Select::new("Select from the below list", list).prompt();
     match selection {
+        Ok(ItemTypeSelection::NormalHelp) => {
+            ItemTypeSelection::print_normal_help();
+            define_child_goals_new_goal(wants_a_child, send_to_data_storage_layer).await
+        }
+        Ok(ItemTypeSelection::ResponsiveHelp) => {
+            ItemTypeSelection::print_responsive_help();
+            define_child_goals_new_goal(wants_a_child, send_to_data_storage_layer).await
+        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let higher_priority_than_this = if wants_a_child.has_active_children() {
