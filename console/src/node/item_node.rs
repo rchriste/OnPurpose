@@ -139,14 +139,6 @@ impl<'s> ItemNode<'s> {
         self.smaller.iter().any(|x| !x.get_item().is_finished())
     }
 
-    pub(crate) fn is_circumstance_focus_time(&self) -> bool {
-        self.item.is_circumstance_focus_time()
-    }
-
-    pub(crate) fn get_estimated_focus_periods(&self) -> Option<u32> {
-        self.item.get_estimated_focus_periods()
-    }
-
     pub(crate) fn is_there_notes(&self) -> bool {
         //I should probably change this to search through the parents as well, but going with this for now to maintain backwards compatibility with the code already written before I switched over to this ItemNode type
         self.item.is_there_notes()

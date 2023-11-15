@@ -52,7 +52,6 @@ enum BulletListSingleItemSelection<'e> {
     ParentToAMotivation,
     PlanWhenToDoThis,
     ChangeStaging,
-    DoInAFocusPeriod,
     EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
@@ -112,7 +111,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::DeclareItemType => write!(f, "Declare Item Type"),
             Self::ParentToAGoal => write!(f, "Parent this to a Goal"),
             Self::ParentToAMotivation => write!(f, "Parent this to a Motivation"),
-            Self::DoInAFocusPeriod => write!(f, "This should be done in a Focus Period"),
             Self::EstimateHowManyFocusPeriodsThisWillTake => {
                 write!(f, "Estimate how many Focus Periods this will take")
             }
@@ -203,13 +201,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::SomethingElseShouldBeDoneFirst);
         }
 
-        let is_circumstance_focus_time = item_node.is_circumstance_focus_time();
-        if is_type_action {
-            if !is_circumstance_focus_time {
-                list.push(Self::DoInAFocusPeriod);
-            } else if item_node.get_estimated_focus_periods().is_none() {
-                list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
-            }
+        if is_type_action || is_type_goal {
+            list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
         }
 
         if is_type_action || is_type_goal {
@@ -347,9 +340,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
             parent_to_a_motivation(menu_for.get_item(), send_to_data_storage_layer).await
-        }
-        Ok(BulletListSingleItemSelection::DoInAFocusPeriod) => {
-            todo!("TODO: Implement DoInAFocusPeriod");
         }
         Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");

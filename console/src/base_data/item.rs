@@ -10,7 +10,7 @@ use crate::surrealdb_layer::{
         ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
         SurrealOrderedSubItem,
     },
-    surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
+    surreal_required_circumstance::SurrealRequiredCircumstance,
 };
 
 use super::{
@@ -372,16 +372,6 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_type_motivation(&self) -> bool {
         self.get_item_type() == &ItemType::Motivation
-    }
-
-    pub(crate) fn is_circumstance_focus_time(&self) -> bool {
-        self.required_circumstances
-            .iter()
-            .any(|x| matches!(x.circumstance_type, CircumstanceType::DuringFocusTime))
-    }
-
-    pub(crate) fn get_estimated_focus_periods(&self) -> Option<u32> {
-        todo!("I need to ensure that we are storing this data with an Item and then I can implement this method")
     }
 
     pub(crate) fn has_children(&self) -> bool {
