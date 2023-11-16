@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.98"
+version = "0.0.99"
 edition = "2021"
 
 [dependencies]
@@ -15,7 +15,7 @@ async-recursion = "1.0.5"
 duration-str = "0.7.0" #So I can parse the amount of time to wait
 parse_datetime = "0.5.0" #So I can parse when to expect something to be available
 dateparser = "0.2.0"
-itertools = "0.11.0"
+itertools = "0.12.0"
 ouroboros = "0.18.0" #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 derive_builder = "0.12.0"
 better_term = "1.4.1" #Added so I can use bold and other styles, initially just in the help text but with goals to expand

@@ -20,6 +20,8 @@ enum WorkingOnNow {
     CaptureAnUnrelatedItem,
     DefineFutureItemOntoParent,
     DefineSmallerNextStepToWorkOnNow,
+    DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish,
+    WorkedOnThisButMoreToDoBeforeItIsFinished,
     IFinished,
 }
 
@@ -30,6 +32,12 @@ impl Display for WorkingOnNow {
             WorkingOnNow::DefineFutureItemOntoParent => write!(f, "Define future item onto parent"),
             WorkingOnNow::DefineSmallerNextStepToWorkOnNow => {
                 write!(f, "Define smaller next step to work on now")
+            }
+            WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish => {
+                write!(f, "I did something and now I am waiting for a response or for a command to finish")
+            }
+            WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished => {
+                write!(f, "Worked on this but more to do before it is finished")
             }
             WorkingOnNow::IFinished => write!(f, "I finished"),
         }
@@ -42,6 +50,8 @@ impl WorkingOnNow {
             WorkingOnNow::CaptureAnUnrelatedItem,
             WorkingOnNow::IFinished,
             WorkingOnNow::DefineSmallerNextStepToWorkOnNow,
+            WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished,
+            WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish,
         ];
         if currently_working_on.has_larger() {
             list.push(WorkingOnNow::DefineFutureItemOntoParent);
@@ -70,6 +80,12 @@ pub(crate) async fn starting_to_work_on_this_now(
         }
         Ok(WorkingOnNow::DefineSmallerNextStepToWorkOnNow) => {
             todo!("Define smaller next step")
+        }
+        Ok(WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished) => {
+            todo!("Worked on this but more to do before it is finished")
+        }
+        Ok(WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish) => {
+            todo!("I did something and now I am waiting for a response or for a command to finish")
         }
         Ok(WorkingOnNow::IFinished) => {
             finish_bullet_item(
