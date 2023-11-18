@@ -3,7 +3,7 @@ pub(crate) mod bullet_list_single_item;
 use std::{fmt::Display, iter::once};
 
 use async_recursion::async_recursion;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Local};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use tokio::sync::mpsc::Sender;
@@ -70,14 +70,17 @@ impl<'a> InquireBulletListItem<'a> {
 pub(crate) async fn present_normal_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
+    let before_db_query = Local::now();
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
+    println!("Time to get data from database: {}", Local::now() - before_db_query);
     let current_date_time = Utc::now();
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
+    println!("Time to create bullet list: {}", Utc::now() - now);
     present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
 }
 

@@ -275,9 +275,9 @@ dependencies = [
 
 [[package]]
 name = "better_term"
-version = "1.4.2"
+version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8378f4de8a80d12e7104a69cbf5598bd60a7dcd2a141348bb3564fa146ed47a5"
+checksum = "6b31505c3f1fc81fa86afbaffe26d5d310c2cccc1bd75f884f9fcb26ef6150ba"
 
 [[package]]
 name = "bincode"
@@ -1980,7 +1980,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.100"
+version = "0.0.101"
 dependencies = [
  "async-recursion",
  "better_term",

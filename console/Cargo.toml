@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.100"
+version = "0.0.101"
 edition = "2021"
 
 [dependencies]
@@ -19,6 +19,13 @@ itertools = "0.12.0"
 ouroboros = "0.18.0" #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 derive_builder = "0.12.0"
 better_term = "1.4.1" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
+
+
+# Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
+# sure as it seems to require that you come up with your own RecordId without the ability to specify NONE to get 
+# surreal DB to pick it so I have decided to just try direct query to get familiar with that.
+# surreal_devl = "1.0.2"
+# surreal_derive_plus = "1.0.7"
 
 #Note that I tried adding the below package so I can see a call stack on stack overflow without needing to run inside a debugger.
 #However when I tried it on 10/25/2023 I had compile errors that seemed to imply that only Linux was supported at the time (version 0.3)

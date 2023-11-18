@@ -6,6 +6,7 @@
         "dateparser",
         "Datetime",
         "debuginfo",
+        "devl",
         "itertools",
         "meds",
         "neurodiverse",
