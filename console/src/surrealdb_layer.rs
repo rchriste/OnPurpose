@@ -27,7 +27,7 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::{
-        ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
+        GoalType, ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
         SurrealItemOldVersion, SurrealOrderedSubItem,
     },
     surreal_life_area::SurrealLifeArea,
@@ -372,11 +372,11 @@ async fn cover_item_with_a_new_next_step(
         .unwrap()
         .unwrap();
 
-    let new_to_do = SurrealItem {
+    let new_action = SurrealItem {
         id: None,
         summary: new_to_do_text,
         finished: None,
-        item_type: ItemType::ToDo,
+        item_type: ItemType::Action,
         smaller_items_in_priority_order: Vec::default(),
         responsibility: responsibility.clone(),
         notes_location: NotesLocation::default(),
@@ -390,7 +390,7 @@ async fn cover_item_with_a_new_next_step(
     .next()
     .unwrap();
 
-    let smaller_option: Option<Thing> = new_to_do.into();
+    let smaller_option: Option<Thing> = new_action.into();
     let parent_option: Option<Thing> = item_to_cover.into();
     SurrealCovering {
         id: None,
@@ -407,14 +407,13 @@ async fn cover_item_with_a_new_milestone(
     milestone_text: String,
     db: &Surreal<Any>,
 ) {
-    //TODO: This should be removed. I am not ever doing anything to encode the idea of milestone into the saved data.
     //This would be best done as a single transaction but I am not quite sure how to do that so do it separate for now
 
     let new_milestone = SurrealItem {
         id: None,
         summary: milestone_text,
         finished: None,
-        item_type: ItemType::Hope,
+        item_type: ItemType::Goal(GoalType::TangibleMilestone),
         smaller_items_in_priority_order: Vec::default(),
         responsibility: Responsibility::default(),
         notes_location: NotesLocation::default(),
@@ -736,7 +735,7 @@ mod tests {
 
         let new_next_step = NewItemBuilder::default()
             .summary("New next step")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -779,7 +778,7 @@ mod tests {
 
         let new_action = NewItemBuilder::default()
             .summary("Item to be covered")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -796,7 +795,7 @@ mod tests {
         let new_item = NewItemBuilder::default()
             .summary("Covering item")
             .responsibility(Responsibility::ProactiveActionToTake)
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .unwrap();
 
@@ -845,7 +844,7 @@ mod tests {
 
         let new_action = NewItemBuilder::default()
             .summary("Item to be covered")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -909,7 +908,7 @@ mod tests {
 
         let new_goal = NewItemBuilder::default()
             .summary("Hope to be covered")
-            .item_type(ItemType::Hope)
+            .item_type(ItemType::Goal(GoalType::default()))
             .build()
             .expect("Filled out required fields");
         sender
@@ -973,7 +972,7 @@ mod tests {
 
         let new_action = NewItemBuilder::default()
             .summary("Item to be covered")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1043,7 +1042,7 @@ mod tests {
 
         let new_item = NewItemBuilder::default()
             .summary("Item to get requirement")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1108,7 +1107,7 @@ mod tests {
 
         let new_action = NewItemBuilder::default()
             .summary("Item that needs a parent")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1131,7 +1130,7 @@ mod tests {
                     .expect("In Db"),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")
-                    .item_type(ItemType::Hope)
+                    .item_type(ItemType::Goal(GoalType::default()))
                     .build()
                     .unwrap(),
             })
@@ -1185,7 +1184,7 @@ mod tests {
 
         let item_that_needs_a_parent = NewItemBuilder::default()
             .summary("Item that needs a parent")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1195,7 +1194,7 @@ mod tests {
 
         let parent_item = NewItemBuilder::default()
             .summary("Parent Item")
-            .item_type(ItemType::Hope)
+            .item_type(ItemType::Goal(GoalType::default()))
             .build()
             .expect("Filled out required fields");
         sender

@@ -63,7 +63,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.get_item_type() == &ItemType::ToDo {
+            if x.get_item_type() == &ItemType::Action {
                 Some(x)
             } else {
                 None
@@ -73,7 +73,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
 
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.get_item_type() == &ItemType::Hope {
+            if matches!(x.get_item_type(), &ItemType::Goal(..)) {
                 Some(x)
             } else {
                 None
@@ -154,7 +154,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if x.get_item_type() == &ItemType::ToDo {
+            if x.get_item_type() == &ItemType::Action {
                 Some(x)
             } else {
                 None
@@ -164,7 +164,7 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
 
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if x.get_item_type() == &ItemType::Hope {
+            if matches!(x.get_item_type(), &ItemType::Goal(..)) {
                 Some(x)
             } else {
                 None
@@ -363,11 +363,11 @@ impl<'b> Item<'b> {
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
-        self.get_item_type() == &ItemType::ToDo
+        self.get_item_type() == &ItemType::Action
     }
 
     pub(crate) fn is_type_goal(&self) -> bool {
-        self.get_item_type() == &ItemType::Hope
+        matches!(self.get_item_type(), &ItemType::Goal(..))
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
@@ -424,10 +424,10 @@ impl<'b> Item<'b> {
     }
 
     pub(crate) fn is_goal(&self) -> bool {
-        self.get_item_type() == &ItemType::Hope
+        matches!(self.get_item_type(), &ItemType::Goal(..))
     }
 
-    pub(crate) fn is_covered_by_a_hope(
+    pub(crate) fn is_covered_by_a_goal(
         &self,
         coverings: &[Covering<'_>],
         all_items: &[&Item<'_>],
@@ -540,14 +540,14 @@ mod tests {
         let smaller_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Smaller item")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .unwrap();
         let parent_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
             .finished(None)
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }])
@@ -580,13 +580,13 @@ mod tests {
         let smaller_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Smaller item")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .unwrap();
         let parent_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }])
@@ -612,13 +612,13 @@ mod tests {
         let smaller_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Smaller item")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .build()
             .unwrap();
         let parent_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
-            .item_type(ItemType::ToDo)
+            .item_type(ItemType::Action)
             .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }])

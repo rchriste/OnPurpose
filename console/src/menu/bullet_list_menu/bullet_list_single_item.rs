@@ -34,7 +34,7 @@ use crate::{
     new_item,
     node::item_node::ItemNode,
     surrealdb_layer::{
-        surreal_item::{ItemType, Responsibility},
+        surreal_item::{GoalType, ItemType, Responsibility},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -546,7 +546,7 @@ async fn present_bullet_list_item_parent_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     match selected_item.get_type() {
-        ItemType::ToDo | ItemType::Hope => {
+        ItemType::Action | ItemType::Goal(..) => {
             present_bullet_list_item_selected(
                 selected_item,
                 current_date_time,
@@ -711,13 +711,13 @@ impl ItemTypeSelection {
         let new_item_builder = match self {
             ItemTypeSelection::Action => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::ToDo),
+                .item_type(ItemType::Action),
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Hope),
+                .item_type(ItemType::Goal(GoalType::default())),
             ItemTypeSelection::ResponsiveGoal => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Hope),
+                .item_type(ItemType::Goal(GoalType::default())),
             ItemTypeSelection::Motivation => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(ItemType::Motivation),
@@ -878,7 +878,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::ToDo,
+                    ItemType::Action,
                 ))
                 .await
                 .unwrap();
@@ -888,7 +888,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::Hope,
+                    ItemType::Goal(GoalType::default()),
                 ))
                 .await
                 .unwrap();
@@ -898,7 +898,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    ItemType::Hope,
+                    ItemType::Goal(GoalType::default()),
                 ))
                 .await
                 .unwrap();

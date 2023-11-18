@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -91,10 +90,42 @@ pub(crate) enum ItemType {
     #[default]
     Undeclared,
     Simple,
+    Action,
+    Goal(GoalType),
+    Motivation,
+    PersonOrGroup,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum GoalType {
+    #[default]
+    NotSpecified,
+    AspirationalHope,
+    TangibleMilestone,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum ItemTypeOldVersion {
+    #[default]
+    Undeclared,
+    Simple,
     ToDo, //TODO: Rename to Action
     Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
     Motivation,
     PersonOrGroup,
+}
+
+impl From<ItemTypeOldVersion> for ItemType {
+    fn from(value: ItemTypeOldVersion) -> Self {
+        match value {
+            ItemTypeOldVersion::Undeclared => ItemType::Undeclared,
+            ItemTypeOldVersion::Simple => ItemType::Simple,
+            ItemTypeOldVersion::ToDo => ItemType::Action,
+            ItemTypeOldVersion::Hope => ItemType::Goal(GoalType::NotSpecified),
+            ItemTypeOldVersion::Motivation => ItemType::Motivation,
+            ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -166,19 +197,6 @@ impl Ord for Staging {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum StagingOldVersion {
-    #[default]
-    NotSet,
-    MentallyResident,
-    OnDeck {
-        began_waiting: Datetime,
-        can_wait_until: Datetime,
-    },
-    Intension,
-    Released,
-}
-
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealOrderedSubItem {
     SubItem {
@@ -220,7 +238,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemType,
+    pub(crate) item_type: ItemTypeOldVersion,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -229,7 +247,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) permanence: Permanence,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: StagingOldVersion,
+    pub(crate) staging: Staging,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -243,36 +261,11 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type,
+            item_type: value.item_type.into(),
             notes_location: value.notes_location,
             permanence: value.permanence,
-            staging: value.staging.into(),
+            staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
-        }
-    }
-}
-
-impl From<StagingOldVersion> for Staging {
-    fn from(value: StagingOldVersion) -> Self {
-        match value {
-            StagingOldVersion::NotSet => Staging::NotSet,
-            StagingOldVersion::MentallyResident => {
-                let now = Utc::now();
-                let a_day_from_now = now + chrono::Duration::days(1);
-                Staging::MentallyResident {
-                    last_worked_on: now.into(),
-                    work_on_again_before: a_day_from_now.into(),
-                }
-            }
-            StagingOldVersion::OnDeck {
-                began_waiting,
-                can_wait_until,
-            } => Staging::OnDeck {
-                began_waiting,
-                can_wait_until,
-            },
-            StagingOldVersion::Intension => Staging::Intension,
-            StagingOldVersion::Released => Staging::Released,
         }
     }
 }

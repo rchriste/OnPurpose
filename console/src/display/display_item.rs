@@ -32,9 +32,9 @@ impl<'s> From<DisplayItem<'s>> for &'s Item<'s> {
 impl Display for DisplayItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.item.get_item_type() {
-            ItemType::Hope => write!(f, "🪧 {}", self.item.get_summary()),
+            ItemType::Goal(_) => write!(f, "🪧 {}", self.item.get_summary()),
             ItemType::Motivation => write!(f, "🎯 {}", self.item.get_summary()),
-            ItemType::ToDo => write!(f, "🪜 {}", self.item.get_summary()),
+            ItemType::Action => write!(f, "🪜 {}", self.item.get_summary()),
             ItemType::Simple => write!(f, "📌 {}", self.item.get_summary()),
             ItemType::Undeclared => write!(f, "❓ {}", self.item.get_summary()),
             ItemType::PersonOrGroup => write!(f, "👤 {}", self.item.get_summary()),

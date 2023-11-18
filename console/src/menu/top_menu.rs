@@ -9,7 +9,7 @@ use crate::{
     base_data::BaseData,
     change_routine::change_routine,
     display::display_item_node::DisplayItemNode,
-    mentally_resident::view_hopes,
+    mentally_resident::view_goals,
     new_item::NewItem,
     node::item_node::ItemNode,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
@@ -22,7 +22,7 @@ enum TopMenuSelection {
     ChangeRoutine,
     Reflection,
     ViewBulletList,
-    ViewHopes,
+    ViewGoals,
     ViewMotivations,
     DebugViewAllItems,
 }
@@ -34,8 +34,8 @@ impl Display for TopMenuSelection {
             TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝ Change Routine            ↜"),
             TopMenuSelection::Reflection => write!(f, "    Reflection                 "),
             TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️ View Bullet List (To Dos) 👁"),
-            TopMenuSelection::ViewHopes => {
-                write!(f, "👁 🙏 View Hopes                👁")
+            TopMenuSelection::ViewGoals => {
+                write!(f, "👁 🙏 View Goals                👁")
             }
             TopMenuSelection::ViewMotivations => {
                 write!(f, "👁 🎯 View Motivations          👁")
@@ -54,7 +54,7 @@ impl TopMenuSelection {
             Self::ChangeRoutine,
             Self::Reflection,
             Self::ViewBulletList,
-            Self::ViewHopes,
+            Self::ViewGoals,
             Self::ViewMotivations,
             Self::DebugViewAllItems,
         ]
@@ -72,7 +72,7 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
         TopMenuSelection::Capture => capture(send_to_data_storage_layer).await,
         TopMenuSelection::ChangeRoutine => change_routine(send_to_data_storage_layer).await,
         TopMenuSelection::Reflection => todo!("Implement Reflection"),
-        TopMenuSelection::ViewHopes => view_hopes(send_to_data_storage_layer).await,
+        TopMenuSelection::ViewGoals => view_goals(send_to_data_storage_layer).await,
         TopMenuSelection::ViewBulletList => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }

@@ -383,19 +383,19 @@ mod tests {
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "1").into()))
                 .summary("Main Item that covers something else")
-                .item_type(ItemType::ToDo)
+                .item_type(ItemType::Action)
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "2").into()))
                 .summary("Item that is covered by main item and the item this covers")
-                .item_type(ItemType::ToDo)
+                .item_type(ItemType::Action)
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "3").into()))
                 .summary("Item that is covers the item it is covered by, circular reference")
-                .item_type(ItemType::ToDo)
+                .item_type(ItemType::Action)
                 .build()
                 .unwrap(),
         ];
