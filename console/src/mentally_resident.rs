@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use async_recursion::async_recursion;
 use chrono::Utc;
-use inquire::{Editor, InquireError, Select, Text};
+use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -273,7 +273,6 @@ pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<D
 
 enum MentallyResidentGoalSelectedMenuItem {
     CoverWithNextStep,
-    CoverWithMilestone,
     ProcessAndFinish,
     SwitchToMaintenanceGoal,
     SwitchToOnDeckGoal,
@@ -286,7 +285,6 @@ impl Display for MentallyResidentGoalSelectedMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CoverWithNextStep => write!(f, "Cover with next step (Action)"),
-            Self::CoverWithMilestone => write!(f, "Cover with milestone (Goal)"),
             Self::ProcessAndFinish => write!(f, "Process and Finish"),
             Self::SwitchToMaintenanceGoal => write!(f, "Switch to a maintenance Goal"),
             Self::SwitchToOnDeckGoal => write!(f, "Switch to on deck Goal"),
@@ -301,7 +299,6 @@ impl MentallyResidentGoalSelectedMenuItem {
     fn create_list() -> Vec<MentallyResidentGoalSelectedMenuItem> {
         vec![
             Self::CoverWithNextStep,
-            Self::CoverWithMilestone,
             Self::ProcessAndFinish,
             Self::SwitchToMaintenanceGoal,
             Self::SwitchToOnDeckGoal,
@@ -325,9 +322,6 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
     match selection {
         Ok(MentallyResidentGoalSelectedMenuItem::CoverWithNextStep) => {
             cover_with_item(goal_selected, send_to_data_storage_layer).await
-        }
-        Ok(MentallyResidentGoalSelectedMenuItem::CoverWithMilestone) => {
-            present_add_milestone(goal_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::ProcessAndFinish) => {
             process_and_finish_goal(goal_selected, send_to_data_storage_layer).await
@@ -380,59 +374,6 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
     }
 }
 
-enum AddMilestoneMenuItem {
-    NewMilestone,
-    ExistingMilestone,
-}
-
-impl Display for AddMilestoneMenuItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AddMilestoneMenuItem::NewMilestone => write!(f, "New Milestone"),
-            AddMilestoneMenuItem::ExistingMilestone => write!(f, "Existing Milestone"),
-        }
-    }
-}
-
-impl AddMilestoneMenuItem {
-    fn make_list() -> Vec<Self> {
-        vec![Self::NewMilestone, Self::ExistingMilestone]
-    }
-}
-
-async fn present_add_milestone(
-    selected_hope: &Item<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let list = AddMilestoneMenuItem::make_list();
-
-    let selection = Select::new("Select from the below list|", list)
-        .prompt()
-        .unwrap();
-
-    match selection {
-        AddMilestoneMenuItem::NewMilestone => {
-            cover_hope_with_new_milestone(selected_hope, send_to_data_storage_layer).await
-        }
-        AddMilestoneMenuItem::ExistingMilestone => cover_hope_with_existing_milestone().await,
-    }
-}
-
-async fn cover_hope_with_new_milestone(
-    existing_hope: &Item<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
-    let new_milestone_text = Text::new("Enter milestone (Hope) ⍠").prompt().unwrap();
-
-    send_to_data_storage_layer
-        .send(DataLayerCommands::CoverItemWithANewMilestone(
-            existing_hope.get_surreal_record_id().clone(),
-            new_milestone_text,
-        ))
-        .await
-        .unwrap();
-}
-
 async fn process_and_finish_goal(
     selected_hope: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -481,8 +422,4 @@ async fn update_item_staging(
         ))
         .await
         .unwrap();
-}
-
-async fn cover_hope_with_existing_milestone() {
-    todo!()
 }

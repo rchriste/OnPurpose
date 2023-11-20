@@ -27,8 +27,8 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::{
-        GoalType, ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
-        SurrealItemOldVersion, SurrealOrderedSubItem,
+        ItemType, Permanence, Responsibility, Staging, SurrealItem, SurrealItemOldVersion,
+        SurrealOrderedSubItem,
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
@@ -47,7 +47,6 @@ pub(crate) enum DataLayerCommands {
         cover_this: RecordId,
         cover_with: NewItem,
     },
-    CoverItemWithANewMilestone(RecordId, String),
     CoverItemWithAnExistingItem {
         item_to_be_covered: RecordId,
         item_that_should_do_the_covering: RecordId,
@@ -134,10 +133,6 @@ pub(crate) async fn data_storage_start_and_run(
                 cover_this,
                 cover_with,
             }) => cover_with_a_new_item(cover_this, cover_with, &db).await,
-            Some(DataLayerCommands::CoverItemWithANewMilestone(
-                item_to_cover,
-                new_milestone_text,
-            )) => cover_item_with_a_new_milestone(item_to_cover, new_milestone_text, &db).await,
             Some(DataLayerCommands::CoverItemWithAnExistingItem {
                 item_to_be_covered,
                 item_that_should_do_the_covering,
@@ -350,43 +345,6 @@ async fn cover_with_a_new_item(cover_this: RecordId, cover_with: NewItem, db: &S
     .unwrap();
 }
 
-async fn cover_item_with_a_new_milestone(
-    item_to_cover: RecordId,
-    milestone_text: String,
-    db: &Surreal<Any>,
-) {
-    //This would be best done as a single transaction but I am not quite sure how to do that so do it separate for now
-
-    let new_milestone = SurrealItem {
-        id: None,
-        summary: milestone_text,
-        finished: None,
-        item_type: ItemType::Goal(GoalType::TangibleMilestone),
-        smaller_items_in_priority_order: Vec::default(),
-        responsibility: Responsibility::default(),
-        notes_location: NotesLocation::default(),
-        permanence: Permanence::default(),
-        staging: Staging::default(),
-    }
-    .create(db)
-    .await
-    .unwrap()
-    .into_iter()
-    .next()
-    .unwrap();
-
-    let smaller_option: Option<Thing> = new_milestone.into();
-    let parent_option: Option<Thing> = item_to_cover.into();
-    SurrealCovering {
-        id: None,
-        smaller: smaller_option.expect("Should already be in the database"),
-        parent: parent_option.expect("Should already be in the database"),
-    }
-    .create(db)
-    .await
-    .unwrap();
-}
-
 async fn cover_item_with_an_existing_item(
     existing_item_to_be_covered: RecordId,
     existing_item_that_is_doing_the_covering: RecordId,
@@ -552,7 +510,7 @@ mod tests {
 
     use super::*;
 
-    use crate::new_item::NewItemBuilder;
+    use crate::{new_item::NewItemBuilder, surrealdb_layer::surreal_item::GoalType};
 
     #[tokio::test]
     async fn data_starts_empty() {
@@ -760,70 +718,6 @@ mod tests {
             &covering.smaller
         );
         //TODO: Check Order & Responsibility that they are properly set
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn cover_item_with_a_new_milestone() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        let new_goal = NewItemBuilder::default()
-            .summary("Hope to be covered")
-            .item_type(ItemType::Goal(GoalType::default()))
-            .build()
-            .expect("Filled out required fields");
-        sender
-            .send(DataLayerCommands::NewItem(new_goal))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
-        let item_to_cover = surreal_tables
-            .surreal_items
-            .first()
-            .unwrap()
-            .get_id()
-            .as_ref()
-            .expect("In DB");
-
-        sender
-            .send(DataLayerCommands::CoverItemWithANewMilestone(
-                item_to_cover.clone(),
-                "Covering milestone".into(),
-            ))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(2, surreal_tables.surreal_items.len());
-        assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
-        let covering = surreal_tables.surreal_coverings.first().unwrap();
-        let item_that_should_be_covered = surreal_tables
-            .surreal_items
-            .iter()
-            .find(|x| x.summary == "Hope to be covered")
-            .unwrap();
-        let item_that_should_cover = surreal_tables
-            .surreal_items
-            .iter()
-            .find(|x| x.summary == "Covering milestone")
-            .unwrap();
-        assert_eq!(
-            item_that_should_be_covered.id.as_ref().unwrap(),
-            &covering.parent
-        );
-        assert_eq!(
-            item_that_should_cover.id.as_ref().unwrap(),
-            &covering.smaller
-        );
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
