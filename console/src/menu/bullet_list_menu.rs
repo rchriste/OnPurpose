@@ -3,7 +3,7 @@ pub(crate) mod bullet_list_single_item;
 use std::{fmt::Display, iter::once};
 
 use async_recursion::async_recursion;
-use chrono::{DateTime, Utc, Local};
+use chrono::{DateTime, Local, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use tokio::sync::mpsc::Sender;
@@ -74,7 +74,10 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    println!("Time to get data from database: {}", Local::now() - before_db_query);
+    println!(
+        "Time to get data from database: {}",
+        Local::now() - before_db_query
+    );
     let current_date_time = Utc::now();
 
     let now = Utc::now();

@@ -206,7 +206,21 @@ pub(crate) async fn data_storage_start_and_run(
                     .unwrap();
                 item.responsibility = new_responsibility;
                 item.item_type = new_item_type;
-                item.update(&db).await.unwrap();
+                let new = db
+                    .update((
+                        SurrealItem::TABLE_NAME,
+                        item.get_id()
+                            .clone()
+                            .expect("Came from the DB")
+                            .id
+                            .clone()
+                            .to_raw(),
+                    ))
+                    .content(&item)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(item, new);
             }
             Some(DataLayerCommands::UpdateItemResponsibility(record_id, new_responsibility)) => {
                 let mut item = SurrealItem::get_by_id(record_id.id.to_raw(), &db)
