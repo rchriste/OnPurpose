@@ -535,7 +535,7 @@ mod tests {
         let data_storage_join_handle =
             tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
 
-        let new_item = NewItem::new("New item".into());
+        let new_item = NewItem::new("New item".into(), Utc::now());
         sender
             .send(DataLayerCommands::NewItem(new_item))
             .await

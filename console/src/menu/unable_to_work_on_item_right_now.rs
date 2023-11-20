@@ -238,7 +238,7 @@ pub(crate) async fn person_or_group_is_not_available(
             let summary = Text::new("Enter the name of the person or group ⍠")
                 .prompt()
                 .unwrap();
-            let new_item = NewItem::new_person_or_group(summary);
+            let new_item = NewItem::new_person_or_group(summary, Utc::now());
             send_to_data_storage_layer
                 .send(DataLayerCommands::CoverItemWithANewItem {
                     cover_this: unable_to_do.get_surreal_record_id().clone(),

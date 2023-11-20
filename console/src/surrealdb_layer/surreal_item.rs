@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
@@ -40,6 +41,10 @@ pub(crate) struct SurrealItem {
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
+
+    #[cfg_attr(test, builder(default = "Utc::now().into()"))]
+    pub(crate) created: Datetime,
+    //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
 }
 
 impl From<SurrealItem> for Option<Thing> {
@@ -63,6 +68,7 @@ impl SurrealItem {
             notes_location: NotesLocation::default(),
             permanence: new_item.permanence,
             staging: new_item.staging,
+            created: new_item.created.into(),
         }
     }
 
@@ -102,30 +108,6 @@ pub(crate) enum GoalType {
     NotSpecified,
     AspirationalHope,
     TangibleMilestone,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum ItemTypeOldVersion {
-    #[default]
-    Undeclared,
-    Simple,
-    ToDo, //TODO: Rename to Action
-    Hope, //TODO: Rename to Goal (Hope, Milestone, or NotSpecified)
-    Motivation,
-    PersonOrGroup,
-}
-
-impl From<ItemTypeOldVersion> for ItemType {
-    fn from(value: ItemTypeOldVersion) -> Self {
-        match value {
-            ItemTypeOldVersion::Undeclared => ItemType::Undeclared,
-            ItemTypeOldVersion::Simple => ItemType::Simple,
-            ItemTypeOldVersion::ToDo => ItemType::Action,
-            ItemTypeOldVersion::Hope => ItemType::Goal(GoalType::NotSpecified),
-            ItemTypeOldVersion::Motivation => ItemType::Motivation,
-            ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
-        }
-    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -238,7 +220,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemTypeOldVersion,
+    pub(crate) item_type: ItemType,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -261,11 +243,12 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type.into(),
+            item_type: value.item_type,
             notes_location: value.notes_location,
             permanence: value.permanence,
             staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
+            created: Utc::now().into(),
         }
     }
 }

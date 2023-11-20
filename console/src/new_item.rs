@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
@@ -22,10 +23,13 @@ pub(crate) struct NewItem {
 
     #[builder(default)]
     pub(crate) staging: Staging,
+
+    #[builder(default = "Utc::now()")]
+    pub(crate) created: DateTime<Utc>,
 }
 
 impl NewItem {
-    pub(crate) fn new(summary: String) -> Self {
+    pub(crate) fn new(summary: String, now: DateTime<Utc>) -> Self {
         NewItem {
             summary,
             finished: None,
@@ -33,10 +37,11 @@ impl NewItem {
             item_type: ItemType::Undeclared,
             permanence: Permanence::default(),
             staging: Staging::default(),
+            created: now,
         }
     }
 
-    pub(crate) fn new_person_or_group(summary: String) -> Self {
+    pub(crate) fn new_person_or_group(summary: String, now: DateTime<Utc>) -> Self {
         NewItem {
             summary,
             finished: None,
@@ -44,6 +49,7 @@ impl NewItem {
             item_type: ItemType::PersonOrGroup,
             permanence: Permanence::default(),
             staging: Staging::default(),
+            created: now,
         }
     }
 }

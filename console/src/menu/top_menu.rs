@@ -86,7 +86,7 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
 pub(crate) async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
     let new_item_summary = Text::new("Enter New Item ⍠").prompt().unwrap();
 
-    let new_item = NewItem::new(new_item_summary);
+    let new_item = NewItem::new(new_item_summary, Utc::now());
     send_to_data_storage_layer
         .send(DataLayerCommands::NewItem(new_item))
         .await
