@@ -32,7 +32,7 @@ use self::{
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
-    surreal_required_circumstance::{CircumstanceType, SurrealRequiredCircumstance},
+    surreal_required_circumstance::SurrealRequiredCircumstance,
     surreal_routine::SurrealRoutine,
     surreal_tables::SurrealTables,
 };
@@ -47,7 +47,6 @@ pub(crate) enum DataLayerCommands {
         cover_this: RecordId,
         cover_with: NewItem,
     },
-    CoverItemWithANewWaitingForQuestion(RecordId, String),
     CoverItemWithANewMilestone(RecordId, String),
     CoverItemWithAnExistingItem {
         item_to_be_covered: RecordId,
@@ -71,8 +70,6 @@ pub(crate) enum DataLayerCommands {
         child: RecordId,
         parent_new_item: NewItem,
     },
-    AddCircumstanceNotSunday(RecordId),
-    AddCircumstanceDuringFocusTime(RecordId),
     UpdateResponsibilityAndItemType(RecordId, Responsibility, ItemType),
     UpdateItemResponsibility(RecordId, Responsibility),
     UpdateItemPermanence(RecordId, Permanence),
@@ -137,9 +134,6 @@ pub(crate) async fn data_storage_start_and_run(
                 cover_this,
                 cover_with,
             }) => cover_with_a_new_item(cover_this, cover_with, &db).await,
-            Some(DataLayerCommands::CoverItemWithANewWaitingForQuestion(item, question)) => {
-                cover_item_with_a_new_waiting_for_question(item, question, &db).await
-            }
             Some(DataLayerCommands::CoverItemWithANewMilestone(
                 item_to_cover,
                 new_milestone_text,
@@ -180,12 +174,6 @@ pub(crate) async fn data_storage_start_and_run(
                 child,
                 parent_new_item,
             }) => parent_new_item_with_an_existing_child_item(child, parent_new_item, &db).await,
-            Some(DataLayerCommands::AddCircumstanceNotSunday(add_circumstance_to_this)) => {
-                add_circumstance_not_sunday(add_circumstance_to_this, &db).await
-            }
-            Some(DataLayerCommands::AddCircumstanceDuringFocusTime(add_circumstance_to_this)) => {
-                add_circumstance_during_focus_time(add_circumstance_to_this, &db).await
-            }
             Some(DataLayerCommands::UpdateItemPermanence(item, new_permanence)) => {
                 update_hope_permanence(item, new_permanence, &db).await
             }
@@ -340,16 +328,6 @@ async fn new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
         .expect("I just created one item it should be there")
 }
 
-async fn cover_item_with_a_new_waiting_for_question(
-    item: RecordId,
-    question: String,
-    db: &Surreal<Any>,
-) {
-    //TODO: Cause this to be a Waiting For Responsibility o
-    //For now covering an item with a question is the same implementation as just covering with a next step so just call into that
-    cover_item_with_a_new_next_step(item, question, Responsibility::WaitingFor, db).await
-}
-
 async fn cover_with_a_new_item(cover_this: RecordId, cover_with: NewItem, db: &Surreal<Any>) {
     let cover_with = SurrealItem::new(cover_with, vec![]);
     let cover_with = cover_with
@@ -366,50 +344,6 @@ async fn cover_with_a_new_item(cover_this: RecordId, cover_with: NewItem, db: &S
         id: None,
         smaller: cover_with.expect("Should already be in the database"),
         parent: cover_this.expect("Should already be in the database"),
-    }
-    .create(db)
-    .await
-    .unwrap();
-}
-
-async fn cover_item_with_a_new_next_step(
-    item_to_cover: RecordId,
-    new_to_do_text: String,
-    responsibility: Responsibility,
-    db: &Surreal<Any>,
-) {
-    //Note that both of these things should really be happening inside of a single transaction but I don't know how to do that
-    //easily so just do this for now.
-
-    let item_to_cover = SurrealItem::get_by_id(item_to_cover.id.to_raw(), db)
-        .await
-        .unwrap()
-        .unwrap();
-
-    let new_action = SurrealItem {
-        id: None,
-        summary: new_to_do_text,
-        finished: None,
-        item_type: ItemType::Action,
-        smaller_items_in_priority_order: Vec::default(),
-        responsibility: responsibility.clone(),
-        notes_location: NotesLocation::default(),
-        permanence: Permanence::default(),
-        staging: Staging::default(),
-    }
-    .create(db)
-    .await
-    .unwrap()
-    .into_iter()
-    .next()
-    .unwrap();
-
-    let smaller_option: Option<Thing> = new_action.into();
-    let parent_option: Option<Thing> = item_to_cover.into();
-    SurrealCovering {
-        id: None,
-        smaller: smaller_option.expect("Should already be in the database"),
-        parent: parent_option.expect("Should already be in the database"),
     }
     .create(db)
     .await
@@ -479,25 +413,6 @@ async fn cover_item_until_an_exact_date_time(
         id: None,
         cover_this: item_to_cover,
         until: cover_until.into(),
-    }
-    .create(db)
-    .await
-    .unwrap();
-}
-
-async fn add_circumstance_not_sunday(item: RecordId, db: &Surreal<Any>) {
-    add_circumstance(item, CircumstanceType::NotSunday, db).await
-}
-
-async fn add_circumstance_during_focus_time(item: RecordId, db: &Surreal<Any>) {
-    add_circumstance(item, CircumstanceType::DuringFocusTime, db).await
-}
-
-async fn add_circumstance(item: RecordId, circumstance: CircumstanceType, db: &Surreal<Any>) {
-    SurrealRequiredCircumstance {
-        id: None,
-        required_for: item,
-        circumstance_type: circumstance,
     }
     .create(db)
     .await
@@ -851,70 +766,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cover_item_with_a_question() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        let new_action = NewItemBuilder::default()
-            .summary("Item to be covered")
-            .item_type(ItemType::Action)
-            .build()
-            .expect("Filled out required fields");
-        sender
-            .send(DataLayerCommands::NewItem(new_action))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert_eq!(0, surreal_tables.surreal_coverings.len()); //length of zero means nothing is covered
-        let item_to_cover = surreal_tables
-            .surreal_items
-            .first()
-            .unwrap()
-            .get_id()
-            .as_ref()
-            .expect("In DB");
-
-        sender
-            .send(DataLayerCommands::CoverItemWithANewWaitingForQuestion(
-                item_to_cover.clone(),
-                "Covering item".into(),
-            ))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(2, surreal_tables.surreal_items.len());
-        assert_eq!(1, surreal_tables.surreal_coverings.len()); //expect one item to be is covered
-        let covering = surreal_tables.surreal_coverings.first().unwrap();
-        let item_that_should_be_covered = surreal_tables
-            .surreal_items
-            .iter()
-            .find(|x| x.summary == "Item to be covered")
-            .unwrap();
-        let item_that_should_cover = surreal_tables
-            .surreal_items
-            .iter()
-            .find(|x| x.summary == "Covering item")
-            .unwrap();
-        assert_eq!(
-            item_that_should_be_covered.id.as_ref().unwrap(),
-            &covering.parent
-        );
-        assert_eq!(
-            item_that_should_cover.id.as_ref().unwrap(),
-            &covering.smaller
-        );
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
     async fn cover_item_with_a_new_milestone() {
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
@@ -1042,71 +893,6 @@ mod tests {
                 .until
                 .clone()
                 .into()
-        );
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn cover_item_with_the_requirement_not_sunday() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        let new_item = NewItemBuilder::default()
-            .summary("Item to get requirement")
-            .item_type(ItemType::Action)
-            .build()
-            .expect("Filled out required fields");
-        sender
-            .send(DataLayerCommands::NewItem(new_item))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert!(surreal_tables.surreal_required_circumstances.is_empty());
-
-        sender
-            .send(DataLayerCommands::AddCircumstanceNotSunday(
-                surreal_tables
-                    .surreal_items
-                    .into_iter()
-                    .next()
-                    .unwrap()
-                    .id
-                    .expect("In DB"),
-            ))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert_eq!(1, surreal_tables.surreal_required_circumstances.len());
-        assert_eq!(
-            CircumstanceType::NotSunday,
-            surreal_tables
-                .surreal_required_circumstances
-                .first()
-                .unwrap()
-                .circumstance_type
-        );
-        assert_eq!(
-            surreal_tables
-                .surreal_items
-                .first()
-                .unwrap()
-                .id
-                .as_ref()
-                .unwrap(),
-            &surreal_tables
-                .surreal_required_circumstances
-                .first()
-                .unwrap()
-                .required_for
         );
 
         drop(sender);

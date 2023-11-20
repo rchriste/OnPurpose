@@ -17,12 +17,6 @@ use crate::{
     surrealdb_layer::{data_storage_start_and_run, DataLayerCommands},
 };
 
-#[must_use]
-pub(crate) enum UnexpectedNextMenuAction {
-    Back,
-    Close,
-}
-
 async fn update_item_summary(
     item_to_cover: RecordId,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,

@@ -1,4 +1,3 @@
-mod cover_bullet_item;
 mod define_child_goal;
 mod parent_to_a_goal;
 pub(crate) mod set_staging;
@@ -21,8 +20,7 @@ use crate::{
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
-            cover_bullet_item::cover_bullet_item, define_child_goal::define_child_goals,
-            parent_to_a_goal::parent_to_a_goal,
+            define_child_goal::define_child_goals, parent_to_a_goal::parent_to_a_goal,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
@@ -38,7 +36,7 @@ use crate::{
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
-    update_item_summary, UnexpectedNextMenuAction,
+    update_item_summary,
 };
 
 use self::{parent_to_a_goal::parent_to_a_motivation, set_staging::present_set_staging_menu};
@@ -76,7 +74,6 @@ enum BulletListSingleItemSelection<'e> {
     ChangeType,
     ReturnToBulletList,
     ProcessAndFinish,
-    Cover,
     UpdateSummary,
     SwitchToParentItem(DisplayItem<'e>, ItemNode<'e>),
     ParentToItem,
@@ -88,7 +85,6 @@ impl Display for BulletListSingleItemSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
-            Self::Cover => write!(f, "Cover ⼍"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => write!(f, "Switch to: {}", parent_item),
             Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
@@ -284,7 +280,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         if !is_type_simple && !is_type_undeclared {
             list.extend(vec![
                 Self::ProcessAndFinish,
-                Self::Cover,
                 Self::UpdateSummary,
                 Self::DebugPrintItem,
                 Self::ReturnToBulletList,
@@ -430,24 +425,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
-        }
-        Ok(BulletListSingleItemSelection::Cover) => {
-            let r = cover_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
-            match r {
-                Ok(()) => (),
-                Err(UnexpectedNextMenuAction::Back) => {
-                    present_bullet_list_item_selected(
-                        menu_for,
-                        current_date_time,
-                        all_coverings,
-                        all_snoozed,
-                        all_items,
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-                Err(UnexpectedNextMenuAction::Close) => todo!(),
-            }
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(
