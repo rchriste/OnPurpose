@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{ItemType, Staging, SurrealItem},
+    surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
 };
 
 #[derive(Debug)]
@@ -205,6 +205,25 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn is_snoozed(&self, now: DateTime<Local>) -> bool {
         self.get_snoozed_until().iter().any(|x| x > &&now)
     }
+
+    pub(crate) fn get_facing(&self) -> &Facing {
+        let facing = self.item.get_facing();
+        if facing != &Facing::NotSet {
+            facing
+        } else {
+            for larger in self.get_larger() {
+                let larger_facing = larger.get_facing();
+                if larger_facing != &Facing::NotSet {
+                    return larger_facing;
+                }
+            }
+            facing
+        }
+    }
+
+    pub(crate) fn is_facing_undefined(&self) -> bool {
+        self.get_facing() == &Facing::NotSet
+    }
 }
 
 #[derive(Debug)]
@@ -276,6 +295,21 @@ impl<'s> GrowingItemNode<'s> {
 
     pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
         &self.larger
+    }
+
+    pub(crate) fn get_facing(&self) -> &Facing {
+        let facing = self.item.get_facing();
+        if facing != &Facing::NotSet {
+            facing
+        } else {
+            for larger in self.get_larger() {
+                let larger_facing = larger.get_facing();
+                if larger_facing != &Facing::NotSet {
+                    return larger_facing;
+                }
+            }
+            facing
+        }
     }
 }
 

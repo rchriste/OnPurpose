@@ -1,5 +1,5 @@
 mod define_child_goal;
-mod parent_to_a_goal;
+pub(crate) mod parent_to_a_goal_or_motivation;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
@@ -20,7 +20,8 @@ use crate::{
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::{
         bullet_list_menu::bullet_list_single_item::{
-            define_child_goal::define_child_goals, parent_to_a_goal::parent_to_a_goal,
+            define_child_goal::define_child_goals,
+            parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
@@ -39,14 +40,16 @@ use crate::{
     update_item_summary,
 };
 
-use self::{parent_to_a_goal::parent_to_a_motivation, set_staging::present_set_staging_menu};
+use self::{
+    parent_to_a_goal_or_motivation::parent_to_a_motivation, set_staging::present_set_staging_menu,
+};
 
 enum BulletListSingleItemSelection<'e> {
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
     StateASmallerNextStep,
     StartingToWorkOnThisNow,
-    ParentToAGoal,
+    ParentToAGoalOrMotivation,
     ParentToAMotivation,
     PlanWhenToDoThis,
     ChangeStaging,
@@ -105,7 +108,7 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Something else should be done first")
             }
             Self::DeclareItemType => write!(f, "Declare Item Type"),
-            Self::ParentToAGoal => write!(f, "Parent this to a Goal"),
+            Self::ParentToAGoalOrMotivation => write!(f, "Parent this to a Goal or Motivation"),
             Self::ParentToAMotivation => write!(f, "Parent this to a Motivation"),
             Self::EstimateHowManyFocusPeriodsThisWillTake => {
                 write!(f, "Estimate how many Focus Periods this will take")
@@ -160,7 +163,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let has_active_children = item_node.has_active_children();
 
         if (is_type_action) && has_no_parent {
-            list.push(Self::ParentToAGoal);
+            list.push(Self::ParentToAGoalOrMotivation);
         } else if is_type_goal && !has_active_children {
             list.push(Self::StateASmallerNextStep);
         }
@@ -327,8 +330,8 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::ParentToAGoal) => {
-            parent_to_a_goal(menu_for.get_item(), send_to_data_storage_layer).await
+        Ok(BulletListSingleItemSelection::ParentToAGoalOrMotivation) => {
+            parent_to_a_goal_or_motivation(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
             todo!("TODO: Implement PlanWhenToDoThis");
@@ -668,6 +671,16 @@ impl ItemTypeSelection {
 
     pub(crate) fn create_list_just_goals() -> Vec<Self> {
         vec![Self::Goal, Self::ResponsiveGoal, Self::ResponsiveHelp]
+    }
+
+    pub(crate) fn create_list_goals_and_motivations() -> Vec<Self> {
+        vec![
+            Self::Goal,
+            Self::Motivation,
+            Self::ResponsiveGoal,
+            Self::ResponsiveMotivation,
+            Self::ResponsiveHelp,
+        ]
     }
 
     pub(crate) fn create_list_just_motivations() -> Vec<Self> {

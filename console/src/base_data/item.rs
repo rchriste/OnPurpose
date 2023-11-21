@@ -7,7 +7,7 @@ use surrealdb::{
 
 use crate::surrealdb_layer::{
     surreal_item::{
-        ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
+        Facing, ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
         SurrealOrderedSubItem,
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
@@ -439,6 +439,10 @@ impl<'b> Item<'b> {
 
     pub(crate) fn get_thing(&self) -> &Thing {
         self.surreal_item.id.as_ref().expect("Already in DB")
+    }
+
+    pub(crate) fn get_facing(&self) -> &Facing {
+        &self.surreal_item.facing
     }
 }
 

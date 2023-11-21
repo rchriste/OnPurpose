@@ -1,3 +1,5 @@
+pub(crate) mod define_facing;
+
 use std::fmt::Display;
 
 use async_recursion::async_recursion;
@@ -14,7 +16,8 @@ use crate::{
     },
     menu::top_menu::present_top_menu,
     menu::{
-        bullet_list_menu::bullet_list_single_item::cover_with_item, staging_query::on_deck_query,
+        bullet_list_menu::bullet_list_single_item::cover_with_item,
+        expectations::define_facing::define_facing, staging_query::on_deck_query,
     },
     node::item_node::ItemNode,
     surrealdb_layer::{
@@ -98,7 +101,8 @@ pub(crate) fn create_hope_nodes<'a>(
         .collect()
 }
 
-enum GoalMenuItem {
+enum ExpectationsMenuItem {
+    DefineFacing,
     MentallyResidentProjects,
     OnDeckProjects,
     IntensionProjects,
@@ -106,9 +110,10 @@ enum GoalMenuItem {
     MaintenanceItems,
 }
 
-impl Display for GoalMenuItem {
+impl Display for ExpectationsMenuItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DefineFacing => write!(f, "👀 Define Facing              👀"),
             Self::MentallyResidentProjects => write!(f, "🧠 Mentally Resident Projects 🏗️"),
             Self::OnDeckProjects => write!(f, "🚧 On Deck Projects           🏗️"),
             Self::IntensionProjects => write!(f, "🌠 Intension Projects         🏗️"),
@@ -118,9 +123,10 @@ impl Display for GoalMenuItem {
     }
 }
 
-impl GoalMenuItem {
+impl ExpectationsMenuItem {
     fn make_list() -> Vec<Self> {
         vec![
+            Self::DefineFacing,
             Self::MentallyResidentProjects,
             Self::OnDeckProjects,
             Self::IntensionProjects,
@@ -131,19 +137,20 @@ impl GoalMenuItem {
 }
 
 #[async_recursion]
-pub(crate) async fn view_goals(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let list = GoalMenuItem::make_list();
+pub(crate) async fn view_expectations(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+    let list = ExpectationsMenuItem::make_list();
 
     let selection = Select::new("Select from the below list|", list).prompt();
 
     match selection {
-        Ok(GoalMenuItem::MentallyResidentProjects) => {
+        Ok(ExpectationsMenuItem::DefineFacing) => define_facing(send_to_data_storage_layer).await,
+        Ok(ExpectationsMenuItem::MentallyResidentProjects) => {
             view_mentally_resident_project_goals(send_to_data_storage_layer).await
         }
-        Ok(GoalMenuItem::OnDeckProjects) => todo!(),
-        Ok(GoalMenuItem::IntensionProjects) => todo!(),
-        Ok(GoalMenuItem::ReleasedProjects) => todo!(),
-        Ok(GoalMenuItem::MaintenanceItems) => {
+        Ok(ExpectationsMenuItem::OnDeckProjects) => todo!(),
+        Ok(ExpectationsMenuItem::IntensionProjects) => todo!(),
+        Ok(ExpectationsMenuItem::ReleasedProjects) => todo!(),
+        Ok(ExpectationsMenuItem::MaintenanceItems) => {
             view_maintenance_hopes(send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
@@ -369,7 +376,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
             )
             .await
         }
-        Err(InquireError::OperationCanceled) => view_goals(send_to_data_storage_layer).await,
+        Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
         Err(err) => todo!("{}", err),
     }
 }

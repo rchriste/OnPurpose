@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 pub(crate) mod bullet_list_menu;
+pub(crate) mod expectations;
 pub(crate) mod select_higher_priority_than_this;
 pub(crate) mod staging_query;
 pub(crate) mod top_menu;

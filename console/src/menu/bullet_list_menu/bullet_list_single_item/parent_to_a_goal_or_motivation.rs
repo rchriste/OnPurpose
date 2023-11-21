@@ -59,7 +59,7 @@ pub(crate) async fn parent_to_a_motivation(
     }
 }
 
-pub(crate) async fn parent_to_a_goal(
+pub(crate) async fn parent_to_a_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
@@ -70,7 +70,8 @@ pub(crate) async fn parent_to_a_goal(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
     let list = active_items
-        .filter_just_goals()
+        .iter()
+        .filter(|x| x.is_type_goal() || x.is_type_motivation())
         .map(|item| {
             ItemNode::new(
                 item,
@@ -113,7 +114,11 @@ pub(crate) async fn parent_to_a_goal(
                 .unwrap();
         }
         Err(InquireError::OperationCanceled) => {
-            parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await;
+            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+                parent_this,
+                send_to_data_storage_layer,
+            )
+            .await;
         }
         Err(err) => {
             todo!("Error: {:?}", err);
@@ -157,20 +162,28 @@ async fn parent_to_a_motivation_new_motivation(
 }
 
 #[async_recursion]
-async fn parent_to_a_goal_new_goal(
+async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = ItemTypeSelection::create_list_just_goals();
+    let list = ItemTypeSelection::create_list_goals_and_motivations();
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await
+            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+                parent_this,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            parent_to_a_goal_new_goal(parent_this, send_to_data_storage_layer).await
+            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+                parent_this,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();

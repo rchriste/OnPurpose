@@ -3,7 +3,10 @@ use std::cmp::Ordering;
 use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::{sql::{Datetime, Thing}, opt::RecordId};
+use surrealdb::{
+    opt::RecordId,
+    sql::{Datetime, Thing},
+};
 use surrealdb_extra::table::Table;
 
 use crate::{base_data::item::Item, new_item::NewItem};
@@ -99,7 +102,10 @@ impl SurrealItem {
 pub(crate) enum Facing {
     #[default]
     NotSet,
-    Others{how_well_defined: HowWellDefined, who: RecordId},
+    Others {
+        how_well_defined: HowWellDefined,
+        who: RecordId,
+    },
     Myself(HowWellDefined),
     InternalOrSmaller,
 }
@@ -305,8 +311,12 @@ impl From<ItemTypeOldVersion> for ItemType {
             ItemTypeOldVersion::Action => ItemType::Action,
             ItemTypeOldVersion::Goal(goal_type) => match goal_type {
                 GoalType::NotSpecified => ItemType::Goal(HowMuchIsInMyControl::NotSet),
-                GoalType::AspirationalHope => ItemType::Goal(HowMuchIsInMyControl::LargelyOutOfMyControl),
-                GoalType::TangibleMilestone => ItemType::Goal(HowMuchIsInMyControl::MostlyInMyControl),
+                GoalType::AspirationalHope => {
+                    ItemType::Goal(HowMuchIsInMyControl::LargelyOutOfMyControl)
+                }
+                GoalType::TangibleMilestone => {
+                    ItemType::Goal(HowMuchIsInMyControl::MostlyInMyControl)
+                }
             },
             ItemTypeOldVersion::Motivation => ItemType::Motivation,
             ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
