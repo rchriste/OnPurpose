@@ -510,7 +510,7 @@ mod tests {
 
     use super::*;
 
-    use crate::{new_item::NewItemBuilder, surrealdb_layer::surreal_item::GoalType};
+    use crate::{new_item::NewItemBuilder, surrealdb_layer::surreal_item::HowMuchIsInMyControl};
 
     #[tokio::test]
     async fn data_starts_empty() {
@@ -824,7 +824,7 @@ mod tests {
                     .expect("In Db"),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")
-                    .item_type(ItemType::Goal(GoalType::default()))
+                    .item_type(ItemType::Goal(HowMuchIsInMyControl::default()))
                     .build()
                     .unwrap(),
             })
@@ -888,7 +888,7 @@ mod tests {
 
         let parent_item = NewItemBuilder::default()
             .summary("Parent Item")
-            .item_type(ItemType::Goal(GoalType::default()))
+            .item_type(ItemType::Goal(HowMuchIsInMyControl::default()))
             .build()
             .expect("Filled out required fields");
         sender

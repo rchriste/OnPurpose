@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use surrealdb::sql::{Datetime, Thing};
+use surrealdb::{sql::{Datetime, Thing}, opt::RecordId};
 use surrealdb_extra::table::Table;
 
 use crate::{base_data::item::Item, new_item::NewItem};
@@ -25,6 +25,9 @@ pub(crate) struct SurrealItem {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) responsibility: Responsibility,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) facing: Facing,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) item_type: ItemType,
@@ -63,6 +66,7 @@ impl SurrealItem {
             summary: new_item.summary,
             finished: new_item.finished,
             responsibility: new_item.responsibility,
+            facing: new_item.facing,
             item_type: new_item.item_type,
             smaller_items_in_priority_order,
             notes_location: NotesLocation::default(),
@@ -92,7 +96,46 @@ impl SurrealItem {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum Facing {
+    #[default]
+    NotSet,
+    Others{how_well_defined: HowWellDefined, who: RecordId},
+    Myself(HowWellDefined),
+    InternalOrSmaller,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum HowWellDefined {
+    #[default]
+    NotSet,
+    WellDefined,
+    RoughlyDefined,
+    LooselyDefined,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum ItemType {
+    #[default]
+    Undeclared,
+    Simple, //TODO: Remove this and just use Action
+    Action,
+    Goal(HowMuchIsInMyControl),
+    IdeaOrThought,
+    Motivation,
+    PersonOrGroup,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum HowMuchIsInMyControl {
+    #[default]
+    NotSet,
+    MostlyInMyControl,
+    PartiallyInMyControl,
+    LargelyOutOfMyControl,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum ItemTypeOldVersion {
     #[default]
     Undeclared,
     Simple,
@@ -220,7 +263,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemType,
+    pub(crate) item_type: ItemTypeOldVersion,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -243,12 +286,30 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type,
+            item_type: value.item_type.into(),
             notes_location: value.notes_location,
             permanence: value.permanence,
             staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: Utc::now().into(),
+            facing: Facing::default(),
+        }
+    }
+}
+
+impl From<ItemTypeOldVersion> for ItemType {
+    fn from(value: ItemTypeOldVersion) -> Self {
+        match value {
+            ItemTypeOldVersion::Undeclared => ItemType::Undeclared,
+            ItemTypeOldVersion::Simple => ItemType::Simple,
+            ItemTypeOldVersion::Action => ItemType::Action,
+            ItemTypeOldVersion::Goal(goal_type) => match goal_type {
+                GoalType::NotSpecified => ItemType::Goal(HowMuchIsInMyControl::NotSet),
+                GoalType::AspirationalHope => ItemType::Goal(HowMuchIsInMyControl::LargelyOutOfMyControl),
+                GoalType::TangibleMilestone => ItemType::Goal(HowMuchIsInMyControl::MostlyInMyControl),
+            },
+            ItemTypeOldVersion::Motivation => ItemType::Motivation,
+            ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
         }
     }
 }

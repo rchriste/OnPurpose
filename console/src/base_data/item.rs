@@ -61,6 +61,7 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         self.iter().find(|x| x.id == record_id)
     }
 
+    //TODO: This should probably be renamed to internal actions or steps
     fn filter_just_actions(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if x.get_item_type() == &ItemType::Action {

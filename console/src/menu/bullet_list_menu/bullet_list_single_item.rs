@@ -32,7 +32,7 @@ use crate::{
     new_item,
     node::item_node::ItemNode,
     surrealdb_layer::{
-        surreal_item::{GoalType, ItemType, Responsibility},
+        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -534,6 +534,7 @@ async fn present_bullet_list_item_parent_selected(
             )
             .await
         }
+        ItemType::IdeaOrThought => todo!(),
         ItemType::Motivation => todo!(),
         ItemType::Undeclared => todo!(),
         ItemType::Simple => todo!(),
@@ -691,10 +692,10 @@ impl ItemTypeSelection {
                 .item_type(ItemType::Action),
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Goal(GoalType::default())),
+                .item_type(ItemType::Goal(HowMuchIsInMyControl::default())),
             ItemTypeSelection::ResponsiveGoal => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Goal(GoalType::default())),
+                .item_type(ItemType::Goal(HowMuchIsInMyControl::default())),
             ItemTypeSelection::Motivation => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(ItemType::Motivation),
@@ -865,7 +866,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::Goal(GoalType::default()),
+                    ItemType::Goal(HowMuchIsInMyControl::default()),
                 ))
                 .await
                 .unwrap();
@@ -875,7 +876,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    ItemType::Goal(GoalType::default()),
+                    ItemType::Goal(HowMuchIsInMyControl::default()),
                 ))
                 .await
                 .unwrap();
