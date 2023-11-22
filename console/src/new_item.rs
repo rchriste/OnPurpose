@@ -16,7 +16,7 @@ pub(crate) struct NewItem {
     pub(crate) responsibility: Responsibility,
 
     #[builder(default)]
-    pub(crate) facing: Facing,
+    pub(crate) facing: Vec<Facing>,
 
     #[builder(default)]
     pub(crate) item_type: ItemType,
@@ -37,7 +37,7 @@ impl NewItem {
             summary,
             finished: None,
             responsibility: Responsibility::default(),
-            facing: Facing::default(),
+            facing: Default::default(),
             item_type: ItemType::Undeclared,
             permanence: Permanence::default(),
             staging: Staging::default(),
@@ -50,7 +50,7 @@ impl NewItem {
             summary,
             finished: None,
             responsibility: Responsibility::ReactiveBeAvailableToAct,
-            facing: Facing::default(),
+            facing: Default::default(),
             item_type: ItemType::PersonOrGroup,
             permanence: Permanence::default(),
             staging: Staging::default(),

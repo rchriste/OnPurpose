@@ -441,7 +441,7 @@ impl<'b> Item<'b> {
         self.surreal_item.id.as_ref().expect("Already in DB")
     }
 
-    pub(crate) fn get_facing(&self) -> &Facing {
+    pub(crate) fn get_facing(&self) -> &Vec<Facing> {
         &self.surreal_item.facing
     }
 }

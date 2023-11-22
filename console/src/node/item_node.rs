@@ -12,6 +12,7 @@ pub(crate) struct ItemNode<'s> {
     larger: Vec<GrowingItemNode<'s>>,
     smaller: Vec<ShrinkingItemNode<'s>>,
     snoozed_until: Vec<&'s DateTime<Local>>,
+    facing: Vec<Facing>,
 }
 
 impl<'a> From<&'a ItemNode<'a>> for &'a Item<'a> {
@@ -39,11 +40,26 @@ impl<'s> ItemNode<'s> {
         let children = item.find_children(coverings, all_items, &visited);
         let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
         let snoozed_until = item.get_covered_by_date_time(snoozed);
+        let item_facing = item.get_facing();
+        let facing = if item_facing.is_empty() {
+            //Look to parents for a setting
+            larger
+                .iter()
+                .map(|x| x.get_facing())
+                .filter(|x| !x.is_empty())
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>()
+        } else {
+            //Value is set so use it
+            item_facing.to_vec()
+        };
         ItemNode {
             item,
             larger,
             smaller,
             snoozed_until,
+            facing,
         }
     }
 
@@ -206,23 +222,12 @@ impl<'s> ItemNode<'s> {
         self.get_snoozed_until().iter().any(|x| x > &&now)
     }
 
-    pub(crate) fn get_facing(&self) -> &Facing {
-        let facing = self.item.get_facing();
-        if facing != &Facing::NotSet {
-            facing
-        } else {
-            for larger in self.get_larger() {
-                let larger_facing = larger.get_facing();
-                if larger_facing != &Facing::NotSet {
-                    return larger_facing;
-                }
-            }
-            facing
-        }
+    pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
+        &self.facing
     }
 
     pub(crate) fn is_facing_undefined(&self) -> bool {
-        self.get_facing() == &Facing::NotSet
+        self.get_facing().is_empty()
     }
 }
 
@@ -230,6 +235,7 @@ impl<'s> ItemNode<'s> {
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
+    facing: Vec<Facing>,
 }
 
 impl<'s> GrowingItemNode<'s> {
@@ -297,19 +303,8 @@ impl<'s> GrowingItemNode<'s> {
         &self.larger
     }
 
-    pub(crate) fn get_facing(&self) -> &Facing {
-        let facing = self.item.get_facing();
-        if facing != &Facing::NotSet {
-            facing
-        } else {
-            for larger in self.get_larger() {
-                let larger_facing = larger.get_facing();
-                if larger_facing != &Facing::NotSet {
-                    return larger_facing;
-                }
-            }
-            facing
-        }
+    pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
+        &self.facing
     }
 }
 
@@ -328,9 +323,12 @@ pub(crate) fn create_growing_nodes<'a>(
                 visited.push(x);
                 create_growing_node(x, coverings, possible_parents, visited)
             } else {
+                let item_facing = x.get_facing();
+                let facing = item_facing.to_vec();
                 GrowingItemNode {
                     item: x,
                     larger: vec![],
+                    facing,
                 }
             }
         })
@@ -345,7 +343,25 @@ pub(crate) fn create_growing_node<'a>(
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(coverings, all_items, &visited);
     let larger = create_growing_nodes(parents, coverings, all_items, visited);
-    GrowingItemNode { item, larger }
+    let item_facing = item.get_facing();
+    let facing = if item_facing.is_empty() {
+        //Look to parents for a setting
+        larger
+            .iter()
+            .map(|x| x.get_facing())
+            .filter(|x| !x.is_empty())
+            .flatten()
+            .cloned()
+            .collect::<Vec<_>>()
+    } else {
+        //Value is set so use it
+        item_facing.to_vec()
+    };
+    GrowingItemNode {
+        item,
+        larger,
+        facing,
+    }
 }
 
 #[derive(Debug)]

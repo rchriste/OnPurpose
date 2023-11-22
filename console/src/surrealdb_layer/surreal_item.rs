@@ -30,7 +30,7 @@ pub(crate) struct SurrealItem {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: Facing,
+    pub(crate) facing: Vec<Facing>,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) item_type: ItemType,
@@ -98,8 +98,18 @@ impl SurrealItem {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum Facing {
+    Others {
+        how_well_defined: HowWellDefined,
+        who: RecordId,
+    },
+    Myself(HowWellDefined),
+    InternalOrSmaller,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum FacingOldVersion {
     #[default]
     NotSet,
     Others {
@@ -107,10 +117,6 @@ pub(crate) enum Facing {
         who: RecordId,
     },
     Myself(HowWellDefined),
-    MyselfAndOthers {
-        how_well_defined: HowWellDefined,
-        who: RecordId,
-    },
     InternalOrSmaller,
 }
 
@@ -273,7 +279,10 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemTypeOldVersion,
+    pub(crate) facing: FacingOldVersion,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) item_type: ItemType,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -287,6 +296,10 @@ pub(crate) struct SurrealItemOldVersion {
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
+
+    #[cfg_attr(test, builder(default = "Utc::now().into()"))]
+    pub(crate) created: Datetime,
+    //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
 }
 
 impl From<SurrealItemOldVersion> for SurrealItem {
@@ -302,7 +315,7 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: Utc::now().into(),
-            facing: Facing::default(),
+            facing: value.facing.into(),
         }
     }
 }
@@ -324,6 +337,23 @@ impl From<ItemTypeOldVersion> for ItemType {
             },
             ItemTypeOldVersion::Motivation => ItemType::Motivation,
             ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
+        }
+    }
+}
+
+impl From<FacingOldVersion> for Vec<Facing> {
+    fn from(value: FacingOldVersion) -> Self {
+        match value {
+            FacingOldVersion::NotSet => vec![],
+            FacingOldVersion::Others {
+                how_well_defined,
+                who,
+            } => vec![Facing::Others {
+                how_well_defined,
+                who,
+            }],
+            FacingOldVersion::Myself(how_well_defined) => vec![Facing::Myself(how_well_defined)],
+            FacingOldVersion::InternalOrSmaller => vec![Facing::InternalOrSmaller],
         }
     }
 }
