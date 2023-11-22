@@ -107,6 +107,10 @@ pub(crate) enum Facing {
         who: RecordId,
     },
     Myself(HowWellDefined),
+    MyselfAndOthers {
+        how_well_defined: HowWellDefined,
+        who: RecordId,
+    },
     InternalOrSmaller,
 }
 

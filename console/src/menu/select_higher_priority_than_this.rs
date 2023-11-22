@@ -33,7 +33,7 @@ impl<'e> HigherPriorityThan<'e> {
 
 pub(crate) fn select_higher_priority_than_this(items: &[&Item<'_>]) -> Option<RecordId> {
     let list = HigherPriorityThan::create_list(items);
-    let selected = Select::new("Select higher priority than this", list)
+    let selected = Select::new("Select higher priority than this|", list)
         .prompt()
         .unwrap();
     match selected {

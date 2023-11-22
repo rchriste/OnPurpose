@@ -15,39 +15,43 @@ use super::view_expectations;
 
 #[async_recursion]
 pub(crate) async fn define_facing(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
-    let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
-        .await
-        .unwrap();
-    let now = Utc::now();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let active_items = base_data.get_active_items();
-    let covering = base_data.get_coverings();
-    let active_covering_until_date_time = base_data.get_active_snoozed();
+    loop {
+        let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
+            .await
+            .unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let active_items = base_data.get_active_items();
+        let covering = base_data.get_coverings();
+        let active_covering_until_date_time = base_data.get_active_snoozed();
 
-    let item_nodes = active_items
-        .iter()
-        .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, active_items))
-        .collect::<Vec<_>>();
+        let item_nodes = active_items
+            .iter()
+            .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, active_items))
+            .collect::<Vec<_>>();
 
-    let item_nodes = item_nodes
-        .iter()
-        .filter(|x| !x.has_larger() && x.is_facing_undefined())
-        .collect::<Vec<_>>();
+        let item_nodes = item_nodes
+            .iter()
+            .filter(|x| !x.has_larger() && x.is_facing_undefined())
+            .collect::<Vec<_>>();
 
-    let display_item_nodes = item_nodes
-        .iter()
-        .map(|x| DisplayItemNode::new(x, None))
-        .collect::<Vec<_>>();
+        let display_item_nodes = item_nodes
+            .iter()
+            .map(|x| DisplayItemNode::new(x, None))
+            .collect::<Vec<_>>();
 
-    let selection = Select::new("Select an item |", display_item_nodes).prompt();
+        let selection = Select::new("Select an item |", display_item_nodes).prompt();
 
-    match selection {
-        Ok(selection) => {
-            let item_node = selection.get_item_node();
-            single_item_define_facing(item_node, send_to_data_storage_layer).await
+        match selection {
+            Ok(selection) => {
+                let item_node = selection.get_item_node();
+                single_item_define_facing(item_node, send_to_data_storage_layer).await
+            }
+            Err(InquireError::OperationCanceled) => {
+                view_expectations(send_to_data_storage_layer).await
+            }
+            Err(err) => todo!("{:?}", err),
         }
-        Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
-        Err(err) => todo!("{:?}", err),
     }
 }
 
@@ -55,6 +59,7 @@ pub(crate) enum FacingOptions {
     PickParent,
     ForMyself,
     ForAnother,
+    ForMyselfAndAnother,
 }
 
 impl Display for FacingOptions {
@@ -62,6 +67,7 @@ impl Display for FacingOptions {
         match self {
             FacingOptions::PickParent => write!(f, "Pick a Parent"),
             FacingOptions::ForMyself => write!(f, "For Myself"),
+            FacingOptions::ForMyselfAndAnother => write!(f, "For Myself and Another"),
             FacingOptions::ForAnother => write!(f, "For Another"),
         }
     }
@@ -73,6 +79,7 @@ impl FacingOptions {
             FacingOptions::PickParent,
             FacingOptions::ForMyself,
             FacingOptions::ForAnother,
+            FacingOptions::ForMyselfAndAnother,
         ]
     }
 }
@@ -90,6 +97,7 @@ async fn single_item_define_facing(
         }
         Ok(FacingOptions::ForMyself) => todo!(),
         Ok(FacingOptions::ForAnother) => todo!(),
+        Ok(FacingOptions::ForMyselfAndAnother) => todo!(),
         Err(InquireError::OperationCanceled) => define_facing(send_to_data_storage_layer).await,
         Err(err) => todo!("{:?}", err),
     }

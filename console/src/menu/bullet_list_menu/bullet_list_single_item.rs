@@ -526,7 +526,7 @@ async fn present_bullet_list_item_parent_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
     match selected_item.get_type() {
-        ItemType::Action | ItemType::Goal(..) => {
+        ItemType::Action | ItemType::Goal(..) | ItemType::Motivation => {
             present_bullet_list_item_selected(
                 selected_item,
                 current_date_time,
@@ -538,7 +538,6 @@ async fn present_bullet_list_item_parent_selected(
             .await
         }
         ItemType::IdeaOrThought => todo!(),
-        ItemType::Motivation => todo!(),
         ItemType::Undeclared => todo!(),
         ItemType::Simple => todo!(),
         ItemType::PersonOrGroup => todo!(),
