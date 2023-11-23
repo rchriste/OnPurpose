@@ -6,9 +6,14 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData, display::display_item_node::DisplayItemNode,
+    base_data::BaseData,
+    display::display_item_node::DisplayItemNode,
     menu::bullet_list_menu::bullet_list_single_item::parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
-    node::item_node::ItemNode, surrealdb_layer::DataLayerCommands,
+    node::item_node::ItemNode,
+    surrealdb_layer::{
+        surreal_item::{Facing, HowWellDefined},
+        DataLayerCommands,
+    },
 };
 
 use super::view_expectations;
@@ -84,6 +89,47 @@ impl FacingOptions {
     }
 }
 
+enum HowWellDefinedSelection {
+    NotSet,
+    WellDefined,
+    RoughlyDefined,
+    LooselyDefined,
+}
+
+impl Display for HowWellDefinedSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HowWellDefinedSelection::NotSet => write!(f, "Not Set"),
+            HowWellDefinedSelection::WellDefined => write!(f, "Well Defined"),
+            HowWellDefinedSelection::RoughlyDefined => write!(f, "Roughly Defined"),
+            HowWellDefinedSelection::LooselyDefined => write!(f, "Loosely Defined"),
+        }
+    }
+}
+
+impl HowWellDefinedSelection {
+    pub(crate) fn get_list() -> Vec<Self> {
+        vec![
+            HowWellDefinedSelection::NotSet,
+            HowWellDefinedSelection::WellDefined,
+            HowWellDefinedSelection::RoughlyDefined,
+            HowWellDefinedSelection::LooselyDefined,
+        ]
+    }
+}
+
+impl From<HowWellDefinedSelection> for HowWellDefined {
+    fn from(item: HowWellDefinedSelection) -> Self {
+        match item {
+            HowWellDefinedSelection::NotSet => HowWellDefined::NotSet,
+            HowWellDefinedSelection::WellDefined => HowWellDefined::WellDefined,
+            HowWellDefinedSelection::RoughlyDefined => HowWellDefined::RoughlyDefined,
+            HowWellDefinedSelection::LooselyDefined => HowWellDefined::LooselyDefined,
+        }
+    }
+}
+
+#[async_recursion]
 async fn single_item_define_facing(
     item_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -95,7 +141,26 @@ async fn single_item_define_facing(
         Ok(FacingOptions::PickParent) => {
             parent_to_a_goal_or_motivation(item_node.get_item(), send_to_data_storage_layer).await
         }
-        Ok(FacingOptions::ForMyself) => todo!(),
+        Ok(FacingOptions::ForMyself) => {
+            let list = HowWellDefinedSelection::get_list();
+            let selection = Select::new("Select How Well Defined |", list).prompt();
+            match selection {
+                Ok(selection) => {
+                    let facing = Facing::Myself(selection.into());
+                    send_to_data_storage_layer
+                        .send(DataLayerCommands::UpdateFacing(
+                            item_node.get_surreal_record_id().clone(),
+                            vec![facing],
+                        ))
+                        .await
+                        .unwrap();
+                }
+                Err(InquireError::OperationCanceled) => {
+                    single_item_define_facing(item_node, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{:?}", err),
+            }
+        }
         Ok(FacingOptions::ForAnother) => todo!(),
         Ok(FacingOptions::ForMyselfAndAnother) => todo!(),
         Err(InquireError::OperationCanceled) => define_facing(send_to_data_storage_layer).await,

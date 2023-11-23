@@ -27,7 +27,7 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::{
-        ItemType, Permanence, Responsibility, Staging, SurrealItem, SurrealItemOldVersion,
+        Facing, ItemType, Permanence, Responsibility, Staging, SurrealItem, SurrealItemOldVersion,
         SurrealOrderedSubItem,
     },
     surreal_life_area::SurrealLifeArea,
@@ -74,6 +74,7 @@ pub(crate) enum DataLayerCommands {
     UpdateItemPermanence(RecordId, Permanence),
     UpdateItemStaging(RecordId, Staging),
     UpdateItemSummary(RecordId, String),
+    UpdateFacing(RecordId, Vec<Facing>),
 }
 
 impl DataLayerCommands {
@@ -212,6 +213,15 @@ pub(crate) async fn data_storage_start_and_run(
                     .unwrap();
                 item.responsibility = new_responsibility;
                 item.update(&db).await.unwrap();
+            }
+            Some(DataLayerCommands::UpdateFacing(record_id, new_facing)) => {
+                let mut item = SurrealItem::get_by_id(record_id.id.to_raw(), &db)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                item.facing = new_facing;
+                let updated = item.clone().update(&db).await.unwrap().unwrap();
+                assert_eq!(item, updated);
             }
             None => return, //Channel closed, time to shutdown down, exit
         }

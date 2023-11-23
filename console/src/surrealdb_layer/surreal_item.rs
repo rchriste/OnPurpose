@@ -309,7 +309,7 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type.into(),
+            item_type: value.item_type,
             notes_location: value.notes_location,
             permanence: value.permanence,
             staging: value.staging,
