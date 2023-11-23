@@ -35,6 +35,7 @@ pub(crate) async fn define_facing(send_to_data_storage_layer: &Sender<DataLayerC
 
         let item_nodes = active_items
             .iter()
+            .filter(|x| !x.is_person_or_group())
             .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, active_items))
             .collect::<Vec<_>>();
 
@@ -48,7 +49,11 @@ pub(crate) async fn define_facing(send_to_data_storage_layer: &Sender<DataLayerC
             .map(|x| DisplayItemNode::new(x, None))
             .collect::<Vec<_>>();
 
-        let selection = Select::new("Select an item |", display_item_nodes).prompt();
+        let selection = Select::new(
+            &format!("Select an item ({} Remaining)|", display_item_nodes.len()),
+            display_item_nodes,
+        )
+        .prompt();
 
         match selection {
             Ok(selection) => {
@@ -92,6 +97,7 @@ impl FacingOptions {
     }
 }
 
+#[derive(Clone, Copy)]
 enum HowWellDefinedSelection {
     NotSet,
     WellDefined,
@@ -190,7 +196,33 @@ async fn single_item_define_facing(
                 Err(err) => todo!("{:?}", err),
             }
         }
-        Ok(FacingOptions::ForMyselfAndAnother) => todo!(),
+        Ok(FacingOptions::ForMyselfAndAnother) => {
+            let person_or_group = select_person_or_group(send_to_data_storage_layer)
+                .await
+                .unwrap();
+            let list = HowWellDefinedSelection::get_list();
+            let selection = Select::new("Select How Well Defined |", list).prompt();
+            match selection {
+                Ok(selection) => {
+                    let myself_facing = Facing::Myself(selection.into());
+                    let others_facing = Facing::Others {
+                        how_well_defined: selection.into(),
+                        who: person_or_group,
+                    };
+                    send_to_data_storage_layer
+                        .send(DataLayerCommands::UpdateFacing(
+                            item_node.get_surreal_record_id().clone(),
+                            vec![myself_facing, others_facing],
+                        ))
+                        .await
+                        .unwrap();
+                }
+                Err(InquireError::OperationCanceled) => {
+                    single_item_define_facing(item_node, send_to_data_storage_layer).await
+                }
+                Err(err) => todo!("{:?}", err),
+            }
+        }
         Err(InquireError::OperationCanceled) => define_facing(send_to_data_storage_layer).await,
         Err(err) => todo!("{:?}", err),
     }
