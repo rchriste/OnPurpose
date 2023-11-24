@@ -38,10 +38,6 @@ impl BulletList {
                 let mut all_leaf_nodes = all_item_nodes
                     .into_iter()
                     .filter(|x| x.get_smaller().is_empty())
-                    //Reactive items should not be leaf nodes
-                    .filter(|x| !x.is_responsibility_reactive())
-                    //Snoozed items should not be shown
-                    .filter(|x| !x.is_snoozed(local_current_date_time))
                     .collect::<Vec<_>>();
 
                 //This first sort is just to give a stable order to the items. Another way of sorting would
@@ -49,16 +45,46 @@ impl BulletList {
                 all_leaf_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
 
                 all_leaf_nodes.sort_by(|a, b| {
-                    (if a.is_type_undeclared() || a.is_type_simple() {
-                        if b.is_type_undeclared() || b.is_type_simple() {
+                    //Reactive items should be shown at the bottom so they are searchable
+                    //TODO: I should have an item to state the purpose so the User knows they are not meant to do this
+                    (if a.is_responsibility_reactive() {
+                        if b.is_responsibility_reactive() {
                             Ordering::Equal
                         } else {
                             Ordering::Less
                         }
-                    } else if b.is_type_undeclared() || b.is_type_simple() {
+                    } else if b.is_responsibility_reactive() {
                         Ordering::Greater
                     } else {
                         Ordering::Equal
+                    })
+                    .then_with(|| {
+                        //Snoozed items should be shown at the bottom so they are searchable
+                        //TODO: I should have an item to state the purpose so the User knows they are not meant to do this, only if they need to search
+                        if a.is_snoozed(local_current_date_time) {
+                            if b.is_snoozed(local_current_date_time) {
+                                Ordering::Equal
+                            } else {
+                                Ordering::Less
+                            }
+                        } else if b.is_snoozed(local_current_date_time) {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
+                    })
+                    .then_with(|| {
+                        if a.is_type_undeclared() || a.is_type_simple() {
+                            if b.is_type_undeclared() || b.is_type_simple() {
+                                Ordering::Equal
+                            } else {
+                                Ordering::Less
+                            }
+                        } else if b.is_type_undeclared() || b.is_type_simple() {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
                     })
                     .then_with(|| {
                         if a.is_mentally_resident_expired(current_date_time) {
