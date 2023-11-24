@@ -44,6 +44,8 @@ use self::{
     parent_to_a_goal_or_motivation::parent_to_a_motivation, set_staging::present_set_staging_menu,
 };
 
+use super::present_normal_bullet_list_menu;
+
 enum BulletListSingleItemSelection<'e> {
     ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
@@ -575,7 +577,7 @@ async fn finish_bullet_item(
             .await
         }
         Ok(FinishSelection::ReturnToBulletList) => {
-            todo!("TODO: Implement ReturnToBulletList");
+            present_normal_bullet_list_menu(&send_to_data_storage_layer).await;
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),

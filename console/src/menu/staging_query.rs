@@ -8,7 +8,13 @@ pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
     let now = Local::now();
     let wait_until = loop {
         let wait_string = Text::new("Can wait for how long?").prompt()?;
-        let wait_duration = parse(&wait_string).unwrap();
+        let wait_duration = match parse(&wait_string) {
+            Ok(duration) => duration,
+            Err(e) => {
+                println!("Error: {}", e);
+                continue;
+            }
+        };
         let wait_until = now + wait_duration;
         println!("Can wait until {}?", wait_until);
         let result = Select::new("Select from the below list|", YesOrNo::make_list()).prompt()?;
