@@ -458,6 +458,41 @@ pub(crate) async fn present_bullet_list_item_selected(
     }
 }
 
+enum FinishSelection<'e> {
+    CreateNextStepWithParent(&'e Item<'e>),
+    GoToParent(&'e Item<'e>),
+    ReturnToBulletList,
+}
+
+impl Display for FinishSelection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FinishSelection::CreateNextStepWithParent(parent) => write!(
+                f,
+                "Create Next Step with Parent: {}",
+                DisplayItem::new(parent)
+            ),
+            FinishSelection::GoToParent(parent) => {
+                write!(f, "Go to Parent: {}", DisplayItem::new(parent))
+            }
+            FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
+        }
+    }
+}
+
+impl<'e> FinishSelection<'e> {
+    fn make_list(parents: &[&'e Item<'e>]) -> Vec<Self> {
+        let mut list = Vec::default();
+        list.push(Self::ReturnToBulletList);
+        list.extend(
+            parents
+                .iter()
+                .flat_map(|x| vec![Self::CreateNextStepWithParent(x), Self::GoToParent(x)]),
+        );
+        list
+    }
+}
+
 async fn finish_bullet_item(
     finish_this: &ItemNode<'_>,
     all_coverings: &[Covering<'_>],
@@ -473,21 +508,77 @@ async fn finish_bullet_item(
         .await
         .unwrap();
 
-    let mut parents_iter = finish_this.get_larger().iter();
-    let next_item = parents_iter.next();
-    if let Some(next_item) = next_item {
-        let next_item = ItemNode::new(next_item.get_item(), all_coverings, all_snoozed, all_items);
-        let display_item = DisplayItemNode::new(&next_item, Some(current_date_time));
-        println!("{}", display_item);
-        present_bullet_list_item_selected(
-            &next_item,
-            current_date_time,
-            all_coverings,
-            all_snoozed,
-            all_items,
-            send_to_data_storage_layer,
-        )
-        .await
+    let list = FinishSelection::make_list(
+        &finish_this
+            .get_larger()
+            .iter()
+            .map(|x| x.get_item())
+            .collect::<Vec<_>>(),
+    );
+    let selection = Select::new("Select from the below list|", list).prompt();
+
+    match selection {
+        Ok(FinishSelection::CreateNextStepWithParent(parent)) => {
+            let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+                .await
+                .unwrap();
+            let now = Utc::now();
+            let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+            let items = base_data.get_active_items();
+            let parent_surreal_record_id = parent.get_surreal_record_id();
+            let updated_parent = items
+                .iter()
+                .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
+                .map(|x| {
+                    ItemNode::new(
+                        x,
+                        base_data.get_coverings(),
+                        base_data.get_active_snoozed(),
+                        items,
+                    )
+                })
+                .next()
+                .expect("We will find this existing item once");
+
+            state_a_smaller_next_step(&updated_parent, send_to_data_storage_layer).await
+        }
+        Ok(FinishSelection::GoToParent(parent)) => {
+            let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+                .await
+                .unwrap();
+            let now = Utc::now();
+            let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+            let items = base_data.get_active_items();
+            let parent_surreal_record_id = parent.get_surreal_record_id();
+            let updated_parent = items
+                .iter()
+                .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
+                .map(|x| {
+                    ItemNode::new(
+                        x,
+                        base_data.get_coverings(),
+                        base_data.get_active_snoozed(),
+                        items,
+                    )
+                })
+                .next()
+                .expect("We will find this existing item once");
+
+            present_bullet_list_item_selected(
+                &updated_parent,
+                current_date_time,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
+        Ok(FinishSelection::ReturnToBulletList) => {
+            todo!("TODO: Implement ReturnToBulletList");
+        }
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(err) => todo!("Unexpected {}", err),
     }
 }
 
