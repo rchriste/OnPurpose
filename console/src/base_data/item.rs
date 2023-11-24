@@ -379,19 +379,6 @@ impl<'b> Item<'b> {
         !self.surreal_item.smaller_items_in_priority_order.is_empty()
     }
 
-    pub(crate) fn has_active_children(&self, all_items: &[&Item<'_>]) -> bool {
-        self.surreal_item
-            .smaller_items_in_priority_order
-            .iter()
-            .any(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
-                    .iter()
-                    .find(|x| x.id == surreal_item_id)
-                    .is_some_and(|x| !x.is_finished()),
-                SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
-            })
-    }
-
     pub(crate) fn is_there_notes(&self) -> bool {
         self.surreal_item.notes_location != NotesLocation::None
     }
@@ -539,6 +526,21 @@ mod tests {
     };
 
     use super::*;
+
+    impl Item<'_> {
+        pub(crate) fn has_active_children(&self, all_items: &[&Item<'_>]) -> bool {
+            self.surreal_item
+                .smaller_items_in_priority_order
+                .iter()
+                .any(|x| match x {
+                    SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
+                        .iter()
+                        .find(|x| x.id == surreal_item_id)
+                        .is_some_and(|x| !x.is_finished()),
+                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
+                })
+        }
+    }
 
     #[test]
     fn to_do_item_with_a_parent_returns_the_parent_when_find_parents_is_called() {
