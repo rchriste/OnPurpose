@@ -51,10 +51,10 @@ impl BulletList {
                         if b.is_responsibility_reactive() {
                             Ordering::Equal
                         } else {
-                            Ordering::Less
+                            Ordering::Greater
                         }
                     } else if b.is_responsibility_reactive() {
-                        Ordering::Greater
+                        Ordering::Less
                     } else {
                         Ordering::Equal
                     })
@@ -65,10 +65,10 @@ impl BulletList {
                             if b.is_snoozed(local_current_date_time) {
                                 Ordering::Equal
                             } else {
-                                Ordering::Less
+                                Ordering::Greater
                             }
                         } else if b.is_snoozed(local_current_date_time) {
-                            Ordering::Greater
+                            Ordering::Less
                         } else {
                             Ordering::Equal
                         }
