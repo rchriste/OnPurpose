@@ -38,6 +38,9 @@ impl BulletList {
                 let mut all_leaf_nodes = all_item_nodes
                     .into_iter()
                     .filter(|x| x.get_smaller().is_empty())
+                    //Person or group items without a parent, meaning a reason for being on the list,
+                    // should be filtered out.
+                    .filter(|x| !x.is_person_or_group() || !x.get_larger().is_empty())
                     .collect::<Vec<_>>();
 
                 //This first sort is just to give a stable order to the items. Another way of sorting would
