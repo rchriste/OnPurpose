@@ -417,12 +417,11 @@ async fn parent_item_with_existing_item(
             },
         );
     } else {
-        parent.smaller_items_in_priority_order.insert(
-            0,
-            SurrealOrderedSubItem::SubItem {
+        parent
+            .smaller_items_in_priority_order
+            .push(SurrealOrderedSubItem::SubItem {
                 surreal_item_id: child,
-            },
-        );
+            });
     }
     let saved = parent.clone().update(db).await.unwrap().unwrap();
     assert_eq!(parent, saved);
