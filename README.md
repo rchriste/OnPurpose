@@ -8,9 +8,9 @@ The almost universal approach of having To Dos organized inside a collection of 
 
 **Success for improving mental health should be measured by:**
 
-1. If someone has a feeling of relief that the software is helping them track and manage this mess they are in,
-2. If they are excited and hopeful because they know what the next step is and,
-3. Do they have a hopeful belief that taking the next step will actually help.
+1. Does someone have a feeling of relief that the software is helping them track and manage this mess they are in or is the to do list itself a source of stress,
+2. If they are excited and hopeful because they know what the next step is and a faith that taking the next step will help, and
+3. Does the software help them manage the expectations of others and that they have for themselves.
 
 **Regarding practical challenges success should be measured by:**
 
