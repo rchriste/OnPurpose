@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
@@ -85,7 +87,7 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let active_items = base_data.get_active_items();
-    let list = active_items
+    let mut list = active_items
         .iter()
         .filter(|x| x.is_type_goal() || x.is_type_motivation())
         .map(|item| {
@@ -99,6 +101,17 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
         //Collect the ItemNodes because they need a place to be so they don't go out of scope as DisplayItemNode
         //only takes a reference.
         .collect::<Vec<_>>();
+
+    list.sort_by(|a, b| {
+        //Motivational items first
+        if a.is_type_motivation() && !b.is_type_motivation() {
+            Ordering::Less
+        } else if !a.is_type_motivation() && b.is_type_motivation() {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    });
 
     let list = list
         .iter()
