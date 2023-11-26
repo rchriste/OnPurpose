@@ -67,14 +67,12 @@ pub(crate) async fn starting_to_work_on_this_now(
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = WorkingOnNow::make_list(currently_working_on);
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
-        Ok(WorkingOnNow::CaptureAnUnrelatedItem) => {
-            capture(send_to_data_storage_layer).await.unwrap();
-        }
+        Ok(WorkingOnNow::CaptureAnUnrelatedItem) => capture(send_to_data_storage_layer).await,
         Ok(WorkingOnNow::DefineFutureItemOntoParent) => {
             todo!("Define future item onto parent")
         }
@@ -107,8 +105,9 @@ pub(crate) async fn starting_to_work_on_this_now(
                 all_items,
                 send_to_data_storage_layer,
             )
-            .await;
+            .await
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
             todo!("Error: {:?}", err);
         }

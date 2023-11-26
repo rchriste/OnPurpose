@@ -80,7 +80,7 @@ pub(crate) async fn parent_to_a_motivation(
 pub(crate) async fn parent_to_a_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -141,14 +141,16 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
-            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+            Ok(parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,
             )
-            .await;
+            .await)
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
             todo!("Error: {:?}", err);
         }

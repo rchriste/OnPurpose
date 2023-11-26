@@ -150,11 +150,9 @@ async fn single_item_define_facing(
     let selection = Select::new("Select a facing |", list).prompt();
 
     match selection {
-        Ok(FacingOptions::PickParent) => Ok(parent_to_a_goal_or_motivation(
-            item_node.get_item(),
-            send_to_data_storage_layer,
-        )
-        .await),
+        Ok(FacingOptions::PickParent) => {
+            parent_to_a_goal_or_motivation(item_node.get_item(), send_to_data_storage_layer).await
+        }
         Ok(FacingOptions::ForMyself) => {
             let list = HowWellDefinedSelection::get_list();
             let selection = Select::new("Select How Well Defined |", list).prompt();

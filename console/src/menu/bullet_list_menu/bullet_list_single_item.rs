@@ -303,7 +303,7 @@ pub(crate) async fn present_bullet_list_item_selected(
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list =
         BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items, all_snoozed);
 
@@ -339,21 +339,21 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement PlanWhenToDoThis");
         }
         Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
-            parent_to_a_motivation(menu_for.get_item(), send_to_data_storage_layer).await
+            Ok(parent_to_a_motivation(menu_for.get_item(), send_to_data_storage_layer).await)
         }
         Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
         }
-        Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
-            unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await
-        }
+        Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => Ok(
+            unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await,
+        ),
         Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
             todo!("TODO: Implement NotInTheMoodToDoThisRightNow");
         }
-        Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
+        Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => Ok(
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
-                .await
-        }
+                .await,
+        ),
         Ok(BulletListSingleItemSelection::DefineChildActions) => {
             todo!("TODO: Implement DefineChildActions");
         }
@@ -361,7 +361,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateChildActions");
         }
         Ok(BulletListSingleItemSelection::DefineChildGoals) => {
-            define_child_goals(menu_for, send_to_data_storage_layer).await
+            Ok(define_child_goals(menu_for, send_to_data_storage_layer).await)
         }
         Ok(BulletListSingleItemSelection::UpdateChildGoals) => {
             todo!("TODO: Implement UpdateChildGoals");
@@ -381,6 +381,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
@@ -428,9 +429,11 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::ChangeStaging) => {
             present_set_staging_menu(menu_for, send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
-            process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await;
-        }
+        Ok(BulletListSingleItemSelection::ProcessAndFinish) => Ok(process_and_finish_bullet_item(
+            menu_for.get_item(),
+            send_to_data_storage_layer,
+        )
+        .await),
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(
                 menu_for.get_surreal_record_id().clone(),
@@ -450,12 +453,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::ParentToItem) => {
-            parent_to_item(menu_for.get_item(), send_to_data_storage_layer).await
+            Ok(parent_to_item(menu_for.get_item(), send_to_data_storage_layer).await)
         }
         Ok(BulletListSingleItemSelection::DebugPrintItem) => {
             println!("{:?}", menu_for);
+            Ok(())
         }
-        Err(InquireError::OperationCanceled) => (), //Nothing to do we just want to return to the bullet list
+        Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
 }
@@ -502,7 +507,7 @@ async fn finish_bullet_item(
     all_items: &[&Item<'_>],
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     send_to_data_storage_layer
         .send(DataLayerCommands::FinishItem(
             finish_this.get_surreal_record_id().clone(),
@@ -577,9 +582,9 @@ async fn finish_bullet_item(
             .await
         }
         Ok(FinishSelection::ReturnToBulletList) => {
-            present_normal_bullet_list_menu(send_to_data_storage_layer)
+            Ok(present_normal_bullet_list_menu(send_to_data_storage_layer)
                 .await
-                .unwrap();
+                .unwrap())
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),
@@ -619,7 +624,7 @@ async fn present_bullet_list_item_parent_selected(
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     match selected_item.get_type() {
         ItemType::Action | ItemType::Goal(..) | ItemType::Motivation => {
             present_bullet_list_item_selected(
@@ -695,7 +700,7 @@ async fn parent_to_item(
 pub(crate) async fn cover_with_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     //TODO: cover_to_item and parent_to_item are the same except for the command sent to the data storage layer, refactor to reduce duplicated code
     let raw_data = SurrealTables::new(send_to_data_storage_layer)
         .await
@@ -723,10 +728,12 @@ pub(crate) async fn cover_with_item(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             cover_with_new_item(parent_this, send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
 }
@@ -921,7 +928,7 @@ pub(crate) async fn parent_to_new_item(
 pub(crate) async fn cover_with_new_item(
     cover_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
 
     let selection = Select::new("Select from the below list|", list).prompt();
@@ -943,8 +950,10 @@ pub(crate) async fn cover_with_new_item(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
 }
@@ -953,7 +962,7 @@ pub(crate) async fn cover_with_new_item(
 pub(crate) async fn declare_item_type(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
 
     let selection = Select::new("Select from the below list|", list).prompt();
@@ -967,6 +976,7 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(ItemTypeSelection::Goal) => {
             send_to_data_storage_layer
@@ -977,6 +987,7 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(ItemTypeSelection::ResponsiveGoal) => {
             send_to_data_storage_layer
@@ -987,6 +998,7 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(ItemTypeSelection::Motivation) => {
             send_to_data_storage_layer
@@ -997,6 +1009,7 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(ItemTypeSelection::ResponsiveMotivation) => {
             send_to_data_storage_layer
@@ -1007,6 +1020,7 @@ pub(crate) async fn declare_item_type(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();

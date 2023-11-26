@@ -332,13 +332,13 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
         .prompt();
     match selection {
         Ok(MentallyResidentGoalSelectedMenuItem::CoverWithNextStep) => {
-            Ok(cover_with_item(goal_selected, send_to_data_storage_layer).await)
+            cover_with_item(goal_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::ProcessAndFinish) => {
-            Ok(process_and_finish_goal(goal_selected, send_to_data_storage_layer).await)
+            process_and_finish_goal(goal_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToMaintenanceGoal) => {
-            Ok(switch_to_maintenance_item(goal_selected, send_to_data_storage_layer).await)
+            switch_to_maintenance_item(goal_selected, send_to_data_storage_layer).await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToOnDeckGoal) => {
             let result = on_deck_query().await;
@@ -363,23 +363,24 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
                 Err(err) => todo!("Unexpected InquireError of {}", err),
             }
         }
-        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToIntensionGoal) => Ok(update_item_staging(
-            goal_selected,
-            send_to_data_storage_layer,
-            Staging::Intension,
-        )
-        .await),
-        Ok(MentallyResidentGoalSelectedMenuItem::ReleaseGoal) => {
-            Ok(
-                update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released)
-                    .await,
+        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToIntensionGoal) => {
+            update_item_staging(
+                goal_selected,
+                send_to_data_storage_layer,
+                Staging::Intension,
             )
+            .await
         }
-        Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => Ok(update_item_summary(
-            goal_selected.get_surreal_record_id().clone(),
-            send_to_data_storage_layer,
-        )
-        .await),
+        Ok(MentallyResidentGoalSelectedMenuItem::ReleaseGoal) => {
+            update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released).await
+        }
+        Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
+            update_item_summary(
+                goal_selected.get_surreal_record_id().clone(),
+                send_to_data_storage_layer,
+            )
+            .await
+        }
         Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
         Err(err) => todo!("{}", err),
     }
@@ -388,7 +389,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
 async fn process_and_finish_goal(
     selected_hope: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let user_processed_text = Editor::new("Process text").prompt().unwrap();
 
     let surreal_item = selected_hope.get_surreal_record_id();
@@ -406,12 +407,14 @@ async fn process_and_finish_goal(
         .send(DataLayerCommands::FinishItem(surreal_item.clone()))
         .await
         .unwrap();
+
+    Ok(())
 }
 
 async fn switch_to_maintenance_item(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemPermanence(
             selected.get_surreal_record_id().clone(),
@@ -419,13 +422,14 @@ async fn switch_to_maintenance_item(
         ))
         .await
         .unwrap();
+    Ok(())
 }
 
 async fn update_item_staging(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     new_staging: Staging,
-) {
+) -> Result<(), ()> {
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemStaging(
             selected.get_surreal_record_id().clone(),
@@ -433,4 +437,5 @@ async fn update_item_staging(
         ))
         .await
         .unwrap();
+    Ok(())
 }

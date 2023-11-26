@@ -111,7 +111,7 @@ pub(crate) async fn present_bullet_list_menu(
                     )
                     .await)
                 } else {
-                    Ok(present_bullet_list_item_selected(
+                    present_bullet_list_item_selected(
                         item_node,
                         current_date_time,
                         bullet_list.get_coverings(),
@@ -119,11 +119,11 @@ pub(crate) async fn present_bullet_list_menu(
                         bullet_list.get_active_items(),
                         send_to_data_storage_layer,
                     )
-                    .await)
+                    .await
                 }
             }
             Ok(InquireBulletListItem::SetStaging(item_node)) => {
-                Ok(present_set_staging_menu(item_node, send_to_data_storage_layer).await)
+                present_set_staging_menu(item_node, send_to_data_storage_layer).await
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await

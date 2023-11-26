@@ -22,7 +22,7 @@ use super::ItemTypeSelection;
 pub(crate) async fn state_a_smaller_next_step(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -73,10 +73,10 @@ pub(crate) async fn state_a_smaller_next_step(
                 "Please update Staging for {}",
                 DisplayItem::new(parent.get_item())
             );
-            present_set_staging_menu(parent, send_to_data_storage_layer).await;
+            present_set_staging_menu(parent, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
-            state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await;
+            state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
         }
         Err(err) => {
             todo!("Error: {:?}", err);
@@ -88,7 +88,7 @@ pub(crate) async fn state_a_smaller_next_step(
 pub(crate) async fn state_a_smaller_next_step_new_item(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
 
     let selection = Select::new("Select from the below list|", list).prompt();
@@ -127,7 +127,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                 "Please update Staging for {}",
                 DisplayItem::new(parent.get_item())
             );
-            present_set_staging_menu(parent, send_to_data_storage_layer).await;
+            present_set_staging_menu(parent, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),

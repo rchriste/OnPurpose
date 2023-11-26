@@ -55,7 +55,7 @@ impl StagingMenuSelection {
 pub(crate) async fn present_set_staging_menu(
     selected: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let (list, starting_cursor) = StagingMenuSelection::make_list();
 
     let selection = Select::new("Select from the below list|", list)
@@ -87,13 +87,14 @@ pub(crate) async fn present_set_staging_menu(
         StagingMenuSelection::Intension => Staging::Intension,
         StagingMenuSelection::Released => Staging::Released,
         StagingMenuSelection::MakeItemReactive => {
-            return send_to_data_storage_layer
+            send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateItemResponsibility(
                     selected.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
                 ))
                 .await
                 .unwrap();
+            return Ok(());
         }
     };
 
@@ -104,4 +105,5 @@ pub(crate) async fn present_set_staging_menu(
         ))
         .await
         .unwrap();
+    Ok(())
 }

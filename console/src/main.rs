@@ -19,7 +19,7 @@ use crate::{
 async fn update_item_summary(
     item_to_cover: RecordId,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemSummary(
@@ -27,7 +27,8 @@ async fn update_item_summary(
             new_summary,
         ))
         .await
-        .unwrap()
+        .unwrap();
+    Ok(())
 }
 
 #[tokio::main]
