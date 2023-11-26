@@ -69,7 +69,7 @@ impl<'a> InquireBulletListItem<'a> {
 #[async_recursion]
 pub(crate) async fn present_normal_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let before_db_query = Local::now();
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
@@ -84,14 +84,14 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
     println!("Time to create bullet list: {}", Utc::now() - now);
-    present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await;
+    present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await
 }
 
 pub(crate) async fn present_bullet_list_menu(
     bullet_list: BulletList,
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let item_nodes = bullet_list.get_bullet_list();
 
     let inquire_bullet_list = InquireBulletListItem::create_list(item_nodes, current_date_time);
@@ -105,10 +105,13 @@ pub(crate) async fn present_bullet_list_menu(
             Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
             Ok(InquireBulletListItem::Item(item_node, current_date_time)) => {
                 if item_node.is_person_or_group() {
-                    present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
-                        .await
+                    Ok(present_is_person_or_group_around_menu(
+                        item_node,
+                        send_to_data_storage_layer,
+                    )
+                    .await)
                 } else {
-                    present_bullet_list_item_selected(
+                    Ok(present_bullet_list_item_selected(
                         item_node,
                         current_date_time,
                         bullet_list.get_coverings(),
@@ -116,17 +119,18 @@ pub(crate) async fn present_bullet_list_menu(
                         bullet_list.get_active_items(),
                         send_to_data_storage_layer,
                     )
-                    .await
+                    .await)
                 }
             }
             Ok(InquireBulletListItem::SetStaging(item_node)) => {
-                present_set_staging_menu(item_node, send_to_data_storage_layer).await
+                Ok(present_set_staging_menu(item_node, send_to_data_storage_layer).await)
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
             }
+            Err(InquireError::OperationInterrupted) => Err(()),
             Err(err) => todo!("Unexpected InquireError of {}", err),
-        };
+        }
     } else {
         println!("To Do List is Empty, falling back to main menu");
         present_top_menu(send_to_data_storage_layer).await

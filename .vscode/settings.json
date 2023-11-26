@@ -7,6 +7,7 @@
         "Datetime",
         "debuginfo",
         "devl",
+        "gimli",
         "itertools",
         "meds",
         "neuro",

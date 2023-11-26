@@ -47,7 +47,9 @@ impl<'e> LifeAreaItem<'e> {
 }
 
 #[async_recursion]
-pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn change_routine(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let raw_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -64,21 +66,20 @@ pub(crate) async fn change_routine(send_to_data_storage_layer: &Sender<DataLayer
             todo!(
                 "TODO: Implement editing existing routine {}",
                 routine.summary()
-            );
+            )
         }
         Ok(LifeAreaItem::NewLifeArea) => {
-            todo!("TODO: Implement creating new life area");
+            todo!("TODO: Implement creating new life area")
         }
         Ok(LifeAreaItem::NewRoutine(life_area)) => {
             todo!(
                 "TODO: Implement creating new routine in {}",
                 life_area.summary()
-            );
+            )
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
         Err(_) => {
-            todo!("TODO: Implement cancelling");
+            todo!("TODO: Implement cancelling")
         }
     }
-    todo!()
 }

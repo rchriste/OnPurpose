@@ -22,7 +22,9 @@ use crate::{
 use super::view_expectations;
 
 #[async_recursion]
-pub(crate) async fn define_facing(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn define_facing(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     loop {
         let surreal_tables = DataLayerCommands::get_raw_data(send_to_data_storage_layer)
             .await
@@ -58,11 +60,12 @@ pub(crate) async fn define_facing(send_to_data_storage_layer: &Sender<DataLayerC
         match selection {
             Ok(selection) => {
                 let item_node = selection.get_item_node();
-                single_item_define_facing(item_node, send_to_data_storage_layer).await
+                single_item_define_facing(item_node, send_to_data_storage_layer).await?
             }
             Err(InquireError::OperationCanceled) => {
-                view_expectations(send_to_data_storage_layer).await
+                view_expectations(send_to_data_storage_layer).await?
             }
+            Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => todo!("{:?}", err),
         }
     }
@@ -142,14 +145,16 @@ impl From<HowWellDefinedSelection> for HowWellDefined {
 async fn single_item_define_facing(
     item_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = FacingOptions::get_list();
     let selection = Select::new("Select a facing |", list).prompt();
 
     match selection {
-        Ok(FacingOptions::PickParent) => {
-            parent_to_a_goal_or_motivation(item_node.get_item(), send_to_data_storage_layer).await
-        }
+        Ok(FacingOptions::PickParent) => Ok(parent_to_a_goal_or_motivation(
+            item_node.get_item(),
+            send_to_data_storage_layer,
+        )
+        .await),
         Ok(FacingOptions::ForMyself) => {
             let list = HowWellDefinedSelection::get_list();
             let selection = Select::new("Select How Well Defined |", list).prompt();
@@ -163,6 +168,7 @@ async fn single_item_define_facing(
                         ))
                         .await
                         .unwrap();
+                    Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await
@@ -189,6 +195,7 @@ async fn single_item_define_facing(
                         ))
                         .await
                         .unwrap();
+                    Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await
@@ -216,6 +223,7 @@ async fn single_item_define_facing(
                         ))
                         .await
                         .unwrap();
+                    Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await

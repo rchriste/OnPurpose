@@ -137,7 +137,9 @@ impl ExpectationsMenuItem {
 }
 
 #[async_recursion]
-pub(crate) async fn view_expectations(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn view_expectations(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let list = ExpectationsMenuItem::make_list();
 
     let selection = Select::new("Select from the below list|", list).prompt();
@@ -161,7 +163,7 @@ pub(crate) async fn view_expectations(send_to_data_storage_layer: &Sender<DataLa
 #[async_recursion]
 pub(crate) async fn view_mentally_resident_project_goals(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -195,7 +197,7 @@ pub(crate) async fn view_mentally_resident_project_goals(
                     selected.into(),
                     send_to_data_storage_layer,
                 )
-                .await;
+                .await
             }
             Err(err) => match err {
                 InquireError::OperationCanceled => {
@@ -203,7 +205,7 @@ pub(crate) async fn view_mentally_resident_project_goals(
                 }
                 _ => panic!("Unexpected InquireError of {}", err),
             },
-        };
+        }
     } else {
         println!("Hope List is Empty, falling back to main menu.");
         present_top_menu(send_to_data_storage_layer).await
@@ -241,7 +243,9 @@ impl<'a> MaintenanceHopeItem<'a> {
 }
 
 #[async_recursion]
-pub(crate) async fn view_maintenance_hopes(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn view_maintenance_hopes(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -320,7 +324,7 @@ impl MentallyResidentGoalSelectedMenuItem {
 pub(crate) async fn present_mentally_resident_goal_selected_menu(
     goal_selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = MentallyResidentGoalSelectedMenuItem::create_list();
 
     let selection = Select::new("Select from the below list|", list)
@@ -328,13 +332,13 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
         .prompt();
     match selection {
         Ok(MentallyResidentGoalSelectedMenuItem::CoverWithNextStep) => {
-            cover_with_item(goal_selected, send_to_data_storage_layer).await
+            Ok(cover_with_item(goal_selected, send_to_data_storage_layer).await)
         }
         Ok(MentallyResidentGoalSelectedMenuItem::ProcessAndFinish) => {
-            process_and_finish_goal(goal_selected, send_to_data_storage_layer).await
+            Ok(process_and_finish_goal(goal_selected, send_to_data_storage_layer).await)
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToMaintenanceGoal) => {
-            switch_to_maintenance_item(goal_selected, send_to_data_storage_layer).await
+            Ok(switch_to_maintenance_item(goal_selected, send_to_data_storage_layer).await)
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToOnDeckGoal) => {
             let result = on_deck_query().await;
@@ -347,35 +351,35 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
                         ))
                         .await
                         .unwrap();
+                    Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
                     present_mentally_resident_goal_selected_menu(
                         goal_selected,
                         send_to_data_storage_layer,
                     )
-                    .await;
+                    .await
                 }
                 Err(err) => todo!("Unexpected InquireError of {}", err),
             }
         }
-        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToIntensionGoal) => {
-            update_item_staging(
-                goal_selected,
-                send_to_data_storage_layer,
-                Staging::Intension,
-            )
-            .await
-        }
+        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToIntensionGoal) => Ok(update_item_staging(
+            goal_selected,
+            send_to_data_storage_layer,
+            Staging::Intension,
+        )
+        .await),
         Ok(MentallyResidentGoalSelectedMenuItem::ReleaseGoal) => {
-            update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released).await
-        }
-        Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
-            update_item_summary(
-                goal_selected.get_surreal_record_id().clone(),
-                send_to_data_storage_layer,
+            Ok(
+                update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released)
+                    .await,
             )
-            .await
         }
+        Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => Ok(update_item_summary(
+            goal_selected.get_surreal_record_id().clone(),
+            send_to_data_storage_layer,
+        )
+        .await),
         Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
         Err(err) => todo!("{}", err),
     }

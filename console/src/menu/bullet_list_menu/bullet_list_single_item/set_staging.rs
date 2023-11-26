@@ -37,15 +37,17 @@ impl Display for StagingMenuSelection {
 impl StagingMenuSelection {
     /// Returns a tuple of the list and the default index or recommended default selection
     fn make_list() -> (Vec<Self>, usize) {
-        (vec![
-            StagingMenuSelection::MentallyResident,
-            StagingMenuSelection::OnDeck,
-            StagingMenuSelection::Intension,
-            StagingMenuSelection::Released,
-            StagingMenuSelection::NotSet,
-            StagingMenuSelection::MakeItemReactive,
-        ],
-        1)
+        (
+            vec![
+                StagingMenuSelection::MentallyResident,
+                StagingMenuSelection::OnDeck,
+                StagingMenuSelection::Intension,
+                StagingMenuSelection::Released,
+                StagingMenuSelection::NotSet,
+                StagingMenuSelection::MakeItemReactive,
+            ],
+            1,
+        )
     }
 }
 

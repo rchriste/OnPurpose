@@ -49,10 +49,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
-    present_normal_bullet_list_menu(&send_to_data_storage_layer_tx).await;
+    loop {
+        match present_normal_bullet_list_menu(&send_to_data_storage_layer_tx).await {
+            Result::Ok(..) => (),
+            Result::Err(..) => break,
+        };
 
-    if data_storage_join_handle.is_finished() {
-        println!("Data Storage Layer closed early, unexpectedly");
+        if data_storage_join_handle.is_finished() {
+            println!("Data Storage Layer closed early, unexpectedly");
+        }
     }
 
     drop(send_to_data_storage_layer_tx);

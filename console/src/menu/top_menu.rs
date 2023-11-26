@@ -62,7 +62,9 @@ impl TopMenuSelection {
 }
 
 #[async_recursion]
-pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn present_top_menu(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let top_menu = TopMenuSelection::make_list();
 
     let selection = Select::new("Select from the below list|", top_menu)
@@ -83,7 +85,9 @@ pub(crate) async fn present_top_menu(send_to_data_storage_layer: &Sender<DataLay
     }
 }
 
-pub(crate) async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+pub(crate) async fn capture(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let new_item_summary = Text::new("Enter New Item ⍠").prompt().unwrap();
 
     let new_item = NewItem::new(new_item_summary, Utc::now());
@@ -91,9 +95,10 @@ pub(crate) async fn capture(send_to_data_storage_layer: &Sender<DataLayerCommand
         .send(DataLayerCommands::NewItem(new_item))
         .await
         .unwrap();
+    Ok(())
 }
 
-async fn view_motivations() {
+async fn view_motivations() -> Result<(), ()> {
     todo!()
 }
 
@@ -119,7 +124,9 @@ impl<'e> DebugViewItem<'e> {
     }
 }
 
-async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerCommands>) {
+async fn debug_view_all_items(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -156,6 +163,7 @@ async fn debug_view_all_items(send_to_data_storage_layer: &Sender<DataLayerComma
             let covered_by_date_time =
                 item.get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
         Err(err) => todo!("Unexpected InquireError of {}", err),

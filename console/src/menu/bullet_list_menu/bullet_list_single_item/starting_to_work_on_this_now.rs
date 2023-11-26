@@ -73,7 +73,7 @@ pub(crate) async fn starting_to_work_on_this_now(
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(WorkingOnNow::CaptureAnUnrelatedItem) => {
-            capture(send_to_data_storage_layer).await;
+            capture(send_to_data_storage_layer).await.unwrap();
         }
         Ok(WorkingOnNow::DefineFutureItemOntoParent) => {
             todo!("Define future item onto parent")

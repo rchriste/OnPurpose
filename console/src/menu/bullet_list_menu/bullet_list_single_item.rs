@@ -577,7 +577,9 @@ async fn finish_bullet_item(
             .await
         }
         Ok(FinishSelection::ReturnToBulletList) => {
-            present_normal_bullet_list_menu(send_to_data_storage_layer).await;
+            present_normal_bullet_list_menu(send_to_data_storage_layer)
+                .await
+                .unwrap();
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(err) => todo!("Unexpected {}", err),
