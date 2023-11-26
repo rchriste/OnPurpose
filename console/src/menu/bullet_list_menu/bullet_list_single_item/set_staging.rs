@@ -35,15 +35,17 @@ impl Display for StagingMenuSelection {
 }
 
 impl StagingMenuSelection {
-    fn make_list() -> Vec<Self> {
-        vec![
-            StagingMenuSelection::OnDeck,
+    /// Returns a tuple of the list and the default index or recommended default selection
+    fn make_list() -> (Vec<Self>, usize) {
+        (vec![
             StagingMenuSelection::MentallyResident,
+            StagingMenuSelection::OnDeck,
             StagingMenuSelection::Intension,
             StagingMenuSelection::Released,
             StagingMenuSelection::NotSet,
             StagingMenuSelection::MakeItemReactive,
-        ]
+        ],
+        1)
     }
 }
 
@@ -52,9 +54,10 @@ pub(crate) async fn present_set_staging_menu(
     selected: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) {
-    let list = StagingMenuSelection::make_list();
+    let (list, starting_cursor) = StagingMenuSelection::make_list();
 
     let selection = Select::new("Select from the below list|", list)
+        .with_starting_cursor(starting_cursor)
         .prompt()
         .unwrap();
     let staging = match selection {
