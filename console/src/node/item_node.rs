@@ -219,7 +219,10 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn expired_percentage(&self, current_date_time: &DateTime<Utc>) -> f32 {
         match self.get_staging() {
             Staging::NotSet => 0.0,
-            Staging::OnDeck { can_wait_until, began_waiting } => {
+            Staging::OnDeck {
+                can_wait_until,
+                began_waiting,
+            } => {
                 let can_wait_until: DateTime<Utc> = can_wait_until.clone().into();
                 let began_waiting: DateTime<Utc> = began_waiting.clone().into();
                 let total = can_wait_until.sub(began_waiting);

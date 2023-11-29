@@ -161,8 +161,8 @@ async fn debug_view_all_items(
             println!("Covering others: {:#?}", cover_others);
 
             let local_now = Local::now();
-            let covered_by_date_time =
-                item.get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &local_now);
+            let covered_by_date_time = item
+                .get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &local_now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
 
             println!("Expired percentage: {}", item_node.expired_percentage(&now));
