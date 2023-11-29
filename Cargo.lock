@@ -2007,7 +2007,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.125"
+version = "0.0.126"
 dependencies = [
  "async-recursion",
  "better_term",

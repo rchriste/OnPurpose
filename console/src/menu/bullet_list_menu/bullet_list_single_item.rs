@@ -166,7 +166,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if (is_type_action) && has_no_parent {
             list.push(Self::ParentToAGoalOrMotivation);
-        } else if is_type_goal && !has_active_children {
+        } else if (is_type_goal || is_type_motivation) && !has_active_children {
             list.push(Self::StateASmallerNextStep);
         }
 
