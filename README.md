@@ -1,33 +1,52 @@
 # What is On Purpose?
 
-Over the past few years I have been on a journey to rethink and re-imagine how a computer can better help with the problem of time and task management. I am neurodiverse and I have a belief that better software can greatly improve my mental health. **I overthink things, I am very out of sight, out of mind, and when something comes up I struggle to properly return to things.** These mental health issues make it difficult for me to consistently reason out the right thing to do right now, in the moment.
+_On Purpose_ is a to do application meant to greatly improve my mental health. It is a research project and a hobby. The objective is to let go of a user experience that can largely be implemented in a day planner, a spreadsheet, or simple queries to a database and really rethink or re-imagine the user experience to be closer to how our minds operate and closer to how we in reality actually do work today to pick what to work on and successfully get things done.
 
-I believe software that helps one manage To Do's should be able to help with these problems but today's software seems to be concerned with helping the user create lists of things To Do and prioritize them but without consideration for the mental health challenges and the related practical problems that are also fundamental and need to be solved in order to reliably get things done without having a crises going on.
+I am creating _On Purpose_ because I am neurodiverse and operating in this "natural" and "expected" way is a huge problem for me. When there is a crises going on I can rise to the challenge, and crises from time to time is unavoidable, but the idea that I need a crises to truly perform at my peak is an idea that is bad for my mental health and it does not promote a balanced life. I call this _On Purpose_ because the goal is to do software that helps me make better decisions so I can get things done while still doing the non-hyper focus things of being responsive, aware, and generally maintaining the things I am expected to do while not being overwhelmed from my ability to service and make progress on the things that matter most.
 
-The almost universal approach of having To Dos organized inside a collection of lists is confusing to over thinkers like me because it is just a lot to consider, doing this frequently is overwhelming because it is just so mentally exhausting. But the mental health problems don't stop there. The issue is that some can feel very pressured each time they are reminded of the many things they have not done. When this is shown frequently to pick the next thing to do this negativity can be completely and utterly overwhelming. I expect that when all we had was a pen and paper or day planner then this was just a reality of how the world had to be. But if you use software on a computer or cell phone to track your work I believe there is probably an alternative way of presenting this information that is better for our mental health and better for the neurodiverse.
-
-**Success for improving mental health should be measured by:**
+**My goal is to create a prototype that does well on the following criteria:**
 
 1. Does someone have a feeling of relief that the software is helping them track and manage this mess they are in or is the to do list itself a source of stress,
 2. If they are excited and hopeful because they know what the next step is and a faith that taking the next step will help, and
 3. Does the software help them manage the expectations of others and that they have for themselves.
+4. Does this software help me have a balanced life between my varied commitments and needs,
+5. How well does it help me make progress and prioritize things inside a single commitment,
+6. How well does it help me work efficiently in how it both orders and groups my work and,
+7. How convenient and integrated is using this software versus being an extra or duplicated thing on the side.
 
-**Regarding practical challenges success should be measured by:**
+My goal is to write a program that in my judgement and my experience does well on these criteria. However I am developing this as an open source project because I do have a secondary goal of helping others. When it comes to this project my eventual focus is on having high impact for those who also need it most over high usage or high adoption. To make an analogy I want to say that software and websites that support accessibility for the blind and physically disabled is something that I find so encouraging and it gives me hope about this world. I view accessibility as something that is only high impact for a few but at the same time these same features are also generally useful to many from time to time. In my mind I am trying to do a similar thing but for mental health disabilities or at least for my mental health disability that I have a personal connection with. At the same time, I do believe that my ideas might also be generally useful and it is an eventual goal of mine to advocate for the adoption of my best ideas into commercial software. But my immediate focus is a program that is transformational for me in my life.
 
-1. Does this software help me have a balanced life between my varied commitments and needs,
-2. How well does it help me make progress and prioritize things inside a single commitment,
-3. How well does it help me work efficiently in how it both orders and groups my work and,
-4. How convenient and integrated is using this software versus being an extra or duplicated thing on the side.
+**What I am writing is a console/text program that you use from the terminal.** What is in this repo right now is a partially implemented work-in-progress. Lot of menu items are not implemented and much functionality is missing. I believe this along with usability issues would make my program hard to use by others for the time being. I am roughly targeting the summer of 2024 for when I hope to have something that is worth trying out.
 
-**I expect software that does well on these metrics to be a life changing experience to use, something that once you experience you wonder how you ever lived without.** But my observation is that people are not really seeing the problem in this way. I observe that different people have different ways of addressing these needs and some ways work better than others, but by and large these solutions are generally about getting a lot of information into your head and making decisions outside of or before the creation of the to do list. I believe this process should be more integrated and built-in to the time management software. Rarely does a "just try harder" approach work out in the long term. Even those who are successful seem to eventually find something that is simple to maintain during their "try harder" phase. I believe this "fall back" process needs to be taken into consideration when coming up with a solution. Time management software or methods that require one to remain in this "try harder" phase are just not long term solutions.
+I am writing _On Purpose_ in Rust and I do intend to eventually have more than just a desktop console application and I consider a phone application to be a core feature, but also something that comes who knows when and after I reach version 1.0. This is being written with a longer term goal of eventually having a core library that can also be leveraged from a phone app (Android). I am also waiting for UI development in Rust, especially on a phone to get easier before I start working on a phone app or a desktop graphical user interface (GUI).
 
-**I believe there is a need for a time management program that takes a single person and their life focus and works to be well integrated with existing systems that have a different focus.** This means integration with systems that exist for tracking larger projects, like Azure DevOps but also including systems that are about smaller and more informal asks like email, calendar, and instant message. This software would span between work and personal life and also need the ability to understand and prioritize all kinds of work rather than just projects. It should be designed to keep working during the "fall back" phase and it should look to minimize and reduce the amount of things that one needs to keep in their head as much as possible. This integrated approach, especially with the Microsoft platform, is just not something that I am seeing in existing software.
+I should also mention that as much as possible my program is an extension to the Microsoft platform; this means a program that integrates with Microsoft Email & Calendar, Microsoft OneNote, Microsoft To Do, and Microsoft Teams through the Microsoft Graph API and Azure DevOps. The current operating system I am targeting is Microsoft Windows but I do expect this to work on Linux.
 
-**A few years ago I had one of those, "Well I guess I'll just have to do it myself then!" moments.** My goal was to figure out a user interface (UI) and a user experience (UX) for a To Do like program that actually addresses these mental health issues. I have incorporated my interpretation of ideas discussed by David Allen and Steven Covey in their seminole books. I have been inspired by the successes (and failures) of others, both those who are neurodiverse and neurotypical. I have paid attention to the implementation challenges of following a routine given by child therapists, adult therapists, professional retirement home staff, and some research done by the academic community that is dedicated to helping the neurodiverse. One of my realizations during this journey is that I should define my own opinionated time management system and work out a UI/UX that implements this system.
+## Core Ideas I believe to be innovative
 
-This _On Purpose_ project was created as a place for me to implement, refine, and try these ideas. My primary motivation is to have a program that I myself can use and greatly benefit from. I am developing this in the open and as open source in hopes that eventually others can also benefit. Having said that **what is in this repo right now is a partially implemented work-in-progress that does not yet properly demonstrate my core vision.**
+[TODO]
 
-**What I am writing is a console/text program that you use from the terminal.** This is being written with a longer term goal of eventually having a core library that can also be leveraged from a phone app (Android). I should also mention that as much as possible my program is an extension to the Microsoft platform; this means a program that integrates with Microsoft Email & Calendar, Microsoft OneNote, Microsoft To Do, and Microsoft Teams through the Microsoft Graph API and Azure DevOps. The current operating system I am targeting is Microsoft Windows but I do expect this to work on Linux.
+### Reverse List, Next Step First
+
+[TODO]
+
+### Mentally Resident, Core Loop, Prioritization
+
+[TODO]
+
+### Integration
+
+[TODO]
+
+### Reasons to do things or not
+
+Internal, External, Scheduling
+
+[TODO]
+
+### Expectation Management
+
+[TODO]
 
 ## Getting Started
 
