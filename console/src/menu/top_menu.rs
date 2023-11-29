@@ -152,6 +152,7 @@ async fn debug_view_all_items(
             println!("{}", item);
             println!("{:#?}", item.get_item_node());
 
+            let item_node = item.get_item_node();
             let item = item.get_item_node().get_item();
             let covered_by = item.get_covered_by_another_item(covering);
             println!("Covered by: {:#?}", covered_by);
@@ -159,10 +160,12 @@ async fn debug_view_all_items(
             let cover_others = item.get_covering_another_item(covering);
             println!("Covering others: {:#?}", cover_others);
 
-            let now = Local::now();
+            let local_now = Local::now();
             let covered_by_date_time =
-                item.get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &now);
+                item.get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &local_now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
+
+            println!("Expired percentage: {}", item_node.expired_percentage(&now));
             Ok(())
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,

@@ -116,8 +116,17 @@ impl BulletList {
                         }
                     })
                     .then_with(|| a.get_staging().cmp(b.get_staging()))
-                    //TODO: I need to sort on_deck items by how much percentage time is left before they expire
-                    //TODO: I need to sort mentally resident items by how long until they expire
+                    .then_with(|| {
+                        let a_expired_percentage = a.expired_percentage(current_date_time);
+                        let b_expired_percentage = b.expired_percentage(current_date_time);
+                        if a_expired_percentage > b_expired_percentage {
+                            Ordering::Less
+                        } else if a_expired_percentage < b_expired_percentage {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
+                    })
                 });
 
                 //TODO: Sort order the first of all top items

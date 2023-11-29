@@ -1,3 +1,5 @@
+use std::ops::Sub;
+
 use chrono::{DateTime, Local, Utc};
 use surrealdb::sql::Thing;
 
@@ -211,6 +213,35 @@ impl<'s> ItemNode<'s> {
             current_date_time > work_on_again_before
         } else {
             false
+        }
+    }
+
+    pub(crate) fn expired_percentage(&self, current_date_time: &DateTime<Utc>) -> f32 {
+        match self.get_staging() {
+            Staging::NotSet => 0.0,
+            Staging::OnDeck { can_wait_until, began_waiting } => {
+                let can_wait_until: DateTime<Utc> = can_wait_until.clone().into();
+                let began_waiting: DateTime<Utc> = began_waiting.clone().into();
+                let total = can_wait_until.sub(began_waiting);
+                let elapsed = current_date_time.sub(began_waiting);
+                let elapsed = elapsed.num_seconds() as f32;
+                let total = total.num_seconds() as f32;
+                elapsed / total * 100.0
+            }
+            Staging::MentallyResident {
+                work_on_again_before,
+                last_worked_on,
+            } => {
+                let work_on_again_before: DateTime<Utc> = work_on_again_before.clone().into();
+                let last_worked_on: DateTime<Utc> = last_worked_on.clone().into();
+                let total = work_on_again_before.sub(last_worked_on);
+                let elapsed = current_date_time.sub(last_worked_on);
+                let elapsed = elapsed.num_seconds() as f32;
+                let total = total.num_seconds() as f32;
+                elapsed / total * 100.0
+            }
+            Staging::Intension => 0.0,
+            Staging::Released => 0.0,
         }
     }
 
