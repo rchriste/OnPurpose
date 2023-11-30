@@ -19,7 +19,7 @@ use super::ItemTypeSelection;
 pub(crate) async fn define_child_goals(
     wants_a_child: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -54,10 +54,12 @@ pub(crate) async fn define_child_goals(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
-            define_child_goals_new_goal(wants_a_child, send_to_data_storage_layer).await;
+            define_child_goals_new_goal(wants_a_child, send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
             todo!("Error: {:?}", err);
         }
@@ -69,7 +71,7 @@ pub(crate) async fn define_child_goals(
 pub(crate) async fn define_child_goals_new_goal(
     wants_a_child: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list_just_goals();
 
     let selection = Select::new("Select from the below list|", list).prompt();
@@ -102,8 +104,10 @@ pub(crate) async fn define_child_goals_new_goal(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
 }

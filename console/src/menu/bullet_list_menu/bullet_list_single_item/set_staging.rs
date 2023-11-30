@@ -71,6 +71,7 @@ pub(crate) async fn present_set_staging_menu(
                 Err(InquireError::OperationCanceled) => {
                     return present_set_staging_menu(selected, send_to_data_storage_layer).await
                 }
+                Err(InquireError::OperationInterrupted) => return Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
@@ -81,6 +82,7 @@ pub(crate) async fn present_set_staging_menu(
                 Err(InquireError::OperationCanceled) => {
                     return present_set_staging_menu(selected, send_to_data_storage_layer).await
                 }
+                Err(InquireError::OperationInterrupted) => return Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }

@@ -169,6 +169,7 @@ async fn debug_view_all_items(
             Ok(())
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }
 }

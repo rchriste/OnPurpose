@@ -171,6 +171,7 @@ async fn single_item_define_facing(
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await
                 }
+                Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
@@ -198,6 +199,7 @@ async fn single_item_define_facing(
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await
                 }
+                Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
@@ -226,10 +228,12 @@ async fn single_item_define_facing(
                 Err(InquireError::OperationCanceled) => {
                     single_item_define_facing(item_node, send_to_data_storage_layer).await
                 }
+                Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
         Err(InquireError::OperationCanceled) => define_facing(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }
 }

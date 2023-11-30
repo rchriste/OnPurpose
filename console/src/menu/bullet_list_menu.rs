@@ -105,11 +105,8 @@ pub(crate) async fn present_bullet_list_menu(
             Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
             Ok(InquireBulletListItem::Item(item_node, current_date_time)) => {
                 if item_node.is_person_or_group() {
-                    Ok(present_is_person_or_group_around_menu(
-                        item_node,
-                        send_to_data_storage_layer,
-                    )
-                    .await)
+                    present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
+                        .await
                 } else {
                     present_bullet_list_item_selected(
                         item_node,

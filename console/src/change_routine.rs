@@ -78,6 +78,7 @@ pub(crate) async fn change_routine(
             )
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(_) => {
             todo!("TODO: Implement cancelling")
         }

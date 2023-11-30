@@ -20,7 +20,7 @@ My goal is to write a program that in my judgement and my experience does well o
 
 I am writing _On Purpose_ in Rust and I do intend to eventually have more than just a desktop console application and I consider a phone application to be a core feature, but also something that comes who knows when and after I reach version 1.0. This is being written with a longer term goal of eventually having a core library that can also be leveraged from a phone app (Android). I am also waiting for UI development in Rust, especially on a phone to get easier before I start working on a phone app or a desktop graphical user interface (GUI).
 
-I should also mention that as much as possible my program is an extension to the Microsoft platform; this means a program that integrates with Microsoft Email & Calendar, Microsoft OneNote, Microsoft To Do, and Microsoft Teams through the Microsoft Graph API and Azure DevOps. The current operating system I am targeting is Microsoft Windows but I do expect this to work on Linux.
+**I should also mention that as much as possible my program is an extension to the Microsoft platform; this means a program that integrates with Microsoft Email & Calendar, Microsoft OneNote, Microsoft To Do, and Microsoft Teams through the Microsoft Graph API and Azure DevOps. The current operating system I am targeting is Microsoft Windows but I do expect this to work on Linux.**
 
 ## Core Ideas I believe to be innovative
 

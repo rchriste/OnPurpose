@@ -130,6 +130,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             present_set_staging_menu(parent, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
 }

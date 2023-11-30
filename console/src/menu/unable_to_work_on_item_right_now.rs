@@ -61,7 +61,7 @@ impl UnableReason {
 pub(crate) async fn unable_to_work_on_item_right_now(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = UnableReason::make_list();
     let selection = inquire::Select::new("Select from the below list|", list).prompt();
 
@@ -81,6 +81,7 @@ pub(crate) async fn unable_to_work_on_item_right_now(
         Err(InquireError::OperationCanceled) => {
             todo!("I put in this todo because back at the time I would need to adjust some calling parameters to make this work")
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }
 }
@@ -117,7 +118,7 @@ impl WhatLibraryToUse {
 pub(crate) async fn place_to_contact_is_not_open(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = WhatLibraryToUse::make_list();
     let selection = inquire::Select::new(
         "What library should be used to state when they will be open",
@@ -147,6 +148,7 @@ pub(crate) async fn place_to_contact_is_not_open(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(WhatLibraryToUse::ParseDateTime) => {
             let when_they_will_be_open = loop {
@@ -169,6 +171,7 @@ pub(crate) async fn place_to_contact_is_not_open(
                 ))
                 .await
                 .unwrap();
+            Ok(())
         }
         Ok(WhatLibraryToUse::DurationStr) => {
             todo!()
@@ -176,6 +179,7 @@ pub(crate) async fn place_to_contact_is_not_open(
         Err(InquireError::OperationCanceled) => {
             unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }
 }
@@ -211,7 +215,7 @@ impl<'e> PersonOrGroupSelection<'e> {
 pub(crate) async fn person_or_group_is_not_available(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -232,7 +236,8 @@ pub(crate) async fn person_or_group_is_not_available(
                         .clone(),
                 })
                 .await
-                .unwrap()
+                .unwrap();
+            Ok(())
         }
         Ok(PersonOrGroupSelection::NewPersonOrGroup) => {
             let summary = Text::new("Enter the name of the person or group ⍠")
@@ -245,11 +250,13 @@ pub(crate) async fn person_or_group_is_not_available(
                     cover_with: new_item,
                 })
                 .await
-                .unwrap()
+                .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
             unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }
 }
@@ -257,7 +264,7 @@ pub(crate) async fn person_or_group_is_not_available(
 pub(crate) async fn need_to_wait_before_working_on_this(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let now = Local::now();
     let wait_until: DateTime<Utc> = loop {
         let wait_for_how_long = Text::new("Wait for how long?").prompt().unwrap();
@@ -288,4 +295,6 @@ pub(crate) async fn need_to_wait_before_working_on_this(
         ))
         .await
         .unwrap();
+
+    Ok(())
 }

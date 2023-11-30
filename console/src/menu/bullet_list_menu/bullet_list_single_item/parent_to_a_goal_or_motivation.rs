@@ -22,7 +22,7 @@ use crate::{
 pub(crate) async fn parent_to_a_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
@@ -67,9 +67,10 @@ pub(crate) async fn parent_to_a_motivation(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
-            parent_to_a_motivation_new_motivation(parent_this, send_to_data_storage_layer).await;
+            parent_to_a_motivation_new_motivation(parent_this, send_to_data_storage_layer).await
         }
         Err(err) => {
             todo!("Error: {:?}", err);
@@ -144,11 +145,11 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
             Ok(())
         }
         Err(InquireError::OperationCanceled) => {
-            Ok(parent_to_a_goal_or_motivation_new_goal_or_motivation(
+            parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,
             )
-            .await)
+            .await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
@@ -161,7 +162,7 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
 async fn parent_to_a_motivation_new_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list_just_motivations();
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
@@ -182,10 +183,12 @@ async fn parent_to_a_motivation_new_motivation(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
             todo!("I need to go back to what first called this");
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
             todo!("Error: {:?}", err);
         }
@@ -196,7 +199,7 @@ async fn parent_to_a_motivation_new_motivation(
 async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) {
+) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list_goals_and_motivations();
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
@@ -225,10 +228,12 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 })
                 .await
                 .unwrap();
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
             todo!("I need to go back to what first called this");
         }
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => {
             todo!("Error: {:?}", err);
         }

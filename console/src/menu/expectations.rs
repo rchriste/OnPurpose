@@ -156,6 +156,7 @@ pub(crate) async fn view_expectations(
             view_maintenance_hopes(send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }
 }
@@ -274,6 +275,7 @@ pub(crate) async fn view_maintenance_hopes(
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
             }
+            Err(InquireError::OperationInterrupted) => Err(()),
             Err(err) => todo!("{}", err),
         }
     } else {
@@ -360,6 +362,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
                     )
                     .await
                 }
+                Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("Unexpected InquireError of {}", err),
             }
         }
@@ -382,6 +385,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
             .await
         }
         Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }
 }
