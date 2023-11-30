@@ -427,7 +427,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ChangeStaging) => {
-            present_set_staging_menu(menu_for, send_to_data_storage_layer).await
+            present_set_staging_menu(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await
@@ -466,6 +466,7 @@ pub(crate) async fn present_bullet_list_item_selected(
 enum FinishSelection<'e> {
     CreateNextStepWithParent(&'e Item<'e>),
     GoToParent(&'e Item<'e>),
+    UpdateStagingForParent(&'e Item<'e>),
     ReturnToBulletList,
 }
 
@@ -480,6 +481,9 @@ impl Display for FinishSelection<'_> {
             FinishSelection::GoToParent(parent) => {
                 write!(f, "Go to Parent: {}", DisplayItem::new(parent))
             }
+            FinishSelection::UpdateStagingForParent(parent) => {
+                write!(f, "Update Staging for Parent: {}", DisplayItem::new(parent))
+            }
             FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
         }
     }
@@ -489,15 +493,18 @@ impl<'e> FinishSelection<'e> {
     fn make_list(parents: &[&'e Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
         list.push(Self::ReturnToBulletList);
-        list.extend(
-            parents
-                .iter()
-                .flat_map(|x| vec![Self::CreateNextStepWithParent(x), Self::GoToParent(x)]),
-        );
+        list.extend(parents.iter().flat_map(|x| {
+            vec![
+                Self::CreateNextStepWithParent(x),
+                Self::UpdateStagingForParent(x),
+                Self::GoToParent(x),
+            ]
+        }));
         list
     }
 }
 
+#[async_recursion]
 async fn finish_bullet_item(
     finish_this: &ItemNode<'_>,
     all_coverings: &[Covering<'_>],
@@ -545,7 +552,18 @@ async fn finish_bullet_item(
                 .next()
                 .expect("We will find this existing item once");
 
-            state_a_smaller_next_step(&updated_parent, send_to_data_storage_layer).await
+            state_a_smaller_next_step(&updated_parent, send_to_data_storage_layer).await?;
+
+            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
+            finish_bullet_item(
+                finish_this,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                current_date_time,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(FinishSelection::GoToParent(parent)) => {
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
@@ -575,6 +593,19 @@ async fn finish_bullet_item(
                 all_coverings,
                 all_snoozed,
                 all_items,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
+        Ok(FinishSelection::UpdateStagingForParent(parent)) => {
+            present_set_staging_menu(parent, send_to_data_storage_layer).await?;
+            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
+            finish_bullet_item(
+                finish_this,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                current_date_time,
                 send_to_data_storage_layer,
             )
             .await

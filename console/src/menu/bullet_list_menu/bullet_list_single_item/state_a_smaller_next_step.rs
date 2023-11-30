@@ -10,11 +10,14 @@ use crate::{
     },
     display::display_item::DisplayItem,
     menu::{
-        bullet_list_menu::bullet_list_single_item::set_staging::present_set_staging_menu,
+        bullet_list_menu::bullet_list_single_item::set_staging::{
+            present_set_staging_menu, StagingMenuSelection,
+        },
         select_higher_priority_than_this::select_higher_priority_than_this,
+        staging_query::{mentally_resident_query, on_deck_query},
     },
     node::item_node::ItemNode,
-    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
+    surrealdb_layer::{surreal_item::Staging, surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 use super::ItemTypeSelection;
@@ -73,7 +76,7 @@ pub(crate) async fn state_a_smaller_next_step(
                 "Please update Staging for {}",
                 DisplayItem::new(parent.get_item())
             );
-            present_set_staging_menu(parent, send_to_data_storage_layer).await
+            present_set_staging_menu(parent.get_item(), send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
@@ -102,7 +105,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
         }
         Ok(item_type_selection) => {
-            let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
+            let mut new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let higher_priority_than_this = if selected_item.has_active_children() {
                 let items = selected_item
                     .get_smaller()
@@ -114,6 +117,44 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                 None
             };
             let parent = selected_item;
+
+            let (list, starting_cursor) = StagingMenuSelection::make_list();
+
+            let selection = Select::new("Select from the below list|", list)
+                .with_starting_cursor(starting_cursor)
+                .prompt()
+                .unwrap();
+            new_item.staging = match selection {
+                StagingMenuSelection::NotSet => Staging::NotSet,
+                StagingMenuSelection::MentallyResident => {
+                    let result = mentally_resident_query().await;
+                    match result {
+                        Ok(mentally_resident) => mentally_resident,
+                        Err(InquireError::OperationCanceled) => {
+                            todo!("I probably need to refactor this into a function so I can use recursion here")
+                        }
+                        Err(InquireError::OperationInterrupted) => return Err(()),
+                        Err(err) => todo!("{:?}", err),
+                    }
+                }
+                StagingMenuSelection::OnDeck => {
+                    let result = on_deck_query().await;
+                    match result {
+                        Ok(staging) => staging,
+                        Err(InquireError::OperationCanceled) => {
+                            todo!("I probably need to refactor this into a function so I can use recursion here")
+                        }
+                        Err(InquireError::OperationInterrupted) => return Err(()),
+                        Err(err) => todo!("{:?}", err),
+                    }
+                }
+                StagingMenuSelection::Intension => Staging::Intension,
+                StagingMenuSelection::Released => Staging::Released,
+                StagingMenuSelection::MakeItemReactive => {
+                    todo!("I need to modify the return type to account for this different choice and pass up that information")
+                }
+            };
+
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewChildItem {
                     child: new_item,
@@ -122,12 +163,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                 })
                 .await
                 .unwrap();
-
-            println!(
-                "Please update Staging for {}",
-                DisplayItem::new(parent.get_item())
-            );
-            present_set_staging_menu(parent, send_to_data_storage_layer).await
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => Err(()),

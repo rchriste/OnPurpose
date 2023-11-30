@@ -63,8 +63,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     drop(send_to_data_storage_layer_tx);
 
-    println!("Waiting for data storage layer to exit...");
+    print!("Waiting for data storage layer to exit...");
     data_storage_join_handle.await.unwrap();
+    println!("Done");
 
     Ok(())
 }

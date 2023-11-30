@@ -2,8 +2,8 @@ use async_recursion::async_recursion;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
+    base_data::item::Item,
     menu::staging_query::{mentally_resident_query, on_deck_query},
-    node::item_node::ItemNode,
     surrealdb_layer::{
         surreal_item::{Responsibility, Staging},
         DataLayerCommands,
@@ -12,7 +12,7 @@ use crate::{
 use inquire::{InquireError, Select};
 use std::fmt::Display;
 
-enum StagingMenuSelection {
+pub(crate) enum StagingMenuSelection {
     NotSet,
     MentallyResident,
     OnDeck,
@@ -36,7 +36,7 @@ impl Display for StagingMenuSelection {
 
 impl StagingMenuSelection {
     /// Returns a tuple of the list and the default index or recommended default selection
-    fn make_list() -> (Vec<Self>, usize) {
+    pub(crate) fn make_list() -> (Vec<Self>, usize) {
         (
             vec![
                 StagingMenuSelection::MentallyResident,
@@ -53,7 +53,7 @@ impl StagingMenuSelection {
 
 #[async_recursion]
 pub(crate) async fn present_set_staging_menu(
-    selected: &ItemNode<'_>,
+    selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let (list, starting_cursor) = StagingMenuSelection::make_list();

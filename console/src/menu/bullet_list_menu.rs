@@ -120,7 +120,7 @@ pub(crate) async fn present_bullet_list_menu(
                 }
             }
             Ok(InquireBulletListItem::SetStaging(item_node)) => {
-                present_set_staging_menu(item_node, send_to_data_storage_layer).await
+                present_set_staging_menu(item_node.get_item(), send_to_data_storage_layer).await
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await
