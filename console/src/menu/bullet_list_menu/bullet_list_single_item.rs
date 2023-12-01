@@ -17,7 +17,10 @@ use crate::{
     base_data::{
         covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
     },
-    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
+    display::{
+        display_item::DisplayItem, display_item_node::DisplayItemNode,
+        display_staging::DisplayStaging,
+    },
     menu::{
         bullet_list_menu::bullet_list_single_item::{
             define_child_goal::define_child_goals,
@@ -33,7 +36,7 @@ use crate::{
     new_item,
     node::item_node::ItemNode,
     surrealdb_layer::{
-        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility},
+        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, Staging},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -467,6 +470,7 @@ enum FinishSelection<'e> {
     CreateNextStepWithParent(&'e Item<'e>),
     GoToParent(&'e Item<'e>),
     UpdateStagingForParent(&'e Item<'e>),
+    ApplyStagingToParent(&'e Item<'e>, Staging),
     ReturnToBulletList,
 }
 
@@ -482,21 +486,33 @@ impl Display for FinishSelection<'_> {
                 write!(f, "Go to Parent: {}", DisplayItem::new(parent))
             }
             FinishSelection::UpdateStagingForParent(parent) => {
-                write!(f, "Update Staging for Parent: {}", DisplayItem::new(parent))
+                write!(
+                    f,
+                    "Update Staging for Parent: {} Current Staging: {}",
+                    DisplayItem::new(parent),
+                    DisplayStaging::new(parent.get_staging())
+                )
             }
+            FinishSelection::ApplyStagingToParent(parent, staging) => write!(
+                f,
+                "Apply Staging: {} to Parent: {}",
+                DisplayStaging::new(staging),
+                DisplayItem::new(parent)
+            ),
             FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
         }
     }
 }
 
 impl<'e> FinishSelection<'e> {
-    fn make_list(parents: &[&'e Item<'e>]) -> Vec<Self> {
+    fn make_list(parents: &[&'e Item<'e>], finished_item: &Item<'_>) -> Vec<Self> {
         let mut list = Vec::default();
         list.push(Self::ReturnToBulletList);
         list.extend(parents.iter().flat_map(|x| {
             vec![
                 Self::CreateNextStepWithParent(x),
                 Self::UpdateStagingForParent(x),
+                Self::ApplyStagingToParent(x, finished_item.get_staging().clone()),
                 Self::GoToParent(x),
             ]
         }));
@@ -526,6 +542,7 @@ async fn finish_bullet_item(
             .iter()
             .map(|x| x.get_item())
             .collect::<Vec<_>>(),
+        finish_this.get_item(),
     );
     let selection = Select::new("Select from the below list|", list).prompt();
 
@@ -599,6 +616,25 @@ async fn finish_bullet_item(
         }
         Ok(FinishSelection::UpdateStagingForParent(parent)) => {
             present_set_staging_menu(parent, send_to_data_storage_layer).await?;
+            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
+            finish_bullet_item(
+                finish_this,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                current_date_time,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
+        Ok(FinishSelection::ApplyStagingToParent(parent, staging)) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateItemStaging(
+                    parent.get_surreal_record_id().clone(),
+                    staging,
+                ))
+                .await
+                .unwrap();
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
