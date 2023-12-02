@@ -35,7 +35,6 @@ impl Display for DisplayItem<'_> {
             ItemType::Goal(_) => write!(f, "🪧 {}", self.item.get_summary()),
             ItemType::Motivation => write!(f, "🎯 {}", self.item.get_summary()),
             ItemType::Action => write!(f, "🪜 {}", self.item.get_summary()),
-            ItemType::Simple => write!(f, "📌 {}", self.item.get_summary()),
             ItemType::Undeclared => write!(f, "❓ {}", self.item.get_summary()),
             ItemType::PersonOrGroup => write!(f, "👤 {}", self.item.get_summary()),
             ItemType::IdeaOrThought => write!(f, "💡 {}", self.item.get_summary()),

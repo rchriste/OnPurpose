@@ -77,13 +77,13 @@ impl BulletList {
                         }
                     })
                     .then_with(|| {
-                        if a.is_type_undeclared() || a.is_type_simple() {
-                            if b.is_type_undeclared() || b.is_type_simple() {
+                        if a.is_type_undeclared() {
+                            if b.is_type_undeclared() {
                                 Ordering::Equal
                             } else {
                                 Ordering::Less
                             }
-                        } else if b.is_type_undeclared() || b.is_type_simple() {
+                        } else if b.is_type_undeclared() {
                             Ordering::Greater
                         } else {
                             Ordering::Equal
@@ -176,10 +176,7 @@ pub(crate) enum BulletListReason<'e> {
 
 impl<'e> BulletListReason<'e> {
     pub(crate) fn new(item_node: ItemNode<'e>) -> Self {
-        if item_node.is_staging_not_set()
-            && !item_node.is_type_simple()
-            && !item_node.is_type_undeclared()
-        {
+        if item_node.is_staging_not_set() && !item_node.is_type_undeclared() {
             BulletListReason::SetStaging(item_node)
         } else {
             BulletListReason::WorkOn(item_node)

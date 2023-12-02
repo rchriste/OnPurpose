@@ -149,10 +149,6 @@ impl<'s> ItemNode<'s> {
         self.item.is_type_motivation()
     }
 
-    pub(crate) fn is_type_simple(&self) -> bool {
-        self.item.is_type_simple()
-    }
-
     pub(crate) fn has_active_children(&self) -> bool {
         self.smaller.iter().any(|x| !x.get_item().is_finished())
     }

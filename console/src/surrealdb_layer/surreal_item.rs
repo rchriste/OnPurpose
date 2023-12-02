@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -48,7 +47,7 @@ pub(crate) struct SurrealItem {
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
 
-    #[cfg_attr(test, builder(default = "Utc::now().into()"))]
+    #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
     //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
 }
@@ -109,18 +108,6 @@ pub(crate) enum Facing {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum FacingOldVersion {
-    #[default]
-    NotSet,
-    Others {
-        how_well_defined: HowWellDefined,
-        who: RecordId,
-    },
-    Myself(HowWellDefined),
-    InternalOrSmaller,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum HowWellDefined {
     #[default]
     NotSet,
@@ -133,7 +120,6 @@ pub(crate) enum HowWellDefined {
 pub(crate) enum ItemType {
     #[default]
     Undeclared,
-    Simple, //TODO: Remove this and just use Action
     Action,
     Goal(HowMuchIsInMyControl),
     IdeaOrThought,
@@ -154,9 +140,10 @@ pub(crate) enum HowMuchIsInMyControl {
 pub(crate) enum ItemTypeOldVersion {
     #[default]
     Undeclared,
-    Simple,
+    Simple, //TODO: Remove this and just use Action
     Action,
-    Goal(GoalType),
+    Goal(HowMuchIsInMyControl),
+    IdeaOrThought,
     Motivation,
     PersonOrGroup,
 }
@@ -279,10 +266,10 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: FacingOldVersion,
+    pub(crate) facing: Vec<Facing>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemType,
+    pub(crate) item_type: ItemTypeOldVersion,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -297,7 +284,7 @@ pub(crate) struct SurrealItemOldVersion {
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
 
-    #[cfg_attr(test, builder(default = "Utc::now().into()"))]
+    #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
     //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
 }
@@ -309,13 +296,13 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type,
+            item_type: value.item_type.into(),
             notes_location: value.notes_location,
             permanence: value.permanence,
             staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
-            created: Utc::now().into(),
-            facing: value.facing.into(),
+            created: value.created,
+            facing: value.facing,
         }
     }
 }
@@ -324,36 +311,14 @@ impl From<ItemTypeOldVersion> for ItemType {
     fn from(value: ItemTypeOldVersion) -> Self {
         match value {
             ItemTypeOldVersion::Undeclared => ItemType::Undeclared,
-            ItemTypeOldVersion::Simple => ItemType::Simple,
+            ItemTypeOldVersion::Simple => ItemType::Undeclared,
             ItemTypeOldVersion::Action => ItemType::Action,
-            ItemTypeOldVersion::Goal(goal_type) => match goal_type {
-                GoalType::NotSpecified => ItemType::Goal(HowMuchIsInMyControl::NotSet),
-                GoalType::AspirationalHope => {
-                    ItemType::Goal(HowMuchIsInMyControl::LargelyOutOfMyControl)
-                }
-                GoalType::TangibleMilestone => {
-                    ItemType::Goal(HowMuchIsInMyControl::MostlyInMyControl)
-                }
-            },
             ItemTypeOldVersion::Motivation => ItemType::Motivation,
             ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
-        }
-    }
-}
-
-impl From<FacingOldVersion> for Vec<Facing> {
-    fn from(value: FacingOldVersion) -> Self {
-        match value {
-            FacingOldVersion::NotSet => vec![],
-            FacingOldVersion::Others {
-                how_well_defined,
-                who,
-            } => vec![Facing::Others {
-                how_well_defined,
-                who,
-            }],
-            FacingOldVersion::Myself(how_well_defined) => vec![Facing::Myself(how_well_defined)],
-            FacingOldVersion::InternalOrSmaller => vec![Facing::InternalOrSmaller],
+            ItemTypeOldVersion::Goal(how_much_is_in_my_control) => {
+                ItemType::Goal(how_much_is_in_my_control)
+            }
+            ItemTypeOldVersion::IdeaOrThought => ItemType::IdeaOrThought,
         }
     }
 }

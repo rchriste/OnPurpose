@@ -50,7 +50,6 @@ use self::{
 use super::present_normal_bullet_list_menu;
 
 enum BulletListSingleItemSelection<'e> {
-    ICannotDoThisSimpleThingRightNowRemindMeLater,
     DeclareItemType,
     StateASmallerNextStep,
     StartingToWorkOnThisNow,
@@ -106,9 +105,6 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Plan when to do this")
             }
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
-            Self::ICannotDoThisSimpleThingRightNowRemindMeLater => {
-                write!(f, "I cannot do this right now, remind me later")
-            }
             Self::SomethingElseShouldBeDoneFirst => {
                 write!(f, "Something else should be done first")
             }
@@ -223,10 +219,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if item_node.is_type_simple() {
-            list.push(Self::ICannotDoThisSimpleThingRightNowRemindMeLater);
-        }
-
         if is_type_action || is_type_goal || is_type_motivation {
             if has_active_children {
                 list.push(Self::UpdateChildActions);
@@ -284,8 +276,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::ChangeStaging);
         }
 
-        let is_type_simple = item_node.is_type_simple();
-        if !is_type_simple && !is_type_undeclared {
+        if !is_type_undeclared {
             list.extend(vec![
                 Self::ProcessAndFinish,
                 Self::UpdateSummary,
@@ -315,9 +306,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         .prompt();
 
     match selection {
-        Ok(BulletListSingleItemSelection::ICannotDoThisSimpleThingRightNowRemindMeLater) => {
-            todo!("TODO: Implement ICannotDoThisSimpleThingRightNowRemindMeLater");
-        }
         Ok(BulletListSingleItemSelection::DeclareItemType) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
@@ -705,7 +693,6 @@ async fn present_bullet_list_item_parent_selected(
         }
         ItemType::IdeaOrThought => todo!(),
         ItemType::Undeclared => todo!(),
-        ItemType::Simple => todo!(),
         ItemType::PersonOrGroup => todo!(),
     }
 }

@@ -46,7 +46,6 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
-    fn filter_just_simple_items(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
     fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
 }
@@ -131,16 +130,6 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
             }
         }))
     }
-
-    fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::Simple {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
 }
 
 impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
@@ -197,16 +186,6 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         self.iter().filter_map(Box::new(|x| {
             if x.get_item_type() == &ItemType::Undeclared {
                 Some(*x)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn filter_just_simple_items(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::Simple {
-                Some(x)
             } else {
                 None
             }
@@ -357,10 +336,6 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_type_undeclared(&self) -> bool {
         self.get_item_type() == &ItemType::Undeclared
-    }
-
-    pub(crate) fn is_type_simple(&self) -> bool {
-        self.get_item_type() == &ItemType::Simple
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
