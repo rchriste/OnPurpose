@@ -3,9 +3,6 @@ pub(crate) mod covering;
 pub(crate) mod covering_until_date_time;
 pub(crate) mod item;
 pub(crate) mod life_area;
-pub(crate) mod motivation;
-pub(crate) mod motivation_or_responsive_item;
-pub(crate) mod responsive_item;
 pub(crate) mod routine;
 
 use chrono::{DateTime, Utc};

@@ -1,9 +1,6 @@
 use chrono::{DateTime, Local};
 use itertools::chain;
-use surrealdb::{
-    opt::RecordId,
-    sql::{Datetime, Thing},
-};
+use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::surrealdb_layer::{
     surreal_item::{
@@ -13,10 +10,7 @@ use crate::surrealdb_layer::{
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };
 
-use super::{
-    covering::Covering, covering_until_date_time::CoveringUntilDateTime, motivation::Motivation,
-    motivation_or_responsive_item::MotivationOrResponsiveItem, responsive_item::ResponsiveItem,
-};
+use super::{covering::Covering, covering_until_date_time::CoveringUntilDateTime};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
@@ -46,7 +40,6 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
-    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
     fn filter_active_items(&self) -> Vec<&Item>;
 }
 
@@ -89,22 +82,6 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
                 None
             }
         }))
-    }
-
-    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.get_item_type() == &ItemType::Motivation {
-                    Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
-                } else if x.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct {
-                    Some(MotivationOrResponsiveItem::ResponsiveItem(
-                        ResponsiveItem::new(x),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 
     fn filter_active_items(&self) -> Vec<&Item> {
@@ -190,22 +167,6 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
                 None
             }
         }))
-    }
-
-    fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>> {
-        self.iter()
-            .filter_map(|x| {
-                if x.get_item_type() == &ItemType::Motivation {
-                    Some(MotivationOrResponsiveItem::Motivation(Motivation::new(x)))
-                } else if x.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct {
-                    Some(MotivationOrResponsiveItem::ResponsiveItem(
-                        ResponsiveItem::new(x),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 
     fn filter_active_items(&self) -> Vec<&Item> {
@@ -326,10 +287,6 @@ impl<'b> Item<'b> {
         &self.surreal_item.summary
     }
 
-    pub(crate) fn get_finished(&self) -> &'b Option<Datetime> {
-        &self.surreal_item.finished
-    }
-
     pub(crate) fn get_type(&self) -> &'b ItemType {
         self.get_item_type()
     }
@@ -415,26 +372,23 @@ impl Item<'_> {
         other_items: &'a [&'a Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
-        //TODO: Update the below code to use the chain! macros rather than this manual extend thing
-        let mut result = linkage
-            .iter()
-            .filter_map(|x| {
+        chain!(
+            linkage.iter().filter_map(|x| {
                 if x.smaller == self && !visited.contains(&x.parent) {
                     Some(x.parent)
                 } else {
                     None
                 }
+            }),
+            other_items.iter().filter_map(|other_item| {
+                if other_item.is_this_a_smaller_item(self) && !visited.contains(other_item) {
+                    Some(*other_item)
+                } else {
+                    None
+                }
             })
-            .collect::<Vec<_>>();
-
-        result.extend(other_items.iter().filter_map(|other_item| {
-            if other_item.is_this_a_smaller_item(self) && !visited.contains(other_item) {
-                Some(*other_item)
-            } else {
-                None
-            }
-        }));
-        result
+        )
+        .collect()
     }
 
     pub(crate) fn find_children<'a>(
