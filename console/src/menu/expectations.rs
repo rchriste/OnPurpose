@@ -378,11 +378,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
             update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released).await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
-            update_item_summary(
-                goal_selected.get_surreal_record_id().clone(),
-                send_to_data_storage_layer,
-            )
-            .await
+            update_item_summary(goal_selected, send_to_data_storage_layer).await
         }
         Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
         Err(InquireError::OperationInterrupted) => Err(()),

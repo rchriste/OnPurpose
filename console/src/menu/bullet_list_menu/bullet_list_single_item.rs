@@ -424,11 +424,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
-            update_item_summary(
-                menu_for.get_surreal_record_id().clone(),
-                send_to_data_storage_layer,
-            )
-            .await
+            update_item_summary(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(

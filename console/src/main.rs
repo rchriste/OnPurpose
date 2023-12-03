@@ -7,8 +7,8 @@ mod node;
 mod surrealdb_layer;
 pub(crate) mod systems;
 
-use inquire::Text;
-use surrealdb::opt::RecordId;
+use base_data::item::Item;
+use inquire::{InquireError, Text};
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::{
@@ -17,18 +17,27 @@ use crate::{
 };
 
 async fn update_item_summary(
-    item_to_cover: RecordId,
+    item_to_update: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let new_summary = Text::new("Enter New Summary ⍠").prompt().unwrap();
-    send_to_data_storage_layer
-        .send(DataLayerCommands::UpdateItemSummary(
-            item_to_cover,
-            new_summary,
-        ))
-        .await
-        .unwrap();
-    Ok(())
+    let new_summary = Text::new("Enter New Summary ⍠")
+        .with_initial_value(item_to_update.get_summary())
+        .prompt();
+    match new_summary {
+        Ok(new_summary) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateItemSummary(
+                    item_to_update.get_surreal_record_id().clone(),
+                    new_summary,
+                ))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Err(InquireError::OperationCanceled) => todo!("Handle return to caller"),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error: {:?}", err),
+    }
 }
 
 #[tokio::main]
