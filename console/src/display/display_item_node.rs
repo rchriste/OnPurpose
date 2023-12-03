@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
 
-use crate::node::item_node::ItemNode;
+use crate::{node::item_node::ItemNode, surrealdb_layer::surreal_item::Staging};
 
 use super::display_item::DisplayItem;
 
@@ -13,9 +13,6 @@ pub struct DisplayItemNode<'s> {
 
 impl Display for DisplayItemNode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_mentally_resident() {
-            write!(f, "🧠 ")?;
-        }
         let display_item = DisplayItem::new(self.item_node.get_item());
         if let Some(current_date_time) = self.current_date_time {
             if self.item_node.is_staging_on_deck_expired(current_date_time)
@@ -23,9 +20,19 @@ impl Display for DisplayItemNode<'_> {
                     .item_node
                     .is_mentally_resident_expired(current_date_time)
             {
-                write!(f, "❗ ")?;
+                write!(f, "⏰ ")?;
             }
         }
+
+        let staging = self.get_staging();
+        match staging {
+            Staging::OnDeck { .. } => write!(f, "🔜 ")?,
+            Staging::MentallyResident { .. } => write!(f, "🧠 ")?,
+            Staging::Intension { .. } => write!(f, "📝 ")?,
+            Staging::Released { .. } => write!(f, "🪽 ")?,
+            Staging::NotSet => write!(f, "❓ ")?,
+        }
+
         if self.item_node.is_person_or_group() {
             write!(f, "Is {} around?", display_item)?;
         } else if self.item_node.is_goal() && self.item_node.get_smaller().is_empty() {
@@ -63,8 +70,8 @@ impl<'s> DisplayItemNode<'s> {
             .collect()
     }
 
-    pub(crate) fn is_mentally_resident(&self) -> bool {
-        self.item_node.is_mentally_resident()
+    pub(crate) fn get_staging(&self) -> &'s Staging {
+        self.item_node.get_staging()
     }
 
     pub(crate) fn get_item_node(&self) -> &'s ItemNode<'s> {

@@ -1,4 +1,5 @@
 {
+    "terminal.integrated.experimentalImageSupport": true,
     "cSpell.words": [
         "binutils",
         "chrono",

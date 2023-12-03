@@ -47,7 +47,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations_or_responsive_items(&self) -> Vec<MotivationOrResponsiveItem<'_>>;
-    fn filter_active_items(&self) -> Vec<&Item>; //TODO: I might consider having an ActiveItem type and then have the rest of the Filter methods be just for this activeItem type
+    fn filter_active_items(&self) -> Vec<&Item>;
 }
 
 impl<'s> ItemVecExtensions<'s> for [Item<'s>] {

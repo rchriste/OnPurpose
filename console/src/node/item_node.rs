@@ -99,16 +99,6 @@ impl<'s> ItemNode<'s> {
         self.item.is_goal()
     }
 
-    pub(crate) fn is_mentally_resident(&self) -> bool {
-        if self.item.get_staging() == &Staging::NotSet {
-            //Look to parents for a setting
-            self.get_larger().iter().any(|x| x.is_mentally_resident())
-        } else {
-            //Value is set so use it
-            self.item.is_mentally_resident()
-        }
-    }
-
     pub(crate) fn has_larger(&self) -> bool {
         !self.larger.is_empty()
     }
@@ -277,16 +267,6 @@ impl<'s> GrowingItemNode<'s> {
             result.extend(parents.iter());
         }
         result
-    }
-
-    pub(crate) fn is_mentally_resident(&self) -> bool {
-        if self.item.get_staging() == &Staging::NotSet {
-            //Look to parents for a setting
-            self.larger.iter().any(|x| x.is_mentally_resident())
-        } else {
-            //Value is set so use it
-            self.item.is_mentally_resident()
-        }
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
