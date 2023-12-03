@@ -1,4 +1,4 @@
-# What is On Purpose?
+# Why On Purpose?
 
 _On Purpose_ is a to do application meant to greatly improve my mental health. It is a research project and a hobby. The objective is to let go of a user experience that can largely be implemented in a day planner, a spreadsheet, or simple queries to a database and really rethink or re-imagine the user experience to be closer to how our minds operate and closer to how we in reality actually do work today to pick what to work on and successfully get things done.
 
@@ -22,29 +22,21 @@ I am writing _On Purpose_ in Rust and I do intend to eventually have more than j
 
 **I should also mention that as much as possible my program is an extension to the Microsoft platform; this means a program that integrates with Microsoft Email & Calendar, Microsoft OneNote, Microsoft To Do, and Microsoft Teams through the Microsoft Graph API and Azure DevOps. The current operating system I am targeting is Microsoft Windows but I do expect this to work on Linux.**
 
-## Core Ideas I believe to be innovative
+## What is On Purpose?
 
-[TODO]
+_On Purpose_ is meant to help someone cycle through their various to dos efficiently. The vision is to help one return to things before they forget what they are doing, while also mixing in other things that are ongoing and working in new things that come up. _On Purpose_ is a bullet list like to do application for prioritizing your work. As a general rule you are meant to pick the top item from the list and work on that with the rest of the items being upcoming work.
+
+To Do's are organized into 2 priorities or 4 priority levels, Mentally Resident items and On Deck items. A new item is placed at the bottom of the On Deck list, priority 4, and given an amount of time to move from the bottom to the top of the list. Likewise after an item is worked on it is placed at the bottom of the mentally resident list, priority 3, and given a time frame to move through the mentally resident list. These lists are sorted by the percentage of time elapsed. After an On Deck item has more than 100% of time elapsed it jumps in priority to priority 2, above the mentally resident items and likewise mentally resident items that are more than 100% of time elapsed jump to the top, priority 1 list.
+
+In _On Purpose_ after working on an item select the option `I worked on this`. You will then be given the prompt, `How long until you need to work on this again?` and you answer a time value for example `1h` for 1 hour or `5m` for 5 minutes or `1d` for 1 day. The item will then be set at the bottom of the mentally resident (🧠) priority level, which is priority level 3. The item will then move from the bottom to the top of that priority level based on the percentage of time that has passed. For example a one hour item will be near the middle and ordered based on the number at 50% after 30 minutes and then after 55 minutes it will be ordered based on the number 92% and near the top. So this is the first principal that a time frame is given and items are ordered according to the percentage of time that has passed.
 
 ### Reverse List, Next Step First
 
 [TODO]
 
-### Mentally Resident, Core Loop, Prioritization
-
-[TODO]
-
-### Integration
-
-[TODO]
-
-### Reasons to do things or not
+### Reasons to do things or not & Integration
 
 Internal, External, Scheduling
-
-[TODO]
-
-### Expectation Management
 
 [TODO]
 
