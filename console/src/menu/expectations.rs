@@ -28,8 +28,6 @@ use crate::{
     },
 };
 
-//TODO: Move things from this file into the menu folder and menu mod
-
 struct ProjectHopeItem<'a> {
     pub(crate) hope_node: &'a ItemNode<'a>,
 }

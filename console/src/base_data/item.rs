@@ -397,26 +397,23 @@ impl Item<'_> {
         other_items: &'a [&'a Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
-        //TODO: Update the below code to use the chain macro rather than this manual extend thing
-        let mut result = linkage
-            .iter()
-            .filter_map(|x| {
+        chain!(
+            linkage.iter().filter_map(|x| {
                 if x.parent == self && !visited.contains(&x.smaller) {
                     Some(x.smaller)
                 } else {
                     None
                 }
+            }),
+            other_items.iter().filter_map(|other_item| {
+                if self.is_this_a_smaller_item(other_item) && !visited.contains(other_item) {
+                    Some(*other_item)
+                } else {
+                    None
+                }
             })
-            .collect::<Vec<_>>();
-
-        result.extend(other_items.iter().filter_map(|other_item| {
-            if self.is_this_a_smaller_item(other_item) && !visited.contains(other_item) {
-                Some(*other_item)
-            } else {
-                None
-            }
-        }));
-        result
+        )
+        .collect()
     }
 
     pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {

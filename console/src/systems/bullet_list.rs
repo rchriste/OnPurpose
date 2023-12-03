@@ -142,7 +142,6 @@ impl BulletList {
                     })
                 });
 
-                //TODO: Sort order the first of all top items
                 all_leaf_nodes
                     .into_iter()
                     .map(BulletListReason::new)
