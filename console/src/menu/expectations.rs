@@ -18,6 +18,7 @@ use crate::{
     menu::{
         bullet_list_menu::bullet_list_single_item::cover_with_item,
         expectations::define_facing::define_facing, staging_query::on_deck_query,
+        update_item_summary::update_item_summary,
     },
     node::item_node::ItemNode,
     surrealdb_layer::{
@@ -25,7 +26,6 @@ use crate::{
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
-    update_item_summary,
 };
 
 //TODO: Move things from this file into the menu folder and menu mod

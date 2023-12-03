@@ -32,6 +32,7 @@ use crate::{
         select_higher_priority_than_this::select_higher_priority_than_this,
         staging_query::mentally_resident_query,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
+        update_item_summary::update_item_summary,
     },
     new_item,
     node::item_node::ItemNode,
@@ -40,7 +41,6 @@ use crate::{
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
-    update_item_summary,
 };
 
 use self::{
