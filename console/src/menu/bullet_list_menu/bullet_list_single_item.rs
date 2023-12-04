@@ -364,15 +364,32 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            let new_mentally_resident_staging = mentally_resident_query().await.unwrap();
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateItemStaging(
-                    menu_for.get_surreal_record_id().clone(),
-                    new_mentally_resident_staging,
-                ))
-                .await
-                .unwrap();
-            Ok(())
+            let new_mentally_resident_staging = mentally_resident_query().await;
+            match new_mentally_resident_staging {
+                Ok(new_mentally_resident_staging) => {
+                    send_to_data_storage_layer
+                        .send(DataLayerCommands::UpdateItemStaging(
+                            menu_for.get_surreal_record_id().clone(),
+                            new_mentally_resident_staging,
+                        ))
+                        .await
+                        .unwrap();
+                    Ok(())
+                }
+                Err(InquireError::OperationCanceled) => {
+                    present_bullet_list_item_selected(
+                        menu_for,
+                        current_date_time,
+                        all_coverings,
+                        all_snoozed,
+                        all_items,
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
+                Err(InquireError::OperationInterrupted) => Err(()),
+                Err(err) => todo!("Unexpected {}", err),
+            }
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
