@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 
 use crate::{
@@ -33,7 +33,6 @@ impl BulletList {
                     })
                     .collect::<Vec<_>>();
 
-                let local_current_date_time: DateTime<Local> = (*current_date_time).into();
                 //Note that some of these bottom items might be from detecting a circular dependency
                 let mut all_leaf_nodes = all_item_nodes
                     .into_iter()
@@ -64,13 +63,13 @@ impl BulletList {
                     .then_with(|| {
                         //Snoozed items should be shown at the bottom so they are searchable
                         //TODO: I should have an item to state the purpose so the User knows they are not meant to do this, only if they need to search
-                        if a.is_snoozed(local_current_date_time) {
-                            if b.is_snoozed(local_current_date_time) {
+                        if a.is_snoozed(*current_date_time) {
+                            if b.is_snoozed(*current_date_time) {
                                 Ordering::Equal
                             } else {
                                 Ordering::Greater
                             }
-                        } else if b.is_snoozed(local_current_date_time) {
+                        } else if b.is_snoozed(*current_date_time) {
                             Ordering::Less
                         } else {
                             Ordering::Equal

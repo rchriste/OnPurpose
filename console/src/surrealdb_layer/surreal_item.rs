@@ -178,11 +178,11 @@ pub(crate) enum Staging {
     #[default]
     NotSet,
     MentallyResident {
-        last_worked_on: Datetime,
+        last_worked_on: Datetime, //TODO: This should be renamed to start or earliest to start working on
         work_on_again_before: Datetime,
     },
     OnDeck {
-        began_waiting: Datetime,
+        began_waiting: Datetime, //TODO: This should be renamed to start or earliest to start working on
         can_wait_until: Datetime,
     },
     Intension,

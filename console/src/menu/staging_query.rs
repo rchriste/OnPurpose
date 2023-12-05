@@ -5,55 +5,45 @@ use inquire::{InquireError, Select, Text};
 use crate::{menu::YesOrNo, surrealdb_layer::surreal_item::Staging};
 
 pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
-    let now = Local::now();
-    let wait_until = loop {
-        let wait_string = Text::new("Can wait for how long?").prompt()?;
-        let wait_duration = match parse(&wait_string) {
-            Ok(duration) => duration,
-            Err(e) => {
-                println!("Error: {}", e);
-                continue;
-            }
-        };
-        let wait_until = now + wait_duration;
-        println!("Can wait until {}?", wait_until);
-        let result = Select::new("Select from the below list|", YesOrNo::make_list()).prompt()?;
-        match result {
-            YesOrNo::Yes => break wait_until,
-            YesOrNo::No => continue,
-        }
-    };
+    let (return_to, work_on_again_before) = prompt_for_two_times()?;
 
-    let now: DateTime<Utc> = now.into();
-    let wait_until: DateTime<Utc> = wait_until.into();
     Ok(Staging::OnDeck {
-        began_waiting: now.into(),
-        can_wait_until: wait_until.into(),
+        began_waiting: return_to.into(),
+        can_wait_until: work_on_again_before.into(),
     })
 }
 
 pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
+    let (return_to, work_on_again_before) = prompt_for_two_times()?;
+
+    Ok(Staging::MentallyResident {
+        last_worked_on: return_to.into(),
+        work_on_again_before: work_on_again_before.into(),
+    })
+}
+
+fn prompt_for_two_times() -> Result<(DateTime<Utc>, DateTime<Utc>), InquireError> {
     let now = Local::now();
-    let work_on_again_before = loop {
+    loop {
+        let return_to_string =
+            Text::new("Wait at least how long before returning to this?").prompt()?;
+        let return_to_duration = parse(&return_to_string).unwrap();
+        let return_to = now + return_to_duration;
         let deadline_string =
-            Text::new("How long until you need to work on this again?").prompt()?;
+            Text::new("Then how long to go from the bottom to the top of the list?").prompt()?;
         let deadline_duration = parse(&deadline_string).unwrap();
-        let work_on_again_before = now + deadline_duration;
+        let work_on_again_before = now + return_to_duration + deadline_duration;
         let result = Select::new(
-            &format!("Set work on again before {}?", work_on_again_before),
+            &format!(
+                "Wait until {}\n Reach top at {}?",
+                return_to, work_on_again_before
+            ),
             YesOrNo::make_list(),
         )
         .prompt()?;
         match result {
-            YesOrNo::Yes => break work_on_again_before,
+            YesOrNo::Yes => return Ok((return_to.into(), work_on_again_before.into())),
             YesOrNo::No => continue,
         }
-    };
-
-    let now: DateTime<Utc> = now.into();
-    let work_on_again_before: DateTime<Utc> = work_on_again_before.into();
-    Ok(Staging::MentallyResident {
-        last_worked_on: now.into(),
-        work_on_again_before: work_on_again_before.into(),
-    })
+    }
 }

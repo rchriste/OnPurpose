@@ -238,8 +238,24 @@ impl<'s> ItemNode<'s> {
         &self.snoozed_until
     }
 
-    pub(crate) fn is_snoozed(&self, now: DateTime<Local>) -> bool {
-        self.get_snoozed_until().iter().any(|x| x > &&now)
+    /// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet
+    pub(crate) fn is_snoozed(&self, now: DateTime<Utc>) -> bool {
+        let staging = self.get_staging();
+        let snoozed_from_staging = match staging {
+            Staging::NotSet => false,
+            Staging::OnDeck { began_waiting, .. } => {
+                let began_waiting: DateTime<Utc> = began_waiting.clone().into();
+                began_waiting > now
+            }
+            Staging::MentallyResident { last_worked_on, .. } => {
+                let last_worked_on: DateTime<Utc> = last_worked_on.clone().into();
+                last_worked_on > now
+            }
+            Staging::Intension => false,
+            Staging::Released => false,
+        };
+
+        self.get_snoozed_until().iter().any(|x| x > &&now) && snoozed_from_staging
     }
 
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
