@@ -255,7 +255,7 @@ impl<'s> ItemNode<'s> {
             Staging::Released => false,
         };
 
-        self.get_snoozed_until().iter().any(|x| x > &&now) && snoozed_from_staging
+        self.get_snoozed_until().iter().any(|x| x > &&now) || snoozed_from_staging
     }
 
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
