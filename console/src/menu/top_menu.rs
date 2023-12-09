@@ -68,20 +68,22 @@ pub(crate) async fn present_top_menu(
     let top_menu = TopMenuSelection::make_list();
 
     let selection = Select::new("Select from the below list|", top_menu)
-        .prompt()
-        .unwrap();
+        .prompt();
     match selection {
-        TopMenuSelection::Capture => capture(send_to_data_storage_layer).await,
-        TopMenuSelection::ChangeRoutine => change_routine(send_to_data_storage_layer).await,
-        TopMenuSelection::Reflection => todo!("Implement Reflection"),
-        TopMenuSelection::ViewExpectations => view_expectations(send_to_data_storage_layer).await,
-        TopMenuSelection::ViewBulletList => {
+        Ok(TopMenuSelection::Capture) => capture(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::ChangeRoutine) => change_routine(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::Reflection) => todo!("Implement Reflection"),
+        Ok(TopMenuSelection::ViewExpectations) => view_expectations(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::ViewBulletList) => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
-        TopMenuSelection::ViewMotivations => view_motivations().await,
-        TopMenuSelection::DebugViewAllItems => {
+        Ok(TopMenuSelection::ViewMotivations) => view_motivations().await,
+        Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationCanceled) => Err(()),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => todo!("Unexpected InquireError of {}", err),
     }
 }
 
