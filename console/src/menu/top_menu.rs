@@ -67,13 +67,14 @@ pub(crate) async fn present_top_menu(
 ) -> Result<(), ()> {
     let top_menu = TopMenuSelection::make_list();
 
-    let selection = Select::new("Select from the below list|", top_menu)
-        .prompt();
+    let selection = Select::new("Select from the below list|", top_menu).prompt();
     match selection {
         Ok(TopMenuSelection::Capture) => capture(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ChangeRoutine) => change_routine(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::Reflection) => todo!("Implement Reflection"),
-        Ok(TopMenuSelection::ViewExpectations) => view_expectations(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::ViewExpectations) => {
+            view_expectations(send_to_data_storage_layer).await
+        }
         Ok(TopMenuSelection::ViewBulletList) => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }

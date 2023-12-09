@@ -267,7 +267,16 @@ pub(crate) async fn need_to_wait_before_working_on_this(
 ) -> Result<(), ()> {
     let now = Local::now();
     let wait_until: DateTime<Utc> = loop {
-        let wait_for_how_long = Text::new("Wait for how long?").prompt().unwrap();
+        let wait_for_how_long = Text::new("Wait for how long?").prompt();
+        let wait_for_how_long = match wait_for_how_long {
+            Ok(wait_for_how_long) => wait_for_how_long,
+            Err(InquireError::OperationCanceled) => {
+                unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await?;
+                return Ok(());
+            }
+            Err(InquireError::OperationInterrupted) => return Err(()),
+            Err(err) => todo!("{:?}", err),
+        };
         match duration_str::parse(&wait_for_how_long) {
             Ok(wait_for_how_long) => {
                 let wait_until = now + wait_for_how_long;
