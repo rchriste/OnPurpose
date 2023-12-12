@@ -26,16 +26,15 @@ fn prompt_for_two_times() -> Result<(DateTime<Utc>, DateTime<Utc>), InquireError
     let now = Local::now();
     loop {
         let return_to_string =
-            Text::new("Wait at least how long before returning to this?").prompt()?;
+            Text::new("Wait how long before returning the item to the list?").prompt()?;
         let return_to_duration = parse(&return_to_string).unwrap();
         let return_to = now + return_to_duration;
-        let deadline_string =
-            Text::new("Then how long to go from the bottom to the top of the list?").prompt()?;
+        let deadline_string = Text::new("Then how long until the item expires?").prompt()?;
         let deadline_duration = parse(&deadline_string).unwrap();
         let work_on_again_before = now + return_to_duration + deadline_duration;
         let result = Select::new(
             &format!(
-                "Wait until {}\n Reach top at {}?",
+                "Wait until {}\n Expires at {}?",
                 return_to, work_on_again_before
             ),
             YesOrNo::make_list(),
