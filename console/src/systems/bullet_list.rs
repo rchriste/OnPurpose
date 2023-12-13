@@ -102,36 +102,40 @@ impl BulletList {
                         }
                     })
                     .then_with(|| {
-                        if a.is_mentally_resident_expired(current_date_time) {
-                            if b.is_mentally_resident_expired(current_date_time) {
+                        //TODO: Put mentally resident expired and on deck expired together into the same list that is then sorted so mentally resident is expired squared versus on deck that is just expired
+                        if a.is_mentally_resident_expired(current_date_time)
+                            || a.is_staging_on_deck_expired(current_date_time)
+                        {
+                            if b.is_mentally_resident_expired(current_date_time)
+                                || b.is_staging_on_deck_expired(current_date_time)
+                            {
                                 Ordering::Equal
                             } else {
                                 Ordering::Less
                             }
-                        } else if b.is_mentally_resident_expired(current_date_time) {
+                        } else if b.is_mentally_resident_expired(current_date_time)
+                            || b.is_staging_on_deck_expired(current_date_time)
+                        {
                             Ordering::Greater
                         } else {
-                            Ordering::Equal
+                            a.get_staging().cmp(b.get_staging())
                         }
                     })
                     .then_with(|| {
-                        if a.is_staging_on_deck_expired(current_date_time) {
-                            if b.is_staging_on_deck_expired(current_date_time) {
-                                Ordering::Equal
-                            } else {
-                                Ordering::Less
-                            }
-                        } else if b.is_staging_on_deck_expired(current_date_time) {
-                            Ordering::Greater
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                    .then_with(|| a.get_staging().cmp(b.get_staging()))
-                    .then_with(|| {
+                        //TODO: Have this be out of 1 rather than a percentage and then square the mentally resident number and keep the same the on deck expired number
                         let a_expired_percentage = a.expired_percentage(current_date_time);
+                        let a_expired_amount = if a.is_staging_mentally_resident() {
+                            f32::powf(a_expired_percentage / 100f32, 2f32)
+                        } else {
+                            a_expired_percentage / 100f32
+                        };
                         let b_expired_percentage = b.expired_percentage(current_date_time);
-                        if a_expired_percentage > b_expired_percentage {
+                        let b_expired_amount = if b.is_staging_mentally_resident() {
+                            f32::powf(b_expired_percentage / 100f32, 2f32)
+                        } else {
+                            b_expired_percentage / 100f32
+                        };
+                        if a_expired_amount > b_expired_amount {
                             Ordering::Less
                         } else if a_expired_percentage < b_expired_percentage {
                             Ordering::Greater

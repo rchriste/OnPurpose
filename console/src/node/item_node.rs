@@ -202,6 +202,10 @@ impl<'s> ItemNode<'s> {
         }
     }
 
+    pub(crate) fn is_staging_mentally_resident(&self) -> bool {
+        matches!(self.get_staging(), Staging::MentallyResident { .. })
+    }
+
     pub(crate) fn expired_percentage(&self, current_date_time: &DateTime<Utc>) -> f32 {
         match self.get_staging() {
             Staging::NotSet => 0.0,
