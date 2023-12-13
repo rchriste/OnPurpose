@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.143"
+version = "0.0.144"
 edition = "2021"
 
 [dependencies]
@@ -38,3 +38,6 @@ better_term = "1.4.1" #Added so I can use bold and other styles, initially just 
 #I should look into the anyhow crate (suggested for application code like the console app) or thiserror crate (suggested for library code) for errors
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term
+
+[build]
+rustflags = ["-Z", "threads=8"]

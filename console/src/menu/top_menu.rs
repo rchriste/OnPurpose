@@ -91,14 +91,21 @@ pub(crate) async fn present_top_menu(
 pub(crate) async fn capture(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let new_item_summary = Text::new("Enter New Item ⍠").prompt().unwrap();
+    let new_item_summary = Text::new("Enter New Item ⍠").prompt();
 
-    let new_item = NewItem::new(new_item_summary, Utc::now());
-    send_to_data_storage_layer
-        .send(DataLayerCommands::NewItem(new_item))
-        .await
-        .unwrap();
-    Ok(())
+    match new_item_summary {
+        Ok(new_item_summary) => {
+            let new_item = NewItem::new(new_item_summary, Utc::now());
+            send_to_data_storage_layer
+                .send(DataLayerCommands::NewItem(new_item))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Err(InquireError::OperationCanceled) => Ok(()),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => todo!("Unexpected InquireError of {}", err),
+    }
 }
 
 async fn view_motivations() -> Result<(), ()> {
