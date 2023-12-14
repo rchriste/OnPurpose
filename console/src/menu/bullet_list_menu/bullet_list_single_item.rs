@@ -30,6 +30,7 @@ use crate::{
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
         select_higher_priority_than_this::select_higher_priority_than_this,
+        top_menu::capture,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
         update_item_summary::update_item_summary,
     },
@@ -457,6 +458,7 @@ enum FinishSelection<'e> {
     GoToParent(&'e Item<'e>),
     UpdateStagingForParent(&'e Item<'e>),
     ApplyStagingToParent(&'e Item<'e>, Staging),
+    CaptureNewItem,
     ReturnToBulletList,
 }
 
@@ -485,6 +487,7 @@ impl Display for FinishSelection<'_> {
                 DisplayStaging::new(staging),
                 DisplayItem::new(parent)
             ),
+            FinishSelection::CaptureNewItem => write!(f, "Capture New Item"),
             FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
         }
     }
@@ -494,6 +497,7 @@ impl<'e> FinishSelection<'e> {
     fn make_list(parents: &[&'e Item<'e>], finished_item: &Item<'_>) -> Vec<Self> {
         let mut list = Vec::default();
         list.push(Self::ReturnToBulletList);
+        list.push(Self::CaptureNewItem);
         list.extend(parents.iter().flat_map(|x| {
             vec![
                 Self::CreateNextStepWithParent(x),
@@ -533,6 +537,7 @@ async fn finish_bullet_item(
     let selection = Select::new("Select from the below list|", list).prompt();
 
     match selection {
+        Ok(FinishSelection::CaptureNewItem) => capture(send_to_data_storage_layer).await,
         Ok(FinishSelection::CreateNextStepWithParent(parent)) => {
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
                 .await
@@ -635,7 +640,7 @@ async fn finish_bullet_item(
         Ok(FinishSelection::ReturnToBulletList) => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationCanceled) => todo!("This should undo the finish and put the item back to what it was before"),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }
