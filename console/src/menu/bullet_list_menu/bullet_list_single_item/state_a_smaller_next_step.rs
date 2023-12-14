@@ -76,7 +76,19 @@ pub(crate) async fn state_a_smaller_next_step(
                 "Please update Staging for {}",
                 DisplayItem::new(parent.get_item())
             );
-            present_set_staging_menu(parent.get_item(), send_to_data_storage_layer).await
+            let default_selection = match parent.get_staging() {
+                Staging::NotSet => Some(StagingMenuSelection::NotSet),
+                Staging::MentallyResident { .. } => Some(StagingMenuSelection::MentallyResident),
+                Staging::OnDeck { .. } => Some(StagingMenuSelection::OnDeck),
+                Staging::Intension => Some(StagingMenuSelection::Intension),
+                Staging::Released => Some(StagingMenuSelection::Released),
+            };
+            present_set_staging_menu(
+                parent.get_item(),
+                send_to_data_storage_layer,
+                default_selection,
+            )
+            .await
         }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
@@ -118,7 +130,8 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             };
             let parent = selected_item;
 
-            let (list, starting_cursor) = StagingMenuSelection::make_list();
+            let (list, starting_cursor) =
+                StagingMenuSelection::make_list(Some(StagingMenuSelection::NotSet));
 
             let selection = Select::new("Select from the below list|", list)
                 .with_starting_cursor(starting_cursor)

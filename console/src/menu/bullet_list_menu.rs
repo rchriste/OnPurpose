@@ -19,7 +19,7 @@ use crate::{
 
 use self::bullet_list_single_item::{
     present_bullet_list_item_selected, present_is_person_or_group_around_menu,
-    set_staging::present_set_staging_menu,
+    set_staging::{present_set_staging_menu, StagingMenuSelection},
 };
 
 use super::top_menu::capture;
@@ -120,7 +120,12 @@ pub(crate) async fn present_bullet_list_menu(
                 }
             }
             Ok(InquireBulletListItem::SetStaging(item_node)) => {
-                present_set_staging_menu(item_node.get_item(), send_to_data_storage_layer).await
+                present_set_staging_menu(
+                    item_node.get_item(),
+                    send_to_data_storage_layer,
+                    Some(StagingMenuSelection::OnDeck),
+                )
+                .await
             }
             Err(InquireError::OperationCanceled) => {
                 present_top_menu(send_to_data_storage_layer).await

@@ -1,7 +1,10 @@
 [package]
 name = "on_purpose"
-version = "0.0.144"
+version = "0.0.145"
 edition = "2021"
+
+[build]
+rustflags = ["-Z", "threads=8"]
 
 [dependencies]
 inquire = { version = "0.6.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
@@ -39,5 +42,3 @@ better_term = "1.4.1" #Added so I can use bold and other styles, initially just 
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term
 
-[build]
-rustflags = ["-Z", "threads=8"]

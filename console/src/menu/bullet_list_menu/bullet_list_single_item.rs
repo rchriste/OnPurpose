@@ -30,7 +30,6 @@ use crate::{
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
         select_higher_priority_than_this::select_higher_priority_than_this,
-        staging_query::mentally_resident_query,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
         update_item_summary::update_item_summary,
     },
@@ -44,7 +43,8 @@ use crate::{
 };
 
 use self::{
-    parent_to_a_goal_or_motivation::parent_to_a_motivation, set_staging::present_set_staging_menu,
+    parent_to_a_goal_or_motivation::parent_to_a_motivation,
+    set_staging::{present_set_staging_menu, StagingMenuSelection},
 };
 
 use super::present_normal_bullet_list_menu;
@@ -364,32 +364,12 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            let new_mentally_resident_staging = mentally_resident_query().await;
-            match new_mentally_resident_staging {
-                Ok(new_mentally_resident_staging) => {
-                    send_to_data_storage_layer
-                        .send(DataLayerCommands::UpdateItemStaging(
-                            menu_for.get_surreal_record_id().clone(),
-                            new_mentally_resident_staging,
-                        ))
-                        .await
-                        .unwrap();
-                    Ok(())
-                }
-                Err(InquireError::OperationCanceled) => {
-                    present_bullet_list_item_selected(
-                        menu_for,
-                        current_date_time,
-                        all_coverings,
-                        all_snoozed,
-                        all_items,
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-                Err(InquireError::OperationInterrupted) => Err(()),
-                Err(err) => todo!("Unexpected {}", err),
-            }
+            present_set_staging_menu(
+                menu_for.get_item(),
+                send_to_data_storage_layer,
+                Some(StagingMenuSelection::MentallyResident),
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
@@ -435,7 +415,12 @@ pub(crate) async fn present_bullet_list_item_selected(
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ChangeStaging) => {
-            present_set_staging_menu(menu_for.get_item(), send_to_data_storage_layer).await
+            present_set_staging_menu(
+                menu_for.get_item(),
+                send_to_data_storage_layer,
+                Some(StagingMenuSelection::OnDeck),
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
             process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await
@@ -616,7 +601,7 @@ async fn finish_bullet_item(
             .await
         }
         Ok(FinishSelection::UpdateStagingForParent(parent)) => {
-            present_set_staging_menu(parent, send_to_data_storage_layer).await?;
+            present_set_staging_menu(parent, send_to_data_storage_layer, None).await?;
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,

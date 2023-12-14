@@ -12,6 +12,7 @@ use crate::{
 use inquire::{InquireError, Select};
 use std::fmt::Display;
 
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub(crate) enum StagingMenuSelection {
     NotSet,
     MentallyResident,
@@ -36,18 +37,24 @@ impl Display for StagingMenuSelection {
 
 impl StagingMenuSelection {
     /// Returns a tuple of the list and the default index or recommended default selection
-    pub(crate) fn make_list() -> (Vec<Self>, usize) {
-        (
-            vec![
-                StagingMenuSelection::MentallyResident,
-                StagingMenuSelection::OnDeck,
-                StagingMenuSelection::Intension,
-                StagingMenuSelection::Released,
-                StagingMenuSelection::NotSet,
-                StagingMenuSelection::MakeItemReactive,
-            ],
-            1,
-        )
+    pub(crate) fn make_list(default_selection: Option<StagingMenuSelection>) -> (Vec<Self>, usize) {
+        let choices = vec![
+            StagingMenuSelection::MentallyResident,
+            StagingMenuSelection::OnDeck,
+            StagingMenuSelection::Intension,
+            StagingMenuSelection::Released,
+            StagingMenuSelection::NotSet,
+            StagingMenuSelection::MakeItemReactive,
+        ];
+        let default_index = match default_selection {
+            Some(default_selection) => choices
+                .iter()
+                .position(|choice| choice == &default_selection)
+                .unwrap(),
+            None => 1,
+        };
+
+        (choices, default_index)
     }
 }
 
@@ -55,8 +62,9 @@ impl StagingMenuSelection {
 pub(crate) async fn present_set_staging_menu(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
+    default_selection: Option<StagingMenuSelection>,
 ) -> Result<(), ()> {
-    let (list, starting_cursor) = StagingMenuSelection::make_list();
+    let (list, starting_cursor) = StagingMenuSelection::make_list(default_selection);
 
     let selection = Select::new("Select from the below list|", list)
         .with_starting_cursor(starting_cursor)
@@ -69,7 +77,12 @@ pub(crate) async fn present_set_staging_menu(
             match result {
                 Ok(mentally_resident) => mentally_resident,
                 Err(InquireError::OperationCanceled) => {
-                    return present_set_staging_menu(selected, send_to_data_storage_layer).await
+                    return present_set_staging_menu(
+                        selected,
+                        send_to_data_storage_layer,
+                        default_selection,
+                    )
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => return Err(()),
                 Err(err) => todo!("{:?}", err),
@@ -80,7 +93,12 @@ pub(crate) async fn present_set_staging_menu(
             match result {
                 Ok(staging) => staging,
                 Err(InquireError::OperationCanceled) => {
-                    return present_set_staging_menu(selected, send_to_data_storage_layer).await
+                    return present_set_staging_menu(
+                        selected,
+                        send_to_data_storage_layer,
+                        default_selection,
+                    )
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => return Err(()),
                 Err(err) => todo!("{:?}", err),
