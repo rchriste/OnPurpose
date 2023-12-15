@@ -640,7 +640,9 @@ async fn finish_bullet_item(
         Ok(FinishSelection::ReturnToBulletList) => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => todo!("This should undo the finish and put the item back to what it was before"),
+        Err(InquireError::OperationCanceled) => {
+            todo!("This should undo the finish and put the item back to what it was before")
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
     }

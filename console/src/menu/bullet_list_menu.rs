@@ -74,16 +74,25 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
         .await
         .unwrap();
-    println!(
-        "Time to get data from database: {}",
-        Local::now() - before_db_query
-    );
+    let elapsed = Local::now() - before_db_query;
+    if elapsed > chrono::Duration::seconds(1) {
+        println!(
+            "Slow to get data from database. Time taken: {}",
+            elapsed
+        );
+    }
     let current_date_time = Utc::now();
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
-    println!("Time to create bullet list: {}", Utc::now() - now);
+    let elapsed = Utc::now() - now;
+    if elapsed > chrono::Duration::seconds(1) {
+        println!(
+            "Slow to create bullet list. Time taken: {}",
+            elapsed
+        );
+    }
     present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await
 }
 
