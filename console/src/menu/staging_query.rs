@@ -29,18 +29,24 @@ fn prompt_for_two_times() -> Result<(DateTime<Utc>, DateTime<Utc>), InquireError
             Text::new("Wait how long before returning the item to the list?").prompt()?;
         let return_to = match parse(&return_to_string) {
             Ok(return_to_duration) => now + return_to_duration,
-            Err(_) => {
-                println!("Invalid input. Please try again.");
-                continue;
-            }
+            Err(_) => match dateparser::parse(&return_to_string) {
+                Ok(return_to) => return_to.into(),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    continue;
+                }
+            },
         };
         let deadline_string = Text::new("Then how long until the item expires?").prompt()?;
         let work_on_again_before = match parse(&deadline_string) {
             Ok(deadline_duration) => return_to + deadline_duration,
-            Err(_) => {
-                println!("Invalid input. Please try again.");
-                continue;
-            }
+            Err(_) => match dateparser::parse(&deadline_string) {
+                Ok(work_on_again_before) => work_on_again_before.into(),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    continue;
+                }
+            },
         };
         let result = Select::new(
             &format!(
