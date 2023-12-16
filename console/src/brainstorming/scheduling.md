@@ -7,21 +7,21 @@ How an item is classified into stages plays a large roll in deciding what to do 
 ```Text
    To Do Item Stages
 ═══════════════════════
-┌──────────────────────┐     Requires information that is currently in your brain 
+┌─────────────────────┐     Requires information that is currently in your brain 
 │🧠 Mentally Resident │     that will fade over time. It is important to return 
-└──────────────────────┘     to these items to prevent that from happening.
+└─────────────────────┘     to these items to prevent that from happening.
            ⇧
-     ┌────────────┐          Something you hope to get to as soon as 
+     ┌───────────┐          Something you hope to get to as soon as 
      │🪜 On Deck │          the mentally resident workload allows it 
-     └────────────┘          or after an amount of time has passed.
+     └───────────┘          or after an amount of time has passed.
            ⇧
-     ┌────────────┐          Items that should be reviewed to be put on 
+     ┌───────────┐          Items that should be reviewed to be put on 
      │📌 Planned │          On Deck once related or earlier items that 
-     └────────────┘          are part of the same effort are concluded.
+     └───────────┘          are part of the same effort are concluded.
            ⇧
- ┌────────────────────┐      For items that you hope to get around 
+ ┌───────────────────┐      For items that you hope to get around 
  │ 🤔 Thinking about │      to or that are not yet well formed 
- └────────────────────┘      enough to take on the work.
+ └───────────────────┘      enough to take on the work.
 
 
       ╒══════════╕          Things that you would love to do but they should not be directly 
@@ -36,9 +36,9 @@ When suggesting what to do _On Purpose_ prefers mentally resident items. The goa
 ```Text
                 How items on the Bullet List are prioritized
 ═════════════════════════════════════════════════════════════════════════════════════
-│     ⏰    │ 🧠 Mentally Resident │ Items with a laps number above one are shown 
-│ Laps > 𝟏.𝟎 │           &          │ first. Mentally resident items have the laps 
-│     ⏰    │       🪜 On Deck     │ number squared so they are higher on the list.
+│     ⏰     │ 🧠 Mentally Resident │ Items with a laps number above one are shown 
+│ Laps > 𝟏.𝟎 │            &          │ first. Mentally resident items have the laps 
+│     ⏰     │       🪜 On Deck     │ number squared so they are higher on the list.
 ─────────────────────────────────────────────────────────────────────────────────────
 │ Laps < 𝟏.𝟎 │ 🧠 Mentally Resident │ Then non-lapped mentally resident items.
 ─────────────────────────────────────────────────────────────────────────────────────
