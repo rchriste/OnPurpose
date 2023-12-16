@@ -76,10 +76,7 @@ pub(crate) async fn present_normal_bullet_list_menu(
         .unwrap();
     let elapsed = Local::now() - before_db_query;
     if elapsed > chrono::Duration::seconds(1) {
-        println!(
-            "Slow to get data from database. Time taken: {}",
-            elapsed
-        );
+        println!("Slow to get data from database. Time taken: {}", elapsed);
     }
     let current_date_time = Utc::now();
 
@@ -88,10 +85,7 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::seconds(1) {
-        println!(
-            "Slow to create bullet list. Time taken: {}",
-            elapsed
-        );
+        println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
     present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await
 }
