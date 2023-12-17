@@ -182,23 +182,17 @@ impl<'s> ItemNode<'s> {
         self.item.is_responsibility_reactive()
     }
 
-    pub(crate) fn is_staging_on_deck_expired(&self, current_date_time: &DateTime<Utc>) -> bool {
-        if let Staging::OnDeck { can_wait_until, .. } = self.get_staging() {
-            current_date_time > can_wait_until
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn is_mentally_resident_expired(&self, current_date_time: &DateTime<Utc>) -> bool {
-        if let Staging::MentallyResident {
-            work_on_again_before,
-            ..
-        } = self.get_staging()
-        {
-            current_date_time > work_on_again_before
-        } else {
-            false
+    pub(crate) fn is_first_lap_finished(&self, current_date_time: &DateTime<Utc>) -> bool {
+        match self.get_staging() {
+            Staging::OnDeck {
+                finish_first_lap, ..
+            }
+            | Staging::MentallyResident {
+                finish_first_lap, ..
+            } => current_date_time > finish_first_lap,
+            Staging::NotSet | Staging::Planned | Staging::ThinkingAbout | Staging::Released => {
+                false
+            }
         }
     }
 
@@ -206,34 +200,35 @@ impl<'s> ItemNode<'s> {
         matches!(self.get_staging(), Staging::MentallyResident { .. })
     }
 
-    pub(crate) fn expired_percentage(&self, current_date_time: &DateTime<Utc>) -> f32 {
+    pub(crate) fn get_lap_count(&self, current_date_time: &DateTime<Utc>) -> f32 {
         match self.get_staging() {
             Staging::NotSet => 0.0,
             Staging::OnDeck {
-                can_wait_until,
-                began_waiting,
+                enter_list,
+                finish_first_lap,
             } => {
-                let can_wait_until: DateTime<Utc> = can_wait_until.clone().into();
-                let began_waiting: DateTime<Utc> = began_waiting.clone().into();
-                let total = can_wait_until.sub(began_waiting);
-                let elapsed = current_date_time.sub(began_waiting);
+                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                let total = finish_first_lap.sub(enter_list);
+                let elapsed = current_date_time.sub(enter_list);
                 let elapsed = elapsed.num_seconds() as f32;
                 let total = total.num_seconds() as f32;
-                elapsed / total * 100.0
+                elapsed / total
             }
             Staging::MentallyResident {
-                work_on_again_before,
-                last_worked_on,
+                enter_list,
+                finish_first_lap,
             } => {
-                let work_on_again_before: DateTime<Utc> = work_on_again_before.clone().into();
-                let last_worked_on: DateTime<Utc> = last_worked_on.clone().into();
-                let total = work_on_again_before.sub(last_worked_on);
-                let elapsed = current_date_time.sub(last_worked_on);
+                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                let total = finish_first_lap.sub(enter_list);
+                let elapsed = current_date_time.sub(enter_list);
                 let elapsed = elapsed.num_seconds() as f32;
                 let total = total.num_seconds() as f32;
-                elapsed / total * 100.0
+                elapsed / total
             }
-            Staging::Intension => 0.0,
+            Staging::Planned => 0.0,
+            Staging::ThinkingAbout => 0.0,
             Staging::Released => 0.0,
         }
     }
@@ -247,15 +242,16 @@ impl<'s> ItemNode<'s> {
         let staging = self.get_staging();
         let snoozed_from_staging = match staging {
             Staging::NotSet => false,
-            Staging::OnDeck { began_waiting, .. } => {
-                let began_waiting: DateTime<Utc> = began_waiting.clone().into();
-                began_waiting > now
+            Staging::OnDeck { enter_list, .. } => {
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                enter_list > now
             }
-            Staging::MentallyResident { last_worked_on, .. } => {
-                let last_worked_on: DateTime<Utc> = last_worked_on.clone().into();
-                last_worked_on > now
+            Staging::MentallyResident { enter_list, .. } => {
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                enter_list > now
             }
-            Staging::Intension => false,
+            Staging::Planned => false,
+            Staging::ThinkingAbout => false,
             Staging::Released => false,
         };
 

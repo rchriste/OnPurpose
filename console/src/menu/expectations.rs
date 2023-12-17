@@ -287,7 +287,8 @@ enum MentallyResidentGoalSelectedMenuItem {
     ProcessAndFinish,
     SwitchToMaintenanceGoal,
     SwitchToOnDeckGoal,
-    SwitchToIntensionGoal,
+    SwitchToPlannedGoal,
+    SwitchToThinkingAboutGoal,
     ReleaseGoal,
     UpdateSummary,
 }
@@ -299,7 +300,8 @@ impl Display for MentallyResidentGoalSelectedMenuItem {
             Self::ProcessAndFinish => write!(f, "Process and Finish"),
             Self::SwitchToMaintenanceGoal => write!(f, "Switch to a maintenance Goal"),
             Self::SwitchToOnDeckGoal => write!(f, "Switch to on deck Goal"),
-            Self::SwitchToIntensionGoal => write!(f, "Switch to intension Goal"),
+            Self::SwitchToPlannedGoal => write!(f, "Switch to planned Goal"),
+            Self::SwitchToThinkingAboutGoal => write!(f, "Switch to thinking about Goal"),
             Self::ReleaseGoal => write!(f, "Release Goal"),
             Self::UpdateSummary => write!(f, "Update Summary"),
         }
@@ -313,7 +315,8 @@ impl MentallyResidentGoalSelectedMenuItem {
             Self::ProcessAndFinish,
             Self::SwitchToMaintenanceGoal,
             Self::SwitchToOnDeckGoal,
-            Self::SwitchToIntensionGoal,
+            Self::SwitchToPlannedGoal,
+            Self::SwitchToThinkingAboutGoal,
             Self::ReleaseGoal,
             Self::UpdateSummary,
         ]
@@ -364,11 +367,14 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
                 Err(err) => todo!("Unexpected InquireError of {}", err),
             }
         }
-        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToIntensionGoal) => {
+        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToPlannedGoal) => {
+            update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Planned).await
+        }
+        Ok(MentallyResidentGoalSelectedMenuItem::SwitchToThinkingAboutGoal) => {
             update_item_staging(
                 goal_selected,
                 send_to_data_storage_layer,
-                Staging::Intension,
+                Staging::ThinkingAbout,
             )
             .await
         }

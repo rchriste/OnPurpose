@@ -77,7 +77,7 @@ enum BulletListSingleItemSelection<'e> {
     OpenNotesForParentItem {
         item_in_chain_with_notes: DisplayItem<'e>,
     },
-    WaitUntilSimilarWorkIsDone,
+    DoWithSomethingElse,
     SearchForSimilarWork,
     ChangeType,
     ReturnToBulletList,
@@ -136,8 +136,8 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::OpenNotesForParentItem {
                 item_in_chain_with_notes: parent,
             } => write!(f, "Open notes for parent item: {}", parent),
-            Self::WaitUntilSimilarWorkIsDone => {
-                write!(f, "Wait to do this until similar work is done")
+            Self::DoWithSomethingElse => {
+                write!(f, "Do with something else")
             }
             Self::SearchForSimilarWork => write!(f, "Look for similar work to also do"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
@@ -207,7 +207,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if is_type_action || is_type_goal {
-            list.push(Self::WaitUntilSimilarWorkIsDone);
+            list.push(Self::DoWithSomethingElse);
             list.push(Self::SearchForSimilarWork);
         }
 
@@ -400,8 +400,8 @@ pub(crate) async fn present_bullet_list_item_selected(
         }) => {
             todo!("TODO: Implement OpenNotesForParentItem");
         }
-        Ok(BulletListSingleItemSelection::WaitUntilSimilarWorkIsDone) => {
-            todo!("TODO: Implement WaitUntilSimilarWorkIsDone");
+        Ok(BulletListSingleItemSelection::DoWithSomethingElse) => {
+            todo!("TODO: Implement DoWithSomethingElse");
         }
         Ok(BulletListSingleItemSelection::SearchForSimilarWork) => {
             todo!("TODO: Implement SearchForSimilarWork");

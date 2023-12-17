@@ -178,14 +178,15 @@ pub(crate) enum Staging {
     #[default]
     NotSet,
     MentallyResident {
-        last_worked_on: Datetime, //TODO: This should be renamed to start or earliest to start working on
-        work_on_again_before: Datetime,
+        enter_list: Datetime,
+        finish_first_lap: Datetime,
     },
     OnDeck {
-        began_waiting: Datetime, //TODO: This should be renamed to start or earliest to start working on
-        can_wait_until: Datetime,
+        enter_list: Datetime,
+        finish_first_lap: Datetime,
     },
-    Intension,
+    Planned,
+    ThinkingAbout,
     Released,
 }
 
@@ -212,9 +213,14 @@ impl Ord for Staging {
                 Staging::OnDeck { .. } => Ordering::Equal,
                 _ => Ordering::Less,
             },
-            Staging::Intension => match other {
+            Staging::Planned => match other {
+                Staging::Released | Staging::ThinkingAbout => Ordering::Less,
+                Staging::Planned => Ordering::Equal,
+                _ => Ordering::Greater,
+            },
+            Staging::ThinkingAbout => match other {
                 Staging::Released => Ordering::Less,
-                Staging::Intension => Ordering::Equal,
+                Staging::ThinkingAbout => Ordering::Equal,
                 _ => Ordering::Greater,
             },
             Staging::Released => match other {
@@ -252,8 +258,27 @@ pub(crate) enum NotesLocation {
     WebLink(String),
 }
 
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug)]
-#[cfg_attr(test, derive(Builder), builder(setter(into)))]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum StagingOldVersion {
+    #[default]
+    NotSet,
+    MentallyResident {
+        last_worked_on: Datetime, //TODO: This should be renamed to start or earliest to start working on
+        work_on_again_before: Datetime,
+    },
+    OnDeck {
+        began_waiting: Datetime, //TODO: This should be renamed to start or earliest to start working on
+        can_wait_until: Datetime,
+    },
+    Intension,
+    Released,
+}
+
+//derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
+//gave me false errors in the editor (rust-analyzer) so I am just going to try including
+//it always to see if that addresses these phantom errors. Nov2023.
+#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
+#[builder(setter(into))]
 #[table(name = "item")] //TODO: This should be renamed items
 pub(crate) struct SurrealItemOldVersion {
     pub(crate) id: Option<Thing>,
@@ -269,7 +294,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) facing: Vec<Facing>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemTypeOldVersion,
+    pub(crate) item_type: ItemType,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -278,7 +303,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) permanence: Permanence,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: Staging,
+    pub(crate) staging: StagingOldVersion,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -296,10 +321,10 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            item_type: value.item_type.into(),
+            item_type: value.item_type,
             notes_location: value.notes_location,
             permanence: value.permanence,
-            staging: value.staging,
+            staging: value.staging.into(),
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: value.created,
             facing: value.facing,
@@ -307,18 +332,26 @@ impl From<SurrealItemOldVersion> for SurrealItem {
     }
 }
 
-impl From<ItemTypeOldVersion> for ItemType {
-    fn from(value: ItemTypeOldVersion) -> Self {
+impl From<StagingOldVersion> for Staging {
+    fn from(value: StagingOldVersion) -> Self {
         match value {
-            ItemTypeOldVersion::Undeclared => ItemType::Undeclared,
-            ItemTypeOldVersion::Simple => ItemType::Undeclared,
-            ItemTypeOldVersion::Action => ItemType::Action,
-            ItemTypeOldVersion::Motivation => ItemType::Motivation,
-            ItemTypeOldVersion::PersonOrGroup => ItemType::PersonOrGroup,
-            ItemTypeOldVersion::Goal(how_much_is_in_my_control) => {
-                ItemType::Goal(how_much_is_in_my_control)
-            }
-            ItemTypeOldVersion::IdeaOrThought => ItemType::IdeaOrThought,
+            StagingOldVersion::NotSet => Staging::NotSet,
+            StagingOldVersion::MentallyResident {
+                last_worked_on,
+                work_on_again_before,
+            } => Staging::MentallyResident {
+                enter_list: last_worked_on,
+                finish_first_lap: work_on_again_before,
+            },
+            StagingOldVersion::OnDeck {
+                began_waiting,
+                can_wait_until,
+            } => Staging::OnDeck {
+                enter_list: began_waiting,
+                finish_first_lap: can_wait_until,
+            },
+            StagingOldVersion::Intension => Staging::Planned,
+            StagingOldVersion::Released => Staging::Released,
         }
     }
 }

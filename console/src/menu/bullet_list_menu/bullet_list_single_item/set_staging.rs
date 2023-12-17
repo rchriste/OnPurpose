@@ -17,7 +17,8 @@ pub(crate) enum StagingMenuSelection {
     NotSet,
     MentallyResident,
     OnDeck,
-    Intension,
+    Planned,
+    ThinkingAbout,
     Released,
     MakeItemReactive,
 }
@@ -28,7 +29,8 @@ impl Display for StagingMenuSelection {
             StagingMenuSelection::NotSet => write!(f, "Inherit from parent"),
             StagingMenuSelection::MentallyResident => write!(f, "Mentally Resident"),
             StagingMenuSelection::OnDeck => write!(f, "On Deck"),
-            StagingMenuSelection::Intension => write!(f, "Intension"),
+            StagingMenuSelection::Planned => write!(f, "Planned"),
+            StagingMenuSelection::ThinkingAbout => write!(f, "Thinking About"),
             StagingMenuSelection::Released => write!(f, "Released"),
             StagingMenuSelection::MakeItemReactive => write!(f, "Make Item Reactive"),
         }
@@ -41,7 +43,8 @@ impl StagingMenuSelection {
         let choices = vec![
             StagingMenuSelection::MentallyResident,
             StagingMenuSelection::OnDeck,
-            StagingMenuSelection::Intension,
+            StagingMenuSelection::Planned,
+            StagingMenuSelection::ThinkingAbout,
             StagingMenuSelection::Released,
             StagingMenuSelection::NotSet,
             StagingMenuSelection::MakeItemReactive,
@@ -104,7 +107,8 @@ pub(crate) async fn present_set_staging_menu(
                 Err(err) => todo!("{:?}", err),
             }
         }
-        StagingMenuSelection::Intension => Staging::Intension,
+        StagingMenuSelection::Planned => Staging::Planned,
+        StagingMenuSelection::ThinkingAbout => Staging::ThinkingAbout,
         StagingMenuSelection::Released => Staging::Released,
         StagingMenuSelection::MakeItemReactive => {
             send_to_data_storage_layer

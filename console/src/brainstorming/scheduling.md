@@ -12,7 +12,7 @@ How an item is classified into stages plays a large roll in deciding what to do 
 └─────────────────────┘     to these items to prevent that from happening.
            ⇧
      ┌───────────┐          Something you hope to get to as soon as 
-     │🪜 On Deck │          the mentally resident workload allows it 
+     │🔜 On Deck │          the mentally resident workload allows it 
      └───────────┘          or after an amount of time has passed.
            ⇧
      ┌───────────┐          Items that should be reviewed to be put on 
@@ -38,10 +38,10 @@ When suggesting what to do _On Purpose_ prefers mentally resident items. The goa
 ═════════════════════════════════════════════════════════════════════════════════════
 │     ⏰     │ 🧠 Mentally Resident │ Items with a laps number above one are shown 
 │ Laps > 𝟏.𝟎 │            &          │ first. Mentally resident items have the laps 
-│     ⏰     │       🪜 On Deck     │ number squared so they are higher on the list.
+│     ⏰     │       🔜 On Deck     │ number squared so they are higher on the list.
 ─────────────────────────────────────────────────────────────────────────────────────
 │ Laps < 𝟏.𝟎 │ 🧠 Mentally Resident │ Then non-lapped mentally resident items.
 ─────────────────────────────────────────────────────────────────────────────────────
-│ Laps < 𝟏.𝟎 │       🪜 On Deck     │ Then non-lapped On Deck items.
+│ Laps < 𝟏.𝟎 │       🔜 On Deck     │ Then non-lapped On Deck items.
 ─────────────────────────────────────────────────────────────────────────────────────
 ```

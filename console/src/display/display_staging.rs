@@ -11,37 +11,38 @@ pub(crate) struct DisplayStaging<'s> {
 impl Display for DisplayStaging<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.staging {
-            Staging::Intension => write!(f, "Intension"),
-            Staging::NotSet => write!(f, "NotSet"),
+            Staging::Planned => write!(f, "Planned"),
+            Staging::ThinkingAbout => write!(f, "Thinking about"),
+            Staging::NotSet => write!(f, "Not set"),
             Staging::Released => write!(f, "Released"),
             Staging::MentallyResident {
-                last_worked_on,
-                work_on_again_before,
+                enter_list,
+                finish_first_lap,
             } => {
-                let last_worked_on: DateTime<Utc> = last_worked_on.clone().into();
-                let last_worked_on: DateTime<Local> = last_worked_on.into();
-                let work_on_again_before: DateTime<Utc> = work_on_again_before.clone().into();
-                let work_on_again_before: DateTime<Local> = work_on_again_before.into();
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                let enter_list: DateTime<Local> = enter_list.into();
+                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
+                let finish_first_lap: DateTime<Local> = finish_first_lap.into();
                 write!(
                     f,
-                    "MentallyResident: last_worked_on: {}, work_on_again_before: {}",
-                    last_worked_on.naive_local(),
-                    work_on_again_before.naive_local()
+                    "MentallyResident: enter_list: {}, finish_first_lap: {}",
+                    enter_list.naive_local(),
+                    finish_first_lap.naive_local()
                 )
             }
             Staging::OnDeck {
-                began_waiting,
-                can_wait_until,
+                enter_list,
+                finish_first_lap,
             } => {
-                let began_waiting: DateTime<Utc> = began_waiting.clone().into();
-                let began_waiting: DateTime<Local> = began_waiting.into();
-                let can_wait_until: DateTime<Utc> = can_wait_until.clone().into();
-                let can_wait_until: DateTime<Local> = can_wait_until.into();
+                let enter_list: DateTime<Utc> = enter_list.clone().into();
+                let enter_list: DateTime<Local> = enter_list.into();
+                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
+                let finish_first_lap: DateTime<Local> = finish_first_lap.into();
                 write!(
                     f,
-                    "OnDeck: began_waiting: {}, can_wait_until: {}",
-                    began_waiting.naive_local(),
-                    can_wait_until.naive_local()
+                    "OnDeck: enter_list: {}, finish_first_lap: {}",
+                    enter_list.naive_local(),
+                    finish_first_lap.naive_local()
                 )
             }
         }

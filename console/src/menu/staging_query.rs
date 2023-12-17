@@ -5,20 +5,20 @@ use inquire::{InquireError, Select, Text};
 use crate::{menu::YesOrNo, surrealdb_layer::surreal_item::Staging};
 
 pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
-    let (return_to, work_on_again_before) = prompt_for_two_times()?;
+    let (enter_list, finish_first_lap) = prompt_for_two_times()?;
 
     Ok(Staging::OnDeck {
-        began_waiting: return_to.into(),
-        can_wait_until: work_on_again_before.into(),
+        enter_list: enter_list.into(),
+        finish_first_lap: finish_first_lap.into(),
     })
 }
 
 pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
-    let (return_to, work_on_again_before) = prompt_for_two_times()?;
+    let (enter_list, finish_first_lap) = prompt_for_two_times()?;
 
     Ok(Staging::MentallyResident {
-        last_worked_on: return_to.into(),
-        work_on_again_before: work_on_again_before.into(),
+        enter_list: enter_list.into(),
+        finish_first_lap: finish_first_lap.into(),
     })
 }
 
@@ -37,7 +37,7 @@ fn prompt_for_two_times() -> Result<(DateTime<Utc>, DateTime<Utc>), InquireError
                 }
             },
         };
-        let deadline_string = Text::new("Then how long until the item expires?").prompt()?;
+        let deadline_string = Text::new("Then how long until the first lap finishes?").prompt()?;
         let work_on_again_before = match parse(&deadline_string) {
             Ok(deadline_duration) => return_to + deadline_duration,
             Err(_) => match dateparser::parse(&deadline_string) {

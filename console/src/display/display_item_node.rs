@@ -15,11 +15,7 @@ impl Display for DisplayItemNode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_item = DisplayItem::new(self.item_node.get_item());
         if let Some(current_date_time) = self.current_date_time {
-            if self.item_node.is_staging_on_deck_expired(current_date_time)
-                || self
-                    .item_node
-                    .is_mentally_resident_expired(current_date_time)
-            {
+            if self.item_node.is_first_lap_finished(current_date_time) {
                 write!(f, "⏰ ")?;
             }
         }
@@ -28,7 +24,8 @@ impl Display for DisplayItemNode<'_> {
         match staging {
             Staging::OnDeck { .. } => write!(f, "🔜 ")?,
             Staging::MentallyResident { .. } => write!(f, "🧠 ")?,
-            Staging::Intension { .. } => write!(f, "📝 ")?,
+            Staging::Planned { .. } => write!(f, "📝 ")?,
+            Staging::ThinkingAbout { .. } => write!(f, "🤔 ")?,
             Staging::Released { .. } => write!(f, "🪽 ")?,
             Staging::NotSet => write!(f, "❓ ")?,
         }

@@ -80,7 +80,8 @@ pub(crate) async fn state_a_smaller_next_step(
                 Staging::NotSet => Some(StagingMenuSelection::NotSet),
                 Staging::MentallyResident { .. } => Some(StagingMenuSelection::MentallyResident),
                 Staging::OnDeck { .. } => Some(StagingMenuSelection::OnDeck),
-                Staging::Intension => Some(StagingMenuSelection::Intension),
+                Staging::Planned => Some(StagingMenuSelection::Planned),
+                Staging::ThinkingAbout => Some(StagingMenuSelection::ThinkingAbout),
                 Staging::Released => Some(StagingMenuSelection::Released),
             };
             present_set_staging_menu(
@@ -161,7 +162,8 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                         Err(err) => todo!("{:?}", err),
                     }
                 }
-                StagingMenuSelection::Intension => Staging::Intension,
+                StagingMenuSelection::Planned => Staging::Planned,
+                StagingMenuSelection::ThinkingAbout => Staging::ThinkingAbout,
                 StagingMenuSelection::Released => Staging::Released,
                 StagingMenuSelection::MakeItemReactive => {
                     todo!("I need to modify the return type to account for this different choice and pass up that information")
