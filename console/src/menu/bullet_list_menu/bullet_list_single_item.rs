@@ -1,4 +1,3 @@
-mod define_child_goal;
 pub(crate) mod parent_to_a_goal_or_motivation;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
@@ -23,7 +22,6 @@ use crate::{
     },
     menu::{
         bullet_list_menu::bullet_list_single_item::{
-            define_child_goal::define_child_goals,
             parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
@@ -52,7 +50,6 @@ use super::present_normal_bullet_list_menu;
 
 enum BulletListSingleItemSelection<'e> {
     DeclareItemType,
-    StateASmallerNextStep,
     StartingToWorkOnThisNow,
     ParentToAGoalOrMotivation,
     ParentToAMotivation,
@@ -62,10 +59,8 @@ enum BulletListSingleItemSelection<'e> {
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
     SomethingElseShouldBeDoneFirst,
-    DefineChildActions,
-    UpdateChildActions,
-    DefineChildGoals, //For a motivation
-    UpdateChildGoals, //For a motivation
+    CreateOrUpdateChildren,
+    StateASmallerNextStep,
     DefineMilestones, //For a hope
     UpdateMilestones, //For a hope
     WorkedOnThis,
@@ -99,6 +94,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
+            Self::CreateOrUpdateChildren => write!(f, "Create or Update Children"),
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
@@ -119,10 +115,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::NotInTheMoodToDoThisRightNow => {
                 write!(f, "I am not in the mood to do this right now")
             }
-            Self::DefineChildActions => write!(f, "Define actions to take"),
-            Self::UpdateChildActions => write!(f, "Update actions to take"),
-            Self::DefineChildGoals => write!(f, "Define goals to have"),
-            Self::UpdateChildGoals => write!(f, "Update goals to have"),
             Self::DefineMilestones => write!(f, "Define milestones"),
             Self::UpdateMilestones => write!(f, "Update milestones"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
@@ -220,21 +212,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if is_type_action || is_type_goal || is_type_motivation {
-            if has_active_children {
-                list.push(Self::UpdateChildActions);
-            } else {
-                list.push(Self::DefineChildActions);
-            }
-        }
-
-        if is_type_motivation {
-            if has_active_children {
-                list.push(Self::UpdateChildGoals);
-            } else {
-                list.push(Self::DefineChildGoals);
-            }
-        }
+        list.push(Self::CreateOrUpdateChildren);
 
         if is_type_goal {
             if has_active_children {
@@ -346,17 +324,8 @@ pub(crate) async fn present_bullet_list_item_selected(
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
                 .await
         }
-        Ok(BulletListSingleItemSelection::DefineChildActions) => {
-            todo!("TODO: Implement DefineChildActions");
-        }
-        Ok(BulletListSingleItemSelection::UpdateChildActions) => {
-            todo!("TODO: Implement UpdateChildActions");
-        }
-        Ok(BulletListSingleItemSelection::DefineChildGoals) => {
-            define_child_goals(menu_for, send_to_data_storage_layer).await
-        }
-        Ok(BulletListSingleItemSelection::UpdateChildGoals) => {
-            todo!("TODO: Implement UpdateChildGoals");
+        Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
+            todo!("TODO: Implement CreateOrUpdateChildren")
         }
         Ok(BulletListSingleItemSelection::DefineMilestones) => {
             todo!("TODO: Implement DefineMilestones");
@@ -827,10 +796,6 @@ impl Display for ItemTypeSelection {
 impl ItemTypeSelection {
     pub(crate) fn create_list() -> Vec<Self> {
         vec![Self::Action, Self::Goal, Self::Motivation, Self::NormalHelp]
-    }
-
-    pub(crate) fn create_list_just_goals() -> Vec<Self> {
-        vec![Self::Goal, Self::ResponsiveGoal, Self::ResponsiveHelp]
     }
 
     pub(crate) fn create_list_goals_and_motivations() -> Vec<Self> {
