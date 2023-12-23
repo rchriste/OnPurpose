@@ -54,4 +54,8 @@ impl<'s> DisplayItem<'s> {
     pub(crate) fn get_surreal_record_id(&'s self) -> &'s RecordId {
         self.item.get_surreal_record_id()
     }
+
+    pub(crate) fn get_item(&'s self) -> &'s Item<'s> {
+        self.item
+    }
 }

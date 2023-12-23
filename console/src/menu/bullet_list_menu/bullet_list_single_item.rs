@@ -1,3 +1,4 @@
+mod create_or_update_children;
 pub(crate) mod parent_to_a_goal_or_motivation;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
@@ -22,6 +23,7 @@ use crate::{
     },
     menu::{
         bullet_list_menu::bullet_list_single_item::{
+            create_or_update_children::create_or_update_children,
             parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
@@ -325,7 +327,15 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .await
         }
         Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
-            todo!("TODO: Implement CreateOrUpdateChildren")
+            create_or_update_children(
+                menu_for,
+                current_date_time,
+                all_coverings,
+                all_snoozed,
+                all_items,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::DefineMilestones) => {
             todo!("TODO: Implement DefineMilestones");

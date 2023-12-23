@@ -5,7 +5,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{base_data::item::Item, display::display_item::DisplayItem};
 
-enum HigherPriorityThan<'e> {
+pub(crate) enum HigherPriorityThan<'e> {
     Item(DisplayItem<'e>),
     PutAtTheBottom,
 }
