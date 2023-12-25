@@ -37,7 +37,7 @@ fn prompt_for_two_times() -> Result<(DateTime<Utc>, DateTime<Utc>), InquireError
                 }
             },
         };
-        let deadline_string = Text::new("Then how long until the first lap finishes?").prompt()?;
+        let deadline_string = Text::new("Lap priority length?").prompt()?;
         let work_on_again_before = match parse(&deadline_string) {
             Ok(deadline_duration) => return_to + deadline_duration,
             Err(_) => match dateparser::parse(&deadline_string) {
