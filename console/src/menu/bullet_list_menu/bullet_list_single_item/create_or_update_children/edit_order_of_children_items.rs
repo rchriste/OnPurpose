@@ -54,7 +54,24 @@ pub(crate) async fn edit_order_of_children_items(
             let list = HigherPriorityThan::create_list(&items);
             let selected =
                 Select::new("Select new position, higher priority than this|", list).prompt();
-            todo!()
+            match selected {
+                Ok(selected) => {
+                    send_to_data_storage_layer
+                        .send(DataLayerCommands::ParentItemWithExistingItem {
+                            child: selected_item.get_surreal_record_id().clone(),
+                            parent: item_node.get_surreal_record_id().clone(),
+                            higher_priority_than_this: selected.into(),
+                        })
+                        .await
+                        .unwrap();
+                    Ok(())
+                }
+                Err(InquireError::OperationCanceled) => {
+                    edit_order_of_children_items(item_node, send_to_data_storage_layer).await
+                }
+                Err(InquireError::OperationInterrupted) => Err(()),
+                Err(err) => todo!("Unexpected error: {:?}", err),
+            }
         }
         Ok(EditOrderOfChildren::Done) => Ok(()),
         Err(InquireError::OperationCanceled) => todo!("Return to what calls this"),

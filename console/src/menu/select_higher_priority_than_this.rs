@@ -5,6 +5,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{base_data::item::Item, display::display_item::DisplayItem};
 
+#[derive(Debug)]
 pub(crate) enum HigherPriorityThan<'e> {
     Item(DisplayItem<'e>),
     PutAtTheBottom,
@@ -15,6 +16,15 @@ impl Display for HigherPriorityThan<'_> {
         match self {
             HigherPriorityThan::Item(display_item) => write!(f, "{}", display_item),
             HigherPriorityThan::PutAtTheBottom => write!(f, "Put at the bottom"),
+        }
+    }
+}
+
+impl From<HigherPriorityThan<'_>> for Option<RecordId> {
+    fn from(higher_priority_than: HigherPriorityThan<'_>) -> Self {
+        match higher_priority_than {
+            HigherPriorityThan::Item(display_item) => Some(display_item.into()),
+            HigherPriorityThan::PutAtTheBottom => None,
         }
     }
 }

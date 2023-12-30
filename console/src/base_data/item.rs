@@ -31,6 +31,17 @@ impl From<Item<'_>> for SurrealItem {
     }
 }
 
+impl From<Item<'_>> for RecordId {
+    fn from(value: Item<'_>) -> Self {
+        value
+            .surreal_item
+            .id
+            .as_ref()
+            .expect("Already in DB")
+            .clone()
+    }
+}
+
 pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
@@ -398,16 +409,19 @@ impl Item<'_> {
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
         chain!(
+            self.surreal_item
+                .smaller_items_in_priority_order
+                .iter()
+                .filter_map(|x| match x {
+                    SurrealOrderedSubItem::SubItem { surreal_item_id } => other_items
+                        .iter()
+                        .find(|x| x.id == surreal_item_id && !visited.contains(x))
+                        .copied(),
+                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
+                }),
             linkage.iter().filter_map(|x| {
                 if x.parent == self && !visited.contains(&x.smaller) {
                     Some(x.smaller)
-                } else {
-                    None
-                }
-            }),
-            other_items.iter().filter_map(|other_item| {
-                if self.is_this_a_smaller_item(other_item) && !visited.contains(other_item) {
-                    Some(*other_item)
                 } else {
                     None
                 }

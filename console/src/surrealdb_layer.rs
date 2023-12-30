@@ -397,6 +397,15 @@ async fn parent_item_with_existing_item(
         .await
         .unwrap()
         .unwrap();
+    //Remove the child if it is already in the list
+    parent.smaller_items_in_priority_order = parent.smaller_items_in_priority_order.into_iter().filter(|x| {
+        match x {
+            SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                surreal_item_id != &child
+            }
+            SurrealOrderedSubItem::Split { .. } => todo!("I need to understand more about how split will be used before I can implement this"),
+        }
+    }).collect::<Vec<_>>();
     if let Some(higher_priority_than_this) = higher_priority_than_this {
         let index_of_higher_priority = parent.smaller_items_in_priority_order
             .iter()
@@ -968,6 +977,539 @@ mod tests {
                 .smaller_items_in_priority_order
                 .first()
                 .unwrap()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_item_with_an_existing_item_that_has_children() {
+        // SETUP
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item at the top of the list")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item 2nd position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item 3rd position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item bottom position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let parent_item = NewItemBuilder::default()
+            .summary("Parent Item")
+            .item_type(ItemType::Goal(HowMuchIsInMyControl::default()))
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(parent_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+
+        assert_eq!(5, surreal_tables.surreal_items.len());
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item at the top of the list")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        // TEST - The order of adding the items is meant to cause the higher_priority_than_this to be used
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item bottom position")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item 2nd position")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: Some(
+                    surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item bottom position")
+                        .unwrap()
+                        .get_id()
+                        .as_ref()
+                        .expect("In DB")
+                        .clone(),
+                ),
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item 3rd position")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: Some(
+                    surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item bottom position")
+                        .unwrap()
+                        .get_id()
+                        .as_ref()
+                        .expect("In DB")
+                        .clone(),
+                ),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+
+        assert_eq!(
+            vec![
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item at the top of the list")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item 2nd position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item 3rd position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item bottom position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+            ],
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn change_order_of_children() {
+        // SETUP
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item at the top of the list")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item 2nd position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item 3rd position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let child_item = NewItemBuilder::default()
+            .summary("Child Item bottom position, then moved to above 2nd position")
+            .item_type(ItemType::Action)
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(child_item))
+            .await
+            .unwrap();
+
+        let parent_item = NewItemBuilder::default()
+            .summary("Parent Item")
+            .item_type(ItemType::Goal(HowMuchIsInMyControl::default()))
+            .build()
+            .expect("Filled out required fields");
+        sender
+            .send(DataLayerCommands::NewItem(parent_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+
+        assert_eq!(5, surreal_tables.surreal_items.len());
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item at the top of the list")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| {
+                        x.summary == "Child Item bottom position, then moved to above 2nd position"
+                    })
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item 2nd position")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: Some(
+                    surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| {
+                            x.summary
+                                == "Child Item bottom position, then moved to above 2nd position"
+                        })
+                        .unwrap()
+                        .get_id()
+                        .as_ref()
+                        .expect("In DB")
+                        .clone(),
+                ),
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Child Item 3rd position")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: Some(
+                    surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| {
+                            x.summary
+                                == "Child Item bottom position, then moved to above 2nd position"
+                        })
+                        .unwrap()
+                        .get_id()
+                        .as_ref()
+                        .expect("In DB")
+                        .clone(),
+                ),
+            })
+            .await
+            .unwrap();
+
+        // TEST - Move the bottom item to the 2nd position
+        sender
+            .send(DataLayerCommands::ParentItemWithExistingItem {
+                child: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| {
+                        x.summary == "Child Item bottom position, then moved to above 2nd position"
+                    })
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                parent: surreal_tables
+                    .surreal_items
+                    .iter()
+                    .find(|x| x.summary == "Parent Item")
+                    .unwrap()
+                    .get_id()
+                    .as_ref()
+                    .expect("In DB")
+                    .clone(),
+                higher_priority_than_this: Some(
+                    surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item 2nd position")
+                        .unwrap()
+                        .get_id()
+                        .as_ref()
+                        .expect("In DB")
+                        .clone(),
+                ),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+
+        assert_eq!(
+            vec![
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item at the top of the list")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary
+                            == "Child Item bottom position, then moved to above 2nd position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item 2nd position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: surreal_tables
+                        .surreal_items
+                        .iter()
+                        .find(|x| x.summary == "Child Item 3rd position")
+                        .unwrap()
+                        .id
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                },
+            ],
+            surreal_tables
+                .surreal_items
+                .iter()
+                .find(|x| x.summary == "Parent Item")
+                .unwrap()
+                .smaller_items_in_priority_order
         );
 
         drop(sender);

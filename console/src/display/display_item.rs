@@ -7,6 +7,7 @@ use crate::{base_data::item::Item, surrealdb_layer::surreal_item::ItemType};
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
 /// putting that onto the core Item type that should not be tied to specific display or printing logic for a console
 /// application.
+#[derive(Debug)]
 pub(crate) struct DisplayItem<'s> {
     pub(crate) item: &'s Item<'s>,
 }
@@ -26,6 +27,12 @@ impl<'s> From<&'s Item<'s>> for DisplayItem<'s> {
 impl<'s> From<DisplayItem<'s>> for &'s Item<'s> {
     fn from(item: DisplayItem<'s>) -> Self {
         item.item
+    }
+}
+
+impl From<DisplayItem<'_>> for RecordId {
+    fn from(display_item: DisplayItem<'_>) -> Self {
+        display_item.item.get_surreal_record_id().clone()
     }
 }
 
