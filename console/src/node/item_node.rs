@@ -1,11 +1,14 @@
-use std::ops::Sub;
+use std::{
+    ops::{Add, Sub},
+    time::Duration,
+};
 
 use chrono::{DateTime, Local, Utc};
 use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
+    surrealdb_layer::surreal_item::{EnterListReason, Facing, ItemType, Staging, SurrealItem},
 };
 
 #[derive(Debug)]
@@ -184,12 +187,19 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_first_lap_finished(&self, current_date_time: &DateTime<Utc>) -> bool {
         match self.get_staging() {
-            Staging::OnDeck {
-                finish_first_lap, ..
+            Staging::OnDeck { enter_list, lap } | Staging::MentallyResident { enter_list, lap } => {
+                match enter_list {
+                    EnterListReason::DateTime(enter_time) => {
+                        let enter_time: DateTime<Utc> = enter_time.clone().into();
+                        let lap: Duration = lap.clone().into();
+                        let finish_first_lap: DateTime<Utc> = enter_time.add(lap);
+                        current_date_time > &finish_first_lap
+                    }
+                    EnterListReason::HighestUncovered { review_after } => {
+                        todo!("review_after:{:?}", review_after)
+                    }
+                }
             }
-            | Staging::MentallyResident {
-                finish_first_lap, ..
-            } => current_date_time > finish_first_lap,
             Staging::NotSet | Staging::Planned | Staging::ThinkingAbout | Staging::Released => {
                 false
             }
@@ -203,29 +213,20 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn get_lap_count(&self, current_date_time: &DateTime<Utc>) -> f32 {
         match self.get_staging() {
             Staging::NotSet => 0.0,
-            Staging::OnDeck {
-                enter_list,
-                finish_first_lap,
-            } => {
-                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                let total = finish_first_lap.sub(enter_list);
-                let elapsed = current_date_time.sub(enter_list);
-                let elapsed = elapsed.num_seconds() as f32;
-                let total = total.num_seconds() as f32;
-                elapsed / total
-            }
-            Staging::MentallyResident {
-                enter_list,
-                finish_first_lap,
-            } => {
-                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                let total = finish_first_lap.sub(enter_list);
-                let elapsed = current_date_time.sub(enter_list);
-                let elapsed = elapsed.num_seconds() as f32;
-                let total = total.num_seconds() as f32;
-                elapsed / total
+            Staging::OnDeck { enter_list, lap } | Staging::MentallyResident { enter_list, lap } => {
+                match enter_list {
+                    EnterListReason::DateTime(enter_time) => {
+                        let enter_time: DateTime<Utc> = enter_time.clone().into();
+                        let lap: Duration = lap.clone().into();
+                        let elapsed = current_date_time.sub(enter_time);
+                        let elapsed = elapsed.num_seconds() as f32;
+                        let lap = lap.as_secs_f32();
+                        elapsed / lap
+                    }
+                    EnterListReason::HighestUncovered { review_after } => {
+                        todo!("review_after:{:?}", review_after)
+                    }
+                }
             }
             Staging::Planned => 0.0,
             Staging::ThinkingAbout => 0.0,
@@ -242,13 +243,14 @@ impl<'s> ItemNode<'s> {
         let staging = self.get_staging();
         let snoozed_from_staging = match staging {
             Staging::NotSet => false,
-            Staging::OnDeck { enter_list, .. } => {
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                enter_list > now
-            }
-            Staging::MentallyResident { enter_list, .. } => {
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                enter_list > now
+            Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
+                match enter_list {
+                    EnterListReason::DateTime(enter_list) => {
+                        let enter_list: DateTime<Utc> = enter_list.clone().into();
+                        enter_list > now
+                    }
+                    EnterListReason::HighestUncovered { .. } => todo!(),
+                }
             }
             Staging::Planned => false,
             Staging::ThinkingAbout => false,

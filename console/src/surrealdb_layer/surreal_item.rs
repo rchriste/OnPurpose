@@ -4,7 +4,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
     opt::RecordId,
-    sql::{Datetime, Thing},
+    sql::{Datetime, Duration, Thing},
 };
 use surrealdb_extra::table::Table;
 
@@ -173,17 +173,23 @@ pub(crate) enum Permanence {
     NotSet,
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum EnterListReason {
+    DateTime(Datetime),
+    HighestUncovered { review_after: Datetime },
+}
+
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum Staging {
     #[default]
     NotSet,
     MentallyResident {
-        enter_list: Datetime,
-        finish_first_lap: Datetime,
+        enter_list: EnterListReason,
+        lap: Duration,
     },
     OnDeck {
-        enter_list: Datetime,
-        finish_first_lap: Datetime,
+        enter_list: EnterListReason,
+        lap: Duration,
     },
     Planned,
     ThinkingAbout,
@@ -263,14 +269,15 @@ pub(crate) enum StagingOldVersion {
     #[default]
     NotSet,
     MentallyResident {
-        last_worked_on: Datetime, //TODO: This should be renamed to start or earliest to start working on
-        work_on_again_before: Datetime,
+        enter_list: Datetime,
+        finish_first_lap: Datetime,
     },
     OnDeck {
-        began_waiting: Datetime, //TODO: This should be renamed to start or earliest to start working on
-        can_wait_until: Datetime,
+        enter_list: Datetime,
+        finish_first_lap: Datetime,
     },
-    Intension,
+    Planned,
+    ThinkingAbout,
     Released,
 }
 
@@ -337,21 +344,28 @@ impl From<StagingOldVersion> for Staging {
         match value {
             StagingOldVersion::NotSet => Staging::NotSet,
             StagingOldVersion::MentallyResident {
-                last_worked_on,
-                work_on_again_before,
+                enter_list,
+                finish_first_lap,
             } => Staging::MentallyResident {
-                enter_list: last_worked_on,
-                finish_first_lap: work_on_again_before,
+                lap: finish_first_lap - enter_list.clone(),
+                enter_list: enter_list.into(),
             },
             StagingOldVersion::OnDeck {
-                began_waiting,
-                can_wait_until,
+                enter_list,
+                finish_first_lap,
             } => Staging::OnDeck {
-                enter_list: began_waiting,
-                finish_first_lap: can_wait_until,
+                lap: finish_first_lap - enter_list.clone(),
+                enter_list: EnterListReason::DateTime(enter_list),
             },
-            StagingOldVersion::Intension => Staging::Planned,
+            StagingOldVersion::Planned => Staging::Planned,
+            StagingOldVersion::ThinkingAbout => Staging::ThinkingAbout,
             StagingOldVersion::Released => Staging::Released,
         }
+    }
+}
+
+impl From<Datetime> for EnterListReason {
+    fn from(value: Datetime) -> Self {
+        EnterListReason::DateTime(value)
     }
 }

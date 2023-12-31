@@ -1,8 +1,11 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
-use chrono::{DateTime, Local, Utc};
-
-use crate::surrealdb_layer::surreal_item::Staging;
+use crate::{
+    display::{
+        display_duration::DisplayDuration, display_enter_list_reason::DisplayEnterListReason,
+    },
+    surrealdb_layer::surreal_item::Staging,
+};
 
 pub(crate) struct DisplayStaging<'s> {
     staging: &'s Staging,
@@ -15,35 +18,17 @@ impl Display for DisplayStaging<'_> {
             Staging::ThinkingAbout => write!(f, "Thinking about"),
             Staging::NotSet => write!(f, "Not set"),
             Staging::Released => write!(f, "Released"),
-            Staging::MentallyResident {
-                enter_list,
-                finish_first_lap,
-            } => {
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                let enter_list: DateTime<Local> = enter_list.into();
-                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
-                let finish_first_lap: DateTime<Local> = finish_first_lap.into();
-                write!(
-                    f,
-                    "MentallyResident: enter_list: {}, finish_first_lap: {}",
-                    enter_list.naive_local(),
-                    finish_first_lap.naive_local()
-                )
+            Staging::MentallyResident { enter_list, lap } => {
+                let enter_list = DisplayEnterListReason::new(enter_list);
+                let lap: Duration = lap.clone().into();
+                let lap = DisplayDuration::new(&lap);
+                write!(f, "MentallyResident: enter_list: {enter_list}, lap: {lap}",)
             }
-            Staging::OnDeck {
-                enter_list,
-                finish_first_lap,
-            } => {
-                let enter_list: DateTime<Utc> = enter_list.clone().into();
-                let enter_list: DateTime<Local> = enter_list.into();
-                let finish_first_lap: DateTime<Utc> = finish_first_lap.clone().into();
-                let finish_first_lap: DateTime<Local> = finish_first_lap.into();
-                write!(
-                    f,
-                    "OnDeck: enter_list: {}, finish_first_lap: {}",
-                    enter_list.naive_local(),
-                    finish_first_lap.naive_local()
-                )
+            Staging::OnDeck { enter_list, lap } => {
+                let enter_list = DisplayEnterListReason::new(enter_list);
+                let lap: Duration = lap.clone().into();
+                let lap = DisplayDuration::new(&lap);
+                write!(f, "OnDeck: enter_list: {enter_list}, lap: {lap}",)
             }
         }
     }
