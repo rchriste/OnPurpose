@@ -48,7 +48,7 @@ pub(crate) async fn define_facing(
 
         let display_item_nodes = item_nodes
             .iter()
-            .map(|x| DisplayItemNode::new(x, None))
+            .map(|x| DisplayItemNode::new(x))
             .collect::<Vec<_>>();
 
         let selection = Select::new(

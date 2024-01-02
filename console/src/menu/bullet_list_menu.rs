@@ -10,9 +10,10 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::BaseData,
-    display::display_item_node::DisplayItemNode,
+    calculated_data::CalculatedData,
+    display::display_item_status::DisplayItemStatus,
     menu::top_menu::present_top_menu,
-    node::item_node::ItemNode,
+    node::item_status::ItemStatus,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::{BulletList, BulletListReason},
 };
@@ -26,21 +27,21 @@ use super::top_menu::capture;
 
 pub(crate) enum InquireBulletListItem<'e> {
     CaptureNewItem,
-    SetStaging(&'e ItemNode<'e>),
-    Item(&'e ItemNode<'e>, &'e DateTime<Utc>),
+    SetStaging(&'e ItemStatus<'e>),
+    Item(&'e ItemStatus<'e>, &'e DateTime<Utc>),
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item          🗭")?,
-            Self::Item(item_node, current_date_time) => {
-                let display_item_node = DisplayItemNode::new(item_node, Some(current_date_time));
-                write!(f, "{}", display_item_node)?;
+            Self::Item(item_status, _current_date_time) => {
+                let display_item_status = DisplayItemStatus::new(item_status);
+                write!(f, "{}", display_item_status)?;
             }
-            Self::SetStaging(item_node) => {
-                let display_item_node = DisplayItemNode::new(item_node, None);
-                write!(f, "[SET STAGING] {}", display_item_node)?;
+            Self::SetStaging(item_status) => {
+                let display_item_status = DisplayItemStatus::new(item_status);
+                write!(f, "[SET STAGING] {}", display_item_status)?;
             }
         }
         Ok(())
@@ -49,16 +50,16 @@ impl Display for InquireBulletListItem<'_> {
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list(
-        item_nodes: &'a [BulletListReason<'a>],
+        item_status: &'a [BulletListReason<'a>],
         current_date_time: &'a DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         chain!(
             once(InquireBulletListItem::CaptureNewItem),
-            item_nodes.iter().map(|x| match x {
-                BulletListReason::SetStaging(item_node) =>
-                    InquireBulletListItem::SetStaging(item_node),
-                BulletListReason::WorkOn(item_node) => {
-                    InquireBulletListItem::Item(item_node, current_date_time)
+            item_status.iter().map(|x| match x {
+                BulletListReason::SetStaging(item_status) =>
+                    InquireBulletListItem::SetStaging(item_status),
+                BulletListReason::WorkOn(item_status) => {
+                    InquireBulletListItem::Item(item_status, current_date_time)
                 }
             })
         )
@@ -82,7 +83,8 @@ pub(crate) async fn present_normal_bullet_list_menu(
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let bullet_list = BulletList::new_bullet_list(base_data, &current_date_time);
+    let calculated_data = CalculatedData::new_from_base_data(base_data, &current_date_time);
+    let bullet_list = BulletList::new_bullet_list(calculated_data, &current_date_time);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::seconds(1) {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
@@ -106,13 +108,17 @@ pub(crate) async fn present_bullet_list_menu(
 
         match selected {
             Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
-            Ok(InquireBulletListItem::Item(item_node, current_date_time)) => {
-                if item_node.is_person_or_group() {
-                    present_is_person_or_group_around_menu(item_node, send_to_data_storage_layer)
-                        .await
+            Ok(InquireBulletListItem::Item(item_status, current_date_time)) => {
+                if item_status.is_person_or_group() {
+                    present_is_person_or_group_around_menu(
+                        item_status.get_item_node(),
+                        send_to_data_storage_layer,
+                    )
+                    .await
                 } else {
                     present_bullet_list_item_selected(
-                        item_node,
+                        item_status,
+                        bullet_list.get_all_item_status(),
                         current_date_time,
                         bullet_list.get_coverings(),
                         bullet_list.get_active_snoozed(),
@@ -122,9 +128,9 @@ pub(crate) async fn present_bullet_list_menu(
                     .await
                 }
             }
-            Ok(InquireBulletListItem::SetStaging(item_node)) => {
+            Ok(InquireBulletListItem::SetStaging(item_status)) => {
                 present_set_staging_menu(
-                    item_node.get_item(),
+                    item_status.get_item(),
                     send_to_data_storage_layer,
                     Some(StagingMenuSelection::OnDeck),
                 )

@@ -10,7 +10,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, item_status::ItemStatus},
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -61,14 +61,15 @@ impl WorkingOnNow {
 }
 
 pub(crate) async fn starting_to_work_on_this_now(
-    currently_working_on: &ItemNode<'_>,
+    currently_working_on: &ItemStatus<'_>,
+    all_item_status: &[ItemStatus<'_>],
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let list = WorkingOnNow::make_list(currently_working_on);
+    let list = WorkingOnNow::make_list(currently_working_on.get_item_node());
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
@@ -88,6 +89,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         Ok(WorkingOnNow::IFinished) => {
             finish_bullet_item(
                 currently_working_on,
+                all_item_status,
                 all_coverings,
                 all_snoozed,
                 all_items,
@@ -99,6 +101,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         Err(InquireError::OperationCanceled) => {
             present_bullet_list_item_selected(
                 currently_working_on,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,

@@ -1,24 +1,16 @@
 use std::fmt::Display;
 
-use chrono::{DateTime, Utc};
-
 use crate::{node::item_node::ItemNode, surrealdb_layer::surreal_item::Staging};
 
 use super::display_item::DisplayItem;
 
 pub struct DisplayItemNode<'s> {
     item_node: &'s ItemNode<'s>,
-    current_date_time: Option<&'s DateTime<Utc>>,
 }
 
 impl Display for DisplayItemNode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_item = DisplayItem::new(self.item_node.get_item());
-        if let Some(current_date_time) = self.current_date_time {
-            if self.item_node.is_first_lap_finished(current_date_time) {
-                write!(f, "⏰ ")?;
-            }
-        }
 
         let staging = self.get_staging();
         match staging {
@@ -47,24 +39,12 @@ impl Display for DisplayItemNode<'_> {
 }
 
 impl<'s> DisplayItemNode<'s> {
-    pub(crate) fn new(
-        item_node: &'s ItemNode<'s>,
-        current_date_time: Option<&'s DateTime<Utc>>,
-    ) -> Self {
-        DisplayItemNode {
-            item_node,
-            current_date_time,
-        }
+    pub(crate) fn new(item_node: &'s ItemNode<'s>) -> Self {
+        DisplayItemNode { item_node }
     }
 
-    pub(crate) fn make_list(
-        item_nodes: &'s [ItemNode<'s>],
-        current_date_time: Option<&'s DateTime<Utc>>,
-    ) -> Vec<DisplayItemNode<'s>> {
-        item_nodes
-            .iter()
-            .map(|x| DisplayItemNode::new(x, current_date_time))
-            .collect()
+    pub(crate) fn make_list(item_nodes: &'s [ItemNode<'s>]) -> Vec<DisplayItemNode<'s>> {
+        item_nodes.iter().map(DisplayItemNode::new).collect()
     }
 
     pub(crate) fn get_staging(&self) -> &'s Staging {

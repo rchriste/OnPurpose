@@ -52,7 +52,7 @@ pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
     let (enter_list, lap) = prompt_for_two_times(EnterListReasonSelection::make_list_on_deck())?;
 
     Ok(Staging::OnDeck {
-        enter_list: enter_list.into(),
+        enter_list,
         lap: lap.into(),
     })
 }
@@ -62,7 +62,7 @@ pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
         prompt_for_two_times(EnterListReasonSelection::make_list_mentally_resident())?;
 
     Ok(Staging::MentallyResident {
-        enter_list: enter_list.into(),
+        enter_list,
         lap: lap.into(),
     })
 }

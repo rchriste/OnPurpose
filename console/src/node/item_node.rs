@@ -1,17 +1,12 @@
-use std::{
-    ops::{Add, Sub},
-    time::Duration,
-};
-
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local};
 use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{EnterListReason, Facing, ItemType, Staging, SurrealItem},
+    surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     larger: Vec<GrowingItemNode<'s>>,
@@ -185,79 +180,13 @@ impl<'s> ItemNode<'s> {
         self.item.is_responsibility_reactive()
     }
 
-    pub(crate) fn is_first_lap_finished(&self, current_date_time: &DateTime<Utc>) -> bool {
-        match self.get_staging() {
-            Staging::OnDeck { enter_list, lap } | Staging::MentallyResident { enter_list, lap } => {
-                match enter_list {
-                    EnterListReason::DateTime(enter_time) => {
-                        let enter_time: DateTime<Utc> = enter_time.clone().into();
-                        let lap: Duration = lap.clone().into();
-                        let finish_first_lap: DateTime<Utc> = enter_time.add(lap);
-                        current_date_time > &finish_first_lap
-                    }
-                    EnterListReason::HighestUncovered { review_after } => {
-                        todo!("review_after:{:?}", review_after)
-                    }
-                }
-            }
-            Staging::NotSet | Staging::Planned | Staging::ThinkingAbout | Staging::Released => {
-                false
-            }
-        }
-    }
-
     pub(crate) fn is_staging_mentally_resident(&self) -> bool {
         matches!(self.get_staging(), Staging::MentallyResident { .. })
     }
 
-    pub(crate) fn get_lap_count(&self, current_date_time: &DateTime<Utc>) -> f32 {
-        match self.get_staging() {
-            Staging::NotSet => 0.0,
-            Staging::OnDeck { enter_list, lap } | Staging::MentallyResident { enter_list, lap } => {
-                match enter_list {
-                    EnterListReason::DateTime(enter_time) => {
-                        let enter_time: DateTime<Utc> = enter_time.clone().into();
-                        let lap: Duration = lap.clone().into();
-                        let elapsed = current_date_time.sub(enter_time);
-                        let elapsed = elapsed.num_seconds() as f32;
-                        let lap = lap.as_secs_f32();
-                        elapsed / lap
-                    }
-                    EnterListReason::HighestUncovered { review_after } => {
-                        todo!("review_after:{:?}", review_after)
-                    }
-                }
-            }
-            Staging::Planned => 0.0,
-            Staging::ThinkingAbout => 0.0,
-            Staging::Released => 0.0,
-        }
-    }
-
     pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Local>] {
+        //TODO: snoozed_until should be DateTime<Utc> not local
         &self.snoozed_until
-    }
-
-    /// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet
-    pub(crate) fn is_snoozed(&self, now: DateTime<Utc>) -> bool {
-        let staging = self.get_staging();
-        let snoozed_from_staging = match staging {
-            Staging::NotSet => false,
-            Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
-                match enter_list {
-                    EnterListReason::DateTime(enter_list) => {
-                        let enter_list: DateTime<Utc> = enter_list.clone().into();
-                        enter_list > now
-                    }
-                    EnterListReason::HighestUncovered { .. } => todo!(),
-                }
-            }
-            Staging::Planned => false,
-            Staging::ThinkingAbout => false,
-            Staging::Released => false,
-        };
-
-        self.get_snoozed_until().iter().any(|x| x > &&now) || snoozed_from_staging
     }
 
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
@@ -269,7 +198,7 @@ impl<'s> ItemNode<'s> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
@@ -392,7 +321,7 @@ pub(crate) fn create_growing_node<'a>(
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct ShrinkingItemNode<'s> {
     item: &'s Item<'s>,
     _smaller: Vec<ShrinkingItemNode<'s>>,

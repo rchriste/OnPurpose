@@ -130,7 +130,7 @@ impl<'e> DebugViewItem<'e> {
     }
 
     fn new(item: &'e ItemNode<'e>) -> Self {
-        Self::Item(DisplayItemNode::new(item, None))
+        Self::Item(DisplayItemNode::new(item))
     }
 }
 
@@ -160,10 +160,10 @@ async fn debug_view_all_items(
     match selection {
         Ok(DebugViewItem::Item(item)) => {
             println!("{}", item);
-            println!("{:#?}", item.get_item_node());
-
             let item_node = item.get_item_node();
-            let item = item.get_item_node().get_item();
+            println!("{:#?}", item_node);
+
+            let item = item_node.get_item();
             let covered_by = item.get_covered_by_another_item(covering);
             println!("Covered by: {:#?}", covered_by);
 
@@ -175,7 +175,6 @@ async fn debug_view_all_items(
                 .get_covered_by_date_time_filter_out_the_past(covering_until_date_time, &local_now);
             println!("Covered by date time: {:#?}", covered_by_date_time);
 
-            println!("Lap Count: {}", item_node.get_lap_count(&now));
             Ok(())
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,

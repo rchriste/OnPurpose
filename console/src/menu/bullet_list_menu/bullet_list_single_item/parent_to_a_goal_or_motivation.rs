@@ -40,10 +40,7 @@ pub(crate) async fn parent_to_a_motivation(
             )
         })
         .collect::<Vec<_>>();
-    let list = items
-        .iter()
-        .map(|x| DisplayItemNode::new(x, None))
-        .collect::<Vec<_>>();
+    let list = items.iter().map(DisplayItemNode::new).collect::<Vec<_>>();
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
@@ -114,10 +111,7 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
         }
     });
 
-    let list = list
-        .iter()
-        .map(|x| DisplayItemNode::new(x, None))
-        .collect::<Vec<_>>();
+    let list = list.iter().map(DisplayItemNode::new).collect::<Vec<_>>();
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {

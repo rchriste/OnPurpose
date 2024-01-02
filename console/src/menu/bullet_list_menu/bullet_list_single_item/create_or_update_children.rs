@@ -10,9 +10,9 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    display::display_item_node::DisplayItemNode,
+    display::display_item_status::DisplayItemStatus,
     menu::bullet_list_menu::bullet_list_single_item::create_or_update_children::edit_order_of_children_items::edit_order_of_children_items,
-    node::item_node::ItemNode,
+    node::item_status::ItemStatus,
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -43,12 +43,12 @@ impl Display for CreateOrUpdateChildrenItem {
 }
 
 impl CreateOrUpdateChildrenItem {
-    pub(crate) fn get_list(item_node: &ItemNode<'_>) -> Vec<CreateOrUpdateChildrenItem> {
+    pub(crate) fn get_list(item_status: &ItemStatus<'_>) -> Vec<CreateOrUpdateChildrenItem> {
         let mut result = vec![
             CreateOrUpdateChildrenItem::AddANewChildItem,
             CreateOrUpdateChildrenItem::ConfigureSchedulingPolicyForChildren,
         ];
-        if item_node.get_smaller().len() > 1 {
+        if item_status.get_smaller().len() > 1 {
             result.push(CreateOrUpdateChildrenItem::EditOrderOfChildrenItems);
         }
         result.push(CreateOrUpdateChildrenItem::ReturnToBulletList);
@@ -60,26 +60,27 @@ impl CreateOrUpdateChildrenItem {
 
 #[async_recursion]
 pub(crate) async fn create_or_update_children(
-    item_node: &ItemNode<'_>,
+    item_status: &ItemStatus<'_>,
+    all_item_status: &[ItemStatus<'_>],
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    if !item_node.has_active_children() {
+    if !item_status.has_active_children() {
         println!("No children found");
     } else {
         println!("Children:");
-        for child in item_node.get_smaller() {
-            let item_node = ItemNode::new(child.get_item(), all_coverings, all_snoozed, all_items);
-            println!(
-                "  {}",
-                DisplayItemNode::new(&item_node, Some(current_date_time))
-            );
+        for child in item_status.get_smaller() {
+            let item_status = all_item_status
+                .iter()
+                .find(|x| x.get_item() == child.get_item())
+                .expect("All are here");
+            println!("  {}", DisplayItemStatus::new(item_status));
         }
     }
-    let list = CreateOrUpdateChildrenItem::get_list(item_node);
+    let list = CreateOrUpdateChildrenItem::get_list(item_status);
     let selection = Select::new("Select an option", list).prompt();
     match selection {
         Ok(CreateOrUpdateChildrenItem::AddANewChildItem) => {
@@ -90,7 +91,8 @@ pub(crate) async fn create_or_update_children(
             todo!("Configure scheduling policy for children")
         }
         Ok(CreateOrUpdateChildrenItem::EditOrderOfChildrenItems) => {
-            edit_order_of_children_items(item_node, send_to_data_storage_layer).await
+            edit_order_of_children_items(item_status.get_item_node(), send_to_data_storage_layer)
+                .await
         }
         Ok(CreateOrUpdateChildrenItem::ReturnToBulletList) => {
             println!("Return to bullet list");
@@ -102,7 +104,8 @@ pub(crate) async fn create_or_update_children(
         }
         Err(InquireError::OperationCanceled) => {
             present_bullet_list_item_selected(
-                item_node,
+                item_status,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,

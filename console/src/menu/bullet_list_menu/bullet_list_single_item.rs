@@ -17,6 +17,7 @@ use crate::{
     base_data::{
         covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
     },
+    calculated_data::CalculatedData,
     display::{
         display_item::DisplayItem, display_item_node::DisplayItemNode,
         display_staging::DisplayStaging,
@@ -35,7 +36,7 @@ use crate::{
         update_item_summary::update_item_summary,
     },
     new_item,
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, item_status::ItemStatus},
     surrealdb_layer::{
         surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, Staging},
         surreal_tables::SurrealTables,
@@ -80,7 +81,7 @@ enum BulletListSingleItemSelection<'e> {
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
-    SwitchToParentItem(DisplayItem<'e>, ItemNode<'e>),
+    SwitchToParentItem(DisplayItem<'e>, ItemStatus<'e>),
     ParentToItem,
     CaptureAFork,
     DebugPrintItem,
@@ -145,9 +146,7 @@ impl Display for BulletListSingleItemSelection<'_> {
 impl<'e> BulletListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
-        all_coverings: &'e [Covering<'e>],
-        all_items: &'e [&Item<'e>],
-        all_snoozed: &'e [&'e CoveringUntilDateTime<'e>],
+        all_item_status: &'e [ItemStatus<'e>],
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
@@ -230,8 +229,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
                 list.push(Self::ParentToItem);
             } else {
                 list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                    let item_node = ItemNode::new(x, all_coverings, all_snoozed, all_items);
-                    Self::SwitchToParentItem(DisplayItem::new(x), item_node)
+                    let item_status = all_item_status
+                        .iter()
+                        .find(|y| y.get_item() == *x)
+                        .expect("All items are here");
+                    Self::SwitchToParentItem(DisplayItem::new(x), item_status.clone())
                 }));
             }
         }
@@ -272,7 +274,8 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
-    menu_for: &ItemNode<'_>,
+    menu_for: &ItemStatus<'_>,
+    all_item_status: &[ItemStatus<'_>],
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_snoozed: &[&CoveringUntilDateTime<'_>],
@@ -280,7 +283,7 @@ pub(crate) async fn present_bullet_list_item_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list =
-        BulletListSingleItemSelection::create_list(menu_for, all_coverings, all_items, all_snoozed);
+        BulletListSingleItemSelection::create_list(menu_for.get_item_node(), all_item_status);
 
     let selection = Select::new("Select from the below list|", list)
         .with_page_size(14)
@@ -293,6 +296,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
             starting_to_work_on_this_now(
                 menu_for,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,
@@ -302,7 +306,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            state_a_smaller_next_step(menu_for, send_to_data_storage_layer).await
+            state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::ParentToAGoalOrMotivation) => {
             parent_to_a_goal_or_motivation(menu_for.get_item(), send_to_data_storage_layer).await
@@ -329,6 +333,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
             create_or_update_children(
                 menu_for,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,
@@ -354,6 +359,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
                 menu_for,
+                all_item_status,
                 all_coverings,
                 all_snoozed,
                 all_items,
@@ -411,6 +417,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(
                 &selected,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,
@@ -491,7 +498,8 @@ impl<'e> FinishSelection<'e> {
 
 #[async_recursion]
 async fn finish_bullet_item(
-    finish_this: &ItemNode<'_>,
+    finish_this: &ItemStatus<'_>,
+    all_item_status: &[ItemStatus<'_>],
     all_coverings: &[Covering<'_>],
     all_snoozed: &[&CoveringUntilDateTime<'_>],
     all_items: &[&Item<'_>],
@@ -544,6 +552,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
+                all_item_status,
                 all_coverings,
                 all_snoozed,
                 all_items,
@@ -558,24 +567,17 @@ async fn finish_bullet_item(
                 .unwrap();
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-            let items = base_data.get_active_items();
+            let calculated_data = CalculatedData::new_from_base_data(base_data, current_date_time);
             let parent_surreal_record_id = parent.get_surreal_record_id();
-            let updated_parent = items
+            let updated_parent = calculated_data
+                .get_item_status()
                 .iter()
-                .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
-                .map(|x| {
-                    ItemNode::new(
-                        x,
-                        base_data.get_coverings(),
-                        base_data.get_active_snoozed(),
-                        items,
-                    )
-                })
-                .next()
+                .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
             present_bullet_list_item_selected(
-                &updated_parent,
+                updated_parent,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,
@@ -589,6 +591,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
+                all_item_status,
                 all_coverings,
                 all_snoozed,
                 all_items,
@@ -608,6 +611,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
+                all_item_status,
                 all_coverings,
                 all_snoozed,
                 all_items,
@@ -656,7 +660,8 @@ async fn process_and_finish_bullet_item(
 }
 
 async fn present_bullet_list_item_parent_selected(
-    selected_item: &ItemNode<'_>,
+    selected_item: &ItemStatus<'_>,
+    all_item_status: &[ItemStatus<'_>],
     current_date_time: &DateTime<Utc>,
     all_coverings: &[Covering<'_>],
     all_snoozed: &[&CoveringUntilDateTime<'_>],
@@ -667,6 +672,7 @@ async fn present_bullet_list_item_parent_selected(
         ItemType::Action | ItemType::Goal(..) | ItemType::Motivation => {
             present_bullet_list_item_selected(
                 selected_item,
+                all_item_status,
                 current_date_time,
                 all_coverings,
                 all_snoozed,
@@ -702,7 +708,7 @@ async fn parent_to_item(
             )
         })
         .collect::<Vec<_>>();
-    let list = DisplayItemNode::make_list(&item_nodes, None);
+    let list = DisplayItemNode::make_list(&item_nodes);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {
