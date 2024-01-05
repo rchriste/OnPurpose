@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 
 use crate::{
@@ -19,10 +18,7 @@ pub(crate) struct BulletList {
 }
 
 impl BulletList {
-    pub(crate) fn new_bullet_list(
-        calculated_data: CalculatedData,
-        current_date_time: &DateTime<Utc>,
-    ) -> Self {
+    pub(crate) fn new_bullet_list(calculated_data: CalculatedData) -> Self {
         BulletListBuilder {
             calculated_data,
             item_nodes_builder: |calculated_data| {
@@ -58,13 +54,13 @@ impl BulletList {
                     .then_with(|| {
                         //Snoozed items should be shown at the bottom so they are searchable
                         //TODO: I should have an item to state the purpose so the User knows they are not meant to do this, only if they need to search
-                        if a.is_snoozed(*current_date_time) {
-                            if b.is_snoozed(*current_date_time) {
+                        if a.is_snoozed() {
+                            if b.is_snoozed() {
                                 Ordering::Equal
                             } else {
                                 Ordering::Greater
                             }
-                        } else if b.is_snoozed(*current_date_time) {
+                        } else if b.is_snoozed() {
                             Ordering::Less
                         } else {
                             Ordering::Equal

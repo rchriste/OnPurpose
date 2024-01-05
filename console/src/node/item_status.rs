@@ -1,6 +1,6 @@
 use std::{ops::Sub, time::Duration};
 
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::{
@@ -14,6 +14,7 @@ use super::item_node::{GrowingItemNode, ItemNode, ShrinkingItemNode};
 pub(crate) struct ItemStatus<'s> {
     item_node: ItemNode<'s>,
     lap_count: f32,
+    is_snoozed: bool,
 }
 
 impl<'s> ItemStatus<'s> {
@@ -23,9 +24,11 @@ impl<'s> ItemStatus<'s> {
         current_date_time: &DateTime<Utc>,
     ) -> Self {
         let lap_count = calculate_lap_count(&item_node, current_date_time);
+        let is_snoozed = calculate_is_snoozed(&item_node, current_date_time);
         Self {
             item_node,
             lap_count,
+            is_snoozed,
         }
     }
 
@@ -33,26 +36,8 @@ impl<'s> ItemStatus<'s> {
         self.lap_count
     }
 
-    /// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet
-    pub(crate) fn is_snoozed(&self, now: DateTime<Utc>) -> bool {
-        let staging = self.get_staging();
-        let snoozed_from_staging = match staging {
-            Staging::NotSet => false,
-            Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
-                match enter_list {
-                    EnterListReason::DateTime(enter_list) => {
-                        let enter_list: DateTime<Utc> = enter_list.clone().into();
-                        enter_list > now
-                    }
-                    EnterListReason::HighestUncovered { .. } => todo!(),
-                }
-            }
-            Staging::Planned => false,
-            Staging::ThinkingAbout => false,
-            Staging::Released => false,
-        };
-
-        self.get_snoozed_until().iter().any(|x| x > &&now) || snoozed_from_staging
+    pub(crate) fn is_snoozed(&self) -> bool {
+        self.is_snoozed
     }
 
     pub(crate) fn is_first_lap_finished(&self) -> bool {
@@ -61,10 +46,6 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn get_item_node(&'s self) -> &'s ItemNode<'s> {
         &self.item_node
-    }
-
-    pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Local>] {
-        self.item_node.get_snoozed_until()
     }
 
     pub(crate) fn get_staging(&self) -> &Staging {
@@ -142,4 +123,26 @@ fn calculate_lap_count(item_node: &ItemNode<'_>, current_date_time: &DateTime<Ut
         Staging::ThinkingAbout => 0.0,
         Staging::Released => 0.0,
     }
+}
+
+/// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet
+fn calculate_is_snoozed(item_node: &ItemNode<'_>, now: &DateTime<Utc>) -> bool {
+    let staging = item_node.get_staging();
+    let snoozed_from_staging = match staging {
+        Staging::NotSet => false,
+        Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
+            match enter_list {
+                EnterListReason::DateTime(enter_list) => {
+                    let enter_list: DateTime<Utc> = enter_list.clone().into();
+                    &enter_list > now
+                }
+                EnterListReason::HighestUncovered { .. } => todo!(),
+            }
+        }
+        Staging::Planned => false,
+        Staging::ThinkingAbout => false,
+        Staging::Released => false,
+    };
+
+    item_node.get_snoozed_until().iter().any(|x| x > &&now) || snoozed_from_staging
 }

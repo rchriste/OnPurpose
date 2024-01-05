@@ -84,7 +84,7 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let calculated_data = CalculatedData::new_from_base_data(base_data, &current_date_time);
-    let bullet_list = BulletList::new_bullet_list(calculated_data, &current_date_time);
+    let bullet_list = BulletList::new_bullet_list(calculated_data);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::seconds(1) {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
