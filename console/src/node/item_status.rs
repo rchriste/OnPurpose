@@ -114,8 +114,11 @@ fn calculate_lap_count(item_node: &ItemNode<'_>, current_date_time: &DateTime<Ut
                     let lap = lap.as_secs_f32();
                     elapsed / lap
                 }
-                EnterListReason::HighestUncovered { review_after } => {
-                    todo!("review_after:{:?}", review_after)
+                EnterListReason::HighestUncovered {
+                    earliest,
+                    review_after,
+                } => {
+                    todo!("earliest:{:?}, review_after:{:?}", earliest, review_after)
                 }
             }
         }
@@ -144,5 +147,5 @@ fn calculate_is_snoozed(item_node: &ItemNode<'_>, now: &DateTime<Utc>) -> bool {
         Staging::Released => false,
     };
 
-    item_node.get_snoozed_until().iter().any(|x| x > &&now) || snoozed_from_staging
+    item_node.get_snoozed_until().iter().any(|x| x > &now) || snoozed_from_staging
 }

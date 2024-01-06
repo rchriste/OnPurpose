@@ -16,9 +16,13 @@ impl Display for DisplayEnterListReason<'_> {
                 let datetime: DateTime<Local> = datetime.into();
                 write!(f, "After {}", datetime.naive_local())
             }
-            EnterListReason::HighestUncovered { review_after } => {
+            EnterListReason::HighestUncovered {
+                earliest: _earliest,
+                review_after,
+            } => {
                 let datetime: DateTime<Utc> = review_after.clone().into();
                 let datetime: DateTime<Local> = datetime.into();
+                //No need to display earliest because that is not something that the user needs to be concerned about as it is to cover an edge case
                 write!(
                     f,
                     "When highest priority uncovered or review after {}",

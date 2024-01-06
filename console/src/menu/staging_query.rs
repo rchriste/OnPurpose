@@ -1,6 +1,6 @@
 use std::{fmt::Display, time::Duration};
 
-use chrono::{DateTime, Local, Utc};
+use chrono::Utc;
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 
@@ -70,22 +70,18 @@ pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
 fn prompt_for_two_times(
     list: Vec<EnterListReasonSelection>,
 ) -> Result<(EnterListReason, Duration), InquireError> {
-    let now = Local::now();
+    let now = Utc::now();
     loop {
         let selection =
             Select::new("When should this item enter the list?", list.clone()).prompt()?;
         let enter_list_reason = match selection {
-            EnterListReasonSelection::Immediately => {
-                let now: DateTime<Utc> = now.into();
-                EnterListReason::DateTime(now.into())
-            }
+            EnterListReasonSelection::Immediately => EnterListReason::DateTime(now.into()),
             EnterListReasonSelection::DateTime => {
                 let return_to_string =
                     Text::new("Wait how long before returning the item to the list?").prompt()?;
                 match parse(&return_to_string) {
                     Ok(return_to_duration) => {
                         let return_to = now + return_to_duration;
-                        let return_to: DateTime<Utc> = return_to.into();
                         EnterListReason::DateTime(return_to.into())
                     }
                     Err(_) => match dateparser::parse(&return_to_string) {
@@ -103,13 +99,14 @@ fn prompt_for_two_times(
                 match parse(&review_after) {
                     Ok(review_after_duration) => {
                         let review_after = now + review_after_duration;
-                        let review_after: DateTime<Utc> = review_after.into();
                         EnterListReason::HighestUncovered {
+                            earliest: now.into(),
                             review_after: review_after.into(),
                         }
                     }
                     Err(_) => match dateparser::parse(&review_after) {
                         Ok(review_after) => EnterListReason::HighestUncovered {
+                            earliest: now.into(),
                             review_after: review_after.into(),
                         },
                         Err(_) => {

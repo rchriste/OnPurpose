@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -176,7 +177,10 @@ pub(crate) enum Permanence {
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum EnterListReason {
     DateTime(Datetime),
-    HighestUncovered { review_after: Datetime },
+    HighestUncovered {
+        earliest: Datetime,
+        review_after: Datetime,
+    },
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -264,17 +268,23 @@ pub(crate) enum NotesLocation {
     WebLink(String),
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum EnterListReasonOldVersion {
+    DateTime(Datetime),
+    HighestUncovered { review_after: Datetime }, //TODO: add earliest DateTime
+}
+
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum StagingOldVersion {
     #[default]
     NotSet,
     MentallyResident {
-        enter_list: Datetime,
-        finish_first_lap: Datetime,
+        enter_list: EnterListReasonOldVersion,
+        lap: Duration,
     },
     OnDeck {
-        enter_list: Datetime,
-        finish_first_lap: Datetime,
+        enter_list: EnterListReasonOldVersion,
+        lap: Duration,
     },
     Planned,
     ThinkingAbout,
@@ -343,23 +353,31 @@ impl From<StagingOldVersion> for Staging {
     fn from(value: StagingOldVersion) -> Self {
         match value {
             StagingOldVersion::NotSet => Staging::NotSet,
-            StagingOldVersion::MentallyResident {
-                enter_list,
-                finish_first_lap,
-            } => Staging::MentallyResident {
-                lap: finish_first_lap - enter_list.clone(),
+            StagingOldVersion::MentallyResident { enter_list, lap } => Staging::MentallyResident {
                 enter_list: enter_list.into(),
+                lap,
             },
-            StagingOldVersion::OnDeck {
-                enter_list,
-                finish_first_lap,
-            } => Staging::OnDeck {
-                lap: finish_first_lap - enter_list.clone(),
-                enter_list: EnterListReason::DateTime(enter_list),
+            StagingOldVersion::OnDeck { enter_list, lap } => Staging::OnDeck {
+                enter_list: enter_list.into(),
+                lap,
             },
             StagingOldVersion::Planned => Staging::Planned,
             StagingOldVersion::ThinkingAbout => Staging::ThinkingAbout,
             StagingOldVersion::Released => Staging::Released,
+        }
+    }
+}
+
+impl From<EnterListReasonOldVersion> for EnterListReason {
+    fn from(value: EnterListReasonOldVersion) -> Self {
+        match value {
+            EnterListReasonOldVersion::DateTime(datetime) => EnterListReason::DateTime(datetime),
+            EnterListReasonOldVersion::HighestUncovered { review_after } => {
+                EnterListReason::HighestUncovered {
+                    earliest: Utc::now().into(),
+                    review_after,
+                }
+            }
         }
     }
 }
