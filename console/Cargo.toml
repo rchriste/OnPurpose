@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.159"
+version = "0.0.160"
 edition = "2021"
 
 [build]
@@ -11,7 +11,7 @@ inquire = { version = "0.6.2", features = ["editor"] } #inquire is for building 
 tokio = { version = "1.32.0", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 surrealdb = { version = "1.1.1", features = ["kv-mem", "kv-rocksdb"] } #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
-surrealdb_extra = "0.5.1" #Added because I think using this for table definitions might save me time
+surrealdb_extra = "0.7.1" #Added because I think using this for table definitions might save me time
 serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.31"
 async-recursion = "1.0.5"

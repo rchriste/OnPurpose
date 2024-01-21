@@ -10,10 +10,9 @@ pub(crate) mod surreal_tables;
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
-    error::Api,
     opt::RecordId,
     sql::Thing,
-    Error, Surreal,
+    Surreal,
 };
 use surrealdb_extra::table::{Table, TableError};
 use tokio::sync::{
@@ -146,7 +145,7 @@ pub(crate) async fn data_storage_start_and_run(
                 .await
             }
             Some(DataLayerCommands::RemoveCoveringItem(surreal_covering)) => {
-                SurrealCovering::delete(surreal_covering.id.unwrap().id.to_raw(), &db)
+                SurrealCovering::delete(&db, surreal_covering.id.unwrap().id.to_raw())
                     .await
                     .unwrap()
                     .unwrap(); //2nd unwrap ensures the delete actually happened
@@ -184,7 +183,7 @@ pub(crate) async fn data_storage_start_and_run(
                 new_responsibility,
                 new_item_type,
             )) => {
-                let mut item = SurrealItem::get_by_id(item.id.to_raw(), &db)
+                let mut item = SurrealItem::get_by_id(&db, item.id.to_raw())
                     .await
                     .unwrap()
                     .unwrap();
@@ -207,7 +206,7 @@ pub(crate) async fn data_storage_start_and_run(
                 assert_eq!(item, new);
             }
             Some(DataLayerCommands::UpdateItemResponsibility(record_id, new_responsibility)) => {
-                let mut item = SurrealItem::get_by_id(record_id.id.to_raw(), &db)
+                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
                     .await
                     .unwrap()
                     .unwrap();
@@ -215,7 +214,7 @@ pub(crate) async fn data_storage_start_and_run(
                 item.update(&db).await.unwrap();
             }
             Some(DataLayerCommands::UpdateFacing(record_id, new_facing)) => {
-                let mut item = SurrealItem::get_by_id(record_id.id.to_raw(), &db)
+                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
                     .await
                     .unwrap()
                     .unwrap();
@@ -239,12 +238,11 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     let all_items = match all_items.await {
         Ok(all_items) => all_items,
-        Err(TableError::Db(Error::Api(Api::FromValue { value: _, error }))) => {
-            println!("Upgrading items table because of issue: {}", error);
+        Err(err) => {
+            println!("Upgrading items table because of issue: {}", err);
             upgrade_items_table(db).await;
             SurrealItem::get_all(db).await.unwrap()
         }
-        _ => todo!(),
     };
 
     SurrealTables {
@@ -314,7 +312,7 @@ pub(crate) async fn send_processed_text(
 }
 
 pub(crate) async fn finish_item(finish_this: RecordId, db: &Surreal<Any>) {
-    let mut finish_this = SurrealItem::get_by_id(finish_this.id.to_raw(), db)
+    let mut finish_this = SurrealItem::get_by_id(db, finish_this.id.to_raw())
         .await
         .unwrap()
         .unwrap();
@@ -393,7 +391,7 @@ async fn parent_item_with_existing_item(
     higher_priority_than_this: Option<RecordId>,
     db: &Surreal<Any>,
 ) {
-    let mut parent = SurrealItem::get_by_id(parent.id.to_raw(), db)
+    let mut parent = SurrealItem::get_by_id(db, parent.id.to_raw())
         .await
         .unwrap()
         .unwrap();
@@ -471,7 +469,7 @@ async fn update_hope_permanence(
     new_permanence: Permanence,
     db: &Surreal<Any>,
 ) {
-    let mut surreal_item = SurrealItem::get_by_id(surreal_item.id.to_raw(), db)
+    let mut surreal_item = SurrealItem::get_by_id(db, surreal_item.id.to_raw())
         .await
         .unwrap()
         .unwrap();
@@ -487,7 +485,7 @@ async fn update_hope_permanence(
 }
 
 async fn update_hope_staging(record_id: RecordId, new_staging: Staging, db: &Surreal<Any>) {
-    let mut surreal_item = SurrealItem::get_by_id(record_id.id.to_raw(), db)
+    let mut surreal_item = SurrealItem::get_by_id(db, record_id.id.to_raw())
         .await
         .unwrap()
         .unwrap();
@@ -514,7 +512,7 @@ async fn update_hope_staging(record_id: RecordId, new_staging: Staging, db: &Sur
 }
 
 async fn update_item_summary(item_to_update: RecordId, new_summary: String, db: &Surreal<Any>) {
-    let mut item_to_update = SurrealItem::get_by_id(item_to_update.id.to_raw(), db)
+    let mut item_to_update = SurrealItem::get_by_id(db, item_to_update.id.to_raw())
         .await
         .unwrap()
         .unwrap();

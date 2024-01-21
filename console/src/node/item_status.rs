@@ -253,7 +253,16 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
             match when_uncovered {
                 Some(when_uncovered) => todo!(),
                 None => {
-                    when_uncovered = Some(child.when_finished().expect("is_finished() is true"))
+                    let when_child_finished = child.when_finished().expect("is_finished() is true");
+                    match when_uncovered {
+                        Some(uncovered) => {
+                            if when_child_finished > uncovered {
+                                // We want the latest finished child
+                                when_uncovered = Some(when_child_finished)
+                            }
+                        }
+                        None => when_uncovered = Some(when_child_finished),
+                    }
                 }
             }
             continue;
