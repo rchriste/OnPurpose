@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_storage_join_handle = tokio::spawn(async move {
         data_storage_start_and_run(
             have_data_storage_layer_use_to_receive_rx,
-            "file://~/.on_purpose.db",
+            "file://c:/.on_purpose.db", //TODO: Get a default file location that works for both Linux and Windows
         )
         .await
     });
