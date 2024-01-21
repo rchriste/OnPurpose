@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use surrealdb::sql::Thing;
 
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
     surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     larger: Vec<GrowingItemNode<'s>>,
@@ -198,7 +198,7 @@ impl<'s> ItemNode<'s> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
@@ -263,6 +263,13 @@ impl<'s> GrowingItemNode<'s> {
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
         &self.facing
     }
+
+    pub(crate) fn get_node<'a>(&self, all_nodes: &'a [ItemNode<'a>]) -> &'a ItemNode<'a> {
+        all_nodes
+            .iter()
+            .find(|x| x.get_item() == self.item)
+            .expect("It should be in all nodes, programming error")
+    }
 }
 
 pub(crate) fn create_growing_nodes<'a>(
@@ -321,7 +328,7 @@ pub(crate) fn create_growing_node<'a>(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ShrinkingItemNode<'s> {
     item: &'s Item<'s>,
     _smaller: Vec<ShrinkingItemNode<'s>>,
@@ -330,6 +337,18 @@ pub(crate) struct ShrinkingItemNode<'s> {
 impl<'s> ShrinkingItemNode<'s> {
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
+    }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item.is_finished()
+    }
+
+    pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {
+        self.item.when_finished()
+    }
+
+    pub(crate) fn get_staging(&self) -> &Staging {
+        self.item.get_staging()
     }
 }
 

@@ -79,17 +79,15 @@ pub(crate) async fn present_normal_bullet_list_menu(
     if elapsed > chrono::Duration::seconds(1) {
         println!("Slow to get data from database. Time taken: {}", elapsed);
     }
-    let current_date_time = Utc::now();
-
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let calculated_data = CalculatedData::new_from_base_data(base_data, &current_date_time);
+    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
     let bullet_list = BulletList::new_bullet_list(calculated_data);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::seconds(1) {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
-    present_bullet_list_menu(bullet_list, &current_date_time, send_to_data_storage_layer).await
+    present_bullet_list_menu(bullet_list, &now, send_to_data_storage_layer).await
 }
 
 pub(crate) async fn present_bullet_list_menu(
@@ -147,6 +145,3 @@ pub(crate) async fn present_bullet_list_menu(
         present_top_menu(send_to_data_storage_layer).await
     }
 }
-
-#[cfg(test)]
-mod tests {}

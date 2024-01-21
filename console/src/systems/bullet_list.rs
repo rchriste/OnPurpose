@@ -38,7 +38,7 @@ impl BulletList {
                 all_leaf_status_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
 
                 all_leaf_status_nodes.sort_by(|a, b| {
-                    //Reactive items should be shown at the bottom so they are searchable
+                    //Reactive items should be shown at the bottom so they are searchable TODO: I should show this in the UI that this is just for searching
                     //TODO: I should have an item to state the purpose so the User knows they are not meant to do this
                     (if a.is_responsibility_reactive() {
                         if b.is_responsibility_reactive() {
@@ -172,6 +172,3 @@ impl<'e> BulletListReason<'e> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use itertools::chain;
 use surrealdb::{opt::RecordId, sql::Thing};
 
@@ -207,6 +207,16 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_finished(&self) -> bool {
         self.surreal_item.finished.is_some()
+    }
+
+    pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {
+        match self.surreal_item.finished {
+            Some(ref finished) => {
+                let finished = finished.clone().into();
+                Some(finished)
+            }
+            None => None,
+        }
     }
 
     pub(crate) fn get_covered_by_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {

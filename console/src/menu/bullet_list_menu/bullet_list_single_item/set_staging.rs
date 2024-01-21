@@ -67,59 +67,66 @@ pub(crate) async fn present_set_staging_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     default_selection: Option<StagingMenuSelection>,
 ) -> Result<(), ()> {
-    let (list, starting_cursor) = StagingMenuSelection::make_list(default_selection);
+    let staging = loop {
+        let (list, starting_cursor) = StagingMenuSelection::make_list(default_selection);
 
-    let selection = Select::new("Select from the below list|", list)
-        .with_starting_cursor(starting_cursor)
-        .prompt()
-        .unwrap();
-    let staging = match selection {
-        StagingMenuSelection::NotSet => Staging::NotSet,
-        StagingMenuSelection::MentallyResident => {
-            let result = mentally_resident_query().await;
-            match result {
-                Ok(mentally_resident) => mentally_resident,
-                Err(InquireError::OperationCanceled) => {
-                    return present_set_staging_menu(
-                        selected,
-                        send_to_data_storage_layer,
-                        default_selection,
-                    )
-                    .await
+        let selection = Select::new("Select from the below list|", list)
+            .with_starting_cursor(starting_cursor)
+            .prompt();
+        let staging = match selection {
+            Ok(StagingMenuSelection::NotSet) => Staging::NotSet,
+            Ok(StagingMenuSelection::MentallyResident) => {
+                let result = mentally_resident_query().await;
+                match result {
+                    Ok(mentally_resident) => mentally_resident,
+                    Err(InquireError::OperationCanceled) => {
+                        return present_set_staging_menu(
+                            selected,
+                            send_to_data_storage_layer,
+                            default_selection,
+                        )
+                        .await
+                    }
+                    Err(InquireError::OperationInterrupted) => return Err(()),
+                    Err(err) => todo!("{:?}", err),
                 }
-                Err(InquireError::OperationInterrupted) => return Err(()),
-                Err(err) => todo!("{:?}", err),
             }
-        }
-        StagingMenuSelection::OnDeck => {
-            let result = on_deck_query().await;
-            match result {
-                Ok(staging) => staging,
-                Err(InquireError::OperationCanceled) => {
-                    return present_set_staging_menu(
-                        selected,
-                        send_to_data_storage_layer,
-                        default_selection,
-                    )
-                    .await
+            Ok(StagingMenuSelection::OnDeck) => {
+                let result = on_deck_query().await;
+                match result {
+                    Ok(staging) => staging,
+                    Err(InquireError::OperationCanceled) => {
+                        return present_set_staging_menu(
+                            selected,
+                            send_to_data_storage_layer,
+                            default_selection,
+                        )
+                        .await
+                    }
+                    Err(InquireError::OperationInterrupted) => return Err(()),
+                    Err(err) => todo!("{:?}", err),
                 }
-                Err(InquireError::OperationInterrupted) => return Err(()),
-                Err(err) => todo!("{:?}", err),
             }
-        }
-        StagingMenuSelection::Planned => Staging::Planned,
-        StagingMenuSelection::ThinkingAbout => Staging::ThinkingAbout,
-        StagingMenuSelection::Released => Staging::Released,
-        StagingMenuSelection::MakeItemReactive => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateItemResponsibility(
-                    selected.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                ))
-                .await
-                .unwrap();
-            return Ok(());
-        }
+            Ok(StagingMenuSelection::Planned) => Staging::Planned,
+            Ok(StagingMenuSelection::ThinkingAbout) => Staging::ThinkingAbout,
+            Ok(StagingMenuSelection::Released) => Staging::Released,
+            Ok(StagingMenuSelection::MakeItemReactive) => {
+                send_to_data_storage_layer
+                    .send(DataLayerCommands::UpdateItemResponsibility(
+                        selected.get_surreal_record_id().clone(),
+                        Responsibility::ReactiveBeAvailableToAct,
+                    ))
+                    .await
+                    .unwrap();
+                return Ok(());
+            }
+            Err(InquireError::OperationInterrupted) => return Err(()),
+            Err(InquireError::OperationCanceled) => {
+                todo!("I just need to make sure we are going through the loop again unless I need to break out rather than redo so I need to check that and get that piece correct when fixing this")
+            }
+            Err(err) => todo!("{:?}", err),
+        };
+        break staging;
     };
 
     send_to_data_storage_layer
