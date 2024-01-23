@@ -122,7 +122,8 @@ pub(crate) async fn present_set_staging_menu(
             }
             Err(InquireError::OperationInterrupted) => return Err(()),
             Err(InquireError::OperationCanceled) => {
-                todo!("I just need to make sure we are going through the loop again unless I need to break out rather than redo so I need to check that and get that piece correct when fixing this")
+                // Just continue because we don't know exactly what to go back to
+                return Ok(());
             }
             Err(err) => todo!("{:?}", err),
         };
