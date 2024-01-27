@@ -11,7 +11,10 @@ use crate::{
     surrealdb_layer::surreal_item::{EnterListReason, ItemType, Staging},
 };
 
-use super::item_node::{GrowingItemNode, ItemNode, ShrinkingItemNode};
+use super::{
+    item_node::{GrowingItemNode, ItemNode, ShrinkingItemNode},
+    Filter,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ItemStatus<'s> {
@@ -83,12 +86,15 @@ impl<'s> ItemStatus<'s> {
         self.item_node.get_item()
     }
 
-    pub(crate) fn has_active_children(&self) -> bool {
-        self.item_node.has_active_children()
+    pub(crate) fn has_children(&self, filter: Filter) -> bool {
+        self.item_node.has_children(filter)
     }
 
-    pub(crate) fn get_smaller(&'s self) -> &[ShrinkingItemNode<'s>] {
-        self.item_node.get_smaller()
+    pub(crate) fn get_smaller(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &ShrinkingItemNode<'s>> + 's> {
+        self.item_node.get_smaller(filter)
     }
 
     pub(crate) fn get_type(&self) -> &ItemType {
@@ -99,12 +105,15 @@ impl<'s> ItemStatus<'s> {
         self.item_node.get_surreal_record_id()
     }
 
-    pub(crate) fn has_larger(&self) -> bool {
-        self.item_node.has_larger()
+    pub(crate) fn has_larger(&self, filter: Filter) -> bool {
+        self.item_node.has_larger(filter)
     }
 
-    pub(crate) fn get_larger(&'s self) -> impl Iterator<Item = &GrowingItemNode<'s>> {
-        self.item_node.get_larger()
+    pub(crate) fn get_larger(
+        &'s self,
+        filter: Filter,
+    ) -> impl Iterator<Item = &GrowingItemNode<'s>> {
+        self.item_node.get_larger(filter)
     }
 }
 
@@ -132,7 +141,7 @@ fn calculate_lap_count(
                     if current_date_time < earliest {
                         return 0.0;
                     }
-                    let all_larger = item_node.get_larger();
+                    let all_larger = item_node.get_larger(Filter::All);
                     let all_larger = all_larger
                         .map(|x| x.get_node(all_nodes))
                         .collect::<Vec<_>>();
@@ -201,13 +210,13 @@ fn calculate_is_snoozed(
                     if now < earliest {
                         return true;
                     }
-                    let all_larger = item_node.get_larger();
-                    let all_larger = all_larger
+                    let active_larger = item_node.get_larger(Filter::Active);
+                    let active_larger = active_larger
                         .map(|x| x.get_node(all_nodes))
                         .collect::<Vec<_>>();
-                    let mut all_larger_iter = all_larger.iter();
+                    let mut active_larger_iter = active_larger.iter();
                     let (highest_uncovered, uncovered_when) = loop {
-                        let larger = all_larger_iter.next();
+                        let larger = active_larger_iter.next();
                         match larger {
                             Some(larger) => {
                                 let (highest_uncovered, uncovered_when) =
@@ -250,7 +259,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
 ) -> (Option<&'a Item<'a>>, Option<DateTime<Utc>>) {
     let now: Datetime = (*now).into();
     let mut when_uncovered = None;
-    for child in item_node.get_smaller().iter() {
+    for child in item_node.get_smaller(Filter::All) {
         if child.is_finished() {
             match when_uncovered {
                 Some(when_uncovered) => todo!(),

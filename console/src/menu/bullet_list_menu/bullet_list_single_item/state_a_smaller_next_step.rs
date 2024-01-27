@@ -16,7 +16,7 @@ use crate::{
         select_higher_priority_than_this::select_higher_priority_than_this,
         staging_query::{mentally_resident_query, on_deck_query},
     },
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, Filter},
     surrealdb_layer::{surreal_item::Staging, surreal_tables::SurrealTables, DataLayerCommands},
 };
 
@@ -58,7 +58,7 @@ pub(crate) async fn state_a_smaller_next_step(
             let parent = selected_item;
             let child: &Item<'_> = child.into();
 
-            let higher_priority_than_this = if parent.has_active_children() {
+            let higher_priority_than_this = if parent.has_children(Filter::Active) {
                 todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
             } else {
                 None
@@ -119,10 +119,9 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
         }
         Ok(item_type_selection) => {
             let mut new_item = item_type_selection.create_new_item_prompt_user_for_summary();
-            let higher_priority_than_this = if selected_item.has_active_children() {
+            let higher_priority_than_this = if selected_item.has_children(Filter::Active) {
                 let items = selected_item
-                    .get_smaller()
-                    .iter()
+                    .get_smaller(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
                 select_higher_priority_than_this(&items)

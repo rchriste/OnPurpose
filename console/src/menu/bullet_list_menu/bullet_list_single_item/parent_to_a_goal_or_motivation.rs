@@ -15,7 +15,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
         select_higher_priority_than_this::select_higher_priority_than_this,
     },
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, Filter},
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
@@ -46,12 +46,9 @@ pub(crate) async fn parent_to_a_motivation(
     match selection {
         Ok(parent) => {
             let parent = parent.get_item_node();
-            let parent_smaller = parent.get_smaller();
-            let higher_priority_than_this = if !parent_smaller.is_empty() {
-                let children = parent_smaller
-                    .iter()
-                    .map(|x| x.get_item())
-                    .collect::<Vec<_>>();
+            let parent_smaller = parent.get_smaller(Filter::Active);
+            let higher_priority_than_this = if parent.has_children(Filter::Active) {
+                let children = parent_smaller.map(|x| x.get_item()).collect::<Vec<_>>();
                 select_higher_priority_than_this(&children)
             } else {
                 None
@@ -118,10 +115,9 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
         Ok(parent) => {
             let parent: &ItemNode<'_> = parent.get_item_node();
 
-            let higher_priority_than_this = if parent.has_active_children() {
+            let higher_priority_than_this = if parent.has_children(Filter::Active) {
                 let items = parent
-                    .get_smaller()
-                    .iter()
+                    .get_smaller(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
                 select_higher_priority_than_this(&items)

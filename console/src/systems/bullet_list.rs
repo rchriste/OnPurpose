@@ -5,7 +5,7 @@ use ouroboros::self_referencing;
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
     calculated_data::CalculatedData,
-    node::item_status::ItemStatus,
+    node::{item_status::ItemStatus, Filter},
 };
 
 #[self_referencing]
@@ -26,10 +26,10 @@ impl BulletList {
                 let mut all_leaf_status_nodes = calculated_data
                     .get_item_status()
                     .iter()
-                    .filter(|x| x.get_smaller().is_empty())
+                    .filter(|x| !x.has_children(Filter::Active))
                     //Person or group items without a parent, meaning a reason for being on the list,
                     // should be filtered out.
-                    .filter(|x| !x.is_person_or_group() || !x.has_larger())
+                    .filter(|x| !x.is_person_or_group() || !x.has_larger(Filter::Active))
                     .cloned()
                     .collect::<Vec<_>>();
 

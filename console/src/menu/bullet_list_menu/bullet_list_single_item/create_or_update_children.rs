@@ -12,7 +12,7 @@ use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
     display::display_item_status::DisplayItemStatus,
     menu::bullet_list_menu::bullet_list_single_item::create_or_update_children::edit_order_of_children_items::edit_order_of_children_items,
-    node::item_status::ItemStatus,
+    node::{item_status::ItemStatus, Filter},
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -48,7 +48,7 @@ impl CreateOrUpdateChildrenItem {
             CreateOrUpdateChildrenItem::AddANewChildItem,
             CreateOrUpdateChildrenItem::ConfigureSchedulingPolicyForChildren,
         ];
-        if item_status.get_smaller().len() > 1 {
+        if item_status.get_smaller(Filter::Active).next().is_some() {
             result.push(CreateOrUpdateChildrenItem::EditOrderOfChildrenItems);
         }
         result.push(CreateOrUpdateChildrenItem::ReturnToBulletList);
@@ -68,11 +68,11 @@ pub(crate) async fn create_or_update_children(
     all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    if !item_status.has_active_children() {
+    if !item_status.has_children(Filter::Active) {
         println!("No children found");
     } else {
         println!("Children:");
-        for child in item_status.get_smaller() {
+        for child in item_status.get_smaller(Filter::Active) {
             let item_status = all_item_status
                 .iter()
                 .find(|x| x.get_item() == child.get_item())

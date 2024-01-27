@@ -20,7 +20,7 @@ use crate::{
         expectations::define_facing::define_facing, staging_query::on_deck_query,
         update_item_summary::update_item_summary,
     },
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, Filter},
     surrealdb_layer::{
         surreal_item::{Permanence, Staging, SurrealItem},
         surreal_tables::SurrealTables,
@@ -34,7 +34,7 @@ struct ProjectHopeItem<'a> {
 
 impl<'a> Display for ProjectHopeItem<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.hope_node.get_smaller().is_empty() {
+        if !self.hope_node.has_children(Filter::Active) {
             write!(f, "[NEEDS NEXT STEP] ")?;
         }
         write!(f, "{}", self.hope_node.get_item().get_summary())?;
@@ -219,7 +219,7 @@ impl Display for MaintenanceHopeItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MaintenanceHope(hope_node) => {
-                if hope_node.get_smaller().is_empty() {
+                if !hope_node.has_children(Filter::Active) {
                     write!(f, "[NEEDS NEXT STEP] ")?;
                 }
                 write!(f, "{}", hope_node.get_item().get_summary())?;

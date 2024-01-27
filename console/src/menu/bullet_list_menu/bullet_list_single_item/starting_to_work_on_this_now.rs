@@ -10,7 +10,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },
-    node::{item_node::ItemNode, item_status::ItemStatus},
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
     surrealdb_layer::DataLayerCommands,
 };
 
@@ -53,7 +53,7 @@ impl WorkingOnNow {
             WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished,
             WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish,
         ];
-        if currently_working_on.has_larger() {
+        if currently_working_on.has_larger(Filter::Active) {
             list.push(WorkingOnNow::DefineFutureItemOntoParent);
         }
         list

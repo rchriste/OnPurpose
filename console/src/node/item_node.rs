@@ -6,6 +6,8 @@ use crate::{
     surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
 };
 
+use super::Filter;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
@@ -73,8 +75,14 @@ impl<'s> ItemNode<'s> {
         result
     }
 
-    pub(crate) fn get_smaller(&'s self) -> &'s [ShrinkingItemNode<'s>] {
-        &self.smaller
+    pub(crate) fn get_smaller(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &'s ShrinkingItemNode<'s>> + 's + Send> {
+        Box::new(self.smaller.iter().filter(move |x| match filter {
+            Filter::All => true,
+            Filter::Active => !x.item.is_finished(),
+        }))
     }
 
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
@@ -97,12 +105,21 @@ impl<'s> ItemNode<'s> {
         self.item.is_goal()
     }
 
-    pub(crate) fn has_larger(&self) -> bool {
-        !self.larger.is_empty()
+    pub(crate) fn has_larger(&self, filter: Filter) -> bool {
+        match filter {
+            Filter::All => !self.larger.is_empty(),
+            Filter::Active => self.larger.iter().any(|x| !x.item.is_finished()),
+        }
     }
 
-    pub(crate) fn get_larger(&self) -> impl Iterator<Item = &GrowingItemNode> {
-        self.larger.iter()
+    pub(crate) fn get_larger(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &'s GrowingItemNode<'s>> + 's + Send> {
+        match filter {
+            Filter::All => Box::new(self.larger.iter()),
+            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
+        }
     }
 
     pub(crate) fn get_type(&self) -> &ItemType {
@@ -112,7 +129,7 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn is_type_action(&self) -> bool {
         if self.item.get_type() == &ItemType::Undeclared {
             //Look to parents for a setting
-            self.get_larger().any(|x| x.is_type_action())
+            self.get_larger(Filter::Active).any(|x| x.is_type_action())
         } else {
             //Value is set so use it
             self.item.is_type_action()
@@ -137,8 +154,11 @@ impl<'s> ItemNode<'s> {
         self.item.is_type_motivation()
     }
 
-    pub(crate) fn has_active_children(&self) -> bool {
-        self.smaller.iter().any(|x| !x.get_item().is_finished())
+    pub(crate) fn has_children(&self, filter: Filter) -> bool {
+        match filter {
+            Filter::All => !self.smaller.is_empty(),
+            Filter::Active => self.smaller.iter().any(|x| !x.get_item().is_finished()),
+        }
     }
 
     pub(crate) fn is_there_notes(&self) -> bool {
@@ -150,7 +170,9 @@ impl<'s> ItemNode<'s> {
         let is_staging_not_set = self.item.is_staging_not_set();
         if is_staging_not_set {
             //This type can be inferred from the parent so check that first
-            !self.get_larger().any(|x| !x.is_staging_not_set())
+            !self
+                .get_larger(Filter::Active)
+                .any(|x| !x.is_staging_not_set())
         } else {
             is_staging_not_set
         }
@@ -160,7 +182,7 @@ impl<'s> ItemNode<'s> {
         let staging = self.item.get_staging();
         if staging == &Staging::NotSet {
             //This type can be inferred from the parent so check that first
-            for parent in self.get_larger() {
+            for parent in self.get_larger(Filter::Active) {
                 let staging = parent.get_staging();
                 if staging != &Staging::NotSet {
                     return staging;
@@ -394,7 +416,7 @@ pub(crate) fn create_shrinking_node<'a>(
 mod tests {
     use crate::{
         base_data::item::ItemVecExtensions,
-        node::item_node::ItemNode,
+        node::{item_node::ItemNode, Filter},
         surrealdb_layer::{
             surreal_covering::SurrealCovering,
             surreal_item::{ItemType, SurrealItemBuilder},
@@ -457,7 +479,7 @@ mod tests {
         let to_dos = items.filter_just_actions();
         let next_step_nodes = to_dos
             .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &active_items))
-            .filter(|x| x.get_smaller().is_empty())
+            .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 
         assert_eq!(next_step_nodes.len(), 1);
