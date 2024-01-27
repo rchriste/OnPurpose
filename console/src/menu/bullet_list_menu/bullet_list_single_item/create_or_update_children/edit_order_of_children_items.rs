@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     display::display_item::DisplayItem, menu::select_higher_priority_than_this::HigherPriorityThan,
-    node::item_node::ItemNode, surrealdb_layer::DataLayerCommands,
+    node::{item_node::ItemNode, Filter}, surrealdb_layer::DataLayerCommands,
 };
 
 enum EditOrderOfChildren<'e> {
@@ -33,11 +33,10 @@ pub(crate) async fn edit_order_of_children_items(
     item_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let smaller = item_node.get_smaller();
+    let smaller = item_node.get_smaller(Filter::Active);
     let list = chain!(
         once(EditOrderOfChildren::Done),
         smaller
-            .iter()
             .map(|item_node| EditOrderOfChildren::Item(DisplayItem::new(item_node.get_item())))
     )
     .collect::<Vec<_>>();
@@ -45,8 +44,7 @@ pub(crate) async fn edit_order_of_children_items(
     match selection {
         Ok(EditOrderOfChildren::Item(selection)) => {
             let selected_item = selection.get_item();
-            let items = smaller
-                .iter()
+            let items = item_node.get_smaller(Filter::Active)
                 .map(|x| x.get_item())
                 //Don't include the item that was selected
                 .filter(|x| *x != selected_item)

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{node::item_node::ItemNode, surrealdb_layer::surreal_item::Staging};
+use crate::{node::{item_node::ItemNode, Filter}, surrealdb_layer::surreal_item::Staging};
 
 use super::display_item::DisplayItem;
 
@@ -24,7 +24,7 @@ impl Display for DisplayItemNode<'_> {
 
         if self.item_node.is_person_or_group() {
             write!(f, "Is {} around?", display_item)?;
-        } else if self.item_node.is_goal() && self.item_node.get_smaller().is_empty() {
+        } else if self.item_node.is_goal() && !self.item_node.has_children(Filter::Active) {
             write!(f, "[NEEDS NEXT STEP] ⬅ {}", display_item)?;
         } else {
             write!(f, "{} ", display_item)?;

@@ -36,7 +36,7 @@ use crate::{
         update_item_summary::update_item_summary,
     },
     new_item,
-    node::{item_node::ItemNode, item_status::ItemStatus},
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
     surrealdb_layer::{
         surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, Staging},
         surreal_tables::SurrealTables,
@@ -151,11 +151,11 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();
-        let has_no_parent = item_node.has_larger();
+        let has_no_parent = item_node.has_larger(Filter::Active);
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
-        let has_active_children = item_node.has_active_children();
+        let has_active_children = item_node.has_children(Filter::Active);
 
         if (is_type_action) && has_no_parent {
             list.push(Self::ParentToAGoalOrMotivation);
@@ -515,7 +515,7 @@ async fn finish_bullet_item(
 
     let list = FinishSelection::make_list(
         &finish_this
-            .get_larger()
+            .get_larger(Filter::Active)
             .map(|x| x.get_item())
             .collect::<Vec<_>>(),
         finish_this.get_item(),
@@ -713,10 +713,9 @@ async fn parent_to_item(
     match selection {
         Ok(display_item) => {
             let item_node: &ItemNode = display_item.get_item_node();
-            let higher_priority_than_this = if item_node.has_active_children() {
+            let higher_priority_than_this = if item_node.has_children(Filter::Active) {
                 let items = item_node
-                    .get_smaller()
-                    .iter()
+                    .get_smaller(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
                 select_higher_priority_than_this(&items)

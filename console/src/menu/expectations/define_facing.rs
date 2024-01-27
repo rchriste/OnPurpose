@@ -12,7 +12,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
         select_person_or_group::select_person_or_group,
     },
-    node::item_node::ItemNode,
+    node::{item_node::ItemNode, Filter},
     surrealdb_layer::{
         surreal_item::{Facing, HowWellDefined},
         DataLayerCommands,
@@ -43,7 +43,7 @@ pub(crate) async fn define_facing(
 
         let item_nodes = item_nodes
             .iter()
-            .filter(|x| !x.has_larger() && x.is_facing_undefined())
+            .filter(|x| !x.has_larger(Filter::Active) && x.is_facing_undefined())
             .collect::<Vec<_>>();
 
         let display_item_nodes = item_nodes
