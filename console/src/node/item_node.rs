@@ -101,8 +101,8 @@ impl<'s> ItemNode<'s> {
         !self.larger.is_empty()
     }
 
-    pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
-        &self.larger
+    pub(crate) fn get_larger(&self) -> impl Iterator<Item = &GrowingItemNode> {
+        self.larger.iter()
     }
 
     pub(crate) fn get_type(&self) -> &ItemType {
@@ -112,7 +112,7 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn is_type_action(&self) -> bool {
         if self.item.get_type() == &ItemType::Undeclared {
             //Look to parents for a setting
-            self.get_larger().iter().any(|x| x.is_type_action())
+            self.get_larger().any(|x| x.is_type_action())
         } else {
             //Value is set so use it
             self.item.is_type_action()
@@ -150,7 +150,7 @@ impl<'s> ItemNode<'s> {
         let is_staging_not_set = self.item.is_staging_not_set();
         if is_staging_not_set {
             //This type can be inferred from the parent so check that first
-            !self.get_larger().iter().any(|x| !x.is_staging_not_set())
+            !self.get_larger().any(|x| !x.is_staging_not_set())
         } else {
             is_staging_not_set
         }
@@ -160,7 +160,7 @@ impl<'s> ItemNode<'s> {
         let staging = self.item.get_staging();
         if staging == &Staging::NotSet {
             //This type can be inferred from the parent so check that first
-            for parent in self.get_larger().iter() {
+            for parent in self.get_larger() {
                 let staging = parent.get_staging();
                 if staging != &Staging::NotSet {
                     return staging;

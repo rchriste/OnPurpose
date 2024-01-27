@@ -29,7 +29,7 @@ impl BulletList {
                     .filter(|x| x.get_smaller().is_empty())
                     //Person or group items without a parent, meaning a reason for being on the list,
                     // should be filtered out.
-                    .filter(|x| !x.is_person_or_group() || !x.get_larger().is_empty())
+                    .filter(|x| !x.is_person_or_group() || !x.has_larger())
                     .cloned()
                     .collect::<Vec<_>>();
 

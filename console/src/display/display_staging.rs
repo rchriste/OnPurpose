@@ -20,13 +20,13 @@ impl Display for DisplayStaging<'_> {
             Staging::Released => write!(f, "Released"),
             Staging::MentallyResident { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
-                let lap: Duration = lap.clone().into();
+                let lap: Duration = (*lap).into();
                 let lap = DisplayDuration::new(&lap);
                 write!(f, "MentallyResident: enter_list: {enter_list}, lap: {lap}",)
             }
             Staging::OnDeck { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
-                let lap: Duration = lap.clone().into();
+                let lap: Duration = (*lap).into();
                 let lap = DisplayDuration::new(&lap);
                 write!(f, "OnDeck: enter_list: {enter_list}, lap: {lap}",)
             }

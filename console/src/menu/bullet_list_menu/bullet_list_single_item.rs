@@ -151,7 +151,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();
-        let has_no_parent = item_node.get_larger().is_empty();
+        let has_no_parent = item_node.has_larger();
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
@@ -516,7 +516,6 @@ async fn finish_bullet_item(
     let list = FinishSelection::make_list(
         &finish_this
             .get_larger()
-            .iter()
             .map(|x| x.get_item())
             .collect::<Vec<_>>(),
         finish_this.get_item(),

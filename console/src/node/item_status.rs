@@ -99,7 +99,11 @@ impl<'s> ItemStatus<'s> {
         self.item_node.get_surreal_record_id()
     }
 
-    pub(crate) fn get_larger(&'s self) -> &[GrowingItemNode<'s>] {
+    pub(crate) fn has_larger(&self) -> bool {
+        self.item_node.has_larger()
+    }
+
+    pub(crate) fn get_larger(&'s self) -> impl Iterator<Item = &GrowingItemNode<'s>> {
         self.item_node.get_larger()
     }
 }
@@ -115,7 +119,7 @@ fn calculate_lap_count(
             match enter_list {
                 EnterListReason::DateTime(enter_time) => {
                     let enter_time: DateTime<Utc> = enter_time.clone().into();
-                    let lap: Duration = lap.clone().into();
+                    let lap: Duration = (*lap).into();
                     let elapsed = current_date_time.sub(enter_time);
                     let elapsed = elapsed.num_seconds() as f32;
                     let lap = lap.as_secs_f32();
@@ -130,7 +134,6 @@ fn calculate_lap_count(
                     }
                     let all_larger = item_node.get_larger();
                     let all_larger = all_larger
-                        .iter()
                         .map(|x| x.get_node(all_nodes))
                         .collect::<Vec<_>>();
                     let mut all_larger_iter = all_larger.iter();
@@ -200,7 +203,6 @@ fn calculate_is_snoozed(
                     }
                     let all_larger = item_node.get_larger();
                     let all_larger = all_larger
-                        .iter()
                         .map(|x| x.get_node(all_nodes))
                         .collect::<Vec<_>>();
                     let mut all_larger_iter = all_larger.iter();
