@@ -530,9 +530,10 @@ async fn finish_bullet_item(
                 .unwrap();
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-            let items = base_data.get_active_items();
+            let items = base_data.get_items();
+            let active_items = base_data.get_active_items();
             let parent_surreal_record_id = parent.get_surreal_record_id();
-            let updated_parent = items
+            let updated_parent = active_items
                 .iter()
                 .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .map(|x| {
@@ -695,8 +696,9 @@ async fn parent_to_item(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(raw_data, now);
-    let items = base_data.get_active_items();
-    let item_nodes = items
+    let items = base_data.get_items();
+    let active_items = base_data.get_active_items();
+    let item_nodes = active_items
         .iter()
         .map(|x| {
             ItemNode::new(

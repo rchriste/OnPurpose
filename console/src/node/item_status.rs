@@ -46,6 +46,10 @@ impl<'s> ItemStatus<'s> {
         self.is_snoozed
     }
 
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item_node.is_finished()
+    }
+
     pub(crate) fn is_first_lap_finished(&self) -> bool {
         self.get_lap_count() > 1.0
     }

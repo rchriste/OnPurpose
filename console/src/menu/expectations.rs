@@ -85,7 +85,7 @@ pub(crate) fn create_hope_nodes<'a>(
     hopes: &[&'a Item<'a>],
     coverings: &'a [Covering<'a>],
     snoozed: &'a [&'a CoveringUntilDateTime<'a>],
-    all_items: &'a [&Item<'_>],
+    all_items: &'a [Item<'_>],
 ) -> Vec<ItemNode<'a>> {
     hopes
         .iter()
@@ -169,6 +169,7 @@ pub(crate) async fn view_mentally_resident_project_goals(
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
     let active_snoozes = base_data.get_active_snoozed();
@@ -180,8 +181,7 @@ pub(crate) async fn view_mentally_resident_project_goals(
                 && (x.is_mentally_resident() || x.is_staging_not_set())
         })
         .collect::<Vec<_>>();
-    let hope_nodes: Vec<ItemNode> =
-        create_hope_nodes(&hopes, coverings, active_snoozes, active_items);
+    let hope_nodes: Vec<ItemNode> = create_hope_nodes(&hopes, coverings, active_snoozes, all_items);
 
     let inquire_list = ProjectHopeItem::create_list(&hope_nodes);
 
@@ -251,6 +251,7 @@ pub(crate) async fn view_maintenance_hopes(
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let coverings = base_data.get_coverings();
     let active_snoozes = base_data.get_active_snoozed();
@@ -259,7 +260,7 @@ pub(crate) async fn view_maintenance_hopes(
         .filter_just_goals()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();
-    let hope_nodes = create_hope_nodes(&hopes, coverings, active_snoozes, active_items)
+    let hope_nodes = create_hope_nodes(&hopes, coverings, active_snoozes, all_items)
         .into_iter()
         .filter(|x| x.is_maintenance())
         .collect::<Vec<_>>();

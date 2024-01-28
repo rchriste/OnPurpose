@@ -28,6 +28,7 @@ pub(crate) async fn parent_to_a_motivation(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let items = active_items
         .filter_just_motivations()
@@ -36,7 +37,7 @@ pub(crate) async fn parent_to_a_motivation(
                 x,
                 base_data.get_coverings(),
                 base_data.get_active_snoozed(),
-                active_items,
+                all_items,
             )
         })
         .collect::<Vec<_>>();
@@ -81,6 +82,7 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let mut list = active_items
         .iter()
@@ -90,7 +92,7 @@ pub(crate) async fn parent_to_a_goal_or_motivation(
                 item,
                 base_data.get_coverings(),
                 base_data.get_active_snoozed(),
-                active_items,
+                all_items,
             )
         })
         //Collect the ItemNodes because they need a place to be so they don't go out of scope as DisplayItemNode

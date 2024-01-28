@@ -273,7 +273,7 @@ impl<'b> Item<'b> {
     pub(crate) fn covered_by(
         &'b self,
         coverings: &'b [Covering<'b>],
-        all_items: &'b [&Item<'b>],
+        all_items: &'b [Item<'b>],
     ) -> impl Iterator<Item = &'b Item<'b>> + 'b {
         chain!(
             coverings.iter().filter_map(move |x| {
@@ -289,7 +289,6 @@ impl<'b> Item<'b> {
                 .filter_map(|x| match x {
                     SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
                         .iter()
-                        .copied()
                         .find(|x| x.id == surreal_item_id && !x.is_finished()),
                     SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
                 })
@@ -371,7 +370,7 @@ impl<'b> Item<'b> {
     pub(crate) fn is_covered_by_a_goal(
         &self,
         coverings: &[Covering<'_>],
-        all_items: &[&Item<'_>],
+        all_items: &[Item<'_>],
     ) -> bool {
         self.covered_by(coverings, all_items)
             .any(|x| x.is_type_goal() && !x.is_finished())
@@ -390,7 +389,7 @@ impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
         linkage: &'a [Covering<'a>],
-        other_items: &'a [&'a Item<'a>],
+        other_items: &'a [Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
         chain!(
@@ -401,12 +400,8 @@ impl Item<'_> {
                     None
                 }
             }),
-            other_items.iter().filter_map(|other_item| {
-                if other_item.is_this_a_smaller_item(self) && !visited.contains(other_item) {
-                    Some(*other_item)
-                } else {
-                    None
-                }
+            other_items.iter().filter(|other_item| {
+                other_item.is_this_a_smaller_item(self) && !visited.contains(other_item)
             })
         )
         .collect()
@@ -415,7 +410,7 @@ impl Item<'_> {
     pub(crate) fn find_children<'a>(
         &self,
         linkage: &'a [Covering<'a>],
-        other_items: &'a [&'a Item<'a>],
+        other_items: &'a [Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
         chain!(
@@ -425,8 +420,7 @@ impl Item<'_> {
                 .filter_map(|x| match x {
                     SurrealOrderedSubItem::SubItem { surreal_item_id } => other_items
                         .iter()
-                        .find(|x| x.id == surreal_item_id && !visited.contains(x))
-                        .copied(),
+                        .find(|x| x.id == surreal_item_id && !visited.contains(x)),
                     SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
                 }),
             linkage.iter().filter_map(|x| {
@@ -523,7 +517,7 @@ mod tests {
             .find(|x| smaller_item.id.as_ref().unwrap() == x.id)
             .unwrap();
         let visited = vec![];
-        let find_results = smaller_item.find_parents(&coverings, &active_items, &visited);
+        let find_results = smaller_item.find_parents(&coverings, &items, &visited);
 
         assert_eq!(find_results.len(), 1);
         assert_eq!(
@@ -595,7 +589,7 @@ mod tests {
             .unwrap();
 
         let covered_by = under_test_parent_item
-            .covered_by(&coverings, &active_items)
+            .covered_by(&coverings, &items)
             .collect::<Vec<_>>();
 
         assert_eq!(covered_by.len(), 1);

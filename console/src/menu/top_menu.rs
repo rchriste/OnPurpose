@@ -143,6 +143,7 @@ async fn debug_view_all_items(
 
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let covering = base_data.get_coverings();
     let covering_until_date_time = base_data.get_coverings_until_date_time();
@@ -150,7 +151,7 @@ async fn debug_view_all_items(
 
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, active_items))
+        .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, all_items))
         .collect::<Vec<_>>();
 
     let item_nodes = item_nodes.iter().collect::<Vec<_>>();

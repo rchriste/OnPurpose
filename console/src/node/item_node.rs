@@ -34,7 +34,7 @@ impl<'s> ItemNode<'s> {
         item: &'s Item<'s>,
         coverings: &'s [Covering<'s>],
         snoozed: &'s [&'s CoveringUntilDateTime<'s>],
-        all_items: &'s [&'s Item<'s>],
+        all_items: &'s [Item<'s>],
     ) -> Self {
         let visited = vec![];
         let parents = item.find_parents(coverings, all_items, &visited);
@@ -63,6 +63,10 @@ impl<'s> ItemNode<'s> {
             snoozed_until,
             facing,
         }
+    }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item.is_finished()
     }
 
     pub(crate) fn create_parent_chain(&'s self) -> Vec<&'s Item<'s>> {
@@ -297,7 +301,7 @@ impl<'s> GrowingItemNode<'s> {
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     coverings: &'a [Covering<'a>],
-    possible_parents: &'a [&'a Item<'a>],
+    possible_parents: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> Vec<GrowingItemNode<'a>> {
     items
@@ -324,7 +328,7 @@ pub(crate) fn create_growing_nodes<'a>(
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
     coverings: &'a [Covering<'a>],
-    all_items: &'a [&'a Item<'a>],
+    all_items: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(coverings, all_items, &visited);
@@ -377,7 +381,7 @@ impl<'s> ShrinkingItemNode<'s> {
 pub(crate) fn create_shrinking_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     coverings: &'a [Covering<'a>],
-    possible_children: &'a [&'a Item<'a>],
+    possible_children: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> Vec<ShrinkingItemNode<'a>> {
     items
@@ -401,7 +405,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
 pub(crate) fn create_shrinking_node<'a>(
     item: &'a Item<'a>,
     coverings: &'a [Covering<'a>],
-    all_items: &'a [&'a Item<'a>],
+    all_items: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> ShrinkingItemNode<'a> {
     let children = item.find_children(coverings, all_items, &visited);
@@ -478,7 +482,7 @@ mod tests {
 
         let to_dos = items.filter_just_actions();
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &active_items))
+            .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &items))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 

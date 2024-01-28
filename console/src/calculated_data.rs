@@ -24,13 +24,11 @@ impl CalculatedData {
         CalculatedDataBuilder {
             base_data,
             item_status_builder: |base_data| {
-                let active_items = base_data.get_active_items();
+                let all_items = base_data.get_items();
                 let active_snoozed = base_data.get_active_snoozed();
-                let all_item_nodes = active_items
+                let all_item_nodes = all_items
                     .iter()
-                    .map(|x| {
-                        ItemNode::new(x, base_data.get_coverings(), active_snoozed, active_items)
-                    })
+                    .map(|x| ItemNode::new(x, base_data.get_coverings(), active_snoozed, all_items))
                     .collect::<Vec<_>>();
 
                 all_item_nodes

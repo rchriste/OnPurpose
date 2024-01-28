@@ -27,6 +27,7 @@ impl BulletList {
                     .get_item_status()
                     .iter()
                     .filter(|x| !x.has_children(Filter::Active))
+                    .filter(|x| !x.is_finished())
                     //Person or group items without a parent, meaning a reason for being on the list,
                     // should be filtered out.
                     .filter(|x| !x.is_person_or_group() || !x.has_larger(Filter::Active))
