@@ -143,45 +143,51 @@ fn calculate_lap_count(
                     review_after,
                 } => {
                     if current_date_time < earliest {
-                        return 0.0;
-                    }
-                    let all_larger = item_node.get_larger(Filter::All);
-                    let all_larger = all_larger
-                        .map(|x| x.get_node(all_nodes))
-                        .collect::<Vec<_>>();
-                    let mut all_larger_iter = all_larger.iter();
-                    let (highest_uncovered, uncovered_when) = loop {
-                        let larger = all_larger_iter.next();
-                        match larger {
-                            Some(larger) => {
-                                let (highest_uncovered, uncovered_when) =
-                                    find_highest_uncovered_child_with_when_uncovered(
-                                        larger,
-                                        current_date_time,
-                                    );
-                                if let Some(highest_uncovered) = highest_uncovered {
-                                    break (Some(highest_uncovered), uncovered_when);
+                        0.0
+                    } else if current_date_time > review_after {
+                        let enter_time: DateTime<Utc> = review_after.clone().into();
+                        let lap: Duration = (*lap).into();
+                        let elapsed = current_date_time.sub(enter_time);
+                        let elapsed = elapsed.num_seconds() as f32;
+                        let lap = lap.as_secs_f32();
+                        elapsed / lap
+                    } else {
+                        let all_larger = item_node.get_larger(Filter::All);
+                        let all_larger = all_larger
+                            .map(|x| x.get_node(all_nodes))
+                            .collect::<Vec<_>>();
+                        let mut all_larger_iter = all_larger.iter();
+                        let (highest_uncovered, uncovered_when) = loop {
+                            let larger = all_larger_iter.next();
+                            match larger {
+                                Some(larger) => {
+                                    let (highest_uncovered, uncovered_when) =
+                                        find_highest_uncovered_child_with_when_uncovered(
+                                            larger,
+                                            current_date_time,
+                                        );
+                                    if let Some(highest_uncovered) = highest_uncovered {
+                                        break (Some(highest_uncovered), uncovered_when);
+                                    }
+                                }
+                                None => break (None, None),
+                            }
+                        };
+                        match highest_uncovered {
+                            Some(highest_uncovered) => {
+                                if highest_uncovered == item_node.get_item() {
+                                    let uncovered_when: DateTime<Utc> =
+                                        uncovered_when.unwrap_or_else(|| earliest.clone().into());
+                                    let elapsed = current_date_time.sub(uncovered_when);
+                                    let elapsed = elapsed.num_seconds() as f32;
+                                    let lap = lap.as_secs_f32();
+                                    elapsed / lap
+                                } else {
+                                    0.0
                                 }
                             }
-                            None => break (None, None),
+                            None => 0.0,
                         }
-                    };
-                    match highest_uncovered {
-                        Some(highest_uncovered) => {
-                            if highest_uncovered == item_node.get_item() {
-                                let uncovered_when: DateTime<Utc> = match uncovered_when {
-                                    Some(_) => todo!(),
-                                    None => earliest.clone().into(),
-                                };
-                                let elapsed = current_date_time.sub(uncovered_when);
-                                let elapsed = elapsed.num_seconds() as f32;
-                                let lap = lap.as_secs_f32();
-                                elapsed / lap
-                            } else {
-                                0.0
-                            }
-                        }
-                        None => 0.0,
                     }
                 }
             }
@@ -213,38 +219,41 @@ fn calculate_is_snoozed(
                 } => {
                     if now < earliest {
                         return true;
-                    }
-                    let active_larger = item_node.get_larger(Filter::Active);
-                    let active_larger = active_larger
-                        .map(|x| x.get_node(all_nodes))
-                        .collect::<Vec<_>>();
-                    let mut active_larger_iter = active_larger.iter();
-                    let (highest_uncovered, uncovered_when) = loop {
-                        let larger = active_larger_iter.next();
-                        match larger {
-                            Some(larger) => {
-                                let (highest_uncovered, uncovered_when) =
-                                    find_highest_uncovered_child_with_when_uncovered(larger, now);
-                                if let Some(highest_uncovered) = highest_uncovered {
-                                    break (Some(highest_uncovered), uncovered_when);
+                    } else if now > review_after {
+                        return false;
+                    } else {
+                        let active_larger = item_node.get_larger(Filter::Active);
+                        let active_larger = active_larger
+                            .map(|x| x.get_node(all_nodes))
+                            .collect::<Vec<_>>();
+                        let mut active_larger_iter = active_larger.iter();
+                        let (highest_uncovered, uncovered_when) = loop {
+                            let larger = active_larger_iter.next();
+                            match larger {
+                                Some(larger) => {
+                                    let (highest_uncovered, uncovered_when) =
+                                        find_highest_uncovered_child_with_when_uncovered(
+                                            larger, now,
+                                        );
+                                    if let Some(highest_uncovered) = highest_uncovered {
+                                        break (Some(highest_uncovered), uncovered_when);
+                                    }
+                                }
+                                None => break (None, None),
+                            }
+                        };
+                        match highest_uncovered {
+                            Some(highest_uncovered) => {
+                                if highest_uncovered == item_node.get_item() {
+                                    let uncovered_when: DateTime<Utc> =
+                                        uncovered_when.unwrap_or_else(|| earliest.clone().into());
+                                    false
+                                } else {
+                                    true
                                 }
                             }
-                            None => break (None, None),
+                            None => true,
                         }
-                    };
-                    match highest_uncovered {
-                        Some(highest_uncovered) => {
-                            if highest_uncovered == item_node.get_item() {
-                                let uncovered_when: DateTime<Utc> = match uncovered_when {
-                                    Some(_) => todo!(),
-                                    None => earliest.clone().into(),
-                                };
-                                false
-                            } else {
-                                true
-                            }
-                        }
-                        None => true,
                     }
                 }
             }
@@ -652,7 +661,7 @@ mod tests {
                             )),
                             review_after: Datetime(DateTime::from(
                                 Utc::now()
-                                    .checked_add_days(Days::new(1))
+                                    .checked_add_days(Days::new(2))
                                     .expect("Far from overflowing"),
                             )),
                         },
@@ -722,9 +731,107 @@ mod tests {
         todo!("test case todo")
     }
 
-    #[test]
-    fn parent_node_with_2_children_highest_one_mentally_resident_lower_item_after_review_by_date_it_should_show_up_as_needing_review(
+    #[tokio::test]
+    async fn parent_node_with_2_children_highest_one_mentally_resident_lower_item_after_review_by_date_it_should_show_up_as_needing_review(
     ) {
-        todo!("test case todo")
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Higher Child That Should Become Ready")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Show Up As Needing Review")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(2))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let higher_child = item_status
+            .iter()
+            .find(|x| x.get_item().get_summary() == "Higher Child That Should Become Ready")
+            .unwrap();
+
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary() == "Lower Child That Should Show Up As Needing Review"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(higher_child.is_snoozed(), false);
+        assert!(higher_child.get_lap_count() > 0.0);
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(lower_child.get_lap_count() > 0.0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
     }
 }
