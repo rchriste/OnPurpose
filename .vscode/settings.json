@@ -1,6 +1,7 @@
 {
     "terminal.integrated.experimentalImageSupport": true,
     "cSpell.words": [
+        "ADHD",
         "binutils",
         "chrono",
         "Datelike",
@@ -20,6 +21,7 @@
         "powf",
         "prioritizations",
         "protobuf",
+        "reimagined",
         "rocksdb",
         "rustflags",
         "serde",

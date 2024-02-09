@@ -1,6 +1,27 @@
 # Why On Purpose?
 
-_On Purpose_ is a to do application meant to greatly improve my mental health. It is a research project and a hobby. The objective is to let go of a user experience that can largely be implemented in a day planner, a spreadsheet, or simple queries to a database and really rethink or re-imagine the user experience to be closer to how our minds operate and closer to how we in reality actually do work today to pick what to work on and successfully get things done.
+_On Purpose_ is a an open source program that I, Russ Christensen, wrote to help me track to do items and dynamically schedule my day. It is meant to be the go to program when choosing what to do next. It is meant to be in that habit loop.
+
+I believe _On Purpose_ is innovative and unique and I say this even though there is already an almost endless number of existing to do apps. _On Purpose_ is meant to be a reimagined and rethought to do experience that is tailored to the needs to the neurodiverse and specifically for those who like me have high functioning autism & ADHD.
+
+If you are thinking about using _On Purpose_ for yourself then first that is awesome and second I want to make you aware that this is a hobby project that I work on as I am able. What this means is that making progress takes time. Over the course of years I expect to make significant progress but otherwise things are slow going. I am going to share some of the long term vision for On Purpose and then cover what is currently implemented.
+
+## Long Term Vision
+
+_On Purpose_ should help me find balance between my many different commitments, it should help me remember to return to things, and it should help me recall and reflect on the things I have done. _On Purpose_ should be designed to be low friction. It should be an easy reference to decide what to do now, log what is being done, and it should be convenient to quickly record things to do later. To make this happen _On Purpose_ should be available on the Desktop, the phone, and the watch. Furthermore it should be possible to record things through speaking and pictures in addition to keyboard and touchscreen input. AI should be leveraged to reduce the fatigue of repeated data entry and provide a conversational user experience. _On Purpose_ should integrate with other programs that are a potential source of things to do or something to wait on.
+
+The core purpose of _On Purpose_ is to be that of a scheduler that helps you decide what to do and helps you make decisions on purpose. _On Purpose_ should take into account what has already been done and how much time has been spent on something as a way to schedule what to do next as a way to help find balance. This should not just be tracking time but more about only inputting data when you are logging that you did something and then really using this to make that decision and to figure out how much work something is. It should help you cycle through your various commitments. It also accounts for what is mentally resident along with the normal stuff of needing certain things to be true in order to work on something. It should account for priority along with mental health reasons for being able to focus on something or not. It should help you find balance between your many different commitments and needs. Not a perfect decision but something that you can live with.
+
+On Purpose should help you track your to do items, your relaxation items, and your perishable items. Rather than going to YouTube or a video game console to pick what to do you should be able to use _On Purpose_ which helps you remember and recall all of the various things that you might want to do to take a break and relax but do so in a way that helps you still feel productive. It should also help you remember to use up food items before they perish when you buy things.
+
+-Reflection & Journalling
+-What is upcoming, minimize surprises
+
+## What is implemented now
+
+## Previous Write-up
+
+to do application meant to greatly improve my mental health. It is a research project and a hobby. The objective is to let go of a user experience that can largely be implemented in a day planner, a spreadsheet, or simple queries to a database and really rethink or re-imagine the user experience to be closer to how our minds operate and closer to how we in reality actually do work today to pick what to work on and successfully get things done.
 
 I am creating _On Purpose_ because I am neurodiverse and operating in this "natural" and "expected" way is a huge problem for me. When there is a crises going on I can rise to the challenge, and crises from time to time is unavoidable, but the idea that I need a crises to truly perform at my peak is an idea that is bad for my mental health and it does not promote a balanced life. I call this _On Purpose_ because the goal is to do software that helps me make better decisions so I can get things done while still doing the non-hyper focus things of being responsive, aware, and generally maintaining the things I am expected to do while not being overwhelmed from my ability to service and make progress on the things that matter most.
 

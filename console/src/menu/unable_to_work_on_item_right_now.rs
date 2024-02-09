@@ -79,7 +79,8 @@ pub(crate) async fn unable_to_work_on_item_right_now(
             todo!()
         }
         Err(InquireError::OperationCanceled) => {
-            todo!("I put in this todo because back at the time I would need to adjust some calling parameters to make this work")
+            //Just continue because I get called from multiple places and this will allow things to return to the base bullet list
+            Ok(())
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
