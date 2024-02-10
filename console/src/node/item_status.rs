@@ -602,12 +602,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn parent_node_with_2_children_highest_one_on_deck_lower_child_configured_for_highest_uncovered_it_should_not_be_ready(
-    ) {
-        todo!("This test is probably not needed")
-    }
-
-    #[tokio::test]
     async fn parent_node_with_2_children_highest_one_finished_lower_child_configured_for_highest_uncovered_it_should_be_ready_when_the_other_item_is_finished(
     ) {
         // Arrange
