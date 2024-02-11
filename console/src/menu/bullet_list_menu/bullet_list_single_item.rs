@@ -507,9 +507,10 @@ async fn finish_bullet_item(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     send_to_data_storage_layer
-        .send(DataLayerCommands::FinishItem(
-            finish_this.get_surreal_record_id().clone(),
-        ))
+        .send(DataLayerCommands::FinishItem {
+            item: finish_this.get_surreal_record_id().clone(),
+            when_finished: (*current_date_time).into(),
+        })
         .await
         .unwrap();
 
@@ -652,7 +653,10 @@ async fn process_and_finish_bullet_item(
     }
 
     send_to_data_storage_layer
-        .send(DataLayerCommands::FinishItem(surreal_item.clone()))
+        .send(DataLayerCommands::FinishItem {
+            item: surreal_item.clone(),
+            when_finished: Utc::now().into(),
+        })
         .await
         .unwrap();
 
@@ -1108,9 +1112,10 @@ pub(crate) async fn present_is_person_or_group_around_menu(
     match selection {
         Ok(IsAPersonOrGroupAroundSelection::Yes) => {
             send_to_data_storage_layer
-                .send(DataLayerCommands::FinishItem(
-                    person_or_group_node.get_surreal_record_id().clone(),
-                ))
+                .send(DataLayerCommands::FinishItem {
+                    item: person_or_group_node.get_surreal_record_id().clone(),
+                    when_finished: Utc::now().into(),
+                })
                 .await
                 .unwrap();
             Ok(())

@@ -11,7 +11,7 @@ use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     opt::RecordId,
-    sql::Thing,
+    sql::{Datetime, Thing},
     Surreal,
 };
 use surrealdb_extra::table::{Table, TableError};
@@ -40,7 +40,10 @@ pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
     SendProcessedText(RecordId, oneshot::Sender<Vec<SurrealProcessedText>>),
     AddProcessedText(String, RecordId),
-    FinishItem(RecordId),
+    FinishItem {
+        item: RecordId,
+        when_finished: Datetime,
+    },
     NewItem(NewItem),
     CoverItemWithANewItem {
         cover_this: RecordId,
@@ -125,7 +128,10 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::SendProcessedText(for_item, send_response_here)) => {
                 send_processed_text(for_item, send_response_here, &db).await
             }
-            Some(DataLayerCommands::FinishItem(item)) => finish_item(item, &db).await,
+            Some(DataLayerCommands::FinishItem {
+                item,
+                when_finished,
+            }) => finish_item(item, when_finished, &db).await,
             Some(DataLayerCommands::NewItem(new_item)) => {
                 super::surrealdb_layer::new_item(new_item, &db).await;
             }
@@ -311,12 +317,12 @@ pub(crate) async fn send_processed_text(
     send_response_here.send(processed_text).unwrap();
 }
 
-pub(crate) async fn finish_item(finish_this: RecordId, db: &Surreal<Any>) {
+pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, db: &Surreal<Any>) {
     let mut finish_this = SurrealItem::get_by_id(db, finish_this.id.to_raw())
         .await
         .unwrap()
         .unwrap();
-    finish_this.finished = Some(Local::now().naive_utc().and_utc().into());
+    finish_this.finished = Some(when_finished);
     finish_this.update(db).await.unwrap();
 }
 
@@ -655,10 +661,12 @@ mod tests {
         assert_eq!(next_step_item.is_finished(), false);
         assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
+        let when_finished = Utc::now();
         sender
-            .send(DataLayerCommands::FinishItem(
-                next_step_item.get_id().clone().into(),
-            ))
+            .send(DataLayerCommands::FinishItem {
+                item: next_step_item.get_id().clone().into(),
+                when_finished: when_finished.into(),
+            })
             .await
             .unwrap();
 
@@ -668,6 +676,7 @@ mod tests {
         assert_eq!(items.len(), 1);
         let next_step_item = items.first().unwrap();
         assert_eq!(next_step_item.is_finished(), true);
+        assert_eq!(next_step_item.when_finished(), Some(when_finished));
         assert_eq!(surreal_tables.surreal_coverings.len(), 0);
 
         drop(sender);

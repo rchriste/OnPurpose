@@ -409,7 +409,10 @@ async fn process_and_finish_goal(
     }
 
     send_to_data_storage_layer
-        .send(DataLayerCommands::FinishItem(surreal_item.clone()))
+        .send(DataLayerCommands::FinishItem {
+            item: surreal_item.clone(),
+            when_finished: Utc::now().into(),
+        })
         .await
         .unwrap();
 

@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.166"
+version = "0.0.167"
 edition = "2021"
 
 [build]
@@ -10,7 +10,8 @@ rustflags = ["-Z", "threads=8"]
 inquire = { version = "0.6.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
 tokio = { version = "1.32.0", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
-surrealdb = { version = "1.1.1", features = ["kv-mem", "kv-rocksdb"] } #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
+#Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
+surrealdb = { version = "1.1.1", features = ["kv-mem", "kv-rocksdb"] } 
 surrealdb_extra = "0.8.0" #Added because I think using this for table definitions might save me time
 serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.31"
@@ -19,7 +20,8 @@ duration-str = "0.7.0" #So I can parse the amount of time to wait
 parse_datetime = "0.5.0" #So I can parse when to expect something to be available
 dateparser = "0.2.0"
 itertools = "0.12.0"
-ouroboros = "0.18.0" #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
+ #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
+ouroboros = "0.18.0"
 derive_builder = "0.13.0"
 better_term = "1.4.1" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
 

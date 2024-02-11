@@ -26,7 +26,7 @@ impl BulletList {
                 let mut all_leaf_status_nodes = calculated_data
                     .get_item_status()
                     .iter()
-                    .filter(|x| !x.has_children(Filter::Active))
+                    .filter(|x| !x.is_snoozed())
                     .filter(|x| !x.is_finished())
                     //Person or group items without a parent, meaning a reason for being on the list,
                     // should be filtered out.

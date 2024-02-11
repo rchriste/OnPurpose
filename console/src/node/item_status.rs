@@ -204,66 +204,70 @@ fn calculate_is_snoozed(
     all_nodes: &[ItemNode<'_>],
     now: &DateTime<Utc>,
 ) -> bool {
-    let staging = item_node.get_staging();
-    let snoozed_from_staging = match staging {
-        Staging::NotSet => false,
-        Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
-            match enter_list {
-                EnterListReason::DateTime(enter_list) => {
-                    let enter_list: DateTime<Utc> = enter_list.clone().into();
-                    &enter_list > now
-                }
-                EnterListReason::HighestUncovered {
-                    earliest,
-                    review_after,
-                } => {
-                    if now < earliest {
-                        return true;
-                    } else if now > review_after {
-                        return false;
-                    } else {
-                        let active_larger = item_node.get_larger(Filter::Active);
-                        let active_larger = active_larger
-                            .map(|x| x.get_node(all_nodes))
-                            .collect::<Vec<_>>();
-                        let mut active_larger_iter = active_larger.iter();
-                        let (highest_uncovered, uncovered_when) = loop {
-                            let larger = active_larger_iter.next();
-                            match larger {
-                                Some(larger) => {
-                                    let (highest_uncovered, uncovered_when) =
-                                        find_highest_uncovered_child_with_when_uncovered(
-                                            larger, now,
-                                        );
-                                    if let Some(highest_uncovered) = highest_uncovered {
-                                        break (Some(highest_uncovered), uncovered_when);
+    if item_node.has_children(Filter::Active) {
+        true
+    } else {
+        let staging = item_node.get_staging();
+        let snoozed_from_staging = match staging {
+            Staging::NotSet => false,
+            Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
+                match enter_list {
+                    EnterListReason::DateTime(enter_list) => {
+                        let enter_list: DateTime<Utc> = enter_list.clone().into();
+                        &enter_list > now
+                    }
+                    EnterListReason::HighestUncovered {
+                        earliest,
+                        review_after,
+                    } => {
+                        if now < earliest {
+                            return true;
+                        } else if now > review_after {
+                            return false;
+                        } else {
+                            let active_larger = item_node.get_larger(Filter::Active);
+                            let active_larger = active_larger
+                                .map(|x| x.get_node(all_nodes))
+                                .collect::<Vec<_>>();
+                            let mut active_larger_iter = active_larger.iter();
+                            let (highest_uncovered, uncovered_when) = loop {
+                                let larger = active_larger_iter.next();
+                                match larger {
+                                    Some(larger) => {
+                                        let (highest_uncovered, uncovered_when) =
+                                            find_highest_uncovered_child_with_when_uncovered(
+                                                larger, now,
+                                            );
+                                        if let Some(highest_uncovered) = highest_uncovered {
+                                            break (Some(highest_uncovered), uncovered_when);
+                                        }
+                                    }
+                                    None => break (None, None),
+                                }
+                            };
+                            match highest_uncovered {
+                                Some(highest_uncovered) => {
+                                    if highest_uncovered == item_node.get_item() {
+                                        let uncovered_when: DateTime<Utc> = uncovered_when
+                                            .unwrap_or_else(|| earliest.clone().into());
+                                        false
+                                    } else {
+                                        true
                                     }
                                 }
-                                None => break (None, None),
+                                None => true,
                             }
-                        };
-                        match highest_uncovered {
-                            Some(highest_uncovered) => {
-                                if highest_uncovered == item_node.get_item() {
-                                    let uncovered_when: DateTime<Utc> =
-                                        uncovered_when.unwrap_or_else(|| earliest.clone().into());
-                                    false
-                                } else {
-                                    true
-                                }
-                            }
-                            None => true,
                         }
                     }
                 }
             }
-        }
-        Staging::Planned => false,
-        Staging::ThinkingAbout => false,
-        Staging::Released => false,
-    };
+            Staging::Planned => false,
+            Staging::ThinkingAbout => false,
+            Staging::Released => false,
+        };
 
-    item_node.get_snoozed_until().iter().any(|x| x > &now) || snoozed_from_staging
+        item_node.get_snoozed_until().iter().any(|x| x > &now) || snoozed_from_staging
+    }
 }
 
 fn find_highest_uncovered_child_with_when_uncovered<'a>(
@@ -274,21 +278,18 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
     let mut when_uncovered = None;
     for child in item_node.get_smaller(Filter::All) {
         if child.is_finished() {
+            let when_child_finished = child.when_finished().expect("is_finished() is true");
             match when_uncovered {
-                Some(when_uncovered) => todo!(),
-                None => {
-                    let when_child_finished = child.when_finished().expect("is_finished() is true");
-                    match when_uncovered {
-                        Some(uncovered) => {
-                            if when_child_finished > uncovered {
-                                // We want the latest finished child
-                                when_uncovered = Some(when_child_finished)
-                            }
-                        }
-                        None => when_uncovered = Some(when_child_finished),
+                Some(uncovered) => {
+                    if when_child_finished > uncovered {
+                        // We want the latest finished child
+                        when_uncovered = Some(when_child_finished)
                     }
                 }
+                None => when_uncovered = Some(when_child_finished),
             }
+            continue;
+        } else if child.is_snoozed() {
             continue;
         }
         let staging = child.get_staging();
@@ -300,7 +301,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         if datetime < &now {
                             return (Some(child.get_item()), when_uncovered);
                         } else {
-                            todo!("Do I need to update latest_uncovered?");
+                            println!("Do I need to update latest_uncovered?");
                             continue;
                         }
                     }
@@ -309,7 +310,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         review_after: _review_after,
                     } => {
                         if earliest > &now {
-                            todo!("Do I need to update latest_uncovered? I think I can just remove this");
+                            println!("Do I need to update latest_uncovered? I think I can just remove this");
                             continue;
                         }
                         todo!();
@@ -321,7 +322,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     if datetime < &now {
                         return (Some(child.get_item()), when_uncovered);
                     } else {
-                        todo!("Do I need to update latest_uncovered?");
+                        println!("Do I need to update latest_uncovered?");
                         continue;
                     }
                 }
@@ -330,7 +331,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     review_after: _review_after,
                 } => {
                     if earliest > &now {
-                        todo!("Do I need to update latest_uncovered?");
+                        println!("Do I need to update latest_uncovered?");
                         continue;
                     } else {
                         return (Some(child.get_item()), when_uncovered);
@@ -678,9 +679,10 @@ mod tests {
             .find(|x| x.get_summary() == "Higher Child That Was On Deck But Becomes Finished")
             .unwrap();
         sender
-            .send(DataLayerCommands::FinishItem(
-                lower_child.get_surreal_record_id().clone(),
-            ))
+            .send(DataLayerCommands::FinishItem {
+                item: lower_child.get_surreal_record_id().clone(),
+                when_finished: now.into(),
+            })
             .await
             .unwrap();
 
@@ -719,10 +721,138 @@ mod tests {
         data_storage_join_handle.await.unwrap();
     }
 
-    #[test]
-    fn parent_node_with_2_children_highest_one_covered_and_lower_child_configured_for_highest_uncovered_it_should_be_ready_when_highest_became_covered(
+    #[tokio::test]
+    async fn parent_node_with_2_children_highest_one_covered_and_lower_child_configured_for_highest_uncovered_it_should_be_ready_when_highest_became_covered(
     ) {
-        todo!("test case todo")
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Higher Child That Is On Deck And Becomes Covered")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
+                            Utc::now()
+                                .checked_sub_days(Days::new(1))
+                                .expect("Far from overflowing"),
+                        ))),
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Be Ready When The Higher Child Is Covered")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(2))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let new_item = NewItem::new(
+            "Item that the higher child will be waiting on to finish first".into(),
+            Utc::now(),
+        );
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let wait_on = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Item that the higher child will be waiting on to finish first")
+            .unwrap();
+        let higher_child = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Higher Child That Is On Deck And Becomes Covered")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::CoverItemWithAnExistingItem {
+                item_to_be_covered: higher_child.id.as_ref().unwrap().clone(),
+                item_that_should_do_the_covering: wait_on.id.as_ref().unwrap().clone(),
+            })
+            .await
+            .unwrap();
+
+        let now = Utc::now();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let parent = item_status
+            .iter()
+            .find(|x| x.get_item().get_summary() == "New Parent Item")
+            .unwrap();
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary()
+                    == "Lower Child That Should Be Ready When The Higher Child Is Covered"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(parent.is_snoozed(), true);
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(
+            lower_child.get_lap_count() > 0.9,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+        assert!(
+            lower_child.get_lap_count() < 1.1,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
     }
 
     #[tokio::test]
@@ -824,6 +954,332 @@ mod tests {
         assert!(higher_child.get_lap_count() > 0.0);
         assert_eq!(lower_child.is_snoozed(), false);
         assert!(lower_child.get_lap_count() > 0.0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_node_with_3_children_two_finished_top_first_lap_count_starts_from_the_last_finished(
+    ) {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Highest Child That Finishes First")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Middle Child That Finishes Second")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Uncover When The Other Two Are Finished")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(3))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(3))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let highest_child = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Highest Child That Finishes First")
+            .unwrap();
+        sender
+            .send(DataLayerCommands::FinishItem {
+                item: highest_child.get_surreal_record_id().clone(),
+                when_finished: now
+                    .checked_sub_days(Days::new(2))
+                    .expect("Far from overflowing")
+                    .into(),
+            })
+            .await
+            .unwrap();
+        let middle_child = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Middle Child That Finishes Second")
+            .unwrap();
+        sender
+            .send(DataLayerCommands::FinishItem {
+                item: middle_child.get_surreal_record_id().clone(),
+                when_finished: now
+                    .checked_sub_days(Days::new(1))
+                    .expect("Far from overflowing")
+                    .into(),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary()
+                    == "Lower Child That Should Uncover When The Other Two Are Finished"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(
+            lower_child.get_lap_count() > 0.9,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+        assert!(
+            lower_child.get_lap_count() < 1.1,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_node_with_3_children_two_finished_middle_first_lap_count_starts_from_the_last_finished(
+    ) {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Highest Child That Finishes Second")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Middle Child That Finishes First")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Uncover When The Other Two Are Finished")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(3))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(3))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let highest_child = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Highest Child That Finishes Second")
+            .unwrap();
+        sender
+            .send(DataLayerCommands::FinishItem {
+                item: highest_child.get_surreal_record_id().clone(),
+                when_finished: now
+                    .checked_sub_days(Days::new(1))
+                    .expect("Far from overflowing")
+                    .into(),
+            })
+            .await
+            .unwrap();
+        let middle_child = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Middle Child That Finishes First")
+            .unwrap();
+        sender
+            .send(DataLayerCommands::FinishItem {
+                item: middle_child.get_surreal_record_id().clone(),
+                when_finished: now
+                    .checked_sub_days(Days::new(2))
+                    .expect("Far from overflowing")
+                    .into(),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary()
+                    == "Lower Child That Should Uncover When The Other Two Are Finished"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(
+            lower_child.get_lap_count() > 0.9,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+        assert!(
+            lower_child.get_lap_count() < 1.1,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
 
         drop(sender);
         data_storage_join_handle.await.unwrap();

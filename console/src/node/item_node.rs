@@ -357,7 +357,7 @@ pub(crate) fn create_growing_node<'a>(
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ShrinkingItemNode<'s> {
     item: &'s Item<'s>,
-    _smaller: Vec<ShrinkingItemNode<'s>>,
+    smaller: Vec<ShrinkingItemNode<'s>>,
 }
 
 impl<'s> ShrinkingItemNode<'s> {
@@ -367,6 +367,10 @@ impl<'s> ShrinkingItemNode<'s> {
 
     pub(crate) fn is_finished(&self) -> bool {
         self.item.is_finished()
+    }
+
+    pub(crate) fn is_snoozed(&self) -> bool {
+        self.smaller.iter().any(|x| !x.is_finished())
     }
 
     pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {
@@ -395,7 +399,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
             } else {
                 ShrinkingItemNode {
                     item: x,
-                    _smaller: vec![],
+                    smaller: vec![],
                 }
             }
         })
@@ -410,10 +414,7 @@ pub(crate) fn create_shrinking_node<'a>(
 ) -> ShrinkingItemNode<'a> {
     let children = item.find_children(coverings, all_items, &visited);
     let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
-    ShrinkingItemNode {
-        item,
-        _smaller: smaller,
-    }
+    ShrinkingItemNode { item, smaller }
 }
 
 #[cfg(test)]
