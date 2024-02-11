@@ -230,7 +230,7 @@ fn calculate_is_snoozed(
                                 .map(|x| x.get_node(all_nodes))
                                 .collect::<Vec<_>>();
                             let mut active_larger_iter = active_larger.iter();
-                            let (highest_uncovered, uncovered_when) = loop {
+                            let (highest_uncovered, _) = loop {
                                 let larger = active_larger_iter.next();
                                 match larger {
                                     Some(larger) => {
@@ -247,13 +247,7 @@ fn calculate_is_snoozed(
                             };
                             match highest_uncovered {
                                 Some(highest_uncovered) => {
-                                    if highest_uncovered == item_node.get_item() {
-                                        let uncovered_when: DateTime<Utc> = uncovered_when
-                                            .unwrap_or_else(|| earliest.clone().into());
-                                        false
-                                    } else {
-                                        true
-                                    }
+                                    highest_uncovered != item_node.get_item()
                                 }
                                 None => true,
                             }
