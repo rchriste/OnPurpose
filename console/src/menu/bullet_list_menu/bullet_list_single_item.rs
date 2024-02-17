@@ -1,5 +1,5 @@
 mod create_or_update_children;
-pub(crate) mod parent_to_a_goal_or_motivation;
+pub(crate) mod give_this_item_a_parent;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
@@ -25,7 +25,7 @@ use crate::{
     menu::{
         bullet_list_menu::bullet_list_single_item::{
             create_or_update_children::create_or_update_children,
-            parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
+            give_this_item_a_parent::give_this_item_a_parent,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
@@ -44,18 +44,14 @@ use crate::{
     },
 };
 
-use self::{
-    parent_to_a_goal_or_motivation::parent_to_a_motivation,
-    set_staging::{present_set_staging_menu, StagingMenuSelection},
-};
+use self::set_staging::{present_set_staging_menu, StagingMenuSelection};
 
 use super::present_normal_bullet_list_menu;
 
 enum BulletListSingleItemSelection<'e> {
     DeclareItemType,
     StartingToWorkOnThisNow,
-    ParentToAGoalOrMotivation,
-    ParentToAMotivation,
+    GiveThisItemAParent,
     PlanWhenToDoThis,
     ChangeStaging,
     EstimateHowManyFocusPeriodsThisWillTake,
@@ -109,8 +105,7 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Something else should be done first")
             }
             Self::DeclareItemType => write!(f, "Declare Item Type"),
-            Self::ParentToAGoalOrMotivation => write!(f, "Parent this to a Goal or Motivation"),
-            Self::ParentToAMotivation => write!(f, "Parent this to a Motivation"),
+            Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
             Self::EstimateHowManyFocusPeriodsThisWillTake => {
                 write!(f, "Estimate how many Focus Periods this will take")
             }
@@ -151,20 +146,18 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();
-        let has_no_parent = item_node.has_larger(Filter::Active);
+        let has_no_parent = !item_node.has_larger(Filter::Active);
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
         let has_active_children = item_node.has_children(Filter::Active);
 
-        if (is_type_action) && has_no_parent {
-            list.push(Self::ParentToAGoalOrMotivation);
-        } else if (is_type_goal || is_type_motivation) && !has_active_children {
-            list.push(Self::StateASmallerNextStep);
+        if has_no_parent {
+            list.push(Self::GiveThisItemAParent);
         }
 
-        if is_type_goal && has_no_parent {
-            list.push(Self::ParentToAMotivation);
+        if (is_type_goal || is_type_motivation) && !has_active_children {
+            list.push(Self::StateASmallerNextStep);
         }
 
         if !is_type_goal && !is_type_motivation && !is_type_undeclared {
@@ -308,14 +301,11 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::ParentToAGoalOrMotivation) => {
-            parent_to_a_goal_or_motivation(menu_for.get_item(), send_to_data_storage_layer).await
+        Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
+            give_this_item_a_parent(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
             todo!("TODO: Implement PlanWhenToDoThis");
-        }
-        Ok(BulletListSingleItemSelection::ParentToAMotivation) => {
-            parent_to_a_motivation(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
@@ -823,14 +813,6 @@ impl ItemTypeSelection {
             Self::Goal,
             Self::Motivation,
             Self::ResponsiveGoal,
-            Self::ResponsiveMotivation,
-            Self::ResponsiveHelp,
-        ]
-    }
-
-    pub(crate) fn create_list_just_motivations() -> Vec<Self> {
-        vec![
-            Self::Motivation,
             Self::ResponsiveMotivation,
             Self::ResponsiveHelp,
         ]

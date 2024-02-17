@@ -9,7 +9,7 @@ use crate::{
     base_data::BaseData,
     display::display_item_node::DisplayItemNode,
     menu::{
-        bullet_list_menu::bullet_list_single_item::parent_to_a_goal_or_motivation::parent_to_a_goal_or_motivation,
+        bullet_list_menu::bullet_list_single_item::give_this_item_a_parent::give_this_item_a_parent,
         select_person_or_group::select_person_or_group,
     },
     node::{item_node::ItemNode, Filter},
@@ -152,7 +152,7 @@ async fn single_item_define_facing(
 
     match selection {
         Ok(FacingOptions::PickParent) => {
-            parent_to_a_goal_or_motivation(item_node.get_item(), send_to_data_storage_layer).await
+            give_this_item_a_parent(item_node.get_item(), send_to_data_storage_layer).await
         }
         Ok(FacingOptions::ForMyself) => {
             let list = HowWellDefinedSelection::get_list();

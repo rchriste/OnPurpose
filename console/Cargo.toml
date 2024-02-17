@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.167"
+version = "0.0.168"
 edition = "2021"
 
 [build]
@@ -22,7 +22,7 @@ dateparser = "0.2.0"
 itertools = "0.12.0"
  #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 ouroboros = "0.18.0"
-derive_builder = "0.13.0"
+derive_builder = "0.20.0"
 better_term = "1.4.1" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
 
 # Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
