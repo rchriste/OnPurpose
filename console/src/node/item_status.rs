@@ -288,7 +288,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
         }
         let staging = child.get_staging();
         match staging {
-            Staging::NotSet => todo!(),
+            Staging::NotSet => continue,
             Staging::MentallyResident { enter_list, .. } => {
                 match enter_list {
                     EnterListReason::DateTime(datetime) => {
@@ -948,6 +948,90 @@ mod tests {
         assert!(higher_child.get_lap_count() > 0.0);
         assert_eq!(lower_child.is_snoozed(), false);
         assert!(lower_child.get_lap_count() > 0.0);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_node_with_2_children_one_unset_the_other_highest_mentally_resident_should_be_on_deck_immediately()
+    {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Higher Child That Should Be Unset")
+                    .staging(Staging::NotSet)
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Be On Deck Immediately")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_sub_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(1))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary() == "Lower Child That Should Be On Deck Immediately"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(lower_child.get_lap_count() > 0.9);
+        assert!(lower_child.get_lap_count() < 1.1);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
