@@ -26,7 +26,7 @@ pub(crate) enum StagingMenuSelection {
 impl Display for StagingMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StagingMenuSelection::NotSet => write!(f, "Inherit from parent"),
+            StagingMenuSelection::NotSet => write!(f, "Not Set"),
             StagingMenuSelection::MentallyResident => write!(f, "Mentally Resident"),
             StagingMenuSelection::OnDeck => write!(f, "On Deck"),
             StagingMenuSelection::Planned => write!(f, "Planned"),
