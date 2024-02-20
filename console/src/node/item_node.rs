@@ -171,31 +171,11 @@ impl<'s> ItemNode<'s> {
     }
 
     pub(crate) fn is_staging_not_set(&self) -> bool {
-        let is_staging_not_set = self.item.is_staging_not_set();
-        if is_staging_not_set {
-            //This type can be inferred from the parent so check that first
-            !self
-                .get_larger(Filter::Active)
-                .any(|x| !x.is_staging_not_set())
-        } else {
-            is_staging_not_set
-        }
+        self.item.is_staging_not_set()
     }
 
     pub(crate) fn get_staging(&'s self) -> &'s Staging {
-        let staging = self.item.get_staging();
-        if staging == &Staging::NotSet {
-            //This type can be inferred from the parent so check that first
-            for parent in self.get_larger(Filter::Active) {
-                let staging = parent.get_staging();
-                if staging != &Staging::NotSet {
-                    return staging;
-                }
-            }
-            &Staging::NotSet
-        } else {
-            staging
-        }
+        self.item.get_staging()
     }
 
     pub(crate) fn get_thing(&self) -> &'s Thing {
@@ -252,38 +232,8 @@ impl<'s> GrowingItemNode<'s> {
         }
     }
 
-    pub(crate) fn is_staging_not_set(&self) -> bool {
-        let is_staging_not_set = self.item.is_staging_not_set();
-        if is_staging_not_set {
-            //This type can be inferred from the parent so check that first
-            !self.larger.iter().any(|x| !x.is_staging_not_set())
-        } else {
-            is_staging_not_set
-        }
-    }
-
-    pub(crate) fn get_staging(&'s self) -> &'s Staging {
-        let staging = self.item.get_staging();
-        if staging == &Staging::NotSet {
-            //This type can be inferred from the parent so check that first
-            for parent in self.get_larger().iter() {
-                let staging = parent.get_staging();
-                if staging != &Staging::NotSet {
-                    return staging;
-                }
-            }
-            &Staging::NotSet
-        } else {
-            staging
-        }
-    }
-
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
-    }
-
-    pub(crate) fn get_larger(&self) -> &[GrowingItemNode] {
-        &self.larger
     }
 
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {

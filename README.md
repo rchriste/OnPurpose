@@ -1,6 +1,6 @@
 # Why On Purpose?
 
-_On Purpose_ is a an open source program that I, Russ Christensen, wrote to help me track to do items and dynamically schedule my day. It is meant to be the go to program when choosing what to do next. It is meant to be in that habit loop.
+_On Purpose_ is a an open source program that I, Russ Christensen, wrote to help me track to do items and dynamically schedule my day. It is meant to be the go to program when choosing what to do next. It is meant to help with balance by cycling through one's tasks. It is meant to be in that habit loop.
 
 I believe _On Purpose_ is innovative and unique and I say this even though there is already an almost endless number of existing to do apps. _On Purpose_ is meant to be a reimagined and rethought to do experience that is tailored to the needs to the neurodiverse and specifically for those who like me have high functioning autism & ADHD.
 
