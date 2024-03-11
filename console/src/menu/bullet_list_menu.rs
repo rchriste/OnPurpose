@@ -76,7 +76,7 @@ pub(crate) async fn present_normal_bullet_list_menu(
         .await
         .unwrap();
     let elapsed = Local::now() - before_db_query;
-    if elapsed > chrono::Duration::seconds(1) {
+    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to get data from database. Time taken: {}", elapsed);
     }
     let now = Utc::now();
@@ -84,7 +84,7 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
     let bullet_list = BulletList::new_bullet_list(calculated_data);
     let elapsed = Utc::now() - now;
-    if elapsed > chrono::Duration::seconds(1) {
+    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
     present_bullet_list_menu(bullet_list, &now, send_to_data_storage_layer).await

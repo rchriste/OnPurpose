@@ -300,7 +300,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         if datetime < &now {
                             return (Some(child.get_item()), when_uncovered);
                         } else {
-                            println!("Do I need to update latest_uncovered?");
+                            println!("Do I need to update latest_uncovered1?");
                             continue;
                         }
                     }
@@ -309,7 +309,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         review_after: _review_after,
                     } => {
                         if earliest > &now {
-                            println!("Do I need to update latest_uncovered? I think I can just remove this");
+                            println!("Do I need to update latest_uncovered2? I think I can just remove this");
                             continue;
                         }
                         todo!();
@@ -321,7 +321,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     if datetime < &now {
                         return (Some(child.get_item()), when_uncovered);
                     } else {
-                        println!("Do I need to update latest_uncovered?");
+                        println!("Do I need to update latest_uncovered3?");
                         continue;
                     }
                 }
@@ -330,7 +330,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     review_after: _review_after,
                 } => {
                     if earliest > &now {
-                        println!("Do I need to update latest_uncovered?");
+                        println!("Do I need to update latest_uncovered4?");
                         continue;
                     } else {
                         return (Some(child.get_item()), when_uncovered);
