@@ -175,9 +175,14 @@ fn calculate_lap_count(
                         };
                         match highest_uncovered {
                             Some(highest_uncovered) => {
-                                if highest_uncovered == item_node.get_item() {
-                                    let uncovered_when: DateTime<Utc> =
+                                let item = item_node.get_item();
+                                if highest_uncovered == item {
+                                    let mut uncovered_when: DateTime<Utc> =
                                         uncovered_when.unwrap_or_else(|| earliest.clone().into());
+                                    if &uncovered_when < item.get_created() {
+                                        // If the uncovered_when is before the item was created, then we'll just use the item's created time
+                                        uncovered_when = *item.get_created();
+                                    }
                                     let elapsed = current_date_time.sub(uncovered_when);
                                     let elapsed = elapsed.num_seconds() as f32;
                                     let lap = lap.as_secs_f32();
@@ -466,6 +471,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -534,6 +544,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -561,6 +576,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -716,6 +736,131 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn parent_node_with_2_children_highest_one_finished_a_long_time_ago_lower_child_configured_for_highest_uncovered_it_should_be_ready_with_a_lap_time_starting_when_it_was_filed(
+    ) {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Higher Child That Was On Deck But Becomes Finished")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
+                            Utc::now()
+                                .checked_sub_days(Days::new(1))
+                                .expect("Far from overflowing"),
+                        ))),
+                        lap: Duration::from_days(1),
+                    })
+                    .created(Datetime(DateTime::from(
+                        Utc::now()
+                            .checked_sub_days(Days::new(2))
+                            .expect("Far from overflowing"),
+                    )))
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Uncover With A Starting Lap Time of When This Item Was Created")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Datetime(DateTime::from(
+                                Utc::now()
+                            )),
+                            review_after: Datetime(DateTime::from(
+                                Utc::now()
+                                    .checked_add_days(Days::new(2))
+                                    .expect("Far from overflowing"),
+                            )),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let a_day_ago = now
+            .checked_sub_days(Days::new(1))
+            .expect("Far from overflowing");
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let lower_child = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Higher Child That Was On Deck But Becomes Finished")
+            .unwrap();
+        sender
+            .send(DataLayerCommands::FinishItem {
+                item: lower_child.get_surreal_record_id().clone(),
+                when_finished: a_day_ago.into(),
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let a_day_later_so_a_lap_passes = now
+            .checked_add_days(Days::new(1))
+            .expect("Far from overflowing");
+        let calculated_data =
+            CalculatedData::new_from_base_data(base_data, &a_day_later_so_a_lap_passes);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary()
+                    == "Lower Child That Should Uncover With A Starting Lap Time of When This Item Was Created"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
+        assert!(
+            lower_child.get_lap_count() > 0.9,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+        assert!(
+            lower_child.get_lap_count() < 1.1,
+            "Lap count was {}",
+            lower_child.get_lap_count()
+        );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn parent_node_with_2_children_highest_one_covered_and_lower_child_configured_for_highest_uncovered_it_should_be_ready_when_highest_became_covered(
     ) {
         // Arrange
@@ -748,6 +893,11 @@ mod tests {
                         ))),
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -775,6 +925,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -889,6 +1044,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -916,6 +1076,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -954,8 +1119,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn parent_node_with_2_children_one_unset_the_other_highest_mentally_resident_should_be_on_deck_immediately()
-    {
+    async fn parent_node_with_2_children_one_unset_the_other_highest_mentally_resident_should_be_on_deck_immediately(
+    ) {
         // Arrange
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
@@ -1006,6 +1171,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1075,6 +1245,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1100,6 +1275,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1127,6 +1307,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1238,6 +1423,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1263,6 +1453,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1290,6 +1485,11 @@ mod tests {
                         },
                         lap: Duration::from_days(1),
                     })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),

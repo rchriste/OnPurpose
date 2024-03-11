@@ -383,6 +383,10 @@ impl<'b> Item<'b> {
     pub(crate) fn get_facing(&self) -> &Vec<Facing> {
         &self.surreal_item.facing
     }
+
+    pub(crate) fn get_created(&self) -> &DateTime<Utc> {
+        &self.surreal_item.created
+    }
 }
 
 impl Item<'_> {

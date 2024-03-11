@@ -1,6 +1,51 @@
 # Why On Purpose?
 
-_On Purpose_ is a an open source program that I, Russ Christensen, wrote to help me track to do items and dynamically schedule my day. It is meant to be the go to program when choosing what to do next. It is meant to help with balance by cycling through one's tasks. It is meant to be in that habit loop.
+_On Purpose_ is a a personal research project and a program that helps decide what to do. It is meant to present an ordered list of things to do and mostly have the top item picked. This open source project provides a way for me to experiment, refine, and work out what information needs to be captured and known to create an oracle that mostly suggests the right thing to do next.
+
+* What mental health considerations need to be taken into account?
+* How can completely different commitments be balanced and prioritized against each other?
+* And, how to work though and process slightly conflicting concerns that influence many details of how a to do item is accomplished?
+
+_On Purpose_ is meant to be part of the solution, rather than the whole solution. It is a tool for time management, similar to how a roofer might use a nail gun versus a hammer to roof a house; _On Purpose_ is meant to be a tool that makes success easier to achieve. _On Purpose's_ responsibility is to make an agreeable suggestion of what to do next. It is meant to both streamline things and remove a burden. Back to the hammer and nail gun analogy, the burden with the hammer is needing to sometimes swing directly at the hand that is holding the nail. The burden that _On Purpose_ removes is the need to keep in one's head enough information to correctly decide what to do next.
+
+I have looked for existing ideas and solutions to this problem across academia, books, and by speaking with others. The general theme of what I see centers around the idea that if you will put in great effort you will achieve great benefit and because change is required there is a lot of truth to this. However what I observe is that even those who are highly successful with a system after many years will abandon and replace the system with something else that they admit to me is not as good, but it is much easier to implement.
+
+I bring this up to state that I believe Why is this? I believe it is because
+
+## Terminology
+
+### Routines
+
+### Fork
+
+### Multi-Tasking
+
+### Multi-Purposing
+
+## Principals
+
+### Reverse List, Next Step First
+
+[TODO]
+
+### Scheduling
+
+### Reasons to do things or not & Integration
+
+Internal, External, Scheduling
+
+---------------------------------------------------------
+
+I also have a friend who has worked as a medical professional in nursing homes helping the ageing population and is now in academia doing research on how to help the neurodiverse. A lot of solutions are implemented by manually logging often onto a piece of paper or there are other repetitive processes that must be manually followed and once again the ongoing hassle of implementation is a huge barrier to long term adoption. But the challenge
+
+once again Because I have a sibling in academia I have also looked at academic research for what is done to help the neurodiverse with various problems that involve time management and once again the ongoing cost of the solution makes a play and people seem to not really keep the new system. Compare this with a typewriter and how Word Processors have just completely replaced them and yet we still have a bullet list and variations on that as the best in class for time management of a to do list and deciding what to do.
+
+I have seen this a lot in the past and with others and I have seen a lot of suggestions and methods to do this but after a certain amount of time people stop doing that thing. The burden of doing it and the cost eventually becomes not worth it even though the system itself works. This insight has me considering that the mental health aspect also needs to be taken into consideration and we really need to only capture information that is required and try to leverage and design scheduling algorithms that really minimize data entry.
+, which means _On Purpose_ should be asking for and capturing information required to make that decision.
+
+ while you are working on something How can different commitments and How can work be balanced  ideas I have with .  problem; incorporating the finer details of how to do this in a way that works for my how to do this an unsolved problem.  working out what information needs to be captured and how to process that information  and working out how to efficiently capture
+
+to do items and know what to do. It is meant to help balance to dos by , and balance my life. It is meant to solve the problem of having a lot to do but not really knowing what to do. It is meant to be the go to program when choosing what to do next. It is meant to help with balance by cycling through one's tasks. It is meant to be in that habit loop.
 
 I believe _On Purpose_ is innovative and unique and I say this even though there is already an almost endless number of existing to do apps. My experience with existing apps is they pick a particular system or method for time management that works most but not all of the time. The subtly of real life is not accounted for and the program is meant to be used for someone's most important to do's and not all things that should be done; furthermore the existing programs work in most situations but not all. Now to some extent this is inevitable, but my goal is to explain why I decided to create _On Purpose_ and the reason is because I want the ability to experiment with subtle differences in how to do items are represented because I believe this is the keystone that can unlock a better experience. The end game a program that can represent all the kinds of work that we do and to do this across our work life, school life, personal life, in addition to relaxation and food management. _On Purpose_ is meant to help us balance our lives which means that it must work so you don't need to leave the system during the mundane parts of our lives or during those times when unusual things come up. Furthermore _On Purpose_ is meant to be a reimagined and rethought to do experience that is tailored to the needs to the neurodiverse and specifically for those who like me are on the Autism Spectrum and have ADHD.
 
@@ -50,14 +95,6 @@ _On Purpose_ is meant to help someone cycle through their various to dos efficie
 To Do's are organized into 2 priorities or 4 priority levels, Mentally Resident items and On Deck items. A new item is placed at the bottom of the On Deck list, priority 4, and given an amount of time to move from the bottom to the top of the list. Likewise after an item is worked on it is placed at the bottom of the mentally resident list, priority 3, and given a time frame to move through the mentally resident list. These lists are sorted by the percentage of time elapsed. After an On Deck item has more than 100% of time elapsed it jumps in priority to priority 2, above the mentally resident items and likewise mentally resident items that are more than 100% of time elapsed jump to the top, priority 1 list.
 
 In _On Purpose_ after working on an item select the option `I worked on this`. You will then be given the prompt, `How long until you need to work on this again?` and you answer a time value for example `1h` for 1 hour or `5m` for 5 minutes or `1d` for 1 day. The item will then be set at the bottom of the mentally resident (🧠) priority level, which is priority level 3. The item will then move from the bottom to the top of that priority level based on the percentage of time that has passed. For example a one hour item will be near the middle and ordered based on the number at 50% after 30 minutes and then after 55 minutes it will be ordered based on the number 92% and near the top. So this is the first principal that a time frame is given and items are ordered according to the percentage of time that has passed.
-
-### Reverse List, Next Step First
-
-[TODO]
-
-### Reasons to do things or not & Integration
-
-Internal, External, Scheduling
 
 [TODO]
 
