@@ -1,13 +1,13 @@
 [package]
 name = "on_purpose"
-version = "0.0.172"
+version = "0.0.173"
 edition = "2021"
 
 [build]
 rustflags = ["-Z", "threads=8"]
 
 [dependencies]
-inquire = { version = "0.6.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
+inquire = { version = "0.7.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
 tokio = { version = "1.32.0", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
