@@ -95,9 +95,10 @@ pub(crate) async fn present_bullet_list_menu(
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let item_nodes = bullet_list.get_bullet_list();
+    let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
 
-    let inquire_bullet_list = InquireBulletListItem::create_list(item_nodes, current_date_time);
+    let inquire_bullet_list =
+        InquireBulletListItem::create_list(ordered_bullet_list, current_date_time);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("Select from the below list|", inquire_bullet_list)

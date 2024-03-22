@@ -14,14 +14,14 @@ pub(crate) struct BulletList {
 
     #[borrows(calculated_data)]
     #[covariant]
-    item_nodes: Vec<BulletListReason<'this>>, //TODO: Rename this to ordered_list or ordered_bullet_list or something to that effect
+    ordered_bullet_list: Vec<BulletListReason<'this>>,
 }
 
 impl BulletList {
     pub(crate) fn new_bullet_list(calculated_data: CalculatedData) -> Self {
         BulletListBuilder {
             calculated_data,
-            item_nodes_builder: |calculated_data| {
+            ordered_bullet_list_builder: |calculated_data| {
                 //Note that some of these bottom items might be from detecting a circular dependency
                 let mut all_leaf_status_nodes = calculated_data
                     .get_item_status()
@@ -138,8 +138,8 @@ impl BulletList {
         .build()
     }
 
-    pub(crate) fn get_bullet_list(&self) -> &[BulletListReason<'_>] {
-        self.borrow_item_nodes()
+    pub(crate) fn get_ordered_bullet_list(&self) -> &[BulletListReason<'_>] {
+        self.borrow_ordered_bullet_list()
     }
 
     pub(crate) fn get_active_items(&self) -> &[&Item<'_>] {

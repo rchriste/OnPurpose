@@ -141,7 +141,7 @@ pub(crate) enum HowMuchIsInMyControl {
 pub(crate) enum ItemTypeOldVersion {
     #[default]
     Undeclared,
-    Simple, //TODO: Remove this and just use Action
+    Simple,
     Action,
     Goal(HowMuchIsInMyControl),
     IdeaOrThought,
@@ -271,7 +271,7 @@ pub(crate) enum NotesLocation {
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum EnterListReasonOldVersion {
     DateTime(Datetime),
-    HighestUncovered { review_after: Datetime }, //TODO: add earliest DateTime
+    HighestUncovered { review_after: Datetime },
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -296,7 +296,7 @@ pub(crate) enum StagingOldVersion {
 //it always to see if that addresses these phantom errors. Nov2023.
 #[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
 #[builder(setter(into))]
-#[table(name = "item")] //TODO: This should be renamed items
+#[table(name = "item")]
 pub(crate) struct SurrealItemOldVersion {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
