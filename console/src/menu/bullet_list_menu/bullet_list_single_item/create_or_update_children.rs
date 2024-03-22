@@ -3,7 +3,6 @@ pub(crate) mod edit_order_of_children_items;
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
-use async_recursion::async_recursion;
 use chrono::{DateTime, Utc};
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -58,7 +57,6 @@ impl CreateOrUpdateChildrenItem {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn create_or_update_children(
     item_status: &ItemStatus<'_>,
     all_item_status: &[ItemStatus<'_>],

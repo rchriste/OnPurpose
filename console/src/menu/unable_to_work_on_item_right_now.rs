@@ -115,7 +115,6 @@ impl WhatLibraryToUse {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn place_to_contact_is_not_open(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,

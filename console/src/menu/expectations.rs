@@ -159,7 +159,6 @@ pub(crate) async fn view_expectations(
     }
 }
 
-#[async_recursion]
 pub(crate) async fn view_mentally_resident_project_goals(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -241,7 +240,6 @@ impl<'a> MaintenanceHopeItem<'a> {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn view_maintenance_hopes(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {

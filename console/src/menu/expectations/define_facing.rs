@@ -21,7 +21,6 @@ use crate::{
 
 use super::view_expectations;
 
-#[async_recursion]
 pub(crate) async fn define_facing(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
