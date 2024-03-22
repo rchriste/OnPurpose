@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use surrealdb::sql::Thing;
 
 use crate::{
@@ -13,7 +13,7 @@ pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     larger: Vec<GrowingItemNode<'s>>,
     smaller: Vec<ShrinkingItemNode<'s>>,
-    snoozed_until: Vec<&'s DateTime<Local>>,
+    snoozed_until: Vec<&'s DateTime<Utc>>,
     facing: Vec<Facing>,
 }
 
@@ -190,8 +190,7 @@ impl<'s> ItemNode<'s> {
         matches!(self.get_staging(), Staging::MentallyResident { .. })
     }
 
-    pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Local>] {
-        //TODO: snoozed_until should be DateTime<Utc> not local
+    pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Utc>] {
         &self.snoozed_until
     }
 

@@ -251,7 +251,7 @@ impl<'b> Item<'b> {
         &self,
         coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
         now: &DateTime<Local>,
-    ) -> Vec<&'a DateTime<Local>> {
+    ) -> Vec<&'a DateTime<Utc>> {
         let covered_by_date_time = coverings_until_date_time
             .iter()
             .filter(|x| self == x.cover_this);
@@ -263,7 +263,7 @@ impl<'b> Item<'b> {
     pub(crate) fn get_covered_by_date_time<'a>(
         &self,
         coverings_until_date_time: &'a [&'a CoveringUntilDateTime<'a>],
-    ) -> Vec<&'a DateTime<Local>> {
+    ) -> Vec<&'a DateTime<Utc>> {
         let covered_by_date_time = coverings_until_date_time
             .iter()
             .filter(|x| self == x.cover_this);

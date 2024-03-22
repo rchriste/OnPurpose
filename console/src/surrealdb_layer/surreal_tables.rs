@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use tokio::sync::mpsc::Sender;
 
 #[cfg(test)]
@@ -79,11 +78,8 @@ impl SurrealTables {
             .iter()
             .filter_map(|x| {
                 let cover_this = items.lookup_from_record_id(&x.cover_this)?;
-                let until_utc: DateTime<Utc> = x.until.clone().into();
-                Some(CoveringUntilDateTime {
-                    cover_this,
-                    until: until_utc.into(),
-                })
+                let until = x.until.clone().into();
+                Some(CoveringUntilDateTime { cover_this, until })
             })
             .collect()
     }
