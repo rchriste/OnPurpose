@@ -5,13 +5,13 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
     menu::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
     surrealdb_layer::DataLayerCommands,
+    systems::bullet_list::BulletList,
 };
 
 use super::finish_bullet_item;
@@ -62,11 +62,9 @@ impl WorkingOnNow {
 
 pub(crate) async fn starting_to_work_on_this_now(
     currently_working_on: &ItemStatus<'_>,
-    all_item_status: &[ItemStatus<'_>],
+    now_if_canceled: DateTime<Utc>,
+    bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
-    all_coverings: &[Covering<'_>],
-    all_snoozed: &[&CoveringUntilDateTime<'_>],
-    all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = WorkingOnNow::make_list(currently_working_on.get_item_node());
@@ -89,10 +87,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         Ok(WorkingOnNow::IFinished) => {
             finish_bullet_item(
                 currently_working_on,
-                all_item_status,
-                all_coverings,
-                all_snoozed,
-                all_items,
+                bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
             )
@@ -101,11 +96,9 @@ pub(crate) async fn starting_to_work_on_this_now(
         Err(InquireError::OperationCanceled) => {
             present_bullet_list_item_selected(
                 currently_working_on,
-                all_item_status,
+                now_if_canceled,
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await

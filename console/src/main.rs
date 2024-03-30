@@ -4,6 +4,7 @@ mod change_routine;
 pub(crate) mod display;
 pub(crate) mod menu;
 pub(crate) mod new_item;
+pub(crate) mod new_time_spent;
 mod node;
 mod surrealdb_layer;
 pub(crate) mod systems;

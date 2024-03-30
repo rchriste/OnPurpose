@@ -1,9 +1,10 @@
 use std::cmp::Ordering;
 
 use ouroboros::self_referencing;
+use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
+    base_data::item::Item,
     calculated_data::CalculatedData,
     node::{item_status::ItemStatus, Filter},
 };
@@ -142,18 +143,6 @@ impl BulletList {
         self.borrow_ordered_bullet_list()
     }
 
-    pub(crate) fn get_active_items(&self) -> &[&Item<'_>] {
-        self.borrow_calculated_data().get_active_items()
-    }
-
-    pub(crate) fn get_coverings(&self) -> &[Covering<'_>] {
-        self.borrow_calculated_data().get_coverings()
-    }
-
-    pub(crate) fn get_active_snoozed(&self) -> &[&CoveringUntilDateTime<'_>] {
-        self.borrow_calculated_data().get_active_snoozed()
-    }
-
     pub(crate) fn get_all_item_status(&self) -> &[ItemStatus<'_>] {
         self.borrow_calculated_data().get_item_status()
     }
@@ -171,5 +160,24 @@ impl<'e> BulletListReason<'e> {
         } else {
             BulletListReason::WorkOn(item_status)
         }
+    }
+
+    pub(crate) fn get_item_status(&self) -> &ItemStatus<'e> {
+        match self {
+            BulletListReason::SetStaging(item_status) => item_status,
+            BulletListReason::WorkOn(item_status) => item_status,
+        }
+    }
+
+    pub(crate) fn get_item(&self) -> &Item<'e> {
+        self.get_item_status().get_item()
+    }
+
+    pub(crate) fn get_lap_count(&self) -> f32 {
+        self.get_item_status().get_lap_count()
+    }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &'e RecordId {
+        self.get_item().get_surreal_record_id()
     }
 }

@@ -126,6 +126,16 @@ impl<'s> ItemNode<'s> {
         }
     }
 
+    /// Get's larger items and all of their parents and the current item
+    pub(crate) fn get_self_and_larger(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
+        let mut items = Vec::default();
+        for item in self.get_larger(filter) {
+            items = item.get_self_and_larger(items);
+        }
+        items.push(self.item);
+        items
+    }
+
     pub(crate) fn get_type(&self) -> &ItemType {
         self.item.get_type()
     }
@@ -244,6 +254,14 @@ impl<'s> GrowingItemNode<'s> {
             .iter()
             .find(|x| x.get_item() == self.item)
             .expect("It should be in all nodes, programming error")
+    }
+
+    pub(crate) fn get_self_and_larger(&self, mut items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
+        for item in &self.larger {
+            items = item.get_self_and_larger(items);
+        }
+        items.push(self.item);
+        items
     }
 }
 

@@ -119,6 +119,10 @@ impl<'s> ItemStatus<'s> {
     ) -> impl Iterator<Item = &GrowingItemNode<'s>> {
         self.item_node.get_larger(filter)
     }
+
+    pub(crate) fn get_self_and_larger_flattened(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
+        self.item_node.get_self_and_larger(filter)
+    }
 }
 
 fn calculate_lap_count(
@@ -300,7 +304,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         if datetime < &now {
                             return (Some(child.get_item()), when_uncovered);
                         } else {
-                            println!("Do I need to update latest_uncovered1?");
+                            println!("Do I need to update latest_uncovered1?"); //TODO: Add a Unit Test for this scenario
                             continue;
                         }
                     }

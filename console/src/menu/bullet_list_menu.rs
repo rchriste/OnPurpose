@@ -87,11 +87,11 @@ pub(crate) async fn present_normal_bullet_list_menu(
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
-    present_bullet_list_menu(bullet_list, &now, send_to_data_storage_layer).await
+    present_bullet_list_menu(&bullet_list, &now, send_to_data_storage_layer).await
 }
 
 pub(crate) async fn present_bullet_list_menu(
-    bullet_list: BulletList,
+    bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -117,11 +117,9 @@ pub(crate) async fn present_bullet_list_menu(
                 } else {
                     present_bullet_list_item_selected(
                         item_status,
-                        bullet_list.get_all_item_status(),
+                        chrono::Utc::now(),
+                        bullet_list,
                         current_date_time,
-                        bullet_list.get_coverings(),
-                        bullet_list.get_active_snoozed(),
-                        bullet_list.get_active_items(),
                         send_to_data_storage_layer,
                     )
                     .await

@@ -6,6 +6,7 @@ pub(crate) mod surreal_processed_text;
 pub(crate) mod surreal_required_circumstance;
 pub(crate) mod surreal_routine;
 pub(crate) mod surreal_tables;
+pub(crate) mod surreal_time_spent;
 
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
@@ -20,7 +21,7 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::new_item::NewItem;
+use crate::{new_item::NewItem, new_time_spent::NewTimeSpent};
 
 use self::{
     surreal_covering::SurrealCovering,
@@ -34,11 +35,14 @@ use self::{
     surreal_required_circumstance::SurrealRequiredCircumstance,
     surreal_routine::SurrealRoutine,
     surreal_tables::SurrealTables,
+    surreal_time_spent::SurrealTimeSpent,
 };
 
 pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
     SendProcessedText(RecordId, oneshot::Sender<Vec<SurrealProcessedText>>),
+    SendTimeSpentLog(oneshot::Sender<Vec<SurrealTimeSpent>>),
+    RecordTimeSpent(NewTimeSpent),
     AddProcessedText(String, RecordId),
     FinishItem {
         item: RecordId,
@@ -113,7 +117,7 @@ pub(crate) async fn data_storage_start_and_run(
     endpoint: impl IntoEndpoint,
 ) {
     let db = connect(endpoint).await.unwrap();
-    db.use_ns("OnPurpose").use_db("Russ").await.unwrap();
+    db.use_ns("OnPurpose").use_db("Russ").await.unwrap(); //TODO: "Russ" should be a parameter, maybe the username or something
 
     loop {
         let received = data_storage_layer_receive_rx.recv().await;
@@ -127,6 +131,10 @@ pub(crate) async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::SendProcessedText(for_item, send_response_here)) => {
                 send_processed_text(for_item, send_response_here, &db).await
+            }
+            Some(DataLayerCommands::SendTimeSpentLog(sender)) => send_time_spent(sender, &db).await,
+            Some(DataLayerCommands::RecordTimeSpent(new_time_spent)) => {
+                record_time_spent(new_time_spent, &db).await
             }
             Some(DataLayerCommands::FinishItem {
                 item,
@@ -315,6 +323,16 @@ pub(crate) async fn send_processed_text(
     let processed_text: Vec<SurrealProcessedText> = query_result.take(0).unwrap();
 
     send_response_here.send(processed_text).unwrap();
+}
+
+async fn send_time_spent(sender: oneshot::Sender<Vec<SurrealTimeSpent>>, db: &Surreal<Any>) {
+    let time_spent = SurrealTimeSpent::get_all(db).await.unwrap();
+    sender.send(time_spent).unwrap();
+}
+
+async fn record_time_spent(new_time_spent: NewTimeSpent, db: &Surreal<Any>) {
+    let new_time_spent: SurrealTimeSpent = new_time_spent.into();
+    new_time_spent.create(db).await.unwrap();
 }
 
 pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, db: &Surreal<Any>) {

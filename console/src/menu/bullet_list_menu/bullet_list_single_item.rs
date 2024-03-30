@@ -14,9 +14,7 @@ use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
-    },
+    base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
     display::{
         display_item::DisplayItem, display_item_node::DisplayItemNode,
@@ -42,9 +40,10 @@ use crate::{
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
+    systems::bullet_list::BulletList,
 };
 
-use self::set_staging::{present_set_staging_menu, StagingMenuSelection};
+use self::set_staging::{log_worked_on_this, present_set_staging_menu, StagingMenuSelection};
 
 use super::present_normal_bullet_list_menu;
 
@@ -268,13 +267,12 @@ impl<'e> BulletListSingleItemSelection<'e> {
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemStatus<'_>,
-    all_item_status: &[ItemStatus<'_>],
+    now: DateTime<Utc>,
+    bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
-    all_coverings: &[Covering<'_>],
-    all_snoozed: &[&CoveringUntilDateTime<'_>],
-    all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
+    let all_item_status = bullet_list.get_all_item_status();
     let list =
         BulletListSingleItemSelection::create_list(menu_for.get_item_node(), all_item_status);
 
@@ -289,11 +287,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
             starting_to_work_on_this_now(
                 menu_for,
-                all_item_status,
+                now,
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await
@@ -323,11 +319,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
             create_or_update_children(
                 menu_for,
-                all_item_status,
+                now,
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await
@@ -339,6 +333,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
+            log_worked_on_this(
+                menu_for,
+                now, //now contains the time when the user selected this option
+                chrono::Utc::now(),
+                send_to_data_storage_layer,
+                bullet_list.get_ordered_bullet_list(),
+            )
+            .await?;
             present_set_staging_menu(
                 menu_for.get_item(),
                 send_to_data_storage_layer,
@@ -349,10 +351,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
                 menu_for,
-                all_item_status,
-                all_coverings,
-                all_snoozed,
-                all_items,
+                bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
             )
@@ -407,11 +406,8 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(
                 &selected,
-                all_item_status,
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await
@@ -489,10 +485,7 @@ impl<'e> FinishSelection<'e> {
 #[async_recursion]
 async fn finish_bullet_item(
     finish_this: &ItemStatus<'_>,
-    all_item_status: &[ItemStatus<'_>],
-    all_coverings: &[Covering<'_>],
-    all_snoozed: &[&CoveringUntilDateTime<'_>],
-    all_items: &[&Item<'_>],
+    bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -543,10 +536,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
-                all_item_status,
-                all_coverings,
-                all_snoozed,
-                all_items,
+                bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
             )
@@ -568,11 +558,9 @@ async fn finish_bullet_item(
 
             present_bullet_list_item_selected(
                 updated_parent,
-                all_item_status,
+                chrono::Utc::now(),
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await
@@ -582,10 +570,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
-                all_item_status,
-                all_coverings,
-                all_snoozed,
-                all_items,
+                bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
             )
@@ -602,10 +587,7 @@ async fn finish_bullet_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             finish_bullet_item(
                 finish_this,
-                all_item_status,
-                all_coverings,
-                all_snoozed,
-                all_items,
+                bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
             )
@@ -655,22 +637,17 @@ async fn process_and_finish_bullet_item(
 
 async fn present_bullet_list_item_parent_selected(
     selected_item: &ItemStatus<'_>,
-    all_item_status: &[ItemStatus<'_>],
+    bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
-    all_coverings: &[Covering<'_>],
-    all_snoozed: &[&CoveringUntilDateTime<'_>],
-    all_items: &[&Item<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     match selected_item.get_type() {
         ItemType::Action | ItemType::Goal(..) | ItemType::Motivation => {
             present_bullet_list_item_selected(
                 selected_item,
-                all_item_status,
+                chrono::Utc::now(),
+                bullet_list,
                 current_date_time,
-                all_coverings,
-                all_snoozed,
-                all_items,
                 send_to_data_storage_layer,
             )
             .await

@@ -1,7 +1,5 @@
 use crate::{
-    base_data::{
-        covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item, BaseData,
-    },
+    base_data::BaseData,
     node::{item_node::ItemNode, item_status::ItemStatus},
 };
 use chrono::{DateTime, Utc};
@@ -42,17 +40,5 @@ impl CalculatedData {
 
     pub(crate) fn get_item_status(&self) -> &[ItemStatus] {
         self.borrow_item_status()
-    }
-
-    pub(crate) fn get_active_items(&self) -> &[&Item] {
-        self.borrow_base_data().get_active_items()
-    }
-
-    pub(crate) fn get_coverings(&self) -> &[Covering] {
-        self.borrow_base_data().get_coverings()
-    }
-
-    pub(crate) fn get_active_snoozed(&self) -> &[&CoveringUntilDateTime] {
-        self.borrow_base_data().get_active_snoozed()
     }
 }
