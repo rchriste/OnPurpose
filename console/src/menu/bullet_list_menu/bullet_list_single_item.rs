@@ -1,5 +1,6 @@
 mod create_or_update_children;
 pub(crate) mod give_this_item_a_parent;
+pub(crate) mod log_worked_on_this;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
@@ -43,7 +44,7 @@ use crate::{
     systems::bullet_list::BulletList,
 };
 
-use self::set_staging::{log_worked_on_this, present_set_staging_menu, StagingMenuSelection};
+use self::set_staging::{present_set_staging_menu, StagingMenuSelection};
 
 use super::present_normal_bullet_list_menu;
 
@@ -333,7 +334,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            log_worked_on_this(
+            log_worked_on_this::log_worked_on_this(
                 menu_for,
                 now, //now contains the time when the user selected this option
                 chrono::Utc::now(),
@@ -349,6 +350,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::Finished) => {
+            log_worked_on_this::log_worked_on_this(
+                menu_for,
+                now, //now contains the time when the user selected this option
+                chrono::Utc::now(),
+                send_to_data_storage_layer,
+                bullet_list.get_ordered_bullet_list(),
+            )
+            .await?;
             finish_bullet_item(
                 menu_for,
                 bullet_list,
