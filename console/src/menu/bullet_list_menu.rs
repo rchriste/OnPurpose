@@ -3,7 +3,7 @@ pub(crate) mod bullet_list_single_item;
 use std::{fmt::Display, iter::once};
 
 use async_recursion::async_recursion;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local, TimeDelta, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use tokio::sync::mpsc::Sender;
@@ -87,18 +87,18 @@ pub(crate) async fn present_normal_bullet_list_menu(
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
-    present_bullet_list_menu(&bullet_list, &now, send_to_data_storage_layer).await
+    present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
 }
 
 pub(crate) async fn present_bullet_list_menu(
     bullet_list: &BulletList,
-    bullet_list_created: &DateTime<Utc>,
+    bullet_list_created: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
 
     let inquire_bullet_list =
-        InquireBulletListItem::create_list(ordered_bullet_list, bullet_list_created);
+        InquireBulletListItem::create_list(ordered_bullet_list, &bullet_list_created);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("Select from the below list|", inquire_bullet_list)
@@ -134,7 +134,14 @@ pub(crate) async fn present_bullet_list_menu(
                 .await
             }
             Err(InquireError::OperationCanceled) => {
-                present_top_menu(send_to_data_storage_layer).await
+                //Pressing Esc is meant to refresh the list unless you press it twice in a row then it will go to the top menu
+                if Utc::now() - bullet_list_created > TimeDelta::seconds(5) {
+                    println!("Refreshing the list");
+                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer))
+                        .await
+                } else {
+                    Box::pin(present_top_menu(send_to_data_storage_layer)).await
+                }
             }
             Err(InquireError::OperationInterrupted) => Err(()),
             Err(err) => todo!("Unexpected InquireError of {}", err),
