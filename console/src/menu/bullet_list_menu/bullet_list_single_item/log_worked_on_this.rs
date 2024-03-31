@@ -202,12 +202,8 @@ async fn ask_when_started_and_stopped(
                     Err(err) => todo!("{:?}", err),
                 }
             }
-            Err(InquireError::OperationCanceled) => {
-                todo!("Operation Canceled")
-            }
-            Err(InquireError::OperationInterrupted) => {
-                return Err(());
-            }
+            Err(InquireError::OperationCanceled) => continue,
+            Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => todo!("{:?}", err),
         };
 
