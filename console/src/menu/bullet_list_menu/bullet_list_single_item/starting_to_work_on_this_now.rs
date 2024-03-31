@@ -62,9 +62,9 @@ impl WorkingOnNow {
 
 pub(crate) async fn starting_to_work_on_this_now(
     currently_working_on: &ItemStatus<'_>,
-    now_if_canceled: DateTime<Utc>,
+    when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = WorkingOnNow::make_list(currently_working_on.get_item_node());
@@ -88,7 +88,8 @@ pub(crate) async fn starting_to_work_on_this_now(
             finish_bullet_item(
                 currently_working_on,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
@@ -96,9 +97,9 @@ pub(crate) async fn starting_to_work_on_this_now(
         Err(InquireError::OperationCanceled) => {
             present_bullet_list_item_selected(
                 currently_working_on,
-                now_if_canceled,
+                *when_selected,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await

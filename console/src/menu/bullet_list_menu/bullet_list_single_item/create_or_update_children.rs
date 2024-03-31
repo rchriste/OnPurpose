@@ -58,9 +58,9 @@ impl CreateOrUpdateChildrenItem {
 
 pub(crate) async fn create_or_update_children(
     item_status: &ItemStatus<'_>,
-    now: DateTime<Utc>,
+    when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     if !item_status.has_children(Filter::Active) {
@@ -101,9 +101,9 @@ pub(crate) async fn create_or_update_children(
         Err(InquireError::OperationCanceled) => {
             present_bullet_list_item_selected(
                 item_status,
-                now,
+                *when_selected,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await

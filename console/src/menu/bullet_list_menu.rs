@@ -51,7 +51,7 @@ impl Display for InquireBulletListItem<'_> {
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list(
         item_status: &'a [BulletListReason<'a>],
-        current_date_time: &'a DateTime<Utc>,
+        bullet_list_created: &'a DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         chain!(
             once(InquireBulletListItem::CaptureNewItem),
@@ -59,7 +59,7 @@ impl<'a> InquireBulletListItem<'a> {
                 BulletListReason::SetStaging(item_status) =>
                     InquireBulletListItem::SetStaging(item_status),
                 BulletListReason::WorkOn(item_status) => {
-                    InquireBulletListItem::Item(item_status, current_date_time)
+                    InquireBulletListItem::Item(item_status, bullet_list_created)
                 }
             })
         )
@@ -92,13 +92,13 @@ pub(crate) async fn present_normal_bullet_list_menu(
 
 pub(crate) async fn present_bullet_list_menu(
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
 
     let inquire_bullet_list =
-        InquireBulletListItem::create_list(ordered_bullet_list, current_date_time);
+        InquireBulletListItem::create_list(ordered_bullet_list, bullet_list_created);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("Select from the below list|", inquire_bullet_list)
@@ -107,7 +107,7 @@ pub(crate) async fn present_bullet_list_menu(
 
         match selected {
             Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
-            Ok(InquireBulletListItem::Item(item_status, current_date_time)) => {
+            Ok(InquireBulletListItem::Item(item_status, bullet_list_created)) => {
                 if item_status.is_person_or_group() {
                     present_is_person_or_group_around_menu(
                         item_status.get_item_node(),
@@ -119,7 +119,7 @@ pub(crate) async fn present_bullet_list_menu(
                         item_status,
                         chrono::Utc::now(),
                         bullet_list,
-                        current_date_time,
+                        bullet_list_created,
                         send_to_data_storage_layer,
                     )
                     .await

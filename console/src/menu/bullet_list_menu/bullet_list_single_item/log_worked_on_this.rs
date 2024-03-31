@@ -15,7 +15,8 @@ use crate::{
 
 pub(crate) async fn log_worked_on_this(
     selected: &ItemStatus<'_>,
-    when_selected: DateTime<Utc>,
+    when_selected: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     ordered_bullet_list: &[BulletListReason<'_>],
@@ -46,8 +47,13 @@ pub(crate) async fn log_worked_on_this(
 
     let working_on = create_working_on_list(selected);
     // -When started
-    let (when_started, when_stopped) =
-        ask_when_started_and_stopped(send_to_data_storage_layer, when_selected, now).await?;
+    let (when_started, when_stopped) = ask_when_started_and_stopped(
+        send_to_data_storage_layer,
+        when_selected,
+        bullet_list_created,
+        now,
+    )
+    .await?;
     // -When marked "I worked on this"
     // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
     let dedication = ask_about_dedication()?;
@@ -78,9 +84,10 @@ fn create_working_on_list(selected: &ItemStatus<'_>) -> Vec<RecordId> {
 
 #[derive(Clone)]
 enum StartedWhen {
-    WhenThisItemWasSelected(DateTime<Local>),
     WhenLastItemFinished(DateTime<Local>),
-    ManualTime,
+    WhenBulletListWasFirstShown(DateTime<Local>),
+    WhenThisItemWasSelected(DateTime<Local>),
+    CustomTime,
 }
 
 impl Display for StartedWhen {
@@ -96,7 +103,14 @@ impl Display for StartedWhen {
                     when_last_item_finished
                 )
             }
-            StartedWhen::ManualTime => write!(f, "Manual Time"),
+            StartedWhen::WhenBulletListWasFirstShown(when_bullet_list_was_first_shown) => {
+                write!(
+                    f,
+                    "When the bullet list was first shown (i.e. {})",
+                    when_bullet_list_was_first_shown
+                )
+            }
+            StartedWhen::CustomTime => write!(f, "Enter a Time"),
         }
     }
 }
@@ -110,14 +124,15 @@ impl Display for StoppedWhen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StoppedWhen::Now(now) => write!(f, "Now (i.e. {})", now),
-            StoppedWhen::ManualTime => write!(f, "Manual Time"),
+            StoppedWhen::ManualTime => write!(f, "Enter a Time"),
         }
     }
 }
 
 async fn ask_when_started_and_stopped(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-    when_selected: DateTime<Utc>,
+    when_selected: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
 ) -> Result<(DateTime<Utc>, DateTime<Utc>), ()> {
     let when_last_time_finished = get_when_the_last_item_finished(send_to_data_storage_layer).await;
@@ -130,8 +145,13 @@ async fn ask_when_started_and_stopped(
         ));
     }
 
-    started_when.push(StartedWhen::WhenThisItemWasSelected(when_selected.into()));
-    started_when.push(StartedWhen::ManualTime);
+    started_when.push(StartedWhen::WhenBulletListWasFirstShown(
+        (*bullet_list_created).into(),
+    ));
+    started_when.push(StartedWhen::WhenThisItemWasSelected(
+        (*when_selected).into(),
+    ));
+    started_when.push(StartedWhen::CustomTime);
 
     loop {
         let started_when = Select::new(
@@ -144,7 +164,10 @@ async fn ask_when_started_and_stopped(
                 when_last_time_finished
             }
             Ok(StartedWhen::WhenThisItemWasSelected(when_selected)) => when_selected,
-            Ok(StartedWhen::ManualTime) => {
+            Ok(StartedWhen::WhenBulletListWasFirstShown(when_bullet_list_was_first_shown)) => {
+                when_bullet_list_was_first_shown
+            }
+            Ok(StartedWhen::CustomTime) => {
                 match Text::new("Enter how long ago or the exact time when this item was started.")
                     .prompt()
                 {

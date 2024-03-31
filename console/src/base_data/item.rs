@@ -50,7 +50,6 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_just_goals(&'t self) -> Self::ItemIterator;
     fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
-    fn filter_just_undeclared_items(&'t self) -> Self::ItemIterator;
     fn filter_active_items(&self) -> Vec<&Item>;
 }
 
@@ -108,16 +107,6 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
             }
         }))
     }
-
-    fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.get_item_type() == &ItemType::Undeclared {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
 }
 
 impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
@@ -164,16 +153,6 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         self.iter().filter_map(Box::new(|x| {
             if x.get_item_type() == &ItemType::PersonOrGroup {
                 Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn filter_just_undeclared_items(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::Undeclared {
-                Some(*x)
             } else {
                 None
             }
@@ -469,8 +448,7 @@ impl Item<'_> {
 #[cfg(test)]
 mod tests {
     use crate::surrealdb_layer::{
-        surreal_item::{SurrealItemBuilder, SurrealOrderedSubItem},
-        surreal_tables::SurrealTablesBuilder,
+        surreal_item::SurrealItemBuilder, surreal_tables::SurrealTablesBuilder,
     };
 
     use super::*;

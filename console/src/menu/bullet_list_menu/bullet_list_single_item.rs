@@ -268,9 +268,9 @@ impl<'e> BulletListSingleItemSelection<'e> {
 #[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemStatus<'_>,
-    now: DateTime<Utc>,
+    when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let all_item_status = bullet_list.get_all_item_status();
@@ -288,9 +288,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
             starting_to_work_on_this_now(
                 menu_for,
-                now,
+                &when_selected,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -298,8 +298,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             log_worked_on_this::log_worked_on_this(
                 menu_for,
-                *current_date_time,
-                now,
+                &when_selected,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
                 bullet_list.get_ordered_bullet_list(),
             )
@@ -328,9 +329,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
             create_or_update_children(
                 menu_for,
-                now,
+                &when_selected,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -344,8 +345,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
             log_worked_on_this::log_worked_on_this(
                 menu_for,
-                now, //now contains the time when the user selected this option
-                chrono::Utc::now(),
+                &when_selected,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
                 bullet_list.get_ordered_bullet_list(),
             )
@@ -360,8 +362,9 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::Finished) => {
             log_worked_on_this::log_worked_on_this(
                 menu_for,
-                now, //now contains the time when the user selected this option
-                chrono::Utc::now(),
+                &when_selected,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
                 bullet_list.get_ordered_bullet_list(),
             )
@@ -369,7 +372,8 @@ pub(crate) async fn present_bullet_list_item_selected(
             finish_bullet_item(
                 menu_for,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
@@ -424,7 +428,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             present_bullet_list_item_parent_selected(
                 &selected,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -503,13 +507,15 @@ impl<'e> FinishSelection<'e> {
 async fn finish_bullet_item(
     finish_this: &ItemStatus<'_>,
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
+    bullet_list_created: &DateTime<Utc>,
+    now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
+    let when_this_function_was_called = now;
     send_to_data_storage_layer
         .send(DataLayerCommands::FinishItem {
             item: finish_this.get_surreal_record_id().clone(),
-            when_finished: (*current_date_time).into(),
+            when_finished: now.into(),
         })
         .await
         .unwrap();
@@ -554,7 +560,8 @@ async fn finish_bullet_item(
             finish_bullet_item(
                 finish_this,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
@@ -565,7 +572,7 @@ async fn finish_bullet_item(
                 .unwrap();
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-            let calculated_data = CalculatedData::new_from_base_data(base_data, current_date_time);
+            let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let updated_parent = calculated_data
                 .get_item_status()
@@ -575,9 +582,9 @@ async fn finish_bullet_item(
 
             present_bullet_list_item_selected(
                 updated_parent,
-                chrono::Utc::now(),
+                when_this_function_was_called,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -588,7 +595,8 @@ async fn finish_bullet_item(
             finish_bullet_item(
                 finish_this,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
@@ -605,7 +613,8 @@ async fn finish_bullet_item(
             finish_bullet_item(
                 finish_this,
                 bullet_list,
-                current_date_time,
+                bullet_list_created,
+                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
