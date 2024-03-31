@@ -296,6 +296,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
+            log_worked_on_this::log_worked_on_this(
+                menu_for,
+                *current_date_time,
+                now,
+                send_to_data_storage_layer,
+                bullet_list.get_ordered_bullet_list(),
+            )
+            .await?;
             state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
