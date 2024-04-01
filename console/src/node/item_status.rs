@@ -213,9 +213,9 @@ fn calculate_is_snoozed(
     all_nodes: &[ItemNode<'_>],
     now: &DateTime<Utc>,
 ) -> bool {
-    if item_node.has_children(Filter::Active) {
-        true
-    } else if item_node.get_snoozed_until().iter().any(|x| x > &now) {
+    if item_node.has_children(Filter::Active)
+        || item_node.get_snoozed_until().iter().any(|x| x > &now)
+    {
         true
     } else {
         let staging = item_node.get_staging();
@@ -1568,8 +1568,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn child_with_parent_that_is_covered_until_tomorrow_is_snoozed()
-    {
+    async fn child_with_parent_that_is_covered_until_tomorrow_is_snoozed() {
         // Arrange
         let (sender, receiver) = mpsc::channel(1);
         let data_storage_join_handle =
@@ -1624,7 +1623,11 @@ mod tests {
 
         sender
             .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                child_to_snooze.get_surreal_record_id().clone(), Utc::now().checked_add_days(Days::new(1)).expect("Far from overflowing")) )
+                child_to_snooze.get_surreal_record_id().clone(),
+                Utc::now()
+                    .checked_add_days(Days::new(1))
+                    .expect("Far from overflowing"),
+            ))
             .await
             .unwrap();
 
@@ -1636,10 +1639,7 @@ mod tests {
         let item_status = calculated_data.get_item_status();
         let child = item_status
             .iter()
-            .find(|x| {
-                x.get_item().get_summary()
-                    == "Child Item That Should Be Snoozed"
-            })
+            .find(|x| x.get_item().get_summary() == "Child Item That Should Be Snoozed")
             .unwrap();
 
         //Assert

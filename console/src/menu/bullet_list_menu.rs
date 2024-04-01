@@ -137,8 +137,7 @@ pub(crate) async fn present_bullet_list_menu(
                 //Pressing Esc is meant to refresh the list unless you press it twice in a row then it will go to the top menu
                 if Utc::now() - bullet_list_created > TimeDelta::seconds(5) {
                     println!("Refreshing the list");
-                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer))
-                        .await
+                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
                 } else {
                     Box::pin(present_top_menu(send_to_data_storage_layer)).await
                 }
