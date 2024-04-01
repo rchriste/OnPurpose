@@ -215,9 +215,11 @@ fn calculate_is_snoozed(
 ) -> bool {
     if item_node.has_children(Filter::Active) {
         true
+    } else if item_node.get_snoozed_until().iter().any(|x| x > &now) {
+        true
     } else {
         let staging = item_node.get_staging();
-        let snoozed_from_staging = match staging {
+        match staging {
             Staging::NotSet => false,
             Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
                 match enter_list {
@@ -230,9 +232,9 @@ fn calculate_is_snoozed(
                         review_after,
                     } => {
                         if now < earliest {
-                            return true;
+                            true
                         } else if now > review_after {
-                            return false;
+                            false
                         } else {
                             let active_larger = item_node.get_larger(Filter::Active);
                             let active_larger = active_larger
@@ -267,9 +269,7 @@ fn calculate_is_snoozed(
             Staging::Planned => false,
             Staging::ThinkingAbout => false,
             Staging::Released => false,
-        };
-
-        item_node.get_snoozed_until().iter().any(|x| x > &now) || snoozed_from_staging
+        }
     }
 }
 
@@ -1562,6 +1562,88 @@ mod tests {
             "Lap count was {}",
             lower_child.get_lap_count()
         );
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn child_with_parent_that_is_covered_until_tomorrow_is_snoozed()
+    {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Child Item That Should Be Snoozed")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
+                            Utc::now()
+                                .checked_sub_days(Days::new(1))
+                                .expect("Far from overflowing"),
+                        ))),
+                        lap: Duration::from_days(1),
+                    })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let child_to_snooze = base_data
+            .get_active_items()
+            .iter()
+            .find(|x| x.get_summary() == "Child Item That Should Be Snoozed")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
+                child_to_snooze.get_surreal_record_id().clone(), Utc::now().checked_add_days(Days::new(1)).expect("Far from overflowing")) )
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let child = item_status
+            .iter()
+            .find(|x| {
+                x.get_item().get_summary()
+                    == "Child Item That Should Be Snoozed"
+            })
+            .unwrap();
+
+        //Assert
+        assert_eq!(child.is_snoozed(), true);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();

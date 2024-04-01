@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use chrono::Utc;
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
@@ -130,6 +131,14 @@ impl BulletList {
                     })
                 });
 
+                {
+                    let top_item = all_leaf_status_nodes.iter().next().unwrap();
+                    println!("Top item: {:?}", top_item.get_item().get_summary());
+                    println!("Snoozed: {:?}", top_item.is_snoozed());
+                    println!("Snoozed until: {:?}", top_item.get_item_node().get_snoozed_until());
+                    let now = Utc::now();
+                    println!("Question: {:?}", top_item.get_item_node().get_snoozed_until().iter().any(|x| x > &&now) );
+                }
                 all_leaf_status_nodes
                     .into_iter()
                     .map(BulletListReason::new)
