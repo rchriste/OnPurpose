@@ -85,7 +85,14 @@ fn prompt_for_two_times(
                         EnterListReason::DateTime(return_to.into())
                     }
                     Err(_) => match dateparser::parse(&return_to_string) {
-                        Ok(return_to) => EnterListReason::DateTime(return_to.into()),
+                        Ok(return_to) => {
+                            if return_to < now {
+                                println!("Cannot give a time in the past. Please try again.");
+                                continue;
+                            } else {
+                                EnterListReason::DateTime(return_to.into())
+                            }
+                        }
                         Err(_) => {
                             println!("Invalid input. Please try again.");
                             continue;
