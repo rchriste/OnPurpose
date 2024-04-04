@@ -9,7 +9,10 @@ use tokio::sync::{mpsc::Sender, oneshot};
 use crate::{
     new_time_spent::NewTimeSpent,
     node::{item_status::ItemStatus, Filter},
-    surrealdb_layer::{surreal_time_spent::SurrealDedication, DataLayerCommands},
+    surrealdb_layer::{
+        surreal_time_spent::{SurrealBulletListPosition, SurrealDedication},
+        DataLayerCommands,
+    },
     systems::bullet_list::BulletListReason,
 };
 
@@ -57,12 +60,15 @@ pub(crate) async fn log_worked_on_this(
     // -When marked "I worked on this"
     // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
     let dedication = ask_about_dedication()?;
-    let time_spent = NewTimeSpent {
-        working_on,
+    let bullet_list_position = Some(SurrealBulletListPosition {
         position_in_list: position_in_list as u64,
         lap_count,
         next_lower_lap_count,
         next_higher_lap_count,
+    });
+    let time_spent = NewTimeSpent {
+        working_on,
+        bullet_list_position,
         when_started,
         when_stopped,
         dedication,
