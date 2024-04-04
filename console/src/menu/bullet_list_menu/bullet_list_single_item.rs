@@ -50,6 +50,7 @@ use super::present_normal_bullet_list_menu;
 
 enum BulletListSingleItemSelection<'e> {
     DeclareItemType,
+    CaptureNewItem,
     StartingToWorkOnThisNow,
     GiveThisItemAParent,
     PlanWhenToDoThis,
@@ -87,6 +88,7 @@ impl Display for BulletListSingleItemSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
+            Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => write!(f, "Switch to: {}", parent_item),
             Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
@@ -169,6 +171,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         if is_type_action || is_type_goal || is_type_motivation {
+            list.push(Self::CaptureNewItem);
             list.push(Self::StartingToWorkOnThisNow);
             list.push(Self::WorkedOnThis);
         }
@@ -289,6 +292,17 @@ pub(crate) async fn present_bullet_list_item_selected(
             starting_to_work_on_this_now(
                 menu_for,
                 &when_selected,
+                bullet_list,
+                bullet_list_created,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
+        Ok(BulletListSingleItemSelection::CaptureNewItem) => {
+            capture(send_to_data_storage_layer).await?;
+            present_bullet_list_item_selected(
+                menu_for,
+                when_selected,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
