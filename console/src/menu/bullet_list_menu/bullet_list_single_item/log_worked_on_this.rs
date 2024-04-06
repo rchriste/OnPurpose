@@ -50,33 +50,39 @@ pub(crate) async fn log_worked_on_this(
 
     let working_on = create_working_on_list(selected);
     // -When started
-    let (when_started, when_stopped) = ask_when_started_and_stopped(
-        send_to_data_storage_layer,
-        when_selected,
-        bullet_list_created,
-        now,
-    )
-    .await?;
-    // -When marked "I worked on this"
-    // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
-    let dedication = ask_about_dedication()?;
-    let bullet_list_position = Some(SurrealBulletListPosition {
-        position_in_list: position_in_list as u64,
-        lap_count,
-        next_lower_lap_count,
-        next_higher_lap_count,
-    });
-    let time_spent = NewTimeSpent {
-        working_on,
-        bullet_list_position,
-        when_started,
-        when_stopped,
-        dedication,
-    };
-    send_to_data_storage_layer
-        .send(DataLayerCommands::RecordTimeSpent(time_spent))
-        .await
-        .unwrap();
+    loop {
+        let (when_started, when_stopped) = ask_when_started_and_stopped(
+            send_to_data_storage_layer,
+            when_selected,
+            bullet_list_created,
+            now,
+        )
+        .await?;
+        // -When marked "I worked on this"
+        // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
+        if let Some(dedication) = ask_about_dedication()? {
+            let bullet_list_position = Some(SurrealBulletListPosition {
+                position_in_list: position_in_list as u64,
+                lap_count,
+                next_lower_lap_count,
+                next_higher_lap_count,
+            });
+            let time_spent = NewTimeSpent {
+                working_on,
+                bullet_list_position,
+                when_started,
+                when_stopped,
+                dedication,
+            };
+            send_to_data_storage_layer
+                .send(DataLayerCommands::RecordTimeSpent(time_spent))
+                .await
+                .unwrap();
+            break;
+        } else {
+            continue; //If the user cancels they should be able to try again
+        }
+    }
     Ok(())
 }
 
@@ -277,14 +283,14 @@ impl Display for Dedication {
     }
 }
 
-fn ask_about_dedication() -> Result<SurrealDedication, ()> {
+fn ask_about_dedication() -> Result<Option<SurrealDedication>, ()> {
     let dedication = vec![Dedication::Primary, Dedication::Secondary];
     let dedication = Select::new("What is the dedication of this time spent?", dedication).prompt();
     match dedication {
-        Ok(Dedication::Primary) => Ok(SurrealDedication::PrimaryTask),
-        Ok(Dedication::Secondary) => Ok(SurrealDedication::SecondaryTask),
+        Ok(Dedication::Primary) => Ok(Some(SurrealDedication::PrimaryTask)),
+        Ok(Dedication::Secondary) => Ok(Some(SurrealDedication::SecondaryTask)),
         Err(InquireError::OperationCanceled) => {
-            todo!("Operation Canceled")
+            Ok(None)
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
