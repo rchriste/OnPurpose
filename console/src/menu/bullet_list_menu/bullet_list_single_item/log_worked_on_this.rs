@@ -31,22 +31,32 @@ pub(crate) async fn log_worked_on_this(
     // -Position in list
     let position_in_list = ordered_bullet_list
         .iter()
-        .position(|reason| reason.get_surreal_record_id() == selected.get_surreal_record_id())
-        .unwrap();
+        .position(|reason| reason.get_surreal_record_id() == selected.get_surreal_record_id());
 
-    // -Lap count
-    let lap_count = selected.get_lap_count();
+    let bullet_list_position = if let Some(position_in_list) = position_in_list {
+        // -Lap count
+        let lap_count = selected.get_lap_count();
 
-    // -Lap count of next lower and next higher so you know how much you would need to dampen or boost to work on something else
-    let next_lower_lap_count: Option<f32> = ordered_bullet_list
-        .get(position_in_list + 1)
-        .map(|reason| reason.get_lap_count());
-    let next_higher_lap_count: Option<f32> = if position_in_list == 0 {
-        None
+        // -Lap count of next lower and next higher so you know how much you would need to dampen or boost to work on something else
+        let next_lower_lap_count: Option<f32> = ordered_bullet_list
+            .get(position_in_list + 1)
+            .map(|reason| reason.get_lap_count());
+        let next_higher_lap_count: Option<f32> = if position_in_list == 0 {
+            None
+        } else {
+            ordered_bullet_list
+                .get(position_in_list - 1)
+                .map(|reason| reason.get_lap_count())
+        };
+
+        Some(SurrealBulletListPosition {
+            position_in_list: position_in_list as u64,
+            lap_count,
+            next_lower_lap_count,
+            next_higher_lap_count,
+        })
     } else {
-        ordered_bullet_list
-            .get(position_in_list - 1)
-            .map(|reason| reason.get_lap_count())
+        None
     };
 
     let working_on = create_working_on_list(selected);
@@ -62,12 +72,6 @@ pub(crate) async fn log_worked_on_this(
         // -When marked "I worked on this"
         // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
         if let Some(dedication) = ask_about_dedication()? {
-            let bullet_list_position = Some(SurrealBulletListPosition {
-                position_in_list: position_in_list as u64,
-                lap_count,
-                next_lower_lap_count,
-                next_higher_lap_count,
-            });
             let time_spent = NewTimeSpent {
                 working_on,
                 bullet_list_position,
