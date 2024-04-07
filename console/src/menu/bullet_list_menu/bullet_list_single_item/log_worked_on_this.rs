@@ -128,14 +128,14 @@ impl Display for StartedWhen {
 }
 
 enum StoppedWhen {
-    Now(DateTime<Local>),
+    Now,
     ManualTime,
 }
 
 impl Display for StoppedWhen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StoppedWhen::Now(now) => write!(f, "Now (i.e. {})", now),
+            StoppedWhen::Now => write!(f, "Now"),
             StoppedWhen::ManualTime => write!(f, "Enter a Time"),
         }
     }
@@ -210,11 +210,11 @@ async fn ask_when_started_and_stopped(
             Err(err) => todo!("{:?}", err),
         };
         println!("When started: {:?}", when_started);
-        let stopped_when = vec![StoppedWhen::Now(now.into()), StoppedWhen::ManualTime];
+        let stopped_when = vec![StoppedWhen::Now, StoppedWhen::ManualTime];
         let stopped_when =
             Select::new("When did you stop working on this item?", stopped_when).prompt();
         let when_stopped = match stopped_when {
-            Ok(StoppedWhen::Now(now)) => now,
+            Ok(StoppedWhen::Now) => Local::now(),
             Ok(StoppedWhen::ManualTime) => {
                 match Text::new("Enter how long ago or the exact time when this item was stopped.")
                     .prompt()
@@ -241,6 +241,8 @@ async fn ask_when_started_and_stopped(
             Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => todo!("{:?}", err),
         };
+
+        //TODO: If the amount of time logged is greater than 2 hours then ask to make sure that this is correct
 
         return Ok((when_started.into(), when_stopped.into()));
     }

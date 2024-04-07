@@ -46,8 +46,6 @@ use crate::{
 
 use self::set_staging::{present_set_staging_menu, StagingMenuSelection};
 
-use super::present_normal_bullet_list_menu;
-
 enum BulletListSingleItemSelection<'e> {
     DeclareItemType,
     CaptureNewItem,
@@ -354,23 +352,12 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            log_worked_on_this::log_worked_on_this(
-                menu_for,
-                &when_selected,
-                bullet_list_created,
-                Utc::now(),
-                send_to_data_storage_layer,
-                bullet_list.get_ordered_bullet_list(),
-            )
-            .await?;
             present_set_staging_menu(
                 menu_for.get_item(),
                 send_to_data_storage_layer,
                 Some(StagingMenuSelection::MentallyResident),
             )
-            .await
-        }
-        Ok(BulletListSingleItemSelection::Finished) => {
+            .await?;
             log_worked_on_this::log_worked_on_this(
                 menu_for,
                 &when_selected,
@@ -379,13 +366,24 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
                 bullet_list.get_ordered_bullet_list(),
             )
-            .await?;
+            .await
+        }
+        Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
                 menu_for,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
+            )
+            .await?;
+            log_worked_on_this::log_worked_on_this(
+                menu_for,
+                &when_selected,
+                bullet_list_created,
+                Utc::now(),
+                send_to_data_storage_layer,
+                bullet_list.get_ordered_bullet_list(),
             )
             .await
         }
@@ -631,7 +629,7 @@ async fn finish_bullet_item(
             .await
         }
         Ok(FinishSelection::ReturnToBulletList) => {
-            present_normal_bullet_list_menu(send_to_data_storage_layer).await
+            Ok(())
         }
         Err(InquireError::OperationCanceled) => {
             todo!("This should undo the finish and put the item back to what it was before")
