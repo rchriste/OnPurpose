@@ -628,9 +628,7 @@ async fn finish_bullet_item(
             )
             .await
         }
-        Ok(FinishSelection::ReturnToBulletList) => {
-            Ok(())
-        }
+        Ok(FinishSelection::ReturnToBulletList) => Ok(()),
         Err(InquireError::OperationCanceled) => {
             todo!("This should undo the finish and put the item back to what it was before")
         }

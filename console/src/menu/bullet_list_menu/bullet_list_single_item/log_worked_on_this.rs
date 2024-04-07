@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
@@ -7,13 +7,10 @@ use surrealdb::{opt::RecordId, sql::Datetime};
 use tokio::sync::{mpsc::Sender, oneshot};
 
 use crate::{
-    new_time_spent::NewTimeSpent,
-    node::{item_status::ItemStatus, Filter},
-    surrealdb_layer::{
+    display::display_duration::DisplayDuration, new_time_spent::NewTimeSpent, node::{item_status::ItemStatus, Filter}, surrealdb_layer::{
         surreal_time_spent::{SurrealBulletListPosition, SurrealDedication},
         DataLayerCommands,
-    },
-    systems::bullet_list::BulletListReason,
+    }, systems::bullet_list::BulletListReason
 };
 
 pub(crate) async fn log_worked_on_this(
@@ -141,6 +138,20 @@ impl Display for StoppedWhen {
     }
 }
 
+enum YesOrNo {
+    Yes,
+    No,
+}
+
+impl Display for YesOrNo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            YesOrNo::Yes => write!(f, "Yes"),
+            YesOrNo::No => write!(f, "No"),
+        }
+    }
+}
+
 async fn ask_when_started_and_stopped(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     when_selected: &DateTime<Utc>,
@@ -242,7 +253,24 @@ async fn ask_when_started_and_stopped(
             Err(err) => todo!("{:?}", err),
         };
 
-        //TODO: If the amount of time logged is greater than 2 hours then ask to make sure that this is correct
+        let time_spent = when_stopped - when_started;
+        let duration: Duration = Duration::from_secs(time_spent.num_seconds() as u64);
+        let display_duration = DisplayDuration::new(&duration);
+        println!("Time spent: {}", display_duration);
+        if time_spent.num_hours() > 2 {
+            let confirm = Select::new(
+                &format!("The amount of time spent is {display_duration}. Are you sure this is correct?"),
+                vec![YesOrNo::Yes, YesOrNo::No],
+            )
+            .prompt();
+            match confirm {
+                Ok(YesOrNo::Yes) => {}
+                Ok(YesOrNo::No) => continue,
+                Err(InquireError::OperationCanceled) => continue,
+                Err(InquireError::OperationInterrupted) => return Err(()),
+                Err(err) => todo!("{:?}", err),
+            }
+        }
 
         return Ok((when_started.into(), when_stopped.into()));
     }
