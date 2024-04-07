@@ -257,6 +257,10 @@ async fn ask_when_started_and_stopped(
             Err(err) => todo!("{:?}", err),
         };
 
+        if when_started > when_stopped {
+            println!("The time started is after the time stopped. Please try again.");
+            continue;
+        }
         let time_spent = when_stopped - when_started;
         let duration: Duration = Duration::from_secs(time_spent.num_seconds() as u64);
         let display_duration = DisplayDuration::new(&duration);
