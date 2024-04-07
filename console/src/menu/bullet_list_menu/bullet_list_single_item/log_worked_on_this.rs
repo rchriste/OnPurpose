@@ -7,10 +7,14 @@ use surrealdb::{opt::RecordId, sql::Datetime};
 use tokio::sync::{mpsc::Sender, oneshot};
 
 use crate::{
-    display::display_duration::DisplayDuration, new_time_spent::NewTimeSpent, node::{item_status::ItemStatus, Filter}, surrealdb_layer::{
+    display::display_duration::DisplayDuration,
+    new_time_spent::NewTimeSpent,
+    node::{item_status::ItemStatus, Filter},
+    surrealdb_layer::{
         surreal_time_spent::{SurrealBulletListPosition, SurrealDedication},
         DataLayerCommands,
-    }, systems::bullet_list::BulletListReason
+    },
+    systems::bullet_list::BulletListReason,
 };
 
 pub(crate) async fn log_worked_on_this(
@@ -259,7 +263,9 @@ async fn ask_when_started_and_stopped(
         println!("Time spent: {}", display_duration);
         if time_spent.num_hours() > 2 {
             let confirm = Select::new(
-                &format!("The amount of time spent is {display_duration}. Are you sure this is correct?"),
+                &format!(
+                    "The amount of time spent is {display_duration}. Are you sure this is correct?"
+                ),
                 vec![YesOrNo::Yes, YesOrNo::No],
             )
             .prompt();
