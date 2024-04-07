@@ -289,9 +289,7 @@ fn ask_about_dedication() -> Result<Option<SurrealDedication>, ()> {
     match dedication {
         Ok(Dedication::Primary) => Ok(Some(SurrealDedication::PrimaryTask)),
         Ok(Dedication::Secondary) => Ok(Some(SurrealDedication::SecondaryTask)),
-        Err(InquireError::OperationCanceled) => {
-            Ok(None)
-        }
+        Err(InquireError::OperationCanceled) => Ok(None),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }

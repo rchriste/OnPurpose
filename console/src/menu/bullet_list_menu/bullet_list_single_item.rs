@@ -221,17 +221,14 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         let parent_items = item_node.create_parent_chain();
         if is_type_action || is_type_goal || is_type_motivation || is_type_undeclared {
-            if has_no_parent {
-                list.push(Self::ParentToItem);
-            } else {
-                list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                    let item_status = all_item_status
-                        .iter()
-                        .find(|y| y.get_item() == *x)
-                        .expect("All items are here");
-                    Self::SwitchToParentItem(DisplayItem::new(x), item_status.clone())
-                }));
-            }
+            list.push(Self::ParentToItem);
+            list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
+                let item_status = all_item_status
+                    .iter()
+                    .find(|y| y.get_item() == *x)
+                    .expect("All items are here");
+                Self::SwitchToParentItem(DisplayItem::new(x), item_status.clone())
+            }));
         }
 
         for parent in parent_items {
