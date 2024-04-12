@@ -304,7 +304,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                         if datetime < &now {
                             return (Some(child.get_item()), when_uncovered);
                         } else {
-                            println!("Do I need to update latest_uncovered1?"); //TODO: Add a Unit Test for this scenario
+                            // Is currently covered
                             continue;
                         }
                     }
@@ -325,7 +325,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     if datetime < &now {
                         return (Some(child.get_item()), when_uncovered);
                     } else {
-                        println!("Do I need to update latest_uncovered3?");
+                        // Is currently covered
                         continue;
                     }
                 }
@@ -1206,6 +1206,198 @@ mod tests {
         assert_eq!(lower_child.is_snoozed(), false);
         assert!(lower_child.get_lap_count() > 0.9);
         assert!(lower_child.get_lap_count() < 1.1);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_node_with_2_children_highest_on_deck_covered_by_datetime_lower_child_is_not_snoozed(
+    ) {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Highest Child That is Covered By DateTime")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::DateTime(
+                            Utc::now()
+                                .checked_add_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                        ),
+                        lap: Duration::from_days(1),
+                    })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Be Available")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| x.get_item().get_summary() == "Lower Child That Should Be Available")
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn parent_node_with_2_children_highest_mentally_resident_covered_by_datetime_lower_child_is_not_snoozed(
+    ) {
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let new_item = NewItem::new("New Parent Item".into(), Utc::now());
+        sender
+            .send(DataLayerCommands::NewItem(new_item))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "New Parent Item")
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Highest Child That is Covered By DateTime")
+                    .staging(Staging::MentallyResident {
+                        enter_list: EnterListReason::DateTime(
+                            Utc::now()
+                                .checked_add_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                        ),
+                        lap: Duration::from_days(1),
+                    })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Lower Child That Should Be Available")
+                    .staging(Staging::OnDeck {
+                        enter_list: EnterListReason::HighestUncovered {
+                            earliest: Utc::now()
+                                .checked_sub_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                            review_after: Utc::now()
+                                .checked_add_days(Days::new(2))
+                                .expect("Far from overflowing")
+                                .into(),
+                        },
+                        lap: Duration::from_days(1),
+                    })
+                    .created(
+                        Utc::now()
+                            .checked_sub_days(Days::new(30))
+                            .expect("Far from overflowing"),
+                    )
+                    .build()
+                    .expect("valid new item"),
+                parent: parent.id.as_ref().unwrap().clone(),
+                higher_priority_than_this: None,
+            })
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+        let item_status = calculated_data.get_item_status();
+        let lower_child = item_status
+            .iter()
+            .find(|x| x.get_item().get_summary() == "Lower Child That Should Be Available")
+            .unwrap();
+
+        //Assert
+        assert_eq!(lower_child.is_snoozed(), false);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();

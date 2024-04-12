@@ -38,7 +38,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["parent_node_with_2_children_highest_one_finished_a_long_time_ago_lower_child_configured_for_highest_uncovered_it_should_be_ready_with_a_lap_time_starting_when_it_was_filed"],
+            "args": ["parent_node_with_2_children_highest_mentally_resident_covered_by_datetime_lower_child_is_not_snoozed"],
             "cwd": "${workspaceFolder}"
         }
     ]
