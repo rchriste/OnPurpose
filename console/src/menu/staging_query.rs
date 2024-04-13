@@ -1,4 +1,4 @@
-use std::{fmt::Display, time::Duration};
+use std::fmt::Display;
 
 use chrono::Utc;
 use duration_str::parse;
@@ -6,10 +6,10 @@ use inquire::{InquireError, Select, Text};
 
 use crate::{
     display::{
-        display_duration::DisplayDuration, display_enter_list_reason::DisplayEnterListReason,
+        display_enter_list_reason::DisplayEnterListReason, display_surreal_lap::DisplaySurrealLap,
     },
     menu::YesOrNo,
-    surrealdb_layer::surreal_item::{EnterListReason, Staging},
+    surrealdb_layer::surreal_item::{EnterListReason, Staging, SurrealLap},
 };
 
 #[derive(Debug, Clone)]
@@ -51,25 +51,19 @@ impl EnterListReasonSelection {
 pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
     let (enter_list, lap) = prompt_for_two_times(EnterListReasonSelection::make_list_on_deck())?;
 
-    Ok(Staging::OnDeck {
-        enter_list,
-        lap: lap.into(),
-    })
+    Ok(Staging::OnDeck { enter_list, lap })
 }
 
 pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
     let (enter_list, lap) =
         prompt_for_two_times(EnterListReasonSelection::make_list_mentally_resident())?;
 
-    Ok(Staging::MentallyResident {
-        enter_list,
-        lap: lap.into(),
-    })
+    Ok(Staging::MentallyResident { enter_list, lap })
 }
 
 fn prompt_for_two_times(
     list: Vec<EnterListReasonSelection>,
-) -> Result<(EnterListReason, Duration), InquireError> {
+) -> Result<(EnterListReason, SurrealLap), InquireError> {
     let now = Utc::now();
     loop {
         let selection =
@@ -124,26 +118,33 @@ fn prompt_for_two_times(
                 }
             }
         };
-        let deadline_string = Text::new("Lap length?").prompt()?;
-        let lap = match parse(&deadline_string) {
-            Ok(lap) => lap,
-            Err(_) => {
-                println!("Invalid input. Please try again.");
-                continue;
+        if let Some(lap) = prompt_for_surreal_lap()? {
+            let result = Select::new(
+                &format!(
+                    "Wait until: {}\n Lap: {}",
+                    DisplayEnterListReason::new(&enter_list_reason),
+                    DisplaySurrealLap::new(&lap)
+                ),
+                YesOrNo::make_list(),
+            )
+            .prompt()?;
+            match result {
+                YesOrNo::Yes => return Ok((enter_list_reason, lap)),
+                YesOrNo::No => continue,
             }
-        };
-        let result = Select::new(
-            &format!(
-                "Wait until: {}\n Lap: {}",
-                DisplayEnterListReason::new(&enter_list_reason),
-                DisplayDuration::new(&lap)
-            ),
-            YesOrNo::make_list(),
-        )
-        .prompt()?;
-        match result {
-            YesOrNo::Yes => return Ok((enter_list_reason, lap)),
-            YesOrNo::No => continue,
+        } else {
+            continue;
+        }
+    }
+}
+
+pub(crate) fn prompt_for_surreal_lap() -> Result<Option<SurrealLap>, InquireError> {
+    let deadline_string = Text::new("Lap length?").prompt()?;
+    match parse(deadline_string) {
+        Ok(lap) => Ok(Some(SurrealLap::AlwaysTimer(lap.into()))),
+        Err(_) => {
+            println!("Invalid input. Please try again.");
+            Ok(None)
         }
     }
 }

@@ -1,8 +1,8 @@
-use std::{fmt::Display, time::Duration};
+use std::fmt::Display;
 
 use crate::{
     display::{
-        display_duration::DisplayDuration, display_enter_list_reason::DisplayEnterListReason,
+        display_enter_list_reason::DisplayEnterListReason, display_surreal_lap::DisplaySurrealLap,
     },
     surrealdb_layer::surreal_item::Staging,
 };
@@ -20,14 +20,12 @@ impl Display for DisplayStaging<'_> {
             Staging::Released => write!(f, "Released"),
             Staging::MentallyResident { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
-                let lap: Duration = (*lap).into();
-                let lap = DisplayDuration::new(&lap);
+                let lap = DisplaySurrealLap::new(lap);
                 write!(f, "MentallyResident: enter_list: {enter_list}, lap: {lap}",)
             }
             Staging::OnDeck { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
-                let lap: Duration = (*lap).into();
-                let lap = DisplayDuration::new(&lap);
+                let lap = DisplaySurrealLap::new(lap);
                 write!(f, "OnDeck: enter_list: {enter_list}, lap: {lap}",)
             }
         }

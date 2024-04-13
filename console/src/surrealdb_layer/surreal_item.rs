@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use chrono::Utc;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -189,11 +188,11 @@ pub(crate) enum Staging {
     NotSet,
     MentallyResident {
         enter_list: EnterListReason,
-        lap: Duration,
+        lap: SurrealLap,
     },
     OnDeck {
         enter_list: EnterListReason,
-        lap: Duration,
+        lap: SurrealLap,
     },
     Planned,
     ThinkingAbout,
@@ -241,6 +240,28 @@ impl Ord for Staging {
     }
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum StagingOldVersion {
+    #[default]
+    NotSet,
+    MentallyResident {
+        enter_list: EnterListReason,
+        lap: Duration,
+    },
+    OnDeck {
+        enter_list: EnterListReason,
+        lap: Duration,
+    },
+    Planned,
+    ThinkingAbout,
+    Released,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealLap {
+    AlwaysTimer(Duration),
+}
+
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealOrderedSubItem {
     SubItem {
@@ -266,29 +287,6 @@ pub(crate) enum NotesLocation {
     None,
     OneNoteLink(String),
     WebLink(String),
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum EnterListReasonOldVersion {
-    DateTime(Datetime),
-    HighestUncovered { review_after: Datetime },
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum StagingOldVersion {
-    #[default]
-    NotSet,
-    MentallyResident {
-        enter_list: EnterListReasonOldVersion,
-        lap: Duration,
-    },
-    OnDeck {
-        enter_list: EnterListReasonOldVersion,
-        lap: Duration,
-    },
-    Planned,
-    ThinkingAbout,
-    Released,
 }
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
@@ -354,12 +352,12 @@ impl From<StagingOldVersion> for Staging {
         match value {
             StagingOldVersion::NotSet => Staging::NotSet,
             StagingOldVersion::MentallyResident { enter_list, lap } => Staging::MentallyResident {
-                enter_list: enter_list.into(),
-                lap,
+                enter_list,
+                lap: lap.into(),
             },
             StagingOldVersion::OnDeck { enter_list, lap } => Staging::OnDeck {
-                enter_list: enter_list.into(),
-                lap,
+                enter_list,
+                lap: lap.into(),
             },
             StagingOldVersion::Planned => Staging::Planned,
             StagingOldVersion::ThinkingAbout => Staging::ThinkingAbout,
@@ -368,17 +366,9 @@ impl From<StagingOldVersion> for Staging {
     }
 }
 
-impl From<EnterListReasonOldVersion> for EnterListReason {
-    fn from(value: EnterListReasonOldVersion) -> Self {
-        match value {
-            EnterListReasonOldVersion::DateTime(datetime) => EnterListReason::DateTime(datetime),
-            EnterListReasonOldVersion::HighestUncovered { review_after } => {
-                EnterListReason::HighestUncovered {
-                    earliest: Utc::now().into(),
-                    review_after,
-                }
-            }
-        }
+impl From<Duration> for SurrealLap {
+    fn from(value: Duration) -> Self {
+        SurrealLap::AlwaysTimer(value)
     }
 }
 

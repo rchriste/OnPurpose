@@ -8,7 +8,7 @@ use surrealdb::{
 
 use crate::{
     base_data::item::Item,
-    surrealdb_layer::surreal_item::{EnterListReason, ItemType, Staging},
+    surrealdb_layer::surreal_item::{EnterListReason, ItemType, Staging, SurrealLap},
 };
 
 use super::{
@@ -136,11 +136,15 @@ fn calculate_lap_count(
             match enter_list {
                 EnterListReason::DateTime(enter_time) => {
                     let enter_time: DateTime<Utc> = enter_time.clone().into();
-                    let lap: Duration = (*lap).into();
-                    let elapsed = current_date_time.sub(enter_time);
-                    let elapsed = elapsed.num_seconds() as f32;
-                    let lap = lap.as_secs_f32();
-                    elapsed / lap
+                    match lap {
+                        crate::surrealdb_layer::surreal_item::SurrealLap::AlwaysTimer(lap) => {
+                            let lap: Duration = (*lap).into();
+                            let elapsed = current_date_time.sub(enter_time);
+                            let elapsed = elapsed.num_seconds() as f32;
+                            let lap = lap.as_secs_f32();
+                            elapsed / lap
+                        }
+                    }
                 }
                 EnterListReason::HighestUncovered {
                     earliest,
@@ -150,11 +154,15 @@ fn calculate_lap_count(
                         0.0
                     } else if current_date_time > review_after {
                         let enter_time: DateTime<Utc> = review_after.clone().into();
-                        let lap: Duration = (*lap).into();
-                        let elapsed = current_date_time.sub(enter_time);
-                        let elapsed = elapsed.num_seconds() as f32;
-                        let lap = lap.as_secs_f32();
-                        elapsed / lap
+                        match lap {
+                            SurrealLap::AlwaysTimer(lap) => {
+                                let lap: Duration = (*lap).into();
+                                let elapsed = current_date_time.sub(enter_time);
+                                let elapsed = elapsed.num_seconds() as f32;
+                                let lap = lap.as_secs_f32();
+                                elapsed / lap
+                            }
+                        }
                     } else {
                         let all_larger = item_node.get_larger(Filter::All);
                         let all_larger = all_larger
@@ -189,8 +197,12 @@ fn calculate_lap_count(
                                     }
                                     let elapsed = current_date_time.sub(uncovered_when);
                                     let elapsed = elapsed.num_seconds() as f32;
-                                    let lap = lap.as_secs_f32();
-                                    elapsed / lap
+                                    match lap {
+                                        SurrealLap::AlwaysTimer(lap) => {
+                                            let lap = lap.as_secs_f32();
+                                            elapsed / lap
+                                        }
+                                    }
                                 } else {
                                     0.0
                                 }
@@ -361,7 +373,7 @@ mod tests {
         new_item::{NewItem, NewItemBuilder},
         surrealdb_layer::{
             data_storage_start_and_run,
-            surreal_item::{EnterListReason, Staging},
+            surreal_item::{EnterListReason, Staging, SurrealLap},
             surreal_tables::SurrealTables,
             DataLayerCommands,
         },
@@ -405,7 +417,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .build()
                     .expect("valid new item"),
@@ -473,7 +485,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -546,7 +558,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -578,7 +590,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -651,7 +663,7 @@ mod tests {
                                 .checked_sub_days(Days::new(1))
                                 .expect("Far from overflowing"),
                         ))),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .build()
                     .expect("valid new item"),
@@ -678,7 +690,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .build()
                     .expect("valid new item"),
@@ -770,7 +782,7 @@ mod tests {
                                 .checked_sub_days(Days::new(1))
                                 .expect("Far from overflowing"),
                         ))),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(Datetime(DateTime::from(
                         Utc::now()
@@ -800,7 +812,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .build()
                     .expect("valid new item"),
@@ -895,7 +907,7 @@ mod tests {
                                 .checked_sub_days(Days::new(1))
                                 .expect("Far from overflowing"),
                         ))),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -927,7 +939,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1046,7 +1058,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1078,7 +1090,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1173,7 +1185,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1243,7 +1255,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         ),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1273,7 +1285,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1339,7 +1351,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         ),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1369,7 +1381,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1439,7 +1451,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1469,7 +1481,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1501,7 +1513,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1617,7 +1629,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1647,7 +1659,7 @@ mod tests {
                                 .expect("Far from overflowing")
                                 .into(),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1679,7 +1691,7 @@ mod tests {
                                     .expect("Far from overflowing"),
                             )),
                         },
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
@@ -1789,7 +1801,7 @@ mod tests {
                                 .checked_sub_days(Days::new(1))
                                 .expect("Far from overflowing"),
                         ))),
-                        lap: Duration::from_days(1),
+                        lap: SurrealLap::AlwaysTimer(Duration::from_days(1)),
                     })
                     .created(
                         Utc::now()
