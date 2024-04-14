@@ -121,7 +121,7 @@ fn prompt_for_two_times(
         if let Some(lap) = prompt_for_surreal_lap()? {
             let result = Select::new(
                 &format!(
-                    "Wait until: {}\n Lap: {}",
+                    "Wait until: {}\n Lap: {}?",
                     DisplayEnterListReason::new(&enter_list_reason),
                     DisplaySurrealLap::new(&lap)
                 ),
@@ -138,13 +138,46 @@ fn prompt_for_two_times(
     }
 }
 
+enum LapSelection {
+    WallClockTimer,
+    WorkedOnCounter,
+}
+
+impl Display for LapSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LapSelection::WallClockTimer => write!(f, "Wall clock timer"),
+            LapSelection::WorkedOnCounter => write!(f, "Times worked on counter"),
+        }
+    }
+}
+
 pub(crate) fn prompt_for_surreal_lap() -> Result<Option<SurrealLap>, InquireError> {
-    let deadline_string = Text::new("Lap length?").prompt()?;
-    match parse(deadline_string) {
-        Ok(lap) => Ok(Some(SurrealLap::AlwaysTimer(lap.into()))),
-        Err(_) => {
-            println!("Invalid input. Please try again.");
-            Ok(None)
+    let selection = Select::new(
+        "How should the lap be measured?",
+        vec![LapSelection::WallClockTimer, LapSelection::WorkedOnCounter],
+    )
+    .prompt()?;
+    match selection {
+        LapSelection::WallClockTimer => {
+            let deadline_string = Text::new("Lap length?").prompt()?;
+            match parse(deadline_string) {
+                Ok(lap) => Ok(Some(SurrealLap::AlwaysTimer(lap.into()))),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    Ok(None)
+                }
+            }
+        }
+        LapSelection::WorkedOnCounter => {
+            let stride = Text::new("Stride?").prompt()?;
+            match stride.parse::<u32>() {
+                Ok(stride) => Ok(Some(SurrealLap::WorkedOnCounter { stride })),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    Ok(None)
+                }
+            }
         }
     }
 }

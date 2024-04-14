@@ -15,6 +15,9 @@ impl Display for DisplaySurrealLap<'_> {
                 let duration = DisplayDuration::new(duration);
                 write!(f, "Always Timer Duration: {duration}")
             }
+            SurrealLap::WorkedOnCounter { stride } => {
+                write!(f, "Stride Counter: 1 / {stride}")
+            }
         }
     }
 }

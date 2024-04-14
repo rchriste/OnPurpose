@@ -7,7 +7,7 @@ use surrealdb::{
 };
 
 use crate::{
-    base_data::item::Item,
+    base_data::{item::Item, time_spent::TimeSpent},
     surrealdb_layer::surreal_item::{EnterListReason, ItemType, Staging, SurrealLap},
 };
 
@@ -27,9 +27,11 @@ impl<'s> ItemStatus<'s> {
     pub(crate) fn new(
         item_node: ItemNode<'s>,
         all_nodes: &[ItemNode<'_>],
+        time_spent_log: &[TimeSpent<'_>],
         current_date_time: &DateTime<Utc>,
     ) -> Self {
-        let lap_count = calculate_lap_count(&item_node, all_nodes, current_date_time);
+        let lap_count =
+            calculate_lap_count(&item_node, all_nodes, time_spent_log, current_date_time);
         let is_snoozed = calculate_is_snoozed(&item_node, all_nodes, current_date_time);
         Self {
             item_node,
@@ -128,6 +130,7 @@ impl<'s> ItemStatus<'s> {
 fn calculate_lap_count(
     item_node: &ItemNode<'_>,
     all_nodes: &[ItemNode<'_>],
+    time_spent_log: &[TimeSpent<'_>],
     current_date_time: &DateTime<Utc>,
 ) -> f32 {
     match item_node.get_staging() {
@@ -137,12 +140,17 @@ fn calculate_lap_count(
                 EnterListReason::DateTime(enter_time) => {
                     let enter_time: DateTime<Utc> = enter_time.clone().into();
                     match lap {
-                        crate::surrealdb_layer::surreal_item::SurrealLap::AlwaysTimer(lap) => {
+                        SurrealLap::AlwaysTimer(lap) => {
                             let lap: Duration = (*lap).into();
                             let elapsed = current_date_time.sub(enter_time);
                             let elapsed = elapsed.num_seconds() as f32;
                             let lap = lap.as_secs_f32();
                             elapsed / lap
+                        }
+                        SurrealLap::WorkedOnCounter { stride } => {
+                            let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
+                            let stride: f32 = *stride as f32;
+                            1.0 / stride * worked_on_since
                         }
                     }
                 }
@@ -161,6 +169,12 @@ fn calculate_lap_count(
                                 let elapsed = elapsed.num_seconds() as f32;
                                 let lap = lap.as_secs_f32();
                                 elapsed / lap
+                            }
+                            SurrealLap::WorkedOnCounter { stride } => {
+                                let worked_on_since =
+                                    get_worked_on_since(enter_time, time_spent_log);
+                                let stride: f32 = *stride as f32;
+                                1.0 / stride * worked_on_since
                             }
                         }
                     } else {
@@ -202,6 +216,12 @@ fn calculate_lap_count(
                                             let lap = lap.as_secs_f32();
                                             elapsed / lap
                                         }
+                                        SurrealLap::WorkedOnCounter { stride } => {
+                                            let worked_on_since =
+                                                get_worked_on_since(uncovered_when, time_spent_log);
+                                            let stride: f32 = *stride as f32;
+                                            1.0 / stride * worked_on_since
+                                        }
                                     }
                                 } else {
                                     0.0
@@ -217,6 +237,18 @@ fn calculate_lap_count(
         Staging::ThinkingAbout => 0.0,
         Staging::Released => 0.0,
     }
+}
+
+/// The goal is to get the number of times something has been worked on since a certain time. There is
+/// no regard for how long each session was, just that it was worked on.
+pub(crate) fn get_worked_on_since(
+    enter_time: DateTime<Utc>,
+    time_spent_log: &[TimeSpent<'_>],
+) -> f32 {
+    time_spent_log
+        .iter()
+        .filter(|x| x.get_started_at() > &enter_time)
+        .count() as f32
 }
 
 /// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet

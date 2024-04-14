@@ -249,6 +249,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let all_coverings_until_date_time = SurrealCoveringUntilDatetime::get_all(db);
     let all_life_areas = SurrealLifeArea::get_all(db);
     let all_routines = SurrealRoutine::get_all(db);
+    let time_spent_log = SurrealTimeSpent::get_all(db);
 
     let all_items = match all_items.await {
         Ok(all_items) => all_items,
@@ -266,6 +267,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         surreal_coverings_until_date_time: all_coverings_until_date_time.await.unwrap(),
         surreal_life_areas: all_life_areas.await.unwrap(),
         surreal_routines: all_routines.await.unwrap(),
+        surreal_time_spent_log: time_spent_log.await.unwrap(),
     }
 }
 

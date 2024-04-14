@@ -260,6 +260,11 @@ pub(crate) enum StagingOldVersion {
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealLap {
     AlwaysTimer(Duration),
+    ///`stride` is the number of other items that should be worked on before the lap count is 1.
+    ///In other words 1/stride * items_worked is the lap count.
+    WorkedOnCounter {
+        stride: u32,
+    },
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]

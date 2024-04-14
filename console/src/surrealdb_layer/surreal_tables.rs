@@ -9,13 +9,14 @@ use crate::base_data::{
     item::{Item, ItemVecExtensions},
     life_area::LifeArea,
     routine::Routine,
+    time_spent::TimeSpent,
 };
 
 use super::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime, surreal_item::SurrealItem,
     surreal_life_area::SurrealLifeArea, surreal_required_circumstance::SurrealRequiredCircumstance,
-    surreal_routine::SurrealRoutine, DataLayerCommands,
+    surreal_routine::SurrealRoutine, surreal_time_spent::SurrealTimeSpent, DataLayerCommands,
 };
 
 #[derive(Debug)]
@@ -38,6 +39,9 @@ pub(crate) struct SurrealTables {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_routines: Vec<SurrealRoutine>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) surreal_time_spent_log: Vec<SurrealTimeSpent>,
 }
 
 impl SurrealTables {
@@ -90,5 +94,12 @@ impl SurrealTables {
 
     pub(crate) fn make_routines(&self) -> Vec<Routine<'_>> {
         self.surreal_routines.iter().map(Routine::new).collect()
+    }
+
+    pub(crate) fn make_time_spent_log(&self) -> Vec<TimeSpent<'_>> {
+        self.surreal_time_spent_log
+            .iter()
+            .map(TimeSpent::new)
+            .collect()
     }
 }

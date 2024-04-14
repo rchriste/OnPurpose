@@ -29,9 +29,17 @@ impl CalculatedData {
                     .map(|x| ItemNode::new(x, base_data.get_coverings(), active_snoozed, all_items))
                     .collect::<Vec<_>>();
 
+                let time_spent_log = base_data.get_time_spent_log();
                 all_item_nodes
                     .iter()
-                    .map(|x| ItemStatus::new(x.clone(), &all_item_nodes, current_date_time))
+                    .map(|x| {
+                        ItemStatus::new(
+                            x.clone(),
+                            &all_item_nodes,
+                            time_spent_log,
+                            current_date_time,
+                        )
+                    })
                     .collect::<Vec<_>>()
             },
         }

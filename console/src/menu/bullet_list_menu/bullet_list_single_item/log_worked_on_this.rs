@@ -25,6 +25,7 @@ pub(crate) async fn log_worked_on_this(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     ordered_bullet_list: &[BulletListReason<'_>],
 ) -> Result<(), ()> {
+    //TODO: Change Error return type to a custom struct ExitProgram or something
     // This logs time spent on an item with the goal of in the future making it possible for the user to adjust items and balance
     // Logs the following:
     // When starting to work on item

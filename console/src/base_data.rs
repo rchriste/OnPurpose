@@ -4,6 +4,7 @@ pub(crate) mod covering_until_date_time;
 pub(crate) mod item;
 pub(crate) mod life_area;
 pub(crate) mod routine;
+pub(crate) mod time_spent;
 
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
@@ -16,6 +17,7 @@ use self::{
     item::{Item, ItemVecExtensions},
     life_area::LifeArea,
     routine::Routine,
+    time_spent::TimeSpent,
 };
 
 #[self_referencing]
@@ -51,6 +53,10 @@ pub(crate) struct BaseData {
     #[borrows(surreal_tables)]
     #[covariant]
     routines: Vec<Routine<'this>>,
+
+    #[borrows(surreal_tables)]
+    #[covariant]
+    time_spent_log: Vec<TimeSpent<'this>>,
 }
 
 impl BaseData {
@@ -77,6 +83,7 @@ impl BaseData {
             },
             life_areas_builder: |surreal_tables| surreal_tables.make_life_areas(),
             routines_builder: |surreal_tables| surreal_tables.make_routines(),
+            time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log(),
         }
         .build()
     }
@@ -107,5 +114,9 @@ impl BaseData {
 
     pub(crate) fn get_routines(&self) -> &[Routine] {
         self.borrow_routines()
+    }
+
+    pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {
+        self.borrow_time_spent_log()
     }
 }
