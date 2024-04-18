@@ -78,6 +78,7 @@ enum BulletListSingleItemSelection<'e> {
     UpdateSummary,
     SwitchToParentItem(DisplayItem<'e>, ItemStatus<'e>),
     ParentToItem,
+    RemoveParent(DisplayItem<'e>, ItemStatus<'e>),
     CaptureAFork,
     DebugPrintItem,
 }
@@ -97,6 +98,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
+            Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove Parent: {}", parent_item),
             Self::PlanWhenToDoThis => {
                 write!(f, "Plan when to do this")
             }
@@ -227,6 +229,13 @@ impl<'e> BulletListSingleItemSelection<'e> {
                     .expect("All items are here");
                 Self::SwitchToParentItem(DisplayItem::new(x), item_status.clone())
             }));
+            list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
+                let item_status = all_item_status
+                    .iter()
+                    .find(|y| y.get_item() == *x)
+                    .expect("All items are here");
+                Self::RemoveParent(DisplayItem::new(x), item_status.clone())
+            }));
         }
 
         for parent in parent_items {
@@ -318,6 +327,16 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
             give_this_item_a_parent(menu_for.get_item(), send_to_data_storage_layer).await
+        }
+        Ok(BulletListSingleItemSelection::RemoveParent(_, selected)) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemRemoveParent {
+                    child: menu_for.get_item().get_surreal_record_id().clone(),
+                    parent_to_remove: selected.get_item().get_surreal_record_id().clone(),
+                })
+                .await
+                .unwrap();
+            Ok(())
         }
         Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
             todo!("TODO: Implement PlanWhenToDoThis");

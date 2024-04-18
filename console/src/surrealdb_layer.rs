@@ -75,6 +75,10 @@ pub(crate) enum DataLayerCommands {
         child: RecordId,
         parent_new_item: NewItem,
     },
+    ParentItemRemoveParent {
+        child: RecordId,
+        parent_to_remove: RecordId,
+    },
     UpdateResponsibilityAndItemType(RecordId, Responsibility, ItemType),
     UpdateItemResponsibility(RecordId, Responsibility),
     UpdateItemPermanence(RecordId, Permanence),
@@ -183,6 +187,31 @@ pub(crate) async fn data_storage_start_and_run(
                 child,
                 parent_new_item,
             }) => parent_new_item_with_an_existing_child_item(child, parent_new_item, &db).await,
+            Some(DataLayerCommands::ParentItemRemoveParent {
+                child,
+                parent_to_remove,
+            }) => {
+                let mut parent = SurrealItem::get_by_id(&db, parent_to_remove.id.to_raw())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                parent.smaller_items_in_priority_order = parent
+                    .smaller_items_in_priority_order
+                    .into_iter()
+                    .filter(|x| {
+                        match x {
+                            SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                                surreal_item_id != &child
+                            }
+                            SurrealOrderedSubItem::Split { .. } => {
+                                todo!("I need to understand more about how split will be used before I can implement this")
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let saved = parent.clone().update(&db).await.unwrap().unwrap();
+                assert_eq!(parent, saved);
+            }
             Some(DataLayerCommands::UpdateItemPermanence(item, new_permanence)) => {
                 update_hope_permanence(item, new_permanence, &db).await
             }
