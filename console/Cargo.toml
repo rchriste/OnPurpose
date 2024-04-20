@@ -1,28 +1,28 @@
 [package]
 name = "on_purpose"
-version = "0.0.201"
+version = "0.0.202"
 edition = "2021"
 
 [dependencies]
-inquire = { version = "0.7.2", features = ["editor"] } #inquire is for building interactive prompts in terminals
-tokio = { version = "1.32.0", features = ["full"] } #Added so I can use Surreal DB
+inquire = { version = "0.7.4", features = ["editor"] } #inquire is for building interactive prompts in terminals
+tokio = { version = "1.37.0", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
-surrealdb = { version = "1.1.1", features = ["kv-mem", "kv-rocksdb"] } 
-surrealdb_extra = "0.8.0" #Added because I think using this for table definitions might save me time
-serde = "1.0.188" #Implied to be required by surrealdb_extra's getting started documentation
-chrono = "0.4.31"
-async-recursion = "1.0.5"
-duration-str = "0.7.0" #So I can parse the amount of time to wait
+surrealdb = { version = "1.4.2", features = ["kv-mem", "kv-rocksdb"] } 
+surrealdb_extra = "0.8.1" #Added because I think using this for table definitions might save me time
+serde = "1.0.198" #Implied to be required by surrealdb_extra's getting started documentation
+chrono = "0.4.38"
+async-recursion = "1.1.0"
+duration-str = "0.8.0" #So I can parse the amount of time to wait
 parse_datetime = "0.5.0" #So I can parse when to expect something to be available
-dateparser = "0.2.0"
-itertools = "0.12.0"
+dateparser = "0.2.1"
+itertools = "0.12.1"
  #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 # ouroboros = "0.18.0"
 # Use my own version so I can try to disable a clippy warning. After this is upstreamed I can switch back to the official version.
 ouroboros = { git = "https://github.com/rchriste/ouroboros", branch = "main" }
 derive_builder = "0.20.0"
-better_term = "1.4.1" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
+better_term = "1.4.61" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
 
 # Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
 # sure as it seems to require that you come up with your own RecordId without the ability to specify NONE to get 
