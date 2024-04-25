@@ -172,9 +172,9 @@ dependencies = [
 
 [[package]]
 name = "async-recursion"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30c5ef0ede93efbf733c1a727f3b6b5a1060bbedd5600183e66f6e4be4af0ec5"
+checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -872,9 +872,9 @@ checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
 name = "duration-str"
-version = "0.8.1"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6ed4d47bbe33d7a02377872ce0db05ac2f1b5c6cfed9b6ae3590e14ce57d8d8"
+checksum = "a19a41be9df33f6daa3a7acb89c3d68c10a0748c940aade42ac467d003c807b4"
 dependencies = [
  "chrono",
  "rust_decimal",
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.0.204"
+version = "0.0.205"
 dependencies = [
  "async-recursion",
  "better_term",
@@ -4372,9 +4372,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.8.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63381fa6624bf92130a6b87c0d07380116f80b565c42cf0d754136f0238359ef"
+checksum = "525b4ec142c6b68a2d10f01f7bbf6755599ca3f81ea53b8431b7dd348f5fdb2d"
 
 [[package]]
 name = "zstd-sys"
