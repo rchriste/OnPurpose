@@ -46,7 +46,7 @@ impl<'e> LifeAreaItem<'e> {
     }
 }
 
-#[async_recursion]
+#[async_recursion] //TODO: Remove this attribute here and everywhere else as well and use Box::pin instead
 pub(crate) async fn change_routine(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {

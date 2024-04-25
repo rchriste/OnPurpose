@@ -204,6 +204,10 @@ impl<'s> ItemNode<'s> {
         &self.snoozed_until
     }
 
+    pub(crate) fn get_summary(&self) -> &str {
+        self.item.get_summary()
+    }
+
     pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
         &self.facing
     }

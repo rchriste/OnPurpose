@@ -80,6 +80,10 @@ impl<'s> ItemStatus<'s> {
         self.item_node.is_type_undeclared()
     }
 
+    pub(crate) fn is_type_motivation(&self) -> bool {
+        self.item_node.is_type_motivation()
+    }
+
     pub(crate) fn is_staging_mentally_resident(&self) -> bool {
         self.item_node.is_staging_mentally_resident()
     }
@@ -90,6 +94,10 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn get_item(&self) -> &Item<'s> {
         self.item_node.get_item()
+    }
+
+    pub(crate) fn get_summary(&self) -> &str {
+        self.item_node.get_summary()
     }
 
     pub(crate) fn has_children(&self, filter: Filter) -> bool {

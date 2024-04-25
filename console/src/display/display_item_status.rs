@@ -24,4 +24,8 @@ impl<'s> DisplayItemStatus<'s> {
     pub(crate) fn new(item_status: &'s ItemStatus) -> Self {
         Self { item_status }
     }
+
+    pub(crate) fn get_item_status(&self) -> &'s ItemStatus {
+        self.item_status
+    }
 }
