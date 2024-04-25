@@ -23,25 +23,25 @@ impl Display for DisplayDuration<'_> {
         let years = years % 12;
         let mut result = String::new();
         if years > 0 {
-            result.push_str(&format!("{} years ", years));
+            result.push_str(&format!("{} years", years));
         }
         if months > 0 {
-            result.push_str(&format!("{} months ", months));
+            result.push_str(&format!("{} months", months));
         }
         if weeks > 0 {
-            result.push_str(&format!("{} weeks ", weeks));
+            result.push_str(&format!("{} weeks", weeks));
         }
         if days > 0 {
-            result.push_str(&format!("{} days ", days));
+            result.push_str(&format!("{} days", days));
         }
         if hours > 0 {
-            result.push_str(&format!("{} hours ", hours));
+            result.push_str(&format!("{} hours", hours));
         }
         if minutes > 0 {
-            result.push_str(&format!("{} minutes ", minutes));
+            result.push_str(&format!("{} minutes", minutes));
         }
         if seconds > 0 {
-            result.push_str(&format!("{} seconds ", seconds));
+            result.push_str(&format!("{} seconds", seconds));
         }
         write!(f, "{}", result)
     }

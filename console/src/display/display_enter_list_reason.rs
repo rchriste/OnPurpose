@@ -14,7 +14,7 @@ impl Display for DisplayEnterListReason<'_> {
             EnterListReason::DateTime(datetime) => {
                 let datetime: DateTime<Utc> = datetime.clone().into();
                 let datetime: DateTime<Local> = datetime.into();
-                write!(f, "After {}", datetime.naive_local())
+                write!(f, "{}", datetime.format("%a %d %b %Y %I:%M:%S%p"))
             }
             EnterListReason::HighestUncovered {
                 earliest: _earliest,
@@ -26,7 +26,7 @@ impl Display for DisplayEnterListReason<'_> {
                 write!(
                     f,
                     "When highest priority uncovered or review after {}",
-                    datetime.naive_local()
+                    datetime.format("%a %d %b %Y %I:%M:%S%p")
                 )
             }
         }

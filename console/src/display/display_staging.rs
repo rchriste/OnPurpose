@@ -21,12 +21,12 @@ impl Display for DisplayStaging<'_> {
             Staging::MentallyResident { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
                 let lap = DisplaySurrealLap::new(lap);
-                write!(f, "MentallyResident: enter_list: {enter_list}, lap: {lap}",)
+                write!(f, "🧠 MentallyResident: lap: {lap}, start: {enter_list}",)
             }
             Staging::OnDeck { enter_list, lap } => {
                 let enter_list = DisplayEnterListReason::new(enter_list);
                 let lap = DisplaySurrealLap::new(lap);
-                write!(f, "OnDeck: enter_list: {enter_list}, lap: {lap}",)
+                write!(f, "🪜 OnDeck: lap: {lap}, start: {enter_list}",)
             }
         }
     }

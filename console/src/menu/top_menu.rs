@@ -6,7 +6,17 @@ use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData, calculated_data::CalculatedData, change_routine::change_routine, display::{display_item::DisplayItem, display_item_node::DisplayItemNode, display_item_status::DisplayItemStatus}, menu::expectations::view_expectations, new_item::NewItem, node::{item_node::ItemNode, Filter}, surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands}
+    base_data::BaseData,
+    calculated_data::CalculatedData,
+    change_routine::change_routine,
+    display::{
+        display_item_node::DisplayItemNode, display_item_status::DisplayItemStatus,
+        display_priority::DisplayPriority,
+    },
+    menu::expectations::view_expectations,
+    new_item::NewItem,
+    node::{item_node::ItemNode, Filter},
+    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
 use super::bullet_list_menu::present_normal_bullet_list_menu;
@@ -118,7 +128,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    
+
     let mut all_top_nodes = calculated_data
         .get_item_status()
         .iter()
@@ -140,10 +150,9 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
             Ordering::Greater
         } else {
             Ordering::Equal
-        }
-    )
-    .then_with(|| a.get_summary().cmp(b.get_summary()))
-});
+        })
+        .then_with(|| a.get_summary().cmp(b.get_summary()))
+    });
 
     let list = all_top_nodes
         .iter()
@@ -156,14 +165,26 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
             println!("{}", display_item_status);
             let item_status = display_item_status.get_item_status();
             println!("Active children (Is this in priority order?):");
-            let list = item_status.get_smaller(Filter::Active).map(|x| x.get_item()).map(DisplayItem::new).collect();
+            let list = item_status
+                .get_smaller(Filter::Active)
+                .map(|x| {
+                    let item_status = calculated_data
+                        .get_item_status()
+                        .iter()
+                        .find(|y| y.get_item() == x.get_item())
+                        .expect("Comes from this list so will be found");
+                    DisplayPriority::new(item_status)
+                })
+                .collect();
             let selection = Select::new("Select a child to view...", list).prompt();
             match selection {
-                Ok(display_item) => {
-                    println!("{}", display_item);
+                Ok(display_priority) => {
+                    println!("{}", display_priority);
                     Ok(())
                 }
-                Err(InquireError::OperationCanceled) => Box::pin(view_priorities(send_to_data_storage_layer)).await,
+                Err(InquireError::OperationCanceled) => {
+                    Box::pin(view_priorities(send_to_data_storage_layer)).await
+                }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("Unexpected InquireError of {}", err),
             }

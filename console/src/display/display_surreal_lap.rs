@@ -13,10 +13,10 @@ impl Display for DisplaySurrealLap<'_> {
         match self.surreal_lap {
             SurrealLap::AlwaysTimer(duration) => {
                 let duration = DisplayDuration::new(duration);
-                write!(f, "Always Timer Duration: {duration}")
+                write!(f, "{duration}")
             }
             SurrealLap::WorkedOnCounter { stride } => {
-                write!(f, "Stride Counter: 1 / {stride}")
+                write!(f, "1 / {stride}")
             }
         }
     }
