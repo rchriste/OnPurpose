@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    base_data::item::Item, node::item_status::ItemStatus, surrealdb_layer::surreal_item::Staging,
+    base_data::item::Item, node::{item_status::ItemStatus, Filter}, surrealdb_layer::surreal_item::Staging,
 };
 
 use super::display_item_node::DisplayItemNode;
@@ -12,12 +12,15 @@ pub struct DisplayItemStatus<'s> {
 
 impl Display for DisplayItemStatus<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let lap_count = self.get_lap_count();
-        write!(f, "|")?;
-        if lap_count >= 0.0 {
-            write!(f, "{:.1}", lap_count)?;
+        if !self.has_children(Filter::Active)
+        {
+            let lap_count = self.get_lap_count();
+            write!(f, "|")?;
+            if lap_count >= 0.0 {
+                write!(f, "{:.1}", lap_count)?;
+            }
+            write!(f, "| ")?;
         }
-        write!(f, "| ")?;
 
         let display_node = DisplayItemNode::new(self.item_status.get_item_node());
         write!(f, "{}", display_node)?;
@@ -44,5 +47,9 @@ impl<'s> DisplayItemStatus<'s> {
 
     pub(crate) fn get_lap_count(&self) -> f32 {
         self.item_status.get_lap_count()
+    }
+
+    pub(crate) fn has_children(&self, filter: Filter) -> bool {
+        self.item_status.has_children(filter)
     }
 }
