@@ -1,9 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    base_data::item::Item,
-    node::item_status::ItemStatus,
-    surrealdb_layer::surreal_item::Staging,
+    base_data::item::Item, node::item_status::ItemStatus, surrealdb_layer::surreal_item::Staging,
 };
 
 use super::display_item_node::DisplayItemNode;

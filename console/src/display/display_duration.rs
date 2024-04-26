@@ -24,56 +24,56 @@ impl Display for DisplayDuration<'_> {
         let mut result = String::new();
         let mut first = true;
         if years > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} years", years));
         }
         if months > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} months", months));
         }
         if weeks > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} weeks", weeks));
         }
         if days > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} days", days));
         }
         if hours > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} hours", hours));
         }
         if minutes > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             } else {
                 first = false;
             }
             result.push_str(&format!("{} minutes", minutes));
         }
         if seconds > 0 {
-            if first == false {
-                result.push_str(" ");
+            if !first {
+                result.push(' ');
             }
             result.push_str(&format!("{} seconds", seconds));
         }
