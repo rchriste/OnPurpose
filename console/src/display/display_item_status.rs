@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     base_data::item::Item,
-    node::{item_status::ItemStatus, Filter},
+    node::item_status::ItemStatus,
     surrealdb_layer::surreal_item::Staging,
 };
 
@@ -37,11 +37,11 @@ impl<'s> DisplayItemStatus<'s> {
         self.item_status.get_item()
     }
 
-    pub(crate) fn has_children(&self, filter: Filter) -> bool {
-        self.item_status.has_children(filter)
-    }
-
     pub(crate) fn get_staging(&self) -> &'s Staging {
         self.item_status.get_staging()
+    }
+
+    pub(crate) fn get_lap_count(&self) -> f32 {
+        self.item_status.get_lap_count()
     }
 }

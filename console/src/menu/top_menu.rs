@@ -173,7 +173,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
                         .iter()
                         .find(|y| y.get_item() == x.get_item())
                         .expect("Comes from this list so will be found");
-                    DisplayPriority::new(item_status)
+                    DisplayPriority::new(item_status, calculated_data.get_item_status())
                 })
                 .collect();
             let selection = Select::new("Select a child to view...", list).prompt();
