@@ -12,9 +12,12 @@ pub struct DisplayItemStatus<'s> {
 
 impl Display for DisplayItemStatus<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.item_status.is_first_lap_finished() {
-            write!(f, "⏰ ")?;
+        let lap_count = self.get_lap_count();
+        write!(f, "|")?;
+        if lap_count >= 0.0 {
+            write!(f, "{:.1}", lap_count)?;
         }
+        write!(f, "| ")?;
 
         let display_node = DisplayItemNode::new(self.item_status.get_item_node());
         write!(f, "{}", display_node)?;
