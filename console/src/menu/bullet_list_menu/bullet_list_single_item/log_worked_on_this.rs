@@ -112,20 +112,20 @@ impl Display for StartedWhen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StartedWhen::WhenThisItemWasSelected(when_selected) => {
-                write!(f, "When this item was selected (i.e. {})", when_selected)
+                write!(f, "When this item was selected (i.e. {})", when_selected.format("%a %d %b %Y %I:%M:%S%p"))
             }
             StartedWhen::WhenLastItemFinished(when_last_item_finished) => {
                 write!(
                     f,
                     "When the last item finished (i.e. {})",
-                    when_last_item_finished
+                    when_last_item_finished.format("%a %d %b %Y %I:%M:%S%p")
                 )
             }
             StartedWhen::WhenBulletListWasFirstShown(when_bullet_list_was_first_shown) => {
                 write!(
                     f,
                     "When the bullet list was first shown (i.e. {})",
-                    when_bullet_list_was_first_shown
+                    when_bullet_list_was_first_shown.format("%a %d %b %Y %I:%M:%S%p")
                 )
             }
             StartedWhen::CustomTime => write!(f, "Enter a Time"),
