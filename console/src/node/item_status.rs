@@ -1,6 +1,6 @@
 use std::{ops::Sub, time::Duration};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::{
     opt::RecordId,
     sql::{Datetime, Thing},
@@ -155,6 +155,13 @@ fn calculate_lap_count(
                             let lap = lap.as_secs_f32();
                             elapsed / lap
                         }
+                        SurrealLap::LoggedTimer(lap) => {
+                            let logged_worked =
+                                get_worked_on_since_elapsed(enter_time, time_spent_log);
+                            let elapsed = logged_worked.num_seconds() as f32;
+                            let lap = lap.as_secs_f32();
+                            elapsed / lap
+                        }
                         SurrealLap::WorkedOnCounter { stride } => {
                             let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
                             let stride: f32 = *stride as f32;
@@ -175,6 +182,13 @@ fn calculate_lap_count(
                                 let lap: Duration = (*lap).into();
                                 let elapsed = current_date_time.sub(enter_time);
                                 let elapsed = elapsed.num_seconds() as f32;
+                                let lap = lap.as_secs_f32();
+                                elapsed / lap
+                            }
+                            SurrealLap::LoggedTimer(lap) => {
+                                let logged_worked =
+                                    get_worked_on_since_elapsed(enter_time, time_spent_log);
+                                let elapsed = logged_worked.num_seconds() as f32;
                                 let lap = lap.as_secs_f32();
                                 elapsed / lap
                             }
@@ -224,6 +238,15 @@ fn calculate_lap_count(
                                             let lap = lap.as_secs_f32();
                                             elapsed / lap
                                         }
+                                        SurrealLap::LoggedTimer(lap) => {
+                                            let logged_worked = get_worked_on_since_elapsed(
+                                                uncovered_when,
+                                                time_spent_log,
+                                            );
+                                            let elapsed = logged_worked.num_seconds() as f32;
+                                            let lap = lap.as_secs_f32();
+                                            elapsed / lap
+                                        }
                                         SurrealLap::WorkedOnCounter { stride } => {
                                             let worked_on_since =
                                                 get_worked_on_since(uncovered_when, time_spent_log);
@@ -257,6 +280,17 @@ pub(crate) fn get_worked_on_since(
         .iter()
         .filter(|x| x.get_started_at() > &enter_time)
         .count() as f32
+}
+
+pub(crate) fn get_worked_on_since_elapsed(
+    enter_time: DateTime<Utc>,
+    time_spent_log: &[TimeSpent<'_>],
+) -> TimeDelta {
+    time_spent_log
+        .iter()
+        .filter(|x| x.get_started_at() > &enter_time)
+        .map(|x| x.get_time_delta())
+        .sum()
 }
 
 /// You can be snoozed if you are covered or if you just haven't reached the starting on staging yet

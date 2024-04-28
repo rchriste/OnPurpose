@@ -13,7 +13,11 @@ impl Display for DisplaySurrealLap<'_> {
         match self.surreal_lap {
             SurrealLap::AlwaysTimer(duration) => {
                 let duration = DisplayDuration::new(duration);
-                write!(f, "{duration}")
+                write!(f, "🕰️ {duration}")
+            }
+            SurrealLap::LoggedTimer(duration) => {
+                let duration = DisplayDuration::new(duration);
+                write!(f, "⌚ {duration}")
             }
             SurrealLap::WorkedOnCounter { stride } => {
                 write!(f, "1 / {stride}")

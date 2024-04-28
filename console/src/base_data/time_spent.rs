@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::surrealdb_layer::surreal_time_spent::SurrealTimeSpent;
 
@@ -13,5 +13,12 @@ impl<'s> TimeSpent<'s> {
 
     pub(crate) fn get_started_at(&self) -> &DateTime<Utc> {
         &self.surreal_time_spent.when_started
+    }
+
+    pub(crate) fn get_time_delta(&self) -> TimeDelta {
+        let when_started: DateTime<Utc> = self.surreal_time_spent.when_started.clone().into();
+        self.surreal_time_spent
+            .when_stopped
+            .signed_duration_since(when_started)
     }
 }

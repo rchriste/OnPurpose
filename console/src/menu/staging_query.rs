@@ -139,14 +139,16 @@ fn prompt_for_two_times(
 }
 
 enum LapSelection {
-    WallClockTimer,
+    ElapsedWallClock,
+    ElapsedLogged,
     WorkedOnCounter,
 }
 
 impl Display for LapSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LapSelection::WallClockTimer => write!(f, "Wall clock timer"),
+            LapSelection::ElapsedWallClock => write!(f, "Elapsed Wall Clock"),
+            LapSelection::ElapsedLogged => write!(f, "Elapsed Logged"),
             LapSelection::WorkedOnCounter => write!(f, "Times worked on counter"),
         }
     }
@@ -155,14 +157,28 @@ impl Display for LapSelection {
 pub(crate) fn prompt_for_surreal_lap() -> Result<Option<SurrealLap>, InquireError> {
     let selection = Select::new(
         "How should the lap be measured?",
-        vec![LapSelection::WallClockTimer, LapSelection::WorkedOnCounter],
+        vec![
+            LapSelection::ElapsedLogged,
+            LapSelection::WorkedOnCounter,
+            LapSelection::ElapsedWallClock,
+        ],
     )
     .prompt()?;
     match selection {
-        LapSelection::WallClockTimer => {
+        LapSelection::ElapsedWallClock => {
             let deadline_string = Text::new("Lap length?").prompt()?;
             match parse(deadline_string) {
                 Ok(lap) => Ok(Some(SurrealLap::AlwaysTimer(lap.into()))),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    Ok(None)
+                }
+            }
+        }
+        LapSelection::ElapsedLogged => {
+            let deadline_string = Text::new("Lap length?").prompt()?;
+            match parse(deadline_string) {
+                Ok(lap) => Ok(Some(SurrealLap::LoggedTimer(lap.into()))),
                 Err(_) => {
                     println!("Invalid input. Please try again.");
                     Ok(None)

@@ -38,10 +38,10 @@ impl Display for TopMenuSelection {
             TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
             TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️  View Bullet List (To Dos) 👁"),
             TopMenuSelection::ViewExpectations => {
-                write!(f, "👁 🙏 View Expectations         👁")
+                write!(f, "👁 🙏 View Expectations          👁")
             }
             TopMenuSelection::ViewMotivations => {
-                write!(f, "👁 🎯 View Motivations          👁")
+                write!(f, "👁 🎯 View Motivations           👁")
             }
             TopMenuSelection::ViewPriorities => write!(f, "👁 ⚖️  View Priorities           👁"),
             TopMenuSelection::DebugViewAllItems => {
