@@ -27,13 +27,17 @@ pub(crate) async fn select_person_or_group(
         .filter(|x| x.is_person_or_group())
         .map(DisplayItem::new)
         .collect::<Vec<_>>();
-    let selection = Select::new("Select a person or group |", person_or_group).prompt();
-    match selection {
-        Ok(selection) => Some(selection.get_surreal_record_id().clone()),
-        Err(InquireError::OperationCanceled) => {
-            select_person_or_group_new_person_or_group(send_to_data_storage_layer).await
+    if person_or_group.is_empty() {
+        select_person_or_group_new_person_or_group(send_to_data_storage_layer).await
+    } else {
+        let selection = Select::new("Select a person or group |", person_or_group).prompt();
+        match selection {
+            Ok(selection) => Some(selection.get_surreal_record_id().clone()),
+            Err(InquireError::OperationCanceled) => {
+                select_person_or_group_new_person_or_group(send_to_data_storage_layer).await
+            }
+            Err(err) => todo!("{:?}", err),
         }
-        Err(err) => todo!("{:?}", err),
     }
 }
 
