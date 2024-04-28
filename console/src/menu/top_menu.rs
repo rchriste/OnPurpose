@@ -162,34 +162,73 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
     let selection = Select::new("Select a priority to view...", list).prompt();
     match selection {
         Ok(display_item_status) => {
-            println!("{}", display_item_status);
-            let item_status = display_item_status.get_item_status();
-            println!("Active children (Is this in priority order?):");
-            let list = item_status
-                .get_smaller(Filter::Active)
-                .map(|x| {
-                    let item_status = calculated_data
-                        .get_item_status()
-                        .iter()
-                        .find(|y| y.get_item() == x.get_item())
-                        .expect("Comes from this list so will be found");
-                    DisplayPriority::new(item_status, calculated_data.get_item_status())
-                })
-                .collect();
-            let selection = Select::new("Select a child to view...", list).prompt();
-            match selection {
-                Ok(display_priority) => {
-                    println!("{}", display_priority);
-                    Ok(())
-                }
-                Err(InquireError::OperationCanceled) => {
-                    Box::pin(view_priorities(send_to_data_storage_layer)).await
-                }
-                Err(InquireError::OperationInterrupted) => Err(()),
-                Err(err) => todo!("Unexpected InquireError of {}", err),
-            }
+            view_priorities_of_item_status(
+                display_item_status,
+                Vec::new(),
+                &calculated_data,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => todo!("Unexpected InquireError of {}", err),
+    }
+}
+
+async fn view_priorities_of_item_status(
+    display_item_status: DisplayItemStatus<'_>,
+    mut parent: Vec<DisplayItemStatus<'_>>,
+    calculated_data: &CalculatedData,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
+    println!("{}", display_item_status);
+    let item_status = display_item_status.get_item_status();
+    println!("Active children (Is this in priority order?):");
+    let list = item_status
+        .get_smaller(Filter::Active)
+        .map(|x| {
+            let item_status = calculated_data
+                .get_item_status()
+                .iter()
+                .find(|y| y.get_item() == x.get_item())
+                .expect("Comes from this list so will be found");
+            DisplayPriority::new(item_status, calculated_data.get_item_status())
+        })
+        .collect();
+    let selection = Select::new("Select a child to view...", list).prompt();
+    match selection {
+        Ok(display_priority) => {
+            println!("{}", display_priority);
+            if display_priority.has_children() {
+                parent.push(display_item_status);
+                let display_item_status =
+                    DisplayItemStatus::new(display_priority.get_item_status());
+                Box::pin(view_priorities_of_item_status(
+                    display_item_status,
+                    parent,
+                    calculated_data,
+                    send_to_data_storage_layer,
+                ))
+                .await
+            } else {
+                Ok(())
+            }
+        }
+        Err(InquireError::OperationCanceled) => {
+            if parent.is_empty() {
+                Box::pin(view_priorities(send_to_data_storage_layer)).await
+            } else {
+                let top_item = parent.pop().expect("is not empty so will always succeed");
+                Box::pin(view_priorities_of_item_status(
+                    top_item,
+                    parent,
+                    calculated_data,
+                    send_to_data_storage_layer,
+                ))
+                .await
+            }
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }

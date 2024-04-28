@@ -56,15 +56,7 @@ impl<'s> DisplayPriority<'s> {
         all_item_status: &'s [ItemStatus<'s>],
     ) -> Self {
         let has_children = if item_status.has_children(Filter::Active) {
-            let highest_lap_count = all_item_status
-                .iter()
-                .filter(|x| {
-                    item_status
-                        .get_smaller(Filter::Active)
-                        .any(|y| y.get_item() == x.get_item())
-                })
-                .max_by(|a, b| a.get_lap_count().partial_cmp(&b.get_lap_count()).unwrap())
-                .expect("Has children so there is a max");
+            let highest_lap_count = calculate_lap_count(item_status, all_item_status);
             HasChildren::Yes {
                 highest_lap_count: DisplayItemStatus::new(highest_lap_count),
             }
@@ -79,5 +71,41 @@ impl<'s> DisplayPriority<'s> {
 
     pub(crate) fn get_item(&self) -> &'s Item {
         self.display_item_status.get_item()
+    }
+
+    pub(crate) fn get_item_status(&'s self) -> &'s ItemStatus<'s> {
+        self.display_item_status.get_item_status()
+    }
+
+    pub(crate) fn has_children(&self) -> bool {
+        match &self.has_children {
+            HasChildren::Yes { .. } => true,
+            HasChildren::No => false,
+        }
+    }
+}
+
+fn calculate_lap_count<'a>(
+    item_status: &'a ItemStatus,
+    all_item_status: &'a [ItemStatus],
+) -> &'a ItemStatus<'a> {
+    if item_status.has_children(Filter::Active) {
+        let highest_lap_count = all_item_status
+            .iter()
+            .filter(|x| {
+                item_status
+                    .get_smaller(Filter::Active)
+                    .any(|y| y.get_item() == x.get_item())
+            })
+            .max_by(|a, b| {
+                calculate_lap_count(a, all_item_status)
+                    .get_lap_count()
+                    .partial_cmp(&calculate_lap_count(b, all_item_status).get_lap_count())
+                    .unwrap()
+            })
+            .expect("Has children so there is a max");
+        highest_lap_count
+    } else {
+        item_status
     }
 }

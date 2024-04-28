@@ -1,7 +1,9 @@
 use std::fmt::Display;
 
 use crate::{
-    base_data::item::Item, node::{item_status::ItemStatus, Filter}, surrealdb_layer::surreal_item::Staging,
+    base_data::item::Item,
+    node::{item_status::ItemStatus, Filter},
+    surrealdb_layer::surreal_item::Staging,
 };
 
 use super::display_item_node::DisplayItemNode;
@@ -12,8 +14,7 @@ pub struct DisplayItemStatus<'s> {
 
 impl Display for DisplayItemStatus<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if !self.has_children(Filter::Active)
-        {
+        if !self.has_children(Filter::Active) {
             let lap_count = self.get_lap_count();
             write!(f, "|")?;
             if lap_count >= 0.0 {
