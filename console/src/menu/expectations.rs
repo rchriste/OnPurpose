@@ -151,7 +151,9 @@ pub(crate) async fn view_expectations(
         Ok(ExpectationsMenuItem::MaintenanceItems) => {
             view_maintenance_hopes(send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }
@@ -380,7 +382,9 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
         Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
             update_item_summary(goal_selected, send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => Box::pin(view_expectations(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(view_expectations(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }

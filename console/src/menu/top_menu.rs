@@ -168,7 +168,9 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
             )
             .await
         }
-        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }
@@ -298,7 +300,9 @@ async fn debug_view_all_items(
 
             Ok(())
         }
-        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }

@@ -75,7 +75,9 @@ pub(crate) async fn change_routine(
                 life_area.summary()
             )
         }
-        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(_) => {
             todo!("TODO: Implement cancelling")
