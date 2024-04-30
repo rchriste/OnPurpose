@@ -30,9 +30,12 @@ impl<'s> ItemStatus<'s> {
         time_spent_log: &[TimeSpent<'_>],
         current_date_time: &DateTime<Utc>,
     ) -> Self {
-        let lap_count =
+        let mut lap_count =
             calculate_lap_count(&item_node, all_nodes, time_spent_log, current_date_time);
         let is_snoozed = calculate_is_snoozed(&item_node, all_nodes, current_date_time);
+        if is_snoozed {
+            lap_count = 0.0;
+        }
         Self {
             item_node,
             lap_count,
