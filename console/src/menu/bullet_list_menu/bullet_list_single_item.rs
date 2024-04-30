@@ -272,7 +272,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemStatus<'_>,
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
@@ -304,13 +303,13 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::CaptureNewItem) => {
             capture(send_to_data_storage_layer).await?;
-            present_bullet_list_item_selected(
+            Box::pin(present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
@@ -452,13 +451,13 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(menu_for.get_item(), send_to_data_storage_layer).await?;
             //After updating the summary we want to stay on the same item with the same times
-            present_bullet_list_item_selected(
+            Box::pin(present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
@@ -617,13 +616,13 @@ async fn finish_bullet_item(
                 .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
-            present_bullet_list_item_selected(
+            Box::pin(present_bullet_list_item_selected(
                 updated_parent,
                 when_this_function_was_called,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(FinishSelection::UpdateStagingForParent(parent)) => {
@@ -704,13 +703,13 @@ async fn present_bullet_list_item_parent_selected(
 ) -> Result<(), ()> {
     match selected_item.get_type() {
         ItemType::Action | ItemType::Goal(..) | ItemType::Motivation | ItemType::Undeclared => {
-            present_bullet_list_item_selected(
+            Box::pin(present_bullet_list_item_selected(
                 selected_item,
                 chrono::Utc::now(),
                 bullet_list,
                 current_date_time,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         ItemType::IdeaOrThought => todo!(),

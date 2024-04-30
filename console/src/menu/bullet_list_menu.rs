@@ -2,7 +2,6 @@ pub(crate) mod bullet_list_single_item;
 
 use std::{fmt::Display, iter::once};
 
-use async_recursion::async_recursion;
 use chrono::{DateTime, Local, TimeDelta, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
@@ -67,7 +66,6 @@ impl<'a> InquireBulletListItem<'a> {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn present_normal_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -115,13 +113,13 @@ pub(crate) async fn present_bullet_list_menu(
                     )
                     .await
                 } else {
-                    present_bullet_list_item_selected(
+                    Box::pin(present_bullet_list_item_selected(
                         item_status,
                         chrono::Utc::now(),
                         bullet_list,
                         bullet_list_created,
                         send_to_data_storage_layer,
-                    )
+                    ))
                     .await
                 }
             }
@@ -147,6 +145,6 @@ pub(crate) async fn present_bullet_list_menu(
         }
     } else {
         println!("To Do List is Empty, falling back to main menu");
-        present_top_menu(send_to_data_storage_layer).await
+        Box::pin(present_top_menu(send_to_data_storage_layer)).await
     }
 }

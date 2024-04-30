@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -46,7 +45,6 @@ impl<'e> LifeAreaItem<'e> {
     }
 }
 
-#[async_recursion] //TODO: Remove this attribute here and everywhere else as well and use Box::pin instead
 pub(crate) async fn change_routine(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -77,7 +75,7 @@ pub(crate) async fn change_routine(
                 life_area.summary()
             )
         }
-        Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(_) => {
             todo!("TODO: Implement cancelling")

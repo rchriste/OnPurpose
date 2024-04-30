@@ -63,7 +63,7 @@ pub(crate) async fn define_facing(
                 single_item_define_facing(item_node, send_to_data_storage_layer).await?
             }
             Err(InquireError::OperationCanceled) => {
-                view_expectations(send_to_data_storage_layer).await?
+                Box::pin(view_expectations(send_to_data_storage_layer)).await?
             }
             Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => todo!("{:?}", err),

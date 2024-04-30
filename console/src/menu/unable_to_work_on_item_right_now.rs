@@ -1,7 +1,6 @@
 use core::iter::once;
 use std::fmt::Display;
 
-use async_recursion::async_recursion;
 use chrono::{DateTime, Local, Utc};
 use inquire::{InquireError, Select, Text};
 use itertools::chain;
@@ -57,7 +56,6 @@ impl UnableReason {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn unable_to_work_on_item_right_now(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -177,7 +175,7 @@ pub(crate) async fn place_to_contact_is_not_open(
             todo!()
         }
         Err(InquireError::OperationCanceled) => {
-            unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await
+            Box::pin(unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
@@ -254,7 +252,7 @@ pub(crate) async fn person_or_group_is_not_available(
             Ok(())
         }
         Err(InquireError::OperationCanceled) => {
-            unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await
+           Box::pin(unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
@@ -271,7 +269,7 @@ pub(crate) async fn need_to_wait_before_working_on_this(
         let wait_for_how_long = match wait_for_how_long {
             Ok(wait_for_how_long) => wait_for_how_long,
             Err(InquireError::OperationCanceled) => {
-                unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer).await?;
+                Box::pin(unable_to_work_on_item_right_now(unable_to_do, send_to_data_storage_layer)).await?;
                 return Ok(());
             }
             Err(InquireError::OperationInterrupted) => return Err(()),

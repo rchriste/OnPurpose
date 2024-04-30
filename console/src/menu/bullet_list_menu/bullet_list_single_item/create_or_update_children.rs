@@ -99,13 +99,13 @@ pub(crate) async fn create_or_update_children(
             todo!()
         }
         Err(InquireError::OperationCanceled) => {
-            present_bullet_list_item_selected(
+            Box::pin(present_bullet_list_item_selected(
                 item_status,
                 *when_selected,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Err(InquireError::OperationInterrupted) => Err(()),

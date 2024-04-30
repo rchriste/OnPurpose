@@ -2,7 +2,6 @@ pub(crate) mod define_facing;
 
 use std::fmt::Display;
 
-use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{Editor, InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -134,7 +133,6 @@ impl ExpectationsMenuItem {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn view_expectations(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -153,7 +151,7 @@ pub(crate) async fn view_expectations(
         Ok(ExpectationsMenuItem::MaintenanceItems) => {
             view_maintenance_hopes(send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => present_top_menu(send_to_data_storage_layer).await,
+        Err(InquireError::OperationCanceled) => Box::pin(present_top_menu(send_to_data_storage_layer)).await,
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }
@@ -191,22 +189,22 @@ pub(crate) async fn view_mentally_resident_project_goals(
 
         match selected {
             Ok(selected) => {
-                present_mentally_resident_goal_selected_menu(
+                Box::pin(present_mentally_resident_goal_selected_menu(
                     selected.into(),
                     send_to_data_storage_layer,
-                )
+                ))
                 .await
             }
             Err(err) => match err {
                 InquireError::OperationCanceled => {
-                    present_top_menu(send_to_data_storage_layer).await
+                    Box::pin(present_top_menu(send_to_data_storage_layer)).await
                 }
                 _ => panic!("Unexpected InquireError of {}", err),
             },
         }
     } else {
         println!("Hope List is Empty, falling back to main menu.");
-        present_top_menu(send_to_data_storage_layer).await
+        Box::pin(present_top_menu(send_to_data_storage_layer)).await
     }
 }
 
@@ -270,14 +268,14 @@ pub(crate) async fn view_maintenance_hopes(
         match selected {
             Ok(MaintenanceHopeItem::MaintenanceHope(_hope_node)) => todo!(),
             Err(InquireError::OperationCanceled) => {
-                present_top_menu(send_to_data_storage_layer).await
+                Box::pin(present_top_menu(send_to_data_storage_layer)).await
             }
             Err(InquireError::OperationInterrupted) => Err(()),
             Err(err) => todo!("{}", err),
         }
     } else {
         println!("Maintenance List is empty, falling back to main menu.");
-        present_top_menu(send_to_data_storage_layer).await
+        Box::pin(present_top_menu(send_to_data_storage_layer)).await
     }
 }
 
@@ -322,7 +320,6 @@ impl MentallyResidentGoalSelectedMenuItem {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn present_mentally_resident_goal_selected_menu(
     goal_selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -356,10 +353,10 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    present_mentally_resident_goal_selected_menu(
+                    Box::pin(present_mentally_resident_goal_selected_menu(
                         goal_selected,
                         send_to_data_storage_layer,
-                    )
+                    ))
                     .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
@@ -383,7 +380,7 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
         Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
             update_item_summary(goal_selected, send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => view_expectations(send_to_data_storage_layer).await,
+        Err(InquireError::OperationCanceled) => Box::pin(view_expectations(send_to_data_storage_layer)).await,
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{}", err),
     }
