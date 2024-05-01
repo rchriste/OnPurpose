@@ -113,13 +113,13 @@ impl BulletList {
                     .then_with(|| {
                         let a_lap_count = a.get_lap_count();
                         let a_expired_amount = if a.is_staging_mentally_resident() {
-                            f32::powf(a_lap_count, 2f32)
+                            f32::powf(a_lap_count, 1.5f32)
                         } else {
                             a_lap_count
                         };
                         let b_lap_count = b.get_lap_count();
                         let b_expired_amount = if b.is_staging_mentally_resident() {
-                            f32::powf(b_lap_count, 2f32)
+                            f32::powf(b_lap_count, 1.5f32)
                         } else {
                             b_lap_count
                         };
