@@ -90,21 +90,44 @@ fn calculate_lap_count<'a>(
     all_item_status: &'a [ItemStatus],
 ) -> &'a ItemStatus<'a> {
     if item_status.has_children(Filter::Active) {
-        let highest_lap_count = all_item_status
-            .iter()
-            .filter(|x| {
-                item_status
-                    .get_smaller(Filter::Active)
-                    .any(|y| y.get_item() == x.get_item())
+        let highest_lap_count = item_status
+            .get_smaller(Filter::Active)
+            .map(|x| {
+                all_item_status
+                    .iter()
+                    .find(|y| y.get_item() == x.get_item())
+                    .expect("Comes from this list so it will always be there")
             })
-            .max_by(|a, b| {
-                calculate_lap_count(a, all_item_status)
-                    .get_lap_count()
-                    .partial_cmp(&calculate_lap_count(b, all_item_status).get_lap_count())
-                    .unwrap()
+            .reduce(|a, b| {
+                let a_highest = calculate_lap_count(a, all_item_status);
+                let b_highest = calculate_lap_count(b, all_item_status);
+                if a_highest.get_lap_count() > b_highest.get_lap_count() {
+                    a_highest
+                } else {
+                    b_highest
+                }
             })
-            .expect("Has children so there is a max");
-        highest_lap_count
+            .expect("has_children is true so there is at least one item");
+
+        // Reduce is not called if there is only one child so in that scenario this is needed to ensure that we select the deepest child
+        if highest_lap_count.has_children(Filter::Active) {
+            let children = highest_lap_count
+                .get_smaller(Filter::Active)
+                .map(|x| {
+                    all_item_status
+                        .iter()
+                        .find(|y| y.get_item() == x.get_item())
+                        .expect("Comes from this list so it will always be there")
+                })
+                .collect::<Vec<_>>();
+            assert!(children.len() == 1, "This should only happen if reduce is never called, meaning there is only one child");
+            let child = children
+                .first()
+                .expect("Because of assert there is only one child");
+            calculate_lap_count(child, all_item_status)
+        } else {
+            highest_lap_count
+        }
     } else {
         item_status
     }
