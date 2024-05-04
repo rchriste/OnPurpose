@@ -430,9 +430,9 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     }
                 }
             },
-            Staging::Planned => todo!(),
-            Staging::ThinkingAbout => todo!(),
-            Staging::Released => todo!(),
+            Staging::Planned => continue,
+            Staging::ThinkingAbout => continue,
+            Staging::Released => continue,
         }
     }
     (None, when_uncovered)
