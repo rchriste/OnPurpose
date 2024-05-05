@@ -13,8 +13,8 @@ use crate::{
         item::{Item, ItemVecExtensions},
         BaseData,
     },
-    menu::top_menu::present_top_menu,
-    menu::{
+    menu::inquire::top_menu::present_top_menu,
+    menu::inquire::{
         bullet_list_menu::bullet_list_single_item::cover_with_item,
         expectations::define_facing::define_facing, staging_query::on_deck_query,
         update_item_summary::update_item_summary,

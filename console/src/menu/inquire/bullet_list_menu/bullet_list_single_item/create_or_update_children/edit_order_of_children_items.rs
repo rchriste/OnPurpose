@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     display::display_item::DisplayItem,
-    menu::select_higher_priority_than_this::HigherPriorityThan,
+    menu::inquire::select_higher_priority_than_this::HigherPriorityThan,
     node::{item_node::ItemNode, Filter},
     surrealdb_layer::DataLayerCommands,
 };

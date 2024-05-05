@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{life_area::LifeArea, routine::Routine, BaseData},
-    menu::top_menu::present_top_menu,
+    menu::inquire::top_menu::present_top_menu,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 

@@ -17,7 +17,7 @@ use crate::{
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
-use super::YesOrNo;
+use super::super::YesOrNo;
 
 enum UnableReason {
     SomeoneOrGroupIsNotAvailable,

@@ -12,7 +12,7 @@ use crate::{
         display_item_node::DisplayItemNode, display_item_status::DisplayItemStatus,
         display_priority::DisplayPriority,
     },
-    menu::expectations::view_expectations,
+    menu::inquire::expectations::view_expectations,
     new_item::NewItem,
     node::{item_node::ItemNode, Filter},
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},

@@ -3,7 +3,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::item::Item,
-    menu::staging_query::{mentally_resident_query, on_deck_query},
+    menu::inquire::staging_query::{mentally_resident_query, on_deck_query},
     surrealdb_layer::{
         surreal_item::{Responsibility, Staging},
         DataLayerCommands,

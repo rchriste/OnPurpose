@@ -5,7 +5,7 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    menu::{
+    menu::inquire::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },

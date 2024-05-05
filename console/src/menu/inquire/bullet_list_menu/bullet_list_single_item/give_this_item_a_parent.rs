@@ -8,7 +8,7 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{item::Item, BaseData},
     display::display_item_node::DisplayItemNode,
-    menu::{
+    menu::inquire::{
         bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
         select_higher_priority_than_this::select_higher_priority_than_this,
     },

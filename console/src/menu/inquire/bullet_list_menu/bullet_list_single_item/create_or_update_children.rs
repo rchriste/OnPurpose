@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     display::display_item_status::DisplayItemStatus,
-    menu::bullet_list_menu::bullet_list_single_item::create_or_update_children::edit_order_of_children_items::edit_order_of_children_items,
+    menu::inquire::bullet_list_menu::bullet_list_single_item::create_or_update_children::edit_order_of_children_items::edit_order_of_children_items,
     node::{item_status::ItemStatus, Filter},
     surrealdb_layer::DataLayerCommands, systems::bullet_list::BulletList,
 };

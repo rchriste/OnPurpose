@@ -9,7 +9,7 @@ use crate::{
         BaseData,
     },
     display::display_item::DisplayItem,
-    menu::{
+    menu::inquire::{
         bullet_list_menu::bullet_list_single_item::set_staging::{
             present_set_staging_menu, StagingMenuSelection,
         },

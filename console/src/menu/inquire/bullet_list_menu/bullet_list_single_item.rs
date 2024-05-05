@@ -21,7 +21,7 @@ use crate::{
         display_item::DisplayItem, display_item_node::DisplayItemNode,
         display_staging::DisplayStaging,
     },
-    menu::{
+    menu::inquire::{
         bullet_list_menu::bullet_list_single_item::{
             create_or_update_children::create_or_update_children,
             give_this_item_a_parent::give_this_item_a_parent,

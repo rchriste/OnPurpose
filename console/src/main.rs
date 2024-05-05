@@ -12,7 +12,7 @@ pub(crate) mod systems;
 use tokio::sync::mpsc;
 
 use crate::{
-    menu::bullet_list_menu::present_normal_bullet_list_menu,
+    menu::inquire::bullet_list_menu::present_normal_bullet_list_menu,
     surrealdb_layer::data_storage_start_and_run,
 };
 
