@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, fmt::Display};
 
 use chrono::{Local, Utc};
+use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 
@@ -18,7 +19,7 @@ use crate::{
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
-use super::bullet_list_menu::present_normal_bullet_list_menu;
+use super::{bullet_list_menu::present_normal_bullet_list_menu, update_item_summary::update_item_summary};
 
 enum TopMenuSelection {
     ChangeRoutine,
@@ -77,7 +78,7 @@ pub(crate) async fn present_top_menu(
     let selection = Select::new("Select from the below list|", top_menu).prompt();
     match selection {
         Ok(TopMenuSelection::ChangeRoutine) => change_routine(send_to_data_storage_layer).await,
-        Ok(TopMenuSelection::Reflection) => todo!("Implement Reflection"),
+        Ok(TopMenuSelection::Reflection) => present_reflection(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ViewExpectations) => {
             view_expectations(send_to_data_storage_layer).await
         }
@@ -86,7 +87,9 @@ pub(crate) async fn present_top_menu(
         }
         Ok(TopMenuSelection::ViewMotivations) => view_motivations().await,
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
-        Ok(TopMenuSelection::ViewPrioritiesRatatui) => view_priorities::view_priorities().map_err(|_| ()),
+        Ok(TopMenuSelection::ViewPrioritiesRatatui) => {
+            view_priorities::view_priorities().map_err(|_| ())
+        }
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
@@ -218,7 +221,13 @@ async fn view_priorities_of_item_status(
                 ))
                 .await
             } else {
-                view_priorities_single_item_no_children(display_priority.get_item_status(), parent, calculated_data, send_to_data_storage_layer).await
+                view_priorities_single_item_no_children(
+                    display_priority.get_item_status(),
+                    parent,
+                    calculated_data,
+                    send_to_data_storage_layer,
+                )
+                .await
             }
         }
         Err(InquireError::OperationCanceled) => {
@@ -241,26 +250,40 @@ async fn view_priorities_of_item_status(
 }
 
 enum ViewPrioritiesSingleItemNoChildrenChoice {
-    Finish
+    Finish,
+    EditSummary,
 }
 
 impl Display for ViewPrioritiesSingleItemNoChildrenChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ViewPrioritiesSingleItemNoChildrenChoice::Finish => write!(f, "Finish"),
+            ViewPrioritiesSingleItemNoChildrenChoice::EditSummary => write!(f, "Edit Summary"),
         }
     }
 }
 
-async fn view_priorities_single_item_no_children(item_status: &ItemStatus<'_>, mut parent: Vec<DisplayItemStatus<'_>>, calculated_data: &CalculatedData, send_to_data_storage_layer: &Sender<DataLayerCommands>) -> Result<(), ()> {
-    let choices = vec![ViewPrioritiesSingleItemNoChildrenChoice::Finish];
+async fn view_priorities_single_item_no_children(
+    item_status: &ItemStatus<'_>,
+    mut parent: Vec<DisplayItemStatus<'_>>,
+    calculated_data: &CalculatedData,
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
+    let choices = vec![ViewPrioritiesSingleItemNoChildrenChoice::Finish, ViewPrioritiesSingleItemNoChildrenChoice::EditSummary];
     let selection = Select::new("Select an action...", choices).prompt();
     match selection {
         Ok(ViewPrioritiesSingleItemNoChildrenChoice::Finish) => {
             let now = Utc::now();
-            send_to_data_storage_layer.send(DataLayerCommands::FinishItem{item: item_status.get_item().get_id().clone(), when_finished: now.into()}).await.unwrap();
+            send_to_data_storage_layer
+                .send(DataLayerCommands::FinishItem {
+                    item: item_status.get_item().get_id().clone(),
+                    when_finished: now.into(),
+                })
+                .await
+                .unwrap();
             Ok(())
-        },
+        }
+        Ok(ViewPrioritiesSingleItemNoChildrenChoice::EditSummary) => update_item_summary(item_status.get_item(), send_to_data_storage_layer).await,
         Err(InquireError::OperationCanceled) => {
             let top_item = parent.pop().expect("is not empty so will always succeed");
             Box::pin(view_priorities_of_item_status(
@@ -273,6 +296,55 @@ async fn view_priorities_single_item_no_children(item_status: &ItemStatus<'_>, m
         }
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }
+}
+
+async fn present_reflection(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
+    let now = Local::now();
+    let start = match Text::new("Enter Staring Time")
+    .prompt()
+    {
+        Ok(when_started) => match parse(&when_started) {
+            Ok(duration) => {
+                let when_started = now - duration;
+                when_started
+            }
+            Err(_) => match dateparser::parse(&when_started) {
+                Ok(when_started) => when_started.into(),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    return Box::pin(present_reflection(send_to_data_storage_layer)).await;
+                }
+            },
+        },
+        Err(InquireError::OperationCanceled) => return Ok(()),
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => todo!("{:?}", err),
+    };
+
+    let end = match Text::new("Enter Ending Time")
+    .prompt()
+    {
+        Ok(when_finished) => match parse(&when_finished) {
+            Ok(duration) => {
+                let when_finished = now - duration;
+                when_finished
+            }
+            Err(_) => match dateparser::parse(&when_finished) {
+                Ok(when_finished) => when_finished.into(),
+                Err(_) => {
+                    println!("Invalid input. Please try again.");
+                    return Box::pin(present_reflection(send_to_data_storage_layer)).await;
+                }
+            },
+        },
+        Err(InquireError::OperationCanceled) => return Box::pin(present_reflection(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => todo!("{:?}", err),
+    };
+
+    todo!()
 }
 
 enum DebugViewItem<'e> {

@@ -1,8 +1,6 @@
 use crossterm::{
     event::{self, KeyCode, KeyEventKind},
-    terminal::{
-        disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-    },
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
 use ratatui::{
@@ -21,7 +19,11 @@ pub fn view_priorities() -> Result<()> {
         terminal.draw(|frame| {
             let area = frame.size();
             frame.render_widget(
-                Paragraph::new("Hello Ratatui! (press 'q' to quit)").white().on_blue(), area)
+                Paragraph::new("Hello Ratatui! (press 'q' to quit)")
+                    .white()
+                    .on_blue(),
+                area,
+            )
         })?;
 
         if event::poll(std::time::Duration::from_millis(16))? {
