@@ -12,9 +12,9 @@ use crate::{
         display_item_node::DisplayItemNode, display_item_status::DisplayItemStatus,
         display_priority::DisplayPriority,
     },
-    menu::inquire::expectations::view_expectations,
+    menu::{inquire::expectations::view_expectations, ratatui::view_priorities},
     new_item::NewItem,
-    node::{item_node::ItemNode, Filter},
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
@@ -27,6 +27,7 @@ enum TopMenuSelection {
     ViewExpectations,
     ViewMotivations,
     ViewPriorities,
+    ViewPrioritiesRatatui,
     DebugViewAllItems,
 }
 
@@ -43,6 +44,9 @@ impl Display for TopMenuSelection {
                 write!(f, "👁 🎯 View Motivations           👁")
             }
             TopMenuSelection::ViewPriorities => write!(f, "👁 ⚖️  View Priorities           👁"),
+            TopMenuSelection::ViewPrioritiesRatatui => {
+                write!(f, "👁 ⚖️  View Priorities (Ratatui) 👁")
+            }
             TopMenuSelection::DebugViewAllItems => {
                 write!(f, "👁 🗒️  Debug View All Items      👁")
             }
@@ -54,6 +58,7 @@ impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
             Self::ViewPriorities,
+            Self::ViewPrioritiesRatatui,
             Self::ChangeRoutine,
             Self::Reflection,
             Self::ViewBulletList,
@@ -81,6 +86,7 @@ pub(crate) async fn present_top_menu(
         }
         Ok(TopMenuSelection::ViewMotivations) => view_motivations().await,
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::ViewPrioritiesRatatui) => view_priorities::view_priorities().map_err(|_| ()),
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
@@ -200,8 +206,8 @@ async fn view_priorities_of_item_status(
     match selection {
         Ok(display_priority) => {
             println!("{}", display_priority);
+            parent.push(display_item_status);
             if display_priority.has_children() {
-                parent.push(display_item_status);
                 let display_item_status =
                     DisplayItemStatus::new(display_priority.get_item_status());
                 Box::pin(view_priorities_of_item_status(
@@ -212,7 +218,7 @@ async fn view_priorities_of_item_status(
                 ))
                 .await
             } else {
-                Ok(())
+                view_priorities_single_item_no_children(display_priority.get_item_status(), parent, calculated_data, send_to_data_storage_layer).await
             }
         }
         Err(InquireError::OperationCanceled) => {
@@ -230,6 +236,41 @@ async fn view_priorities_of_item_status(
             }
         }
         Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => todo!("Unexpected InquireError of {}", err),
+    }
+}
+
+enum ViewPrioritiesSingleItemNoChildrenChoice {
+    Finish
+}
+
+impl Display for ViewPrioritiesSingleItemNoChildrenChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ViewPrioritiesSingleItemNoChildrenChoice::Finish => write!(f, "Finish"),
+        }
+    }
+}
+
+async fn view_priorities_single_item_no_children(item_status: &ItemStatus<'_>, mut parent: Vec<DisplayItemStatus<'_>>, calculated_data: &CalculatedData, send_to_data_storage_layer: &Sender<DataLayerCommands>) -> Result<(), ()> {
+    let choices = vec![ViewPrioritiesSingleItemNoChildrenChoice::Finish];
+    let selection = Select::new("Select an action...", choices).prompt();
+    match selection {
+        Ok(ViewPrioritiesSingleItemNoChildrenChoice::Finish) => {
+            let now = Utc::now();
+            send_to_data_storage_layer.send(DataLayerCommands::FinishItem{item: item_status.get_item().get_id().clone(), when_finished: now.into()}).await.unwrap();
+            Ok(())
+        },
+        Err(InquireError::OperationCanceled) => {
+            let top_item = parent.pop().expect("is not empty so will always succeed");
+            Box::pin(view_priorities_of_item_status(
+                top_item,
+                parent,
+                calculated_data,
+                send_to_data_storage_layer,
+            ))
+            .await
+        }
         Err(err) => todo!("Unexpected InquireError of {}", err),
     }
 }
