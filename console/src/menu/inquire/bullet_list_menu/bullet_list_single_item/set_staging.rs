@@ -1,4 +1,3 @@
-use async_recursion::async_recursion;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -61,7 +60,6 @@ impl StagingMenuSelection {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn present_set_staging_menu(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -80,11 +78,11 @@ pub(crate) async fn present_set_staging_menu(
                 match result {
                     Ok(mentally_resident) => mentally_resident,
                     Err(InquireError::OperationCanceled) => {
-                        return present_set_staging_menu(
+                        return Box::pin(present_set_staging_menu(
                             selected,
                             send_to_data_storage_layer,
                             default_selection,
-                        )
+                        ))
                         .await
                     }
                     Err(InquireError::OperationInterrupted) => return Err(()),
@@ -96,11 +94,11 @@ pub(crate) async fn present_set_staging_menu(
                 match result {
                     Ok(staging) => staging,
                     Err(InquireError::OperationCanceled) => {
-                        return present_set_staging_menu(
+                        return Box::pin(present_set_staging_menu(
                             selected,
                             send_to_data_storage_layer,
                             default_selection,
-                        )
+                        ))
                         .await
                     }
                     Err(InquireError::OperationInterrupted) => return Err(()),

@@ -8,7 +8,6 @@ mod state_a_smaller_next_step;
 
 use std::fmt::Display;
 
-use async_recursion::async_recursion;
 use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
@@ -313,16 +312,15 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            log_worked_on_this::log_worked_on_this(
+            state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await?;
+            Box::pin(present_bullet_list_item_selected(
                 menu_for,
-                &when_selected,
+                when_selected,
+                bullet_list,
                 bullet_list_created,
-                Utc::now(),
                 send_to_data_storage_layer,
-                bullet_list.get_ordered_bullet_list(),
-            )
-            .await?;
-            state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await
+            ))
+            .await
         }
         Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
             give_this_item_a_parent(menu_for.get_item(), send_to_data_storage_layer).await
@@ -539,7 +537,6 @@ impl<'e> FinishSelection<'e> {
     }
 }
 
-#[async_recursion]
 async fn finish_bullet_item(
     finish_this: &ItemStatus<'_>,
     bullet_list: &BulletList,
@@ -593,13 +590,13 @@ async fn finish_bullet_item(
             state_a_smaller_next_step(&updated_parent, send_to_data_storage_layer).await?;
 
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            finish_bullet_item(
+            Box::pin(finish_bullet_item(
                 finish_this,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(FinishSelection::GoToParent(parent)) => {
@@ -628,13 +625,13 @@ async fn finish_bullet_item(
         Ok(FinishSelection::UpdateStagingForParent(parent)) => {
             present_set_staging_menu(parent, send_to_data_storage_layer, None).await?;
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            finish_bullet_item(
+            Box::pin(finish_bullet_item(
                 finish_this,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(FinishSelection::ApplyStagingToParent(parent, staging)) => {
@@ -646,13 +643,13 @@ async fn finish_bullet_item(
                 .await
                 .unwrap();
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            finish_bullet_item(
+            Box::pin(finish_bullet_item(
                 finish_this,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(FinishSelection::ReturnToBulletList) => Ok(()),
@@ -954,7 +951,6 @@ impl ItemTypeSelection {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn parent_to_new_item(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -965,11 +961,11 @@ pub(crate) async fn parent_to_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            parent_to_new_item(parent_this, send_to_data_storage_layer).await
+            Box::pin(parent_to_new_item(parent_this, send_to_data_storage_layer)).await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            parent_to_new_item(parent_this, send_to_data_storage_layer).await
+            Box::pin(parent_to_new_item(parent_this, send_to_data_storage_layer)).await
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -988,7 +984,6 @@ pub(crate) async fn parent_to_new_item(
     }
 }
 
-#[async_recursion]
 pub(crate) async fn cover_with_new_item(
     cover_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -999,11 +994,11 @@ pub(crate) async fn cover_with_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            cover_with_new_item(cover_this, send_to_data_storage_layer).await
+            Box::pin(cover_with_new_item(cover_this, send_to_data_storage_layer)).await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            cover_with_new_item(cover_this, send_to_data_storage_layer).await
+            Box::pin(cover_with_new_item(cover_this, send_to_data_storage_layer)).await
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -1022,7 +1017,6 @@ pub(crate) async fn cover_with_new_item(
     }
 }
 
-#[async_recursion]
 pub(crate) async fn declare_item_type(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -1088,11 +1082,11 @@ pub(crate) async fn declare_item_type(
         }
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            declare_item_type(item, send_to_data_storage_layer).await
+            Box::pin(declare_item_type(item, send_to_data_storage_layer)).await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            declare_item_type(item, send_to_data_storage_layer).await
+            Box::pin(declare_item_type(item, send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => Err(()),

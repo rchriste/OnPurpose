@@ -1,4 +1,3 @@
-use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -51,7 +50,6 @@ pub(crate) async fn something_else_should_be_done_first(
     }
 }
 
-#[async_recursion]
 pub(crate) async fn something_else_should_be_done_first_new_item(
     unable_to_do: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -61,12 +59,12 @@ pub(crate) async fn something_else_should_be_done_first_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            something_else_should_be_done_first_new_item(unable_to_do, send_to_data_storage_layer)
+            Box::pin(something_else_should_be_done_first_new_item(unable_to_do, send_to_data_storage_layer))
                 .await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            something_else_should_be_done_first_new_item(unable_to_do, send_to_data_storage_layer)
+            Box::pin(something_else_should_be_done_first_new_item(unable_to_do, send_to_data_storage_layer))
                 .await
         }
         Ok(selection) => {

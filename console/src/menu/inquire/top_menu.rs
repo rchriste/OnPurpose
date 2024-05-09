@@ -19,7 +19,9 @@ use crate::{
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
 };
 
-use super::{bullet_list_menu::present_normal_bullet_list_menu, update_item_summary::update_item_summary};
+use super::{
+    bullet_list_menu::present_normal_bullet_list_menu, update_item_summary::update_item_summary,
+};
 
 enum TopMenuSelection {
     ChangeRoutine,
@@ -269,7 +271,10 @@ async fn view_priorities_single_item_no_children(
     calculated_data: &CalculatedData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let choices = vec![ViewPrioritiesSingleItemNoChildrenChoice::Finish, ViewPrioritiesSingleItemNoChildrenChoice::EditSummary];
+    let choices = vec![
+        ViewPrioritiesSingleItemNoChildrenChoice::Finish,
+        ViewPrioritiesSingleItemNoChildrenChoice::EditSummary,
+    ];
     let selection = Select::new("Select an action...", choices).prompt();
     match selection {
         Ok(ViewPrioritiesSingleItemNoChildrenChoice::Finish) => {
@@ -283,7 +288,9 @@ async fn view_priorities_single_item_no_children(
                 .unwrap();
             Ok(())
         }
-        Ok(ViewPrioritiesSingleItemNoChildrenChoice::EditSummary) => update_item_summary(item_status.get_item(), send_to_data_storage_layer).await,
+        Ok(ViewPrioritiesSingleItemNoChildrenChoice::EditSummary) => {
+            update_item_summary(item_status.get_item(), send_to_data_storage_layer).await
+        }
         Err(InquireError::OperationCanceled) => {
             let top_item = parent.pop().expect("is not empty so will always succeed");
             Box::pin(view_priorities_of_item_status(
@@ -302,9 +309,7 @@ async fn present_reflection(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let now = Local::now();
-    let start = match Text::new("Enter Staring Time")
-    .prompt()
-    {
+    let start = match Text::new("Enter Staring Time").prompt() {
         Ok(when_started) => match parse(&when_started) {
             Ok(duration) => {
                 let when_started = now - duration;
@@ -323,9 +328,7 @@ async fn present_reflection(
         Err(err) => todo!("{:?}", err),
     };
 
-    let end = match Text::new("Enter Ending Time")
-    .prompt()
-    {
+    let end = match Text::new("Enter Ending Time").prompt() {
         Ok(when_finished) => match parse(&when_finished) {
             Ok(duration) => {
                 let when_finished = now - duration;
@@ -339,7 +342,9 @@ async fn present_reflection(
                 }
             },
         },
-        Err(InquireError::OperationCanceled) => return Box::pin(present_reflection(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            return Box::pin(present_reflection(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => return Err(()),
         Err(err) => todo!("{:?}", err),
     };

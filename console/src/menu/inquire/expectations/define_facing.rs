@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -141,7 +140,6 @@ impl From<HowWellDefinedSelection> for HowWellDefined {
     }
 }
 
-#[async_recursion]
 async fn single_item_define_facing(
     item_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -169,7 +167,7 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    single_item_define_facing(item_node, send_to_data_storage_layer).await
+                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
@@ -197,7 +195,7 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    single_item_define_facing(item_node, send_to_data_storage_layer).await
+                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
@@ -226,13 +224,13 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    single_item_define_facing(item_node, send_to_data_storage_layer).await
+                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
-        Err(InquireError::OperationCanceled) => define_facing(send_to_data_storage_layer).await,
+        Err(InquireError::OperationCanceled) => Box::pin(define_facing(send_to_data_storage_layer)).await,
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }

@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use async_recursion::async_recursion;
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
@@ -96,7 +95,6 @@ pub(crate) async fn give_this_item_a_parent(
     }
 }
 
-#[async_recursion]
 async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -106,18 +104,18 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+            Box::pin(parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            parent_to_a_goal_or_motivation_new_goal_or_motivation(
+            Box::pin(parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(item_type_selection) => {

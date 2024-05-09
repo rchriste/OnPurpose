@@ -4,7 +4,6 @@ use std::{
     iter::once,
 };
 
-use async_recursion::async_recursion;
 use inquire::{InquireError, Select};
 use itertools::chain;
 use tokio::sync::mpsc::Sender;
@@ -30,7 +29,6 @@ impl Display for EditOrderOfChildren<'_> {
     }
 }
 
-#[async_recursion]
 pub(crate) async fn edit_order_of_children_items(
     item_node: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -67,7 +65,7 @@ pub(crate) async fn edit_order_of_children_items(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    edit_order_of_children_items(item_node, send_to_data_storage_layer).await
+                    Box::pin(edit_order_of_children_items(item_node, send_to_data_storage_layer)).await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("Unexpected error: {:?}", err),
