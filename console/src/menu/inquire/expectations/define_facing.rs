@@ -167,7 +167,11 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
+                    Box::pin(single_item_define_facing(
+                        item_node,
+                        send_to_data_storage_layer,
+                    ))
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
@@ -195,7 +199,11 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
+                    Box::pin(single_item_define_facing(
+                        item_node,
+                        send_to_data_storage_layer,
+                    ))
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
@@ -224,13 +232,19 @@ async fn single_item_define_facing(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    Box::pin(single_item_define_facing(item_node, send_to_data_storage_layer)).await
+                    Box::pin(single_item_define_facing(
+                        item_node,
+                        send_to_data_storage_layer,
+                    ))
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("{:?}", err),
             }
         }
-        Err(InquireError::OperationCanceled) => Box::pin(define_facing(send_to_data_storage_layer)).await,
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(define_facing(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),
     }

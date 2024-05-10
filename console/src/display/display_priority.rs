@@ -120,7 +120,7 @@ fn calculate_lap_count<'a>(
                         .expect("Comes from this list so it will always be there")
                 })
                 .collect::<Vec<_>>();
-            assert!(children.len() == 1, "This should only happen if reduce is never called, meaning there is only one child");
+            assert!(children.len() == 1, "This should only happen if reduce is never called, meaning there is only one child, children.len() == {}, highest_lap_count summary: {}", children.len(), highest_lap_count.get_summary());
             let child = children
                 .first()
                 .expect("Because of assert there is only one child");

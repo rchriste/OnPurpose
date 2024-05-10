@@ -109,11 +109,19 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer)).await
+            Box::pin(state_a_smaller_next_step_new_item(
+                selected_item,
+                send_to_data_storage_layer,
+            ))
+            .await
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            Box::pin(state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer)).await
+            Box::pin(state_a_smaller_next_step_new_item(
+                selected_item,
+                send_to_data_storage_layer,
+            ))
+            .await
         }
         Ok(item_type_selection) => {
             let mut new_item = item_type_selection.create_new_item_prompt_user_for_summary();

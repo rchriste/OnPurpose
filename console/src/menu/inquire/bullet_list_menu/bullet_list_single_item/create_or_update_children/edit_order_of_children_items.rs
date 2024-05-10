@@ -65,7 +65,11 @@ pub(crate) async fn edit_order_of_children_items(
                     Ok(())
                 }
                 Err(InquireError::OperationCanceled) => {
-                    Box::pin(edit_order_of_children_items(item_node, send_to_data_storage_layer)).await
+                    Box::pin(edit_order_of_children_items(
+                        item_node,
+                        send_to_data_storage_layer,
+                    ))
+                    .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
                 Err(err) => todo!("Unexpected error: {:?}", err),
