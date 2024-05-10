@@ -124,11 +124,22 @@ fn calculate_lap_count<'a>(
             let child = children
                 .first()
                 .expect("Because of assert there is only one child");
-            calculate_lap_count(child, all_item_status)
+            let a = calculate_lap_count(child, all_item_status);
+            assert!(
+                !a.has_children(Filter::Active),
+                "This should only happen if reduce is never called, meaning there is only one child, a summary: {}",
+                a.get_summary()
+            );
+            a
         } else {
+            assert!(!highest_lap_count.has_children(Filter::Active), "This should only happen if reduce is never called, meaning there is only one child, highest_lap_count summary: {}", highest_lap_count.get_summary());
             highest_lap_count
         }
     } else {
+        assert!(
+            !item_status.has_children(Filter::Active),
+            "This should only happen if reduce is never called, meaning there is only one child, item_status summary: {}",
+            item_status.get_summary());
         item_status
     }
 }
