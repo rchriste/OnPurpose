@@ -278,6 +278,10 @@ pub(crate) async fn present_bullet_list_item_selected(
     bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
+    print_completed_children(menu_for);
+    print_in_progress_children(menu_for);
+    println!();
+
     let all_item_status = bullet_list.get_all_item_status();
     let list =
         BulletListSingleItemSelection::create_list(menu_for.get_item_node(), all_item_status);
@@ -477,6 +481,40 @@ pub(crate) async fn present_bullet_list_item_selected(
         Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("Unexpected {}", err),
+    }
+}
+
+fn print_completed_children(menu_for: &ItemStatus<'_>) {
+    let completed_children = menu_for
+        .get_smaller(Filter::Finished)
+        .map(|x| x.get_item())
+        .collect::<Vec<_>>();
+    if !completed_children.is_empty() {
+        if completed_children.len() < 8 {
+            println!("Completed Children:",);
+            for child in completed_children {
+                println!("  ✅{}", DisplayItem::new(child));
+            }
+        } else {
+            println!("{} completed children ✅", completed_children.len());
+        }
+    }
+}
+
+fn print_in_progress_children(menu_for: &ItemStatus<'_>) {
+    let in_progress_children = menu_for
+        .get_smaller(Filter::Active)
+        .map(|x| x.get_item())
+        .collect::<Vec<_>>();
+    if !in_progress_children.is_empty() {
+        if in_progress_children.len() < 8 {
+            println!("In Progress Children:",);
+            for child in in_progress_children {
+                println!("  🏃‍♂️{}", DisplayItem::new(child));
+            }
+        } else {
+            println!("{} in progress children 🏃‍♂️", in_progress_children.len());
+        }
     }
 }
 

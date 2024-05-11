@@ -86,6 +86,7 @@ impl<'s> ItemNode<'s> {
         Box::new(self.smaller.iter().filter(move |x| match filter {
             Filter::All => true,
             Filter::Active => !x.item.is_finished(),
+            Filter::Finished => x.item.is_finished(),
         }))
     }
 
@@ -113,6 +114,7 @@ impl<'s> ItemNode<'s> {
         match filter {
             Filter::All => !self.larger.is_empty(),
             Filter::Active => self.larger.iter().any(|x| !x.item.is_finished()),
+            Filter::Finished => self.larger.iter().any(|x| x.item.is_finished()),
         }
     }
 
@@ -123,6 +125,7 @@ impl<'s> ItemNode<'s> {
         match filter {
             Filter::All => Box::new(self.larger.iter()),
             Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
+            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.item.is_finished())),
         }
     }
 
@@ -172,6 +175,7 @@ impl<'s> ItemNode<'s> {
         match filter {
             Filter::All => !self.smaller.is_empty(),
             Filter::Active => self.smaller.iter().any(|x| !x.get_item().is_finished()),
+            Filter::Finished => self.smaller.iter().any(|x| x.get_item().is_finished()),
         }
     }
 

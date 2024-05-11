@@ -309,7 +309,7 @@ async fn present_reflection(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let now = Local::now();
-    let start = match Text::new("Enter Staring Time").prompt() {
+    let _start = match Text::new("Enter Staring Time").prompt() {
         Ok(when_started) => match parse(&when_started) {
             Ok(duration) => {
                 let when_started = now - duration;
@@ -328,7 +328,7 @@ async fn present_reflection(
         Err(err) => todo!("{:?}", err),
     };
 
-    let end = match Text::new("Enter Ending Time").prompt() {
+    let _end = match Text::new("Enter Ending Time").prompt() {
         Ok(when_finished) => match parse(&when_finished) {
             Ok(duration) => {
                 let when_finished = now - duration;
