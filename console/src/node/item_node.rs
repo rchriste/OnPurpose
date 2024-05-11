@@ -340,12 +340,16 @@ impl<'s> ShrinkingItemNode<'s> {
         self.item
     }
 
-    pub(crate) fn is_finished(&self) -> bool {
-        self.item.is_finished()
+    pub(crate) fn has_smaller(&self, filter: Filter) -> bool {
+        match filter {
+            Filter::All => !self.smaller.is_empty(),
+            Filter::Active => self.smaller.iter().any(|x| !x.item.is_finished()),
+            Filter::Finished => self.smaller.iter().any(|x| x.item.is_finished()),
+        }
     }
 
-    pub(crate) fn is_snoozed(&self) -> bool {
-        self.smaller.iter().any(|x| !x.is_finished())
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item.is_finished()
     }
 
     pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {

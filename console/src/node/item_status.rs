@@ -216,6 +216,7 @@ fn calculate_lap_count(
                                         find_highest_uncovered_child_with_when_uncovered(
                                             larger,
                                             current_date_time,
+                                            Vec::default(),
                                         );
                                     if let Some(highest_uncovered) = highest_uncovered {
                                         break (Some(highest_uncovered), uncovered_when);
@@ -336,7 +337,9 @@ fn calculate_is_snoozed(
                                     Some(larger) => {
                                         let (highest_uncovered, uncovered_when) =
                                             find_highest_uncovered_child_with_when_uncovered(
-                                                larger, now,
+                                                larger,
+                                                now,
+                                                Vec::default(),
                                             );
                                         if let Some(highest_uncovered) = highest_uncovered {
                                             break (Some(highest_uncovered), uncovered_when);
@@ -365,11 +368,29 @@ fn calculate_is_snoozed(
 fn find_highest_uncovered_child_with_when_uncovered<'a>(
     item_node: &'a ItemNode<'a>,
     now: &DateTime<Utc>,
+    visited: Vec<&'a Item<'a>>,
 ) -> (Option<&'a Item<'a>>, Option<DateTime<Utc>>) {
     let now: Datetime = (*now).into();
     let mut when_uncovered = None;
     for child in item_node.get_smaller(Filter::All) {
-        if child.is_finished() {
+        if child.has_smaller(Filter::All) {
+            if visited.contains(&child.get_item()) {
+                continue;
+            } else {
+                let mut visited = visited.clone();
+                visited.push(child.get_item());
+                let (highest_uncovered, when) =
+                    find_highest_uncovered_child_with_when_uncovered(item_node, &now, visited);
+                if highest_uncovered.is_some() {
+                    return (highest_uncovered, when);
+                } else {
+                    if when > when_uncovered {
+                        when_uncovered = when;
+                    }
+                    continue;
+                }
+            }
+        } else if child.is_finished() {
             let when_child_finished = child.when_finished().expect("is_finished() is true");
             match when_uncovered {
                 Some(uncovered) => {
@@ -380,8 +401,6 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                 }
                 None => when_uncovered = Some(when_child_finished),
             }
-            continue;
-        } else if child.is_snoozed() {
             continue;
         }
         let staging = child.get_staging();
