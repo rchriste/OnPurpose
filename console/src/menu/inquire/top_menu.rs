@@ -252,6 +252,7 @@ async fn view_priorities_of_item_status(
 }
 
 enum ViewPrioritiesSingleItemNoChildrenChoice {
+    Back,
     Finish,
     EditSummary,
 }
@@ -261,6 +262,7 @@ impl Display for ViewPrioritiesSingleItemNoChildrenChoice {
         match self {
             ViewPrioritiesSingleItemNoChildrenChoice::Finish => write!(f, "Finish"),
             ViewPrioritiesSingleItemNoChildrenChoice::EditSummary => write!(f, "Edit Summary"),
+            ViewPrioritiesSingleItemNoChildrenChoice::Back => write!(f, "Back"),
         }
     }
 }
@@ -272,8 +274,9 @@ async fn view_priorities_single_item_no_children(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let choices = vec![
-        ViewPrioritiesSingleItemNoChildrenChoice::Finish,
+        ViewPrioritiesSingleItemNoChildrenChoice::Back,
         ViewPrioritiesSingleItemNoChildrenChoice::EditSummary,
+        ViewPrioritiesSingleItemNoChildrenChoice::Finish,
     ];
     let selection = Select::new("Select an action...", choices).prompt();
     match selection {
@@ -291,7 +294,7 @@ async fn view_priorities_single_item_no_children(
         Ok(ViewPrioritiesSingleItemNoChildrenChoice::EditSummary) => {
             update_item_summary(item_status.get_item(), send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => {
+        Err(InquireError::OperationCanceled) | Ok(ViewPrioritiesSingleItemNoChildrenChoice::Back) => {
             let top_item = parent.pop().expect("is not empty so will always succeed");
             Box::pin(view_priorities_of_item_status(
                 top_item,
