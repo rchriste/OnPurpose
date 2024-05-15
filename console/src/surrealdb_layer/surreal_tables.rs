@@ -19,7 +19,7 @@ use super::{
     surreal_routine::SurrealRoutine, surreal_time_spent::SurrealTimeSpent, DataLayerCommands,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Builder), builder(setter(into)))]
 pub(crate) struct SurrealTables {
     #[cfg_attr(test, builder(default))]
@@ -96,10 +96,7 @@ impl SurrealTables {
         self.surreal_routines.iter().map(Routine::new).collect()
     }
 
-    pub(crate) fn make_time_spent_log(&self) -> Vec<TimeSpent<'_>> {
-        self.surreal_time_spent_log
-            .iter()
-            .map(TimeSpent::new)
-            .collect()
+    pub(crate) fn make_time_spent_log(&self) -> impl Iterator<Item = TimeSpent<'_>> {
+        self.surreal_time_spent_log.iter().map(TimeSpent::new)
     }
 }

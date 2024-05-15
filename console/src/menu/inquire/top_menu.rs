@@ -1,17 +1,18 @@
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, collections::HashMap, fmt::Display};
 
 use chrono::{Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
+use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData,
+    base_data::{time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
     change_routine::change_routine,
     display::{
-        display_item_node::DisplayItemNode, display_item_status::DisplayItemStatus,
-        display_priority::DisplayPriority,
+        display_duration::DisplayDuration, display_item_node::DisplayItemNode,
+        display_item_status::DisplayItemStatus, display_priority::DisplayPriority,
     },
     menu::{inquire::expectations::view_expectations, ratatui::view_priorities},
     new_item::NewItem,
@@ -294,7 +295,8 @@ async fn view_priorities_single_item_no_children(
         Ok(ViewPrioritiesSingleItemNoChildrenChoice::EditSummary) => {
             update_item_summary(item_status.get_item(), send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) | Ok(ViewPrioritiesSingleItemNoChildrenChoice::Back) => {
+        Err(InquireError::OperationCanceled)
+        | Ok(ViewPrioritiesSingleItemNoChildrenChoice::Back) => {
             let top_item = parent.pop().expect("is not empty so will always succeed");
             Box::pin(view_priorities_of_item_status(
                 top_item,
@@ -308,16 +310,14 @@ async fn view_priorities_single_item_no_children(
     }
 }
 
+#[allow(clippy::mutable_key_type)]
 async fn present_reflection(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let now = Local::now();
-    let _start = match Text::new("Enter Staring Time").prompt() {
+    let start = match Text::new("Enter Staring Time").prompt() {
         Ok(when_started) => match parse(&when_started) {
-            Ok(duration) => {
-                let when_started = now - duration;
-                when_started
-            }
+            Ok(duration) => now - duration,
             Err(_) => match dateparser::parse(&when_started) {
                 Ok(when_started) => when_started.into(),
                 Err(_) => {
@@ -331,12 +331,9 @@ async fn present_reflection(
         Err(err) => todo!("{:?}", err),
     };
 
-    let _end = match Text::new("Enter Ending Time").prompt() {
+    let end = match Text::new("Enter Ending Time").prompt() {
         Ok(when_finished) => match parse(&when_finished) {
-            Ok(duration) => {
-                let when_finished = now - duration;
-                when_finished
-            }
+            Ok(duration) => now - duration,
             Err(_) => match dateparser::parse(&when_finished) {
                 Ok(when_finished) => when_finished.into(),
                 Err(_) => {
@@ -352,7 +349,62 @@ async fn present_reflection(
         Err(err) => todo!("{:?}", err),
     };
 
-    todo!()
+    println!("Time spent between {} and {}", start, end);
+
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+        .await
+        .unwrap();
+
+    let start_utc = start.with_timezone(&Utc);
+    let end_utc = end.with_timezone(&Utc);
+
+    let logs_in_range: Vec<_> = surreal_tables
+        .make_time_spent_log()
+        .filter(|x| x.is_within(&start_utc, &end_utc))
+        .collect();
+
+    let mut things_done: HashMap<RecordId, Vec<&TimeSpent>> = HashMap::default();
+    for log in logs_in_range.iter() {
+        for worked_towards in log.worked_towards().iter() {
+            let h = things_done.entry(worked_towards.clone()).or_default();
+            h.push(log);
+        }
+    }
+
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables.clone(), Utc::now());
+    let calculated_data = CalculatedData::new_from_base_data(base_data, &Utc::now());
+    let all_item_status = calculated_data.get_item_status();
+
+    let mut items_in_range: Vec<ItemTimeSpent<'_>> = things_done
+        .into_iter()
+        .map(|(k, v)| {
+            let item_status = all_item_status
+                .iter()
+                .find(|x| x.get_item().get_id() == &k)
+                .expect("All items in the log should be in the item status");
+            ItemTimeSpent {
+                item_status,
+                time_spent: v,
+            }
+        })
+        .collect();
+
+    items_in_range.sort_by(|a, b| a.item_status.get_summary().cmp(b.item_status.get_summary()));
+    for item in items_in_range.iter() {
+        println!("{}", DisplayItemNode::new(item.item_status.get_item_node()));
+        let iteration_count = item.time_spent.len();
+        let total_time: chrono::Duration = item.time_spent.iter().map(|x| x.get_time_delta()).sum();
+        let total_time: std::time::Duration = total_time.to_std().expect("valid");
+        let display_duration = DisplayDuration::new(&total_time);
+        println!("\t{} - {}", iteration_count, display_duration);
+    }
+
+    Ok(())
+}
+
+struct ItemTimeSpent<'s> {
+    item_status: &'s ItemStatus<'s>,
+    time_spent: Vec<&'s TimeSpent<'s>>,
 }
 
 enum DebugViewItem<'e> {

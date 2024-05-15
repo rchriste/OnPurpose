@@ -83,7 +83,7 @@ impl BaseData {
             },
             life_areas_builder: |surreal_tables| surreal_tables.make_life_areas(),
             routines_builder: |surreal_tables| surreal_tables.make_routines(),
-            time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log(),
+            time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log().collect(),
         }
         .build()
     }
