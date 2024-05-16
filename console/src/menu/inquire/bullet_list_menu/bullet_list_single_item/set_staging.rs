@@ -2,6 +2,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::item::Item,
+    display::display_staging::DisplayStaging,
     menu::inquire::staging_query::{mentally_resident_query, on_deck_query},
     surrealdb_layer::{
         surreal_item::{Responsibility, Staging},
@@ -12,7 +13,8 @@ use inquire::{InquireError, Select};
 use std::fmt::Display;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
-pub(crate) enum StagingMenuSelection {
+pub(crate) enum StagingMenuSelection<'e> {
+    KeepAsIs(&'e Staging),
     NotSet,
     MentallyResident,
     OnDeck,
@@ -22,7 +24,7 @@ pub(crate) enum StagingMenuSelection {
     MakeItemReactive,
 }
 
-impl Display for StagingMenuSelection {
+impl Display for StagingMenuSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StagingMenuSelection::NotSet => write!(f, "Not Set"),
@@ -32,14 +34,21 @@ impl Display for StagingMenuSelection {
             StagingMenuSelection::ThinkingAbout => write!(f, "Thinking About"),
             StagingMenuSelection::Released => write!(f, "Released"),
             StagingMenuSelection::MakeItemReactive => write!(f, "Make Item Reactive"),
+            StagingMenuSelection::KeepAsIs(staging) => {
+                let display_staging = DisplayStaging::new(staging);
+                write!(f, "Keep current setting of {}", display_staging)
+            }
         }
     }
 }
 
-impl StagingMenuSelection {
+impl<'e> StagingMenuSelection<'e> {
     /// Returns a tuple of the list and the default index or recommended default selection
-    pub(crate) fn make_list(default_selection: Option<StagingMenuSelection>) -> (Vec<Self>, usize) {
-        let choices = vec![
+    pub(crate) fn make_list(
+        default_selection: Option<StagingMenuSelection>,
+        current_setting: Option<&'e Staging>,
+    ) -> (Vec<Self>, usize) {
+        let mut choices = vec![
             StagingMenuSelection::MentallyResident,
             StagingMenuSelection::OnDeck,
             StagingMenuSelection::Planned,
@@ -48,6 +57,9 @@ impl StagingMenuSelection {
             StagingMenuSelection::NotSet,
             StagingMenuSelection::MakeItemReactive,
         ];
+        if let Some(current_setting) = current_setting {
+            choices.push(StagingMenuSelection::KeepAsIs(current_setting));
+        }
         let default_index = match default_selection {
             Some(default_selection) => choices
                 .iter()
@@ -63,13 +75,15 @@ impl StagingMenuSelection {
 pub(crate) async fn present_set_staging_menu(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-    default_selection: Option<StagingMenuSelection>,
+    default_selection: Option<StagingMenuSelection<'_>>,
 ) -> Result<(), ()> {
     let staging = loop {
-        let (list, starting_cursor) = StagingMenuSelection::make_list(default_selection);
+        let (list, starting_cursor) =
+            StagingMenuSelection::make_list(default_selection, Some(selected.get_staging()));
 
         let selection = Select::new("Select from the below list|", list)
             .with_starting_cursor(starting_cursor)
+            .with_page_size(8)
             .prompt();
         let staging = match selection {
             Ok(StagingMenuSelection::NotSet) => Staging::NotSet,
@@ -116,6 +130,10 @@ pub(crate) async fn present_set_staging_menu(
                     ))
                     .await
                     .unwrap();
+                return Ok(());
+            }
+            Ok(StagingMenuSelection::KeepAsIs(_)) => {
+                //Don't change anything
                 return Ok(());
             }
             Err(InquireError::OperationInterrupted) => return Err(()),

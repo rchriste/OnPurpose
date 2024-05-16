@@ -137,7 +137,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
             let parent = selected_item;
 
             let (list, starting_cursor) =
-                StagingMenuSelection::make_list(Some(StagingMenuSelection::NotSet));
+                StagingMenuSelection::make_list(Some(StagingMenuSelection::NotSet), None);
 
             let selection = Select::new("Select from the below list|", list)
                 .with_starting_cursor(starting_cursor)
@@ -173,6 +173,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                 StagingMenuSelection::MakeItemReactive => {
                     todo!("I need to modify the return type to account for this different choice and pass up that information")
                 }
+                StagingMenuSelection::KeepAsIs(staging) => staging.clone(),
             };
 
             send_to_data_storage_layer
