@@ -389,7 +389,7 @@ async fn present_reflection(
         })
         .collect();
 
-    items_in_range.sort_by(|a, b| a.item_status.get_summary().cmp(b.item_status.get_summary()));
+    items_in_range.sort_by(|a, b| a.cmp(b));
     for item in items_in_range.iter() {
         println!("{}", DisplayItemNode::new(item.item_status.get_item_node()));
         let iteration_count = item.time_spent.len();
@@ -405,6 +405,27 @@ async fn present_reflection(
 struct ItemTimeSpent<'s> {
     item_status: &'s ItemStatus<'s>,
     time_spent: Vec<&'s TimeSpent<'s>>,
+}
+
+impl PartialEq for ItemTimeSpent<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.item_status.get_item() == other.item_status.get_item()
+    }
+}
+
+impl Eq for ItemTimeSpent<'_> {
+}
+
+impl PartialOrd for ItemTimeSpent<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.item_status.get_summary().partial_cmp(other.item_status.get_summary())
+    }
+}
+
+impl Ord for ItemTimeSpent<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.item_status.get_summary().cmp(other.item_status.get_summary())
+    }
 }
 
 enum DebugViewItem<'e> {
