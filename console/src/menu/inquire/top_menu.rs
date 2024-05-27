@@ -140,7 +140,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
 
     let mut all_top_nodes = calculated_data
-        .get_item_status()
+        .get_items_highest_lap_count()
         .iter()
         .filter(|x| !x.is_finished())
         //Person or group items without a parent, meaning a reason for being on the list,
@@ -166,7 +166,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
 
     let list = all_top_nodes
         .iter()
-        .map(DisplayItemStatus::new)
+        .map(|x| DisplayItemStatus::new(x.get_item_status()))
         .collect::<Vec<_>>();
 
     let selection = Select::new("Select a priority to view...", list).prompt();
@@ -200,12 +200,12 @@ async fn view_priorities_of_item_status(
     let list = item_status
         .get_smaller(Filter::Active)
         .map(|x| {
-            let item_status = calculated_data
-                .get_item_status()
+            let item_lap_count = calculated_data
+                .get_items_highest_lap_count()
                 .iter()
                 .find(|y| y.get_item() == x.get_item())
                 .expect("Comes from this list so will be found");
-            DisplayPriority::new(item_status, calculated_data.get_item_status())
+            DisplayPriority::new(item_lap_count)
         })
         .collect();
     let selection = Select::new("Select a child to view...", list).prompt();
@@ -373,15 +373,16 @@ async fn present_reflection(
 
     let base_data = BaseData::new_from_surreal_tables(surreal_tables.clone(), Utc::now());
     let calculated_data = CalculatedData::new_from_base_data(base_data, &Utc::now());
-    let all_item_status = calculated_data.get_item_status();
+    let all_items_highest_lap_count = calculated_data.get_items_highest_lap_count();
 
     let mut items_in_range: Vec<ItemTimeSpent<'_>> = things_done
         .into_iter()
         .map(|(k, v)| {
-            let item_status = all_item_status
+            let item_status = all_items_highest_lap_count
                 .iter()
                 .find(|x| x.get_item().get_id() == &k)
-                .expect("All items in the log should be in the item status");
+                .expect("All items in the log should be in the item status")
+                .get_item_status();
             ItemTimeSpent {
                 item_status,
                 time_spent: v,
@@ -389,7 +390,7 @@ async fn present_reflection(
         })
         .collect();
 
-    items_in_range.sort_by(|a, b| a.cmp(b));
+    items_in_range.sort();
     for item in items_in_range.iter() {
         println!("{}", DisplayItemNode::new(item.item_status.get_item_node()));
         let iteration_count = item.time_spent.len();
@@ -413,18 +414,21 @@ impl PartialEq for ItemTimeSpent<'_> {
     }
 }
 
-impl Eq for ItemTimeSpent<'_> {
-}
+impl Eq for ItemTimeSpent<'_> {}
 
 impl PartialOrd for ItemTimeSpent<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.item_status.get_summary().partial_cmp(other.item_status.get_summary())
+        self.item_status
+            .get_summary()
+            .partial_cmp(other.item_status.get_summary())
     }
 }
 
 impl Ord for ItemTimeSpent<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.item_status.get_summary().cmp(other.item_status.get_summary())
+        self.item_status
+            .get_summary()
+            .cmp(other.item_status.get_summary())
     }
 }
 

@@ -2,7 +2,9 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
-use crate::surrealdb_layer::surreal_item::{Facing, ItemType, Permanence, Responsibility, Staging};
+use crate::surrealdb_layer::surreal_item::{
+    Facing, ItemType, Permanence, Responsibility, SurrealStaging,
+};
 
 #[derive(Builder)]
 #[builder(setter(into))]
@@ -25,7 +27,7 @@ pub(crate) struct NewItem {
     pub(crate) permanence: Permanence,
 
     #[builder(default)]
-    pub(crate) staging: Staging,
+    pub(crate) staging: SurrealStaging,
 
     #[builder(default = "Utc::now()")]
     pub(crate) created: DateTime<Utc>,
@@ -40,7 +42,7 @@ impl NewItem {
             facing: Default::default(),
             item_type: ItemType::Undeclared,
             permanence: Permanence::default(),
-            staging: Staging::default(),
+            staging: SurrealStaging::default(),
             created: now,
         }
     }
@@ -53,7 +55,7 @@ impl NewItem {
             facing: Default::default(),
             item_type: ItemType::PersonOrGroup,
             permanence: Permanence::default(),
-            staging: Staging::default(),
+            staging: SurrealStaging::default(),
             created: now,
         }
     }

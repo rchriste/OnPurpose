@@ -4,8 +4,8 @@ use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::surrealdb_layer::{
     surreal_item::{
-        Facing, ItemType, NotesLocation, Permanence, Responsibility, Staging, SurrealItem,
-        SurrealOrderedSubItem,
+        Facing, ItemType, NotesLocation, Permanence, Responsibility, SurrealItem,
+        SurrealOrderedSubItem, SurrealStaging,
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };
@@ -46,9 +46,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
     fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
-    fn filter_just_actions(&'t self) -> Self::ItemIterator;
     fn filter_just_goals(&'t self) -> Self::ItemIterator;
-    fn filter_just_motivations(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_active_items(&self) -> Vec<&Item>;
 }
@@ -63,30 +61,9 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         self.iter().find(|x| x.id == record_id)
     }
 
-    //TODO: This should probably be renamed to internal actions or steps
-    fn filter_just_actions(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if x.get_item_type() == &ItemType::Action {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
             if matches!(x.get_item_type(), &ItemType::Goal(..)) {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn filter_just_motivations(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::Motivation {
                 Some(x)
             } else {
                 None
@@ -119,29 +96,9 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         self.iter().find(|x| x.id == record_id).copied()
     }
 
-    fn filter_just_actions(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if x.get_item_type() == &ItemType::Action {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
     fn filter_just_goals(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
             if matches!(x.get_item_type(), &ItemType::Goal(..)) {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn filter_just_motivations(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::Motivation {
                 Some(x)
             } else {
                 None
@@ -314,16 +271,16 @@ impl<'b> Item<'b> {
         self.surreal_item.notes_location != NotesLocation::None
     }
 
-    pub(crate) fn get_staging(&self) -> &Staging {
+    pub(crate) fn get_staging(&self) -> &SurrealStaging {
         &self.surreal_item.staging
     }
 
     pub(crate) fn is_mentally_resident(&self) -> bool {
-        matches!(self.get_staging(), Staging::MentallyResident { .. })
+        matches!(self.get_staging(), SurrealStaging::MentallyResident { .. })
     }
 
     pub(crate) fn is_staging_not_set(&self) -> bool {
-        self.get_staging() == &Staging::NotSet
+        self.get_staging() == &SurrealStaging::NotSet
     }
 
     pub(crate) fn get_permanence(&self) -> &Permanence {

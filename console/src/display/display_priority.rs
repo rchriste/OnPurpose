@@ -2,22 +2,23 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     base_data::item::Item,
-    node::{item_status::ItemStatus, Filter},
+    node::{item_highest_lap_count::ItemHighestLapCount, item_status::ItemStatus, Filter},
+    surrealdb_layer::surreal_item::SurrealStaging,
 };
 
 use super::{
-    display_item::DisplayItem, display_item_status::DisplayItemStatus,
+    display_item::DisplayItem, display_item_lap_count::DisplayItemLapCount,
     display_staging::DisplayStaging,
 };
 
 pub(crate) struct DisplayPriority<'s> {
-    display_item_status: DisplayItemStatus<'s>,
+    display_item_lap_count: DisplayItemLapCount<'s>,
     has_children: HasChildren<'s>,
 }
 
 enum HasChildren<'e> {
     Yes {
-        highest_lap_count: DisplayItemStatus<'e>,
+        highest_lap_count: DisplayItemLapCount<'e>,
     },
     No,
 }
@@ -37,44 +38,41 @@ impl<'s> Display for DisplayPriority<'s> {
             HasChildren::No => {
                 write!(f, "•")?;
                 (
-                    DisplayStaging::new(self.display_item_status.get_staging()),
-                    self.display_item_status.get_lap_count(),
+                    DisplayStaging::new(self.get_staging()),
+                    self.get_lap_count(),
                 )
             }
         };
         write!(f, " |")?;
-        if lap_count >= 0.0 {
-            write!(f, "{:.1}", lap_count)?;
-        }
+        write!(f, "{:.1}", lap_count)?;
         write!(f, "| {}", display_staging)
     }
 }
 
 impl<'s> DisplayPriority<'s> {
-    pub(crate) fn new(
-        item_status: &'s ItemStatus<'s>,
-        all_item_status: &'s [ItemStatus<'s>],
-    ) -> Self {
-        let has_children = if item_status.has_children(Filter::Active) {
-            let highest_lap_count = calculate_lap_count(item_status, all_item_status);
+    pub(crate) fn new(item_highest_lap_count: &'s ItemHighestLapCount<'s>) -> Self {
+        let has_children = if item_highest_lap_count.has_children(Filter::Active) {
+            let highest_lap_count = item_highest_lap_count.get_highest_lap_count_item();
             HasChildren::Yes {
-                highest_lap_count: DisplayItemStatus::new(highest_lap_count),
+                highest_lap_count: DisplayItemLapCount::new(highest_lap_count),
             }
         } else {
             HasChildren::No
         };
         DisplayPriority {
-            display_item_status: DisplayItemStatus::new(item_status),
+            display_item_lap_count: DisplayItemLapCount::new(
+                item_highest_lap_count.get_item_lap_count(),
+            ),
             has_children,
         }
     }
 
     pub(crate) fn get_item(&self) -> &'s Item {
-        self.display_item_status.get_item()
+        self.display_item_lap_count.get_item()
     }
 
     pub(crate) fn get_item_status(&'s self) -> &'s ItemStatus<'s> {
-        self.display_item_status.get_item_status()
+        self.display_item_lap_count.get_item_status()
     }
 
     pub(crate) fn has_children(&self) -> bool {
@@ -83,71 +81,12 @@ impl<'s> DisplayPriority<'s> {
             HasChildren::No => false,
         }
     }
-}
 
-fn calculate_lap_count<'a>(
-    item_status: &'a ItemStatus,
-    all_item_status: &'a [ItemStatus],
-) -> &'a ItemStatus<'a> {
-    if item_status.has_children(Filter::Active) {
-        let highest_lap_count = item_status
-            .get_smaller(Filter::Active)
-            .map(|x| {
-                all_item_status
-                    .iter()
-                    .find(|y| y.get_item() == x.get_item())
-                    .expect("Comes from this list so it will always be there")
-            })
-            .reduce(|a, b| {
-                let a_highest = calculate_lap_count(a, all_item_status);
-                let b_highest = calculate_lap_count(b, all_item_status);
-                if a_highest.get_lap_count() > b_highest.get_lap_count() {
-                    a_highest
-                } else {
-                    b_highest
-                }
-            })
-            .expect("has_children is true so there is at least one item");
+    pub(crate) fn get_lap_count(&self) -> f32 {
+        self.display_item_lap_count.get_lap_count()
+    }
 
-        // Reduce is not called if there is only one child so in that scenario this is needed to ensure that we select the deepest child
-        if highest_lap_count.has_children(Filter::Active) {
-            let children = highest_lap_count
-                .get_smaller(Filter::Active)
-                .map(|x| {
-                    all_item_status
-                        .iter()
-                        .find(|y| y.get_item() == x.get_item())
-                        .expect("Comes from this list so it will always be there")
-                })
-                .collect::<Vec<_>>();
-            let child = children
-                .into_iter()
-                .reduce(|a, b| {
-                    let a_highest = calculate_lap_count(a, all_item_status);
-                    let b_highest = calculate_lap_count(b, all_item_status);
-                    if a_highest.get_lap_count() > b_highest.get_lap_count() {
-                        a_highest
-                    } else {
-                        b_highest
-                    }
-                })
-                .expect("This if statement is for has_children");
-            let a = calculate_lap_count(child, all_item_status);
-            assert!(
-                !a.has_children(Filter::Active),
-                "This should only happen if reduce is never called, meaning there is only one child, a summary: {}",
-                a.get_summary()
-            );
-            a
-        } else {
-            assert!(!highest_lap_count.has_children(Filter::Active), "This should only happen if reduce is never called, meaning there is only one child, highest_lap_count summary: {}", highest_lap_count.get_summary());
-            highest_lap_count
-        }
-    } else {
-        assert!(
-            !item_status.has_children(Filter::Active),
-            "This should only happen if reduce is never called, meaning there is only one child, item_status summary: {}",
-            item_status.get_summary());
-        item_status
+    pub(crate) fn get_staging(&self) -> &'s SurrealStaging {
+        self.display_item_lap_count.get_staging()
     }
 }

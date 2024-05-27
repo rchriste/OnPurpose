@@ -9,7 +9,7 @@ use crate::{
         display_enter_list_reason::DisplayEnterListReason, display_surreal_lap::DisplaySurrealLap,
     },
     menu::YesOrNo,
-    surrealdb_layer::surreal_item::{EnterListReason, Staging, SurrealLap},
+    surrealdb_layer::surreal_item::{EnterListReason, SurrealLap, SurrealStaging},
 };
 
 #[derive(Debug, Clone)]
@@ -48,17 +48,17 @@ impl EnterListReasonSelection {
     }
 }
 
-pub(crate) async fn on_deck_query() -> Result<Staging, InquireError> {
+pub(crate) async fn on_deck_query() -> Result<SurrealStaging, InquireError> {
     let (enter_list, lap) = prompt_for_two_times(EnterListReasonSelection::make_list_on_deck())?;
 
-    Ok(Staging::OnDeck { enter_list, lap })
+    Ok(SurrealStaging::OnDeck { enter_list, lap })
 }
 
-pub(crate) async fn mentally_resident_query() -> Result<Staging, InquireError> {
+pub(crate) async fn mentally_resident_query() -> Result<SurrealStaging, InquireError> {
     let (enter_list, lap) =
         prompt_for_two_times(EnterListReasonSelection::make_list_mentally_resident())?;
 
-    Ok(Staging::MentallyResident { enter_list, lap })
+    Ok(SurrealStaging::MentallyResident { enter_list, lap })
 }
 
 fn prompt_for_two_times(

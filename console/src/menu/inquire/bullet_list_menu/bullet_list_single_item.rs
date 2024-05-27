@@ -34,9 +34,12 @@ use crate::{
         update_item_summary::update_item_summary,
     },
     new_item,
-    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    node::{
+        item_highest_lap_count::ItemHighestLapCount, item_lap_count::ItemLapCount,
+        item_node::ItemNode, item_status::ItemStatus, Filter,
+    },
     surrealdb_layer::{
-        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, Staging},
+        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, SurrealStaging},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -75,7 +78,7 @@ enum BulletListSingleItemSelection<'e> {
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
-    SwitchToParentItem(DisplayItem<'e>, ItemStatus<'e>),
+    SwitchToParentItem(DisplayItem<'e>, ItemLapCount<'e>),
     ParentToItem,
     RemoveParent(DisplayItem<'e>, ItemStatus<'e>),
     CaptureAFork,
@@ -88,7 +91,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
-            Self::SwitchToParentItem(parent_item, _) => write!(f, "Switch to: {}", parent_item),
+            Self::SwitchToParentItem(parent_item, _) => write!(f, "⇄ Switch to: {}", parent_item),
             Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
@@ -142,7 +145,7 @@ impl Display for BulletListSingleItemSelection<'_> {
 impl<'e> BulletListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
-        all_item_status: &'e [ItemStatus<'e>],
+        all_items_highest_lap_count: &'e [ItemHighestLapCount<'e>],
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
@@ -222,18 +225,21 @@ impl<'e> BulletListSingleItemSelection<'e> {
         if is_type_action || is_type_goal || is_type_motivation || is_type_undeclared {
             list.push(Self::ParentToItem);
             list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_status = all_item_status
+                let item_highest_lap_count = all_items_highest_lap_count
                     .iter()
                     .find(|y| y.get_item() == *x)
                     .expect("All items are here");
-                Self::SwitchToParentItem(DisplayItem::new(x), item_status.clone())
+                Self::SwitchToParentItem(
+                    DisplayItem::new(x),
+                    item_highest_lap_count.get_item_lap_count().clone(),
+                )
             }));
             list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_status = all_item_status
+                let item_status = all_items_highest_lap_count
                     .iter()
                     .find(|y| y.get_item() == *x)
                     .expect("All items are here");
-                Self::RemoveParent(DisplayItem::new(x), item_status.clone())
+                Self::RemoveParent(DisplayItem::new(x), item_status.get_item_status().clone())
             }));
         }
 
@@ -272,19 +278,21 @@ impl<'e> BulletListSingleItemSelection<'e> {
 }
 
 pub(crate) async fn present_bullet_list_item_selected(
-    menu_for: &ItemStatus<'_>,
+    menu_for: &ItemLapCount<'_>,
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
     bullet_list: &BulletList,
     bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    print_completed_children(menu_for);
-    print_in_progress_children(menu_for);
+    print_completed_children(menu_for.get_item_status());
+    print_in_progress_children(menu_for.get_item_status());
     println!();
 
-    let all_item_status = bullet_list.get_all_item_status();
-    let list =
-        BulletListSingleItemSelection::create_list(menu_for.get_item_node(), all_item_status);
+    let all_items_lap_highest_count = bullet_list.get_all_items_highest_lap_count();
+    let list = BulletListSingleItemSelection::create_list(
+        menu_for.get_item_node(),
+        all_items_lap_highest_count,
+    );
 
     let selection = Select::new("Select from the below list|", list)
         .with_page_size(14)
@@ -390,7 +398,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
-                menu_for,
+                menu_for.get_item_status(),
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
@@ -522,7 +530,7 @@ enum FinishSelection<'e> {
     CreateNextStepWithParent(&'e Item<'e>),
     GoToParent(&'e Item<'e>),
     UpdateStagingForParent(&'e Item<'e>),
-    ApplyStagingToParent(&'e Item<'e>, Staging),
+    ApplyStagingToParent(&'e Item<'e>, SurrealStaging),
     CaptureNewItem,
     ReturnToBulletList,
 }
@@ -646,13 +654,13 @@ async fn finish_bullet_item(
             let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let updated_parent = calculated_data
-                .get_item_status()
+                .get_items_highest_lap_count()
                 .iter()
                 .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
             Box::pin(present_bullet_list_item_selected(
-                updated_parent,
+                updated_parent.get_item_lap_count(),
                 when_this_function_was_called,
                 bullet_list,
                 bullet_list_created,
@@ -731,7 +739,7 @@ async fn process_and_finish_bullet_item(
 }
 
 async fn present_bullet_list_item_parent_selected(
-    selected_item: &ItemStatus<'_>,
+    selected_item: &ItemLapCount<'_>,
     bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,

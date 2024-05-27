@@ -27,8 +27,8 @@ use self::{
     surreal_covering::SurrealCovering,
     surreal_covering_until_date_time::SurrealCoveringUntilDatetime,
     surreal_item::{
-        Facing, ItemType, Permanence, Responsibility, Staging, SurrealItem, SurrealItemOldVersion,
-        SurrealOrderedSubItem,
+        Facing, ItemType, Permanence, Responsibility, SurrealItem, SurrealItemOldVersion,
+        SurrealOrderedSubItem, SurrealStaging,
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
@@ -82,7 +82,7 @@ pub(crate) enum DataLayerCommands {
     UpdateResponsibilityAndItemType(RecordId, Responsibility, ItemType),
     UpdateItemResponsibility(RecordId, Responsibility),
     UpdateItemPermanence(RecordId, Permanence),
-    UpdateItemStaging(RecordId, Staging),
+    UpdateItemStaging(RecordId, SurrealStaging),
     UpdateItemSummary(RecordId, String),
     UpdateFacing(RecordId, Vec<Facing>),
 }
@@ -539,7 +539,7 @@ async fn update_hope_permanence(
     }
 }
 
-async fn update_hope_staging(record_id: RecordId, new_staging: Staging, db: &Surreal<Any>) {
+async fn update_hope_staging(record_id: RecordId, new_staging: SurrealStaging, db: &Surreal<Any>) {
     let mut surreal_item = SurrealItem::get_by_id(db, record_id.id.to_raw())
         .await
         .unwrap()

@@ -6,7 +6,7 @@ use surrealdb::opt::RecordId;
 use crate::{
     base_data::item::Item,
     calculated_data::CalculatedData,
-    node::{item_status::ItemStatus, Filter},
+    node::{item_highest_lap_count::ItemHighestLapCount, item_lap_count::ItemLapCount, Filter},
 };
 
 #[self_referencing]
@@ -25,7 +25,7 @@ impl BulletList {
             ordered_bullet_list_builder: |calculated_data| {
                 //Note that some of these bottom items might be from detecting a circular dependency
                 let mut all_leaf_status_nodes = calculated_data
-                    .get_item_status()
+                    .get_items_highest_lap_count()
                     .iter()
                     .filter(|x| !x.is_snoozed())
                     .filter(|x| !x.is_finished())
@@ -146,41 +146,41 @@ impl BulletList {
         self.borrow_ordered_bullet_list()
     }
 
-    pub(crate) fn get_all_item_status(&self) -> &[ItemStatus<'_>] {
-        self.borrow_calculated_data().get_item_status()
+    pub(crate) fn get_all_items_highest_lap_count(&self) -> &[ItemHighestLapCount<'_>] {
+        self.borrow_calculated_data().get_items_highest_lap_count()
     }
 }
 
 pub(crate) enum BulletListReason<'e> {
-    SetStaging(ItemStatus<'e>),
-    WorkOn(ItemStatus<'e>),
+    SetStaging(ItemHighestLapCount<'e>),
+    WorkOn(ItemHighestLapCount<'e>),
 }
 
 impl<'e> BulletListReason<'e> {
-    pub(crate) fn new(item_status: ItemStatus<'e>) -> Self {
-        if item_status.is_staging_not_set() && !item_status.is_type_undeclared() {
-            BulletListReason::SetStaging(item_status)
+    pub(crate) fn new(item_lap_count: ItemHighestLapCount<'e>) -> Self {
+        if item_lap_count.is_staging_not_set() && !item_lap_count.is_type_undeclared() {
+            BulletListReason::SetStaging(item_lap_count)
         } else {
-            BulletListReason::WorkOn(item_status)
+            BulletListReason::WorkOn(item_lap_count)
         }
     }
 
-    pub(crate) fn get_item_status(&self) -> &ItemStatus<'e> {
+    pub(crate) fn get_item_lap_count(&'e self) -> &ItemLapCount<'e> {
         match self {
-            BulletListReason::SetStaging(item_status) => item_status,
-            BulletListReason::WorkOn(item_status) => item_status,
+            BulletListReason::SetStaging(item_lap_count) => item_lap_count.get_item_lap_count(),
+            BulletListReason::WorkOn(item_lap_count) => item_lap_count.get_item_lap_count(),
         }
     }
 
-    pub(crate) fn get_item(&self) -> &Item<'e> {
-        self.get_item_status().get_item()
+    pub(crate) fn get_item(&'e self) -> &'e Item<'e> {
+        self.get_item_lap_count().get_item()
     }
 
     pub(crate) fn get_lap_count(&self) -> f32 {
-        self.get_item_status().get_lap_count()
+        self.get_item_lap_count().get_lap_count()
     }
 
-    pub(crate) fn get_surreal_record_id(&self) -> &'e RecordId {
+    pub(crate) fn get_surreal_record_id(&'e self) -> &'e RecordId {
         self.get_item().get_surreal_record_id()
     }
 }

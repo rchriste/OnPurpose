@@ -21,7 +21,7 @@ use crate::{
     },
     node::{item_node::ItemNode, Filter},
     surrealdb_layer::{
-        surreal_item::{Permanence, Staging, SurrealItem},
+        surreal_item::{Permanence, SurrealItem, SurrealStaging},
         surreal_tables::SurrealTables,
         DataLayerCommands,
     },
@@ -366,18 +366,28 @@ pub(crate) async fn present_mentally_resident_goal_selected_menu(
             }
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToPlannedGoal) => {
-            update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Planned).await
+            update_item_staging(
+                goal_selected,
+                send_to_data_storage_layer,
+                SurrealStaging::Planned,
+            )
+            .await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::SwitchToThinkingAboutGoal) => {
             update_item_staging(
                 goal_selected,
                 send_to_data_storage_layer,
-                Staging::ThinkingAbout,
+                SurrealStaging::ThinkingAbout,
             )
             .await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::ReleaseGoal) => {
-            update_item_staging(goal_selected, send_to_data_storage_layer, Staging::Released).await
+            update_item_staging(
+                goal_selected,
+                send_to_data_storage_layer,
+                SurrealStaging::Released,
+            )
+            .await
         }
         Ok(MentallyResidentGoalSelectedMenuItem::UpdateSummary) => {
             update_item_summary(goal_selected, send_to_data_storage_layer).await
@@ -435,7 +445,7 @@ async fn switch_to_maintenance_item(
 async fn update_item_staging(
     selected: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-    new_staging: Staging,
+    new_staging: SurrealStaging,
 ) -> Result<(), ()> {
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemStaging(

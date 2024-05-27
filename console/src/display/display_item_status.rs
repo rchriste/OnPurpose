@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use crate::{
-    base_data::item::Item,
-    node::{item_status::ItemStatus, Filter},
-    surrealdb_layer::surreal_item::Staging,
+use crate::node::{
+    item_status::{ItemStatus, LapCount, LapCountGreaterOrLess},
+    Filter,
 };
 
 use super::display_item_node::DisplayItemNode;
@@ -17,8 +16,22 @@ impl Display for DisplayItemStatus<'_> {
         if !self.has_children(Filter::Active) {
             let lap_count = self.get_lap_count();
             write!(f, "|")?;
-            if lap_count >= 0.0 {
-                write!(f, "{:.1}", lap_count)?;
+            match lap_count {
+                LapCount::F32(float) => {
+                    if *float >= 0.0 {
+                        write!(f, "{:.1}", float)?;
+                    }
+                }
+                LapCount::Ratio {
+                    other_item,
+                    greater_or_less,
+                } => {
+                    write!(f, "{}", other_item)?;
+                    match greater_or_less {
+                        LapCountGreaterOrLess::GreaterThan => write!(f, "⭱ ")?,
+                        LapCountGreaterOrLess::LessThan => write!(f, "⭳ ")?,
+                    }
+                }
             }
             write!(f, "| ")?;
         }
@@ -38,15 +51,7 @@ impl<'s> DisplayItemStatus<'s> {
         self.item_status
     }
 
-    pub(crate) fn get_item(&self) -> &'s Item<'s> {
-        self.item_status.get_item()
-    }
-
-    pub(crate) fn get_staging(&self) -> &'s Staging {
-        self.item_status.get_staging()
-    }
-
-    pub(crate) fn get_lap_count(&self) -> f32 {
+    pub(crate) fn get_lap_count(&self) -> &LapCount {
         self.item_status.get_lap_count()
     }
 

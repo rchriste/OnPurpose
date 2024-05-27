@@ -3,7 +3,7 @@ use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{Facing, ItemType, Staging, SurrealItem},
+    surrealdb_layer::surreal_item::{Facing, ItemType, SurrealItem, SurrealStaging},
 };
 
 use super::Filter;
@@ -188,7 +188,7 @@ impl<'s> ItemNode<'s> {
         self.item.is_staging_not_set()
     }
 
-    pub(crate) fn get_staging(&'s self) -> &'s Staging {
+    pub(crate) fn get_staging(&'s self) -> &'s SurrealStaging {
         self.item.get_staging()
     }
 
@@ -201,7 +201,7 @@ impl<'s> ItemNode<'s> {
     }
 
     pub(crate) fn is_staging_mentally_resident(&self) -> bool {
-        matches!(self.get_staging(), Staging::MentallyResident { .. })
+        matches!(self.get_staging(), SurrealStaging::MentallyResident { .. })
     }
 
     pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Utc>] {
@@ -218,6 +218,14 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_facing_undefined(&self) -> bool {
         self.get_facing().is_empty()
+    }
+
+    pub(crate) fn get_created(&self) -> &DateTime<Utc> {
+        self.item.get_created()
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        !self.is_finished()
     }
 }
 
@@ -356,7 +364,7 @@ impl<'s> ShrinkingItemNode<'s> {
         self.item.when_finished()
     }
 
-    pub(crate) fn get_staging(&self) -> &Staging {
+    pub(crate) fn get_staging(&self) -> &SurrealStaging {
         self.item.get_staging()
     }
 }
@@ -460,7 +468,7 @@ mod tests {
             surreal_tables.make_coverings_until_date_time(&active_items);
         let active_snoozed = coverings_until_date_time.iter().collect::<Vec<_>>();
 
-        let to_dos = items.filter_just_actions();
+        let to_dos = active_items.iter().filter(|x| x.is_type_action());
         let next_step_nodes = to_dos
             .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &items))
             .filter(|x| !x.has_children(Filter::Active))

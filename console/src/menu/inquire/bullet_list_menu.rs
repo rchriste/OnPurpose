@@ -10,9 +10,9 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
-    display::display_item_status::DisplayItemStatus,
+    display::display_item_lap_count::DisplayItemLapCount,
     menu::inquire::top_menu::present_top_menu,
-    node::item_status::ItemStatus,
+    node::item_lap_count::ItemLapCount,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
     systems::bullet_list::{BulletList, BulletListReason},
 };
@@ -26,20 +26,20 @@ use super::top_menu::capture;
 
 pub(crate) enum InquireBulletListItem<'e> {
     CaptureNewItem,
-    SetStaging(&'e ItemStatus<'e>),
-    Item(&'e ItemStatus<'e>, &'e DateTime<Utc>),
+    SetStaging(&'e ItemLapCount<'e>),
+    Item(&'e ItemLapCount<'e>, &'e DateTime<Utc>),
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item          🗭")?,
-            Self::Item(item_status, _current_date_time) => {
-                let display_item_status = DisplayItemStatus::new(item_status);
-                write!(f, "{}", display_item_status)?;
+            Self::Item(item_lap_count, _current_date_time) => {
+                let display_item_lap_count = DisplayItemLapCount::new(item_lap_count);
+                write!(f, "{}", display_item_lap_count)?;
             }
-            Self::SetStaging(item_status) => {
-                let display_item_status = DisplayItemStatus::new(item_status);
+            Self::SetStaging(item_lap_count) => {
+                let display_item_status = DisplayItemLapCount::new(item_lap_count);
                 write!(f, "[SET STAGING] {}", display_item_status)?;
             }
         }
@@ -56,9 +56,12 @@ impl<'a> InquireBulletListItem<'a> {
             once(InquireBulletListItem::CaptureNewItem),
             item_status.iter().map(|x| match x {
                 BulletListReason::SetStaging(item_status) =>
-                    InquireBulletListItem::SetStaging(item_status),
+                    InquireBulletListItem::SetStaging(item_status.get_item_lap_count()),
                 BulletListReason::WorkOn(item_status) => {
-                    InquireBulletListItem::Item(item_status, bullet_list_created)
+                    InquireBulletListItem::Item(
+                        item_status.get_item_lap_count(),
+                        bullet_list_created,
+                    )
                 }
             })
         )

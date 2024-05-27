@@ -9,7 +9,7 @@ use tokio::sync::{mpsc::Sender, oneshot};
 use crate::{
     display::display_duration::DisplayDuration,
     new_time_spent::NewTimeSpent,
-    node::{item_status::ItemStatus, Filter},
+    node::{item_lap_count::ItemLapCount, item_status::ItemStatus, Filter},
     surrealdb_layer::{
         surreal_time_spent::{SurrealBulletListPosition, SurrealDedication},
         DataLayerCommands,
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub(crate) async fn log_worked_on_this(
-    selected: &ItemStatus<'_>,
+    selected: &ItemLapCount<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
@@ -60,7 +60,7 @@ pub(crate) async fn log_worked_on_this(
         None
     };
 
-    let working_on = create_working_on_list(selected);
+    let working_on = create_working_on_list(selected.get_item_status());
     // -When started
     loop {
         let (when_started, when_stopped) = ask_when_started_and_stopped(

@@ -1,5 +1,10 @@
-use std::cmp::Ordering;
+use std::{
+    cmp::Ordering,
+    fmt::Display,
+    ops::{Div, Mul, Sub},
+};
 
+use chrono::TimeDelta;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -41,7 +46,7 @@ pub(crate) struct SurrealItem {
     pub(crate) permanence: Permanence,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: Staging,
+    pub(crate) staging: SurrealStaging,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -182,8 +187,152 @@ pub(crate) enum EnterListReason {
     },
 }
 
+//This is a newtype pattern for f32 that implements PartialEq and Eq
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub(crate) struct EqF32(f32);
+
+impl Display for EqF32 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<f32> for EqF32 {
+    fn from(value: f32) -> Self {
+        EqF32(value)
+    }
+}
+
+impl From<EqF32> for f32 {
+    fn from(value: EqF32) -> Self {
+        value.0
+    }
+}
+
+impl PartialEq for EqF32 {
+    fn eq(&self, other: &Self) -> bool {
+        (self.0 - other.0).abs() < f32::EPSILON
+    }
+}
+
+impl PartialEq<f32> for EqF32 {
+    fn eq(&self, other: &f32) -> bool {
+        (self.0 - *other).abs() < f32::EPSILON
+    }
+}
+
+impl PartialOrd<f32> for EqF32 {
+    fn partial_cmp(&self, other: &f32) -> Option<Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
+
+impl Eq for EqF32 {}
+
+impl Div for EqF32 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        EqF32(self.0 / rhs.0)
+    }
+}
+
+impl Div<f32> for EqF32 {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        EqF32(self.0 / rhs)
+    }
+}
+
+impl Div<&EqF32> for f32 {
+    type Output = EqF32;
+
+    fn div(self, rhs: &EqF32) -> Self::Output {
+        EqF32(self / rhs.0)
+    }
+}
+
+impl Mul<f32> for EqF32 {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        EqF32(self.0 * rhs)
+    }
+}
+
+impl Mul<&EqF32> for f32 {
+    type Output = EqF32;
+
+    fn mul(self, rhs: &EqF32) -> Self::Output {
+        EqF32(self * rhs.0)
+    }
+}
+
+impl Mul<EqF32> for f32 {
+    type Output = EqF32;
+
+    fn mul(self, rhs: EqF32) -> Self::Output {
+        EqF32(self * rhs.0)
+    }
+}
+
+impl Sub for EqF32 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        EqF32(self.0 - rhs.0)
+    }
+}
+
+impl Sub<f32> for EqF32 {
+    type Output = Self;
+
+    fn sub(self, rhs: f32) -> Self::Output {
+        EqF32(self.0 - rhs)
+    }
+}
+
+impl Sub<&EqF32> for f32 {
+    type Output = EqF32;
+
+    fn sub(self, rhs: &EqF32) -> Self::Output {
+        EqF32(self - rhs.0)
+    }
+}
+
+impl Sub<EqF32> for f32 {
+    type Output = EqF32;
+
+    fn sub(self, rhs: EqF32) -> Self::Output {
+        EqF32(self - rhs.0)
+    }
+}
+
+impl Mul<EqF32> for TimeDelta {
+    type Output = TimeDelta;
+
+    fn mul(self, rhs: EqF32) -> Self::Output {
+        TimeDelta::seconds((self.num_seconds() as f32 * rhs.0) as i64)
+    }
+}
+
+impl Mul<&EqF32> for TimeDelta {
+    type Output = TimeDelta;
+
+    fn mul(self, rhs: &EqF32) -> Self::Output {
+        TimeDelta::seconds((self.num_seconds() as f32 * rhs.0) as i64)
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum InRelationToRatioType {
+    AmountOfTimeSpent { multiplier: EqF32 },
+    IterationCount { multiplier: EqF32 },
+}
+
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum Staging {
+pub(crate) enum SurrealStaging {
     #[default]
     NotSet,
     MentallyResident {
@@ -197,43 +346,57 @@ pub(crate) enum Staging {
     Planned,
     ThinkingAbout,
     Released,
+    InRelationTo {
+        start: Datetime,
+        other_item: RecordId,
+        ratio: InRelationToRatioType,
+    },
 }
 
-impl PartialOrd for Staging {
+impl PartialOrd for SurrealStaging {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Staging {
+impl Ord for SurrealStaging {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self {
-            Staging::NotSet => match other {
-                Staging::NotSet => Ordering::Equal,
+            SurrealStaging::NotSet => match other {
+                SurrealStaging::NotSet => Ordering::Equal,
                 _ => Ordering::Less,
             },
-            Staging::MentallyResident { .. } => match other {
-                Staging::NotSet => Ordering::Greater,
-                Staging::MentallyResident { .. } => Ordering::Equal,
+            SurrealStaging::MentallyResident { .. } => match other {
+                SurrealStaging::NotSet => Ordering::Greater,
+                SurrealStaging::MentallyResident { .. } => Ordering::Equal,
                 _ => Ordering::Less,
             },
-            Staging::OnDeck { .. } => match other {
-                Staging::NotSet | Staging::MentallyResident { .. } => Ordering::Greater,
-                Staging::OnDeck { .. } => Ordering::Equal,
+            SurrealStaging::InRelationTo { .. } => match other {
+                SurrealStaging::NotSet | SurrealStaging::MentallyResident { .. } => {
+                    Ordering::Greater
+                }
+                SurrealStaging::InRelationTo { .. } => Ordering::Equal,
                 _ => Ordering::Less,
             },
-            Staging::Planned => match other {
-                Staging::Released | Staging::ThinkingAbout => Ordering::Less,
-                Staging::Planned => Ordering::Equal,
+            SurrealStaging::OnDeck { .. } => match other {
+                SurrealStaging::NotSet
+                | SurrealStaging::MentallyResident { .. }
+                | SurrealStaging::InRelationTo { .. } => Ordering::Greater,
+                SurrealStaging::OnDeck { .. } => Ordering::Equal,
+                _ => Ordering::Less,
+            },
+            SurrealStaging::Planned => match other {
+                SurrealStaging::Released | SurrealStaging::ThinkingAbout => Ordering::Less,
+                SurrealStaging::Planned => Ordering::Equal,
                 _ => Ordering::Greater,
             },
-            Staging::ThinkingAbout => match other {
-                Staging::Released => Ordering::Less,
-                Staging::ThinkingAbout => Ordering::Equal,
+            SurrealStaging::ThinkingAbout => match other {
+                SurrealStaging::Released => Ordering::Less,
+                SurrealStaging::ThinkingAbout => Ordering::Equal,
                 _ => Ordering::Greater,
             },
-            Staging::Released => match other {
-                Staging::Released => Ordering::Equal,
+            SurrealStaging::Released => match other {
+                SurrealStaging::Released => Ordering::Equal,
                 _ => Ordering::Greater,
             },
         }
@@ -354,21 +517,23 @@ impl From<SurrealItemOldVersion> for SurrealItem {
     }
 }
 
-impl From<StagingOldVersion> for Staging {
+impl From<StagingOldVersion> for SurrealStaging {
     fn from(value: StagingOldVersion) -> Self {
         match value {
-            StagingOldVersion::NotSet => Staging::NotSet,
-            StagingOldVersion::MentallyResident { enter_list, lap } => Staging::MentallyResident {
+            StagingOldVersion::NotSet => SurrealStaging::NotSet,
+            StagingOldVersion::MentallyResident { enter_list, lap } => {
+                SurrealStaging::MentallyResident {
+                    enter_list,
+                    lap: lap.into(),
+                }
+            }
+            StagingOldVersion::OnDeck { enter_list, lap } => SurrealStaging::OnDeck {
                 enter_list,
                 lap: lap.into(),
             },
-            StagingOldVersion::OnDeck { enter_list, lap } => Staging::OnDeck {
-                enter_list,
-                lap: lap.into(),
-            },
-            StagingOldVersion::Planned => Staging::Planned,
-            StagingOldVersion::ThinkingAbout => Staging::ThinkingAbout,
-            StagingOldVersion::Released => Staging::Released,
+            StagingOldVersion::Planned => SurrealStaging::Planned,
+            StagingOldVersion::ThinkingAbout => SurrealStaging::ThinkingAbout,
+            StagingOldVersion::Released => SurrealStaging::Released,
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::{ops::Sub, time::Duration};
+use std::{cmp::Ordering, ops::Sub, time::Duration};
 
 use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::{
@@ -8,7 +8,9 @@ use surrealdb::{
 
 use crate::{
     base_data::{item::Item, time_spent::TimeSpent},
-    surrealdb_layer::surreal_item::{EnterListReason, ItemType, Staging, SurrealLap},
+    surrealdb_layer::surreal_item::{
+        EnterListReason, EqF32, InRelationToRatioType, ItemType, SurrealLap, SurrealStaging,
+    },
 };
 
 use super::{
@@ -19,8 +21,14 @@ use super::{
 #[derive(Clone, Debug)]
 pub(crate) struct ItemStatus<'s> {
     item_node: ItemNode<'s>,
-    lap_count: f32,
+    lap_count: LapCount,
     is_snoozed: bool,
+}
+
+impl PartialEq for ItemStatus<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.item_node == other.item_node
+    }
 }
 
 impl<'s> ItemStatus<'s> {
@@ -34,7 +42,7 @@ impl<'s> ItemStatus<'s> {
             calculate_lap_count(&item_node, all_nodes, time_spent_log, current_date_time);
         let is_snoozed = calculate_is_snoozed(&item_node, all_nodes, current_date_time);
         if is_snoozed {
-            lap_count = 0.0;
+            lap_count = LapCount::F32(0.0);
         }
         Self {
             item_node,
@@ -43,8 +51,8 @@ impl<'s> ItemStatus<'s> {
         }
     }
 
-    pub(crate) fn get_lap_count(&self) -> f32 {
-        self.lap_count
+    pub(crate) fn get_lap_count(&'s self) -> &'s LapCount {
+        &self.lap_count
     }
 
     pub(crate) fn is_snoozed(&self) -> bool {
@@ -55,15 +63,11 @@ impl<'s> ItemStatus<'s> {
         self.item_node.is_finished()
     }
 
-    pub(crate) fn is_first_lap_finished(&self) -> bool {
-        self.get_lap_count() > 1.0
-    }
-
     pub(crate) fn get_item_node(&'s self) -> &'s ItemNode<'s> {
         &self.item_node
     }
 
-    pub(crate) fn get_staging(&self) -> &Staging {
+    pub(crate) fn get_staging(&self) -> &SurrealStaging {
         self.item_node.get_staging()
     }
 
@@ -136,6 +140,117 @@ impl<'s> ItemStatus<'s> {
     pub(crate) fn get_self_and_larger_flattened(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         self.item_node.get_self_and_larger(filter)
     }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.item_node.is_active()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum LapCountGreaterOrLess {
+    GreaterThan,
+    LessThan,
+}
+
+impl From<TimeDelta> for LapCountGreaterOrLess {
+    fn from(time_delta: TimeDelta) -> Self {
+        if time_delta > TimeDelta::zero() {
+            LapCountGreaterOrLess::GreaterThan
+        } else {
+            LapCountGreaterOrLess::LessThan
+        }
+    }
+}
+
+impl From<EqF32> for LapCountGreaterOrLess {
+    fn from(eq_f32: EqF32) -> Self {
+        if eq_f32 > 0.0 {
+            LapCountGreaterOrLess::GreaterThan
+        } else {
+            LapCountGreaterOrLess::LessThan
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum LapCount {
+    F32(f32),
+    Ratio {
+        other_item: RecordId,
+        greater_or_less: LapCountGreaterOrLess,
+    },
+}
+
+impl PartialOrd for LapCount {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (LapCount::F32(a), LapCount::F32(b)) => a.partial_cmp(b),
+            (LapCount::Ratio { .. }, LapCount::F32(_)) => todo!(),
+            (LapCount::F32(_), LapCount::Ratio { .. }) => todo!(),
+            (
+                LapCount::Ratio {
+                    other_item: a,
+                    greater_or_less: a_g,
+                },
+                LapCount::Ratio {
+                    other_item: b,
+                    greater_or_less: b_g,
+                },
+            ) => {
+                if a == b {
+                    match (a_g, b_g) {
+                        (LapCountGreaterOrLess::GreaterThan, LapCountGreaterOrLess::LessThan) => {
+                            Some(Ordering::Greater)
+                        }
+                        (LapCountGreaterOrLess::LessThan, LapCountGreaterOrLess::GreaterThan) => {
+                            Some(Ordering::Less)
+                        }
+                        _ => Some(Ordering::Equal),
+                    }
+                } else {
+                    todo!()
+                }
+            }
+        }
+    }
+}
+
+impl LapCount {
+    pub(crate) fn resolve(&self, all_status: &[ItemStatus<'_>]) -> f32 {
+        self.resolve_internal(all_status, Vec::default())
+    }
+
+    fn resolve_internal<'a>(
+        &self,
+        all_status: &'a [ItemStatus<'a>],
+        mut call_chain: Vec<&'a ItemStatus<'a>>,
+    ) -> f32 {
+        match self {
+            LapCount::F32(float) => *float,
+            LapCount::Ratio {
+                other_item,
+                greater_or_less,
+            } => {
+                match greater_or_less {
+                    LapCountGreaterOrLess::GreaterThan => {
+                        let other_item = all_status
+                            .iter()
+                            .find(|x| x.get_surreal_record_id() == other_item)
+                            .expect("other_item should be in all_status");
+                        if call_chain.contains(&other_item) {
+                            todo!("We have a loop, what I want to do is something sensible here but I'm not sure what that is so put in this to do as a placeholder")
+                        } else {
+                            let other_item_lap_count = other_item.get_lap_count();
+                            call_chain.push(other_item);
+                            other_item_lap_count.resolve_internal(all_status, call_chain) * 1.1
+                            //Have a lap count 10% higher
+                        }
+                    }
+                    LapCountGreaterOrLess::LessThan => 0.0,
+                }
+            }
+        }
+    }
 }
 
 fn calculate_lap_count(
@@ -143,10 +258,56 @@ fn calculate_lap_count(
     all_nodes: &[ItemNode<'_>],
     time_spent_log: &[TimeSpent<'_>],
     current_date_time: &DateTime<Utc>,
-) -> f32 {
+) -> LapCount {
     match item_node.get_staging() {
-        Staging::NotSet => 0.0,
-        Staging::OnDeck { enter_list, lap } | Staging::MentallyResident { enter_list, lap } => {
+        SurrealStaging::InRelationTo {
+            start,
+            other_item,
+            ratio,
+        } => {
+            let start: DateTime<Utc> = start.clone().into();
+            let time_spent_on_other_item = time_spent_log.iter().filter(|x| {
+                x.get_started_at() > &start && x.worked_towards().iter().any(|y| y == other_item)
+            });
+
+            let this_item = item_node.get_surreal_record_id();
+            let time_spent_on_this_item = time_spent_log.iter().filter(|x| {
+                x.get_started_at() > &start && x.worked_towards().iter().any(|y| y == this_item)
+            });
+
+            match ratio {
+                InRelationToRatioType::AmountOfTimeSpent { multiplier } => {
+                    let time_spent_on_other_item = time_spent_on_other_item
+                        .map(|x| x.get_time_delta())
+                        .sum::<TimeDelta>();
+                    let time_spent_on_this_item = time_spent_on_this_item
+                        .map(|x| x.get_time_delta())
+                        .sum::<TimeDelta>();
+
+                    let allowance = time_spent_on_other_item * multiplier;
+                    let remaining = time_spent_on_this_item - allowance;
+                    LapCount::Ratio {
+                        other_item: other_item.clone(),
+                        greater_or_less: remaining.into(),
+                    }
+                }
+                InRelationToRatioType::IterationCount { multiplier } => {
+                    let count_on_other_item = time_spent_on_other_item.count() as f32;
+                    let count_on_this_item = time_spent_on_this_item.count() as f32;
+
+                    let allowance = count_on_other_item * multiplier;
+                    let remaining = count_on_this_item - allowance;
+
+                    LapCount::Ratio {
+                        other_item: other_item.clone(),
+                        greater_or_less: remaining.into(),
+                    }
+                }
+            }
+        }
+        SurrealStaging::NotSet => LapCount::F32(0.0),
+        SurrealStaging::OnDeck { enter_list, lap }
+        | SurrealStaging::MentallyResident { enter_list, lap } => {
             match enter_list {
                 EnterListReason::DateTime(enter_time) => {
                     let enter_time: DateTime<Utc> = enter_time.clone().into();
@@ -156,19 +317,19 @@ fn calculate_lap_count(
                             let elapsed = current_date_time.sub(enter_time);
                             let elapsed = elapsed.num_seconds() as f32;
                             let lap = lap.as_secs_f32();
-                            elapsed / lap
+                            LapCount::F32(elapsed / lap)
                         }
                         SurrealLap::LoggedTimer(lap) => {
                             let logged_worked =
                                 get_worked_on_since_elapsed(enter_time, time_spent_log);
                             let elapsed = logged_worked.num_seconds() as f32;
                             let lap = lap.as_secs_f32();
-                            elapsed / lap
+                            LapCount::F32(elapsed / lap)
                         }
                         SurrealLap::WorkedOnCounter { stride } => {
                             let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
                             let stride: f32 = *stride as f32;
-                            1.0 / stride * worked_on_since
+                            LapCount::F32(1.0 / stride * worked_on_since)
                         }
                     }
                 }
@@ -177,7 +338,7 @@ fn calculate_lap_count(
                     review_after,
                 } => {
                     if current_date_time < earliest {
-                        0.0
+                        LapCount::F32(0.0)
                     } else if current_date_time > review_after {
                         let enter_time: DateTime<Utc> = review_after.clone().into();
                         match lap {
@@ -186,20 +347,20 @@ fn calculate_lap_count(
                                 let elapsed = current_date_time.sub(enter_time);
                                 let elapsed = elapsed.num_seconds() as f32;
                                 let lap = lap.as_secs_f32();
-                                elapsed / lap
+                                LapCount::F32(elapsed / lap)
                             }
                             SurrealLap::LoggedTimer(lap) => {
                                 let logged_worked =
                                     get_worked_on_since_elapsed(enter_time, time_spent_log);
                                 let elapsed = logged_worked.num_seconds() as f32;
                                 let lap = lap.as_secs_f32();
-                                elapsed / lap
+                                LapCount::F32(elapsed / lap)
                             }
                             SurrealLap::WorkedOnCounter { stride } => {
                                 let worked_on_since =
                                     get_worked_on_since(enter_time, time_spent_log);
                                 let stride: f32 = *stride as f32;
-                                1.0 / stride * worked_on_since
+                                LapCount::F32(1.0 / stride * worked_on_since)
                             }
                         }
                     } else {
@@ -240,7 +401,7 @@ fn calculate_lap_count(
                                     match lap {
                                         SurrealLap::AlwaysTimer(lap) => {
                                             let lap = lap.as_secs_f32();
-                                            elapsed / lap
+                                            LapCount::F32(elapsed / lap)
                                         }
                                         SurrealLap::LoggedTimer(lap) => {
                                             let logged_worked = get_worked_on_since_elapsed(
@@ -249,28 +410,28 @@ fn calculate_lap_count(
                                             );
                                             let elapsed = logged_worked.num_seconds() as f32;
                                             let lap = lap.as_secs_f32();
-                                            elapsed / lap
+                                            LapCount::F32(elapsed / lap)
                                         }
                                         SurrealLap::WorkedOnCounter { stride } => {
                                             let worked_on_since =
                                                 get_worked_on_since(uncovered_when, time_spent_log);
                                             let stride: f32 = *stride as f32;
-                                            1.0 / stride * worked_on_since
+                                            LapCount::F32(1.0 / stride * worked_on_since)
                                         }
                                     }
                                 } else {
-                                    0.0
+                                    LapCount::F32(0.0)
                                 }
                             }
-                            None => 0.0,
+                            None => LapCount::F32(0.0),
                         }
                     }
                 }
             }
         }
-        Staging::Planned => 0.0,
-        Staging::ThinkingAbout => 0.0,
-        Staging::Released => 0.0,
+        SurrealStaging::Planned => LapCount::F32(0.0),
+        SurrealStaging::ThinkingAbout => LapCount::F32(0.0),
+        SurrealStaging::Released => LapCount::F32(0.0),
     }
 }
 
@@ -310,57 +471,55 @@ fn calculate_is_snoozed(
     } else {
         let staging = item_node.get_staging();
         match staging {
-            Staging::NotSet => false,
-            Staging::OnDeck { enter_list, .. } | Staging::MentallyResident { enter_list, .. } => {
-                match enter_list {
-                    EnterListReason::DateTime(enter_list) => {
-                        let enter_list: DateTime<Utc> = enter_list.clone().into();
-                        &enter_list > now
-                    }
-                    EnterListReason::HighestUncovered {
-                        earliest,
-                        review_after,
-                    } => {
-                        if now < earliest {
-                            true
-                        } else if now > review_after {
-                            false
-                        } else {
-                            let active_larger = item_node.get_larger(Filter::Active);
-                            let active_larger = active_larger
-                                .map(|x| x.get_node(all_nodes))
-                                .collect::<Vec<_>>();
-                            let mut active_larger_iter = active_larger.iter();
-                            let (highest_uncovered, _) = loop {
-                                let larger = active_larger_iter.next();
-                                match larger {
-                                    Some(larger) => {
-                                        let (highest_uncovered, uncovered_when) =
-                                            find_highest_uncovered_child_with_when_uncovered(
-                                                larger,
-                                                now,
-                                                Vec::default(),
-                                            );
-                                        if let Some(highest_uncovered) = highest_uncovered {
-                                            break (Some(highest_uncovered), uncovered_when);
-                                        }
+            SurrealStaging::InRelationTo { .. } => false,
+            SurrealStaging::NotSet => false,
+            SurrealStaging::OnDeck { enter_list, .. }
+            | SurrealStaging::MentallyResident { enter_list, .. } => match enter_list {
+                EnterListReason::DateTime(enter_list) => {
+                    let enter_list: DateTime<Utc> = enter_list.clone().into();
+                    &enter_list > now
+                }
+                EnterListReason::HighestUncovered {
+                    earliest,
+                    review_after,
+                } => {
+                    if now < earliest {
+                        true
+                    } else if now > review_after {
+                        false
+                    } else {
+                        let active_larger = item_node.get_larger(Filter::Active);
+                        let active_larger = active_larger
+                            .map(|x| x.get_node(all_nodes))
+                            .collect::<Vec<_>>();
+                        let mut active_larger_iter = active_larger.iter();
+                        let (highest_uncovered, _) = loop {
+                            let larger = active_larger_iter.next();
+                            match larger {
+                                Some(larger) => {
+                                    let (highest_uncovered, uncovered_when) =
+                                        find_highest_uncovered_child_with_when_uncovered(
+                                            larger,
+                                            now,
+                                            Vec::default(),
+                                        );
+                                    if let Some(highest_uncovered) = highest_uncovered {
+                                        break (Some(highest_uncovered), uncovered_when);
                                     }
-                                    None => break (None, None),
                                 }
-                            };
-                            match highest_uncovered {
-                                Some(highest_uncovered) => {
-                                    highest_uncovered != item_node.get_item()
-                                }
-                                None => true,
+                                None => break (None, None),
                             }
+                        };
+                        match highest_uncovered {
+                            Some(highest_uncovered) => highest_uncovered != item_node.get_item(),
+                            None => true,
                         }
                     }
                 }
-            }
-            Staging::Planned => false,
-            Staging::ThinkingAbout => false,
-            Staging::Released => false,
+            },
+            SurrealStaging::Planned => false,
+            SurrealStaging::ThinkingAbout => false,
+            SurrealStaging::Released => false,
         }
     }
 }
@@ -405,8 +564,9 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
         }
         let staging = child.get_staging();
         match staging {
-            Staging::NotSet => continue,
-            Staging::MentallyResident { enter_list, .. } => {
+            SurrealStaging::InRelationTo { .. } => todo!(),
+            SurrealStaging::NotSet => continue,
+            SurrealStaging::MentallyResident { enter_list, .. } => {
                 match enter_list {
                     EnterListReason::DateTime(datetime) => {
                         if datetime < &now {
@@ -428,7 +588,7 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     }
                 }
             }
-            Staging::OnDeck { enter_list, .. } => match enter_list {
+            SurrealStaging::OnDeck { enter_list, .. } => match enter_list {
                 EnterListReason::DateTime(datetime) => {
                     if datetime < &now {
                         return (Some(child.get_item()), when_uncovered);
@@ -449,9 +609,9 @@ fn find_highest_uncovered_child_with_when_uncovered<'a>(
                     }
                 }
             },
-            Staging::Planned => continue,
-            Staging::ThinkingAbout => continue,
-            Staging::Released => continue,
+            SurrealStaging::Planned => continue,
+            SurrealStaging::ThinkingAbout => continue,
+            SurrealStaging::Released => continue,
         }
     }
     (None, when_uncovered)
@@ -467,9 +627,10 @@ mod tests {
         base_data::BaseData,
         calculated_data::CalculatedData,
         new_item::{NewItem, NewItemBuilder},
+        node::item_status::LapCount,
         surrealdb_layer::{
             data_storage_start_and_run,
-            surreal_item::{EnterListReason, Staging, SurrealLap},
+            surreal_item::{EnterListReason, SurrealLap, SurrealStaging},
             surreal_tables::SurrealTables,
             DataLayerCommands,
         },
@@ -500,7 +661,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("New Child Item")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -529,15 +690,16 @@ mod tests {
 
         // Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let child = items_highest_lap_count
             .iter()
-            .find(|x| x.get_item().get_summary() == "New Child Item")
+            .find(|x| x.get_summary() == "New Child Item")
             .unwrap();
+        let child = child.get_item_status();
 
         // Assert
         assert_eq!(child.is_snoozed(), true);
-        assert_eq!(child.get_lap_count(), 0.0);
+        assert_eq!(child.get_lap_count(), &LapCount::F32(0.0));
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -568,7 +730,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("New Child Item")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -602,15 +764,20 @@ mod tests {
 
         // Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "New Child Item")
             .unwrap();
+        let child = child.get_item_status();
 
         // Assert
         assert_eq!(child.is_snoozed(), false);
-        assert!(child.get_lap_count() > 0.0);
+        if let LapCount::F32(lap_count) = child.get_lap_count() {
+            assert!(*lap_count > 0.0);
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -641,7 +808,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Should Become Ready")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -673,7 +840,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Stay Covered")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -707,22 +874,28 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let higher_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let higher_child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Higher Child That Should Become Ready")
             .unwrap();
+        let higher_child = higher_child.get_item_status();
 
-        let lower_child = item_status
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Lower Child That Should Stay Covered")
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(higher_child.is_snoozed(), false);
-        assert!(higher_child.get_lap_count() > 0.0);
+        if let LapCount::F32(lap_count) = higher_child.get_lap_count() {
+            assert!(*lap_count > 0.0);
+        } else {
+            panic!("Expected LapCount::F32");
+        }
         assert_eq!(lower_child.is_snoozed(), true);
-        assert_eq!(lower_child.get_lap_count(), 0.0);
+        assert_eq!(lower_child.get_lap_count(), &LapCount::F32(0.0));
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -753,7 +926,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Was On Deck But Becomes Finished")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
                             Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -773,7 +946,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Uncover When The Higher Child Is Finished")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -821,27 +994,37 @@ mod tests {
             .expect("Far from overflowing");
         let calculated_data =
             CalculatedData::new_from_base_data(base_data, &a_day_later_so_a_lap_passes);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary()
                     == "Lower Child That Should Uncover When The Higher Child Is Finished"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(
-            lower_child.get_lap_count() > 0.9,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
-        assert!(
-            lower_child.get_lap_count() < 1.1,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -872,7 +1055,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Was On Deck But Becomes Finished")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
                             Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -897,7 +1080,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Uncover With A Starting Lap Time of When This Item Was Created")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -946,27 +1129,36 @@ mod tests {
             .expect("Far from overflowing");
         let calculated_data =
             CalculatedData::new_from_base_data(base_data, &a_day_later_so_a_lap_passes);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary()
                     == "Lower Child That Should Uncover With A Starting Lap Time of When This Item Was Created"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(
-            lower_child.get_lap_count() > 0.9,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
-        assert!(
-            lower_child.get_lap_count() < 1.1,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -997,7 +1189,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Is On Deck And Becomes Covered")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
                             Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -1022,7 +1214,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Be Ready When The Higher Child Is Covered")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1085,32 +1277,42 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let parent = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let parent = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "New Parent Item")
             .unwrap();
-        let lower_child = item_status
+        let parent = parent.get_item_status();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary()
                     == "Lower Child That Should Be Ready When The Higher Child Is Covered"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(parent.is_snoozed(), true);
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(
-            lower_child.get_lap_count() > 0.9,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
-        assert!(
-            lower_child.get_lap_count() < 1.1,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -1141,7 +1343,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Should Become Ready")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1173,7 +1375,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Show Up As Needing Review")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1207,24 +1409,42 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let higher_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let higher_child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Higher Child That Should Become Ready")
             .unwrap();
+        let higher_child = higher_child.get_item_status();
 
-        let lower_child = item_status
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary() == "Lower Child That Should Show Up As Needing Review"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(higher_child.is_snoozed(), false);
-        assert!(higher_child.get_lap_count() > 0.0);
+        if let LapCount::F32(lap_count) = higher_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.0,
+                "Lap count was {:?}",
+                higher_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(lower_child.get_lap_count() > 0.0);
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.0,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -1255,7 +1475,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Higher Child That Should Be Unset")
-                    .staging(Staging::NotSet)
+                    .staging(SurrealStaging::NotSet)
                     .build()
                     .expect("valid new item"),
                 parent: parent.id.as_ref().unwrap().clone(),
@@ -1268,7 +1488,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Be On Deck Immediately")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1302,18 +1522,35 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary() == "Lower Child That Should Be On Deck Immediately"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(lower_child.get_lap_count() > 0.9);
-        assert!(lower_child.get_lap_count() < 1.1);
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -1344,7 +1581,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Highest Child That is Covered By DateTime")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::DateTime(
                             Utc::now()
                                 .checked_add_days(Days::new(1))
@@ -1370,7 +1607,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Be Available")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(2))
@@ -1402,11 +1639,12 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Lower Child That Should Be Available")
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
@@ -1440,7 +1678,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Highest Child That is Covered By DateTime")
-                    .staging(Staging::MentallyResident {
+                    .staging(SurrealStaging::MentallyResident {
                         enter_list: EnterListReason::DateTime(
                             Utc::now()
                                 .checked_add_days(Days::new(1))
@@ -1466,7 +1704,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Be Available")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(2))
@@ -1498,11 +1736,12 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Lower Child That Should Be Available")
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
@@ -1536,7 +1775,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Highest Child That Finishes First")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -1566,7 +1805,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Middle Child That Finishes Second")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(2))
@@ -1596,7 +1835,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Uncover When The Other Two Are Finished")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1663,27 +1902,36 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary()
                     == "Lower Child That Should Uncover When The Other Two Are Finished"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(
-            lower_child.get_lap_count() > 0.9,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
-        assert!(
-            lower_child.get_lap_count() < 1.1,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -1714,7 +1962,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Highest Child That Finishes Second")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -1744,7 +1992,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Middle Child That Finishes First")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Utc::now()
                                 .checked_sub_days(Days::new(2))
@@ -1774,7 +2022,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Lower Child That Should Uncover When The Other Two Are Finished")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::HighestUncovered {
                             earliest: Datetime(DateTime::from(
                                 Utc::now()
@@ -1841,27 +2089,36 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let lower_child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let lower_child = items_highest_lap_count
             .iter()
             .find(|x| {
                 x.get_item().get_summary()
                     == "Lower Child That Should Uncover When The Other Two Are Finished"
             })
             .unwrap();
+        let lower_child = lower_child.get_item_status();
 
         //Assert
         assert_eq!(lower_child.is_snoozed(), false);
-        assert!(
-            lower_child.get_lap_count() > 0.9,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
-        assert!(
-            lower_child.get_lap_count() < 1.1,
-            "Lap count was {}",
-            lower_child.get_lap_count()
-        );
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count > 0.9,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
+        if let LapCount::F32(lap_count) = lower_child.get_lap_count() {
+            assert!(
+                *lap_count < 1.1,
+                "Lap count was {:?}",
+                lower_child.get_lap_count()
+            );
+        } else {
+            panic!("Expected LapCount::F32");
+        }
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
@@ -1891,7 +2148,7 @@ mod tests {
             .send(DataLayerCommands::ParentItemWithANewChildItem {
                 child: NewItemBuilder::default()
                     .summary("Child Item That Should Be Snoozed")
-                    .staging(Staging::OnDeck {
+                    .staging(SurrealStaging::OnDeck {
                         enter_list: EnterListReason::DateTime(Datetime(DateTime::from(
                             Utc::now()
                                 .checked_sub_days(Days::new(1))
@@ -1936,11 +2193,12 @@ mod tests {
 
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-        let item_status = calculated_data.get_item_status();
-        let child = item_status
+        let items_highest_lap_count = calculated_data.get_items_highest_lap_count();
+        let child = items_highest_lap_count
             .iter()
             .find(|x| x.get_item().get_summary() == "Child Item That Should Be Snoozed")
             .unwrap();
+        let child = child.get_item_status();
 
         //Assert
         assert_eq!(child.is_snoozed(), true);

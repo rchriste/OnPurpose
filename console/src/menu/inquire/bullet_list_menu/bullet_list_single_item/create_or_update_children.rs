@@ -10,7 +10,7 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     display::display_item_status::DisplayItemStatus,
     menu::inquire::bullet_list_menu::bullet_list_single_item::create_or_update_children::edit_order_of_children_items::edit_order_of_children_items,
-    node::{item_status::ItemStatus, Filter},
+    node::{item_lap_count::ItemLapCount, item_status::ItemStatus, Filter},
     surrealdb_layer::DataLayerCommands, systems::bullet_list::BulletList,
 };
 
@@ -57,26 +57,29 @@ impl CreateOrUpdateChildrenItem {
 }
 
 pub(crate) async fn create_or_update_children(
-    item_status: &ItemStatus<'_>,
+    item_lap_count: &ItemLapCount<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
     bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    if !item_status.has_children(Filter::Active) {
+    if !item_lap_count.has_children(Filter::Active) {
         println!("No children found");
     } else {
         println!("Children:");
-        for child in item_status.get_smaller(Filter::Active) {
-            let item_status = bullet_list
-                .get_all_item_status()
+        for child in item_lap_count.get_smaller(Filter::Active) {
+            let item_lap_count = bullet_list
+                .get_all_items_highest_lap_count()
                 .iter()
                 .find(|x| x.get_item() == child.get_item())
                 .expect("All are here");
-            println!("  {}", DisplayItemStatus::new(item_status));
+            println!(
+                "  {}",
+                DisplayItemStatus::new(item_lap_count.get_item_status())
+            );
         }
     }
-    let list = CreateOrUpdateChildrenItem::get_list(item_status);
+    let list = CreateOrUpdateChildrenItem::get_list(item_lap_count.get_item_status());
     let selection = Select::new("Select an option", list).prompt();
     match selection {
         Ok(CreateOrUpdateChildrenItem::AddANewChildItem) => {
@@ -87,7 +90,7 @@ pub(crate) async fn create_or_update_children(
             todo!("Configure scheduling policy for children")
         }
         Ok(CreateOrUpdateChildrenItem::EditOrderOfChildrenItems) => {
-            edit_order_of_children_items(item_status.get_item_node(), send_to_data_storage_layer)
+            edit_order_of_children_items(item_lap_count.get_item_node(), send_to_data_storage_layer)
                 .await
         }
         Ok(CreateOrUpdateChildrenItem::ReturnToBulletList) => {
@@ -100,7 +103,7 @@ pub(crate) async fn create_or_update_children(
         }
         Err(InquireError::OperationCanceled) => {
             Box::pin(present_bullet_list_item_selected(
-                item_status,
+                item_lap_count,
                 *when_selected,
                 bullet_list,
                 bullet_list_created,

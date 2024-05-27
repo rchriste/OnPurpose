@@ -1,13 +1,13 @@
+use std::cmp::Ordering;
+
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{
-        item::{Item, ItemVecExtensions},
-        BaseData,
-    },
-    display::display_item::DisplayItem,
+    base_data::{item::Item, BaseData},
+    calculated_data::CalculatedData,
+    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::set_staging::{
             present_set_staging_menu, StagingMenuSelection,
@@ -15,11 +15,72 @@ use crate::{
         select_higher_priority_than_this::select_higher_priority_than_this,
         staging_query::{mentally_resident_query, on_deck_query},
     },
-    node::{item_node::ItemNode, Filter},
-    surrealdb_layer::{surreal_item::Staging, surreal_tables::SurrealTables, DataLayerCommands},
+    node::{item_highest_lap_count::ItemHighestLapCount, item_node::ItemNode, Filter},
+    surrealdb_layer::{
+        surreal_item::SurrealStaging, surreal_tables::SurrealTables, DataLayerCommands,
+    },
 };
 
 use super::ItemTypeSelection;
+
+pub(crate) enum SelectAnItemSortingOrder {
+    MotivationsFirst,
+    NewestFirst,
+}
+
+pub(crate) async fn select_an_item<'a>(
+    dont_show_these_items: Vec<&Item<'_>>,
+    sorting_order: SelectAnItemSortingOrder,
+    calculated_data: &'a CalculatedData,
+) -> Result<Option<&'a ItemHighestLapCount<'a>>, ()> {
+    let active_items = calculated_data
+        .get_items_highest_lap_count()
+        .iter()
+        .filter(|x| !dont_show_these_items.iter().any(|y| x.get_item() == *y) && !x.is_finished())
+        .collect::<Vec<_>>();
+    let mut list = active_items
+        .iter()
+        .map(|x| DisplayItemNode::new(x.get_item_node()))
+        .collect::<Vec<_>>();
+    match sorting_order {
+        SelectAnItemSortingOrder::MotivationsFirst => list.sort_by(|a, b| {
+            if a.is_type_motivation() {
+                if b.is_type_motivation() {
+                    Ordering::Equal
+                } else {
+                    Ordering::Less
+                }
+            } else if a.is_type_goal() {
+                if b.is_type_motivation() {
+                    Ordering::Greater
+                } else if b.is_type_goal() {
+                    Ordering::Equal
+                } else {
+                    Ordering::Less
+                }
+            } else if b.is_type_motivation() || b.is_type_goal() {
+                Ordering::Greater
+            } else if a.get_type() == b.get_type() {
+                Ordering::Equal
+            } else {
+                Ordering::Less
+            }
+            .then_with(|| a.get_created().cmp(b.get_created()).reverse())
+        }),
+        SelectAnItemSortingOrder::NewestFirst => {
+            list.sort_by(|a, b| a.get_created().cmp(b.get_created()).reverse())
+        }
+    }
+
+    let selection = Select::new("Select from the below list|", list).prompt();
+    match selection {
+        Ok(selected_item) => Ok(active_items
+            .into_iter()
+            .find(|x| x.get_item() == selected_item.get_item())),
+        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => Ok(None),
+        Err(err) => todo!("{:?}", err),
+    }
+}
 
 pub(crate) async fn state_a_smaller_next_step(
     selected_item: &ItemNode<'_>,
@@ -30,32 +91,18 @@ pub(crate) async fn state_a_smaller_next_step(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let active_items = base_data
-        .get_active_items()
-        .iter()
-        .filter(|x| **x != selected_item.get_item())
-        .copied()
-        .collect::<Vec<_>>();
-    let mut list = Vec::default();
-    if selected_item.is_type_motivation() {
-        list.extend(active_items.filter_just_motivations().map(DisplayItem::new));
-    }
-    if selected_item.is_type_goal() || selected_item.is_type_motivation() {
-        list.extend(active_items.filter_just_goals().map(DisplayItem::new));
-    }
-    if selected_item.is_type_action()
-        || selected_item.is_type_goal()
-        || selected_item.is_type_motivation()
-    {
-        list.extend(active_items.filter_just_actions().map(DisplayItem::new));
-    }
-
-    let selection = Select::new("Select from the below list|", list).prompt();
+    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+    let selection = select_an_item(
+        vec![selected_item.get_item()],
+        SelectAnItemSortingOrder::NewestFirst,
+        &calculated_data,
+    )
+    .await;
 
     match selection {
-        Ok(child) => {
+        Ok(Some(child)) => {
             let parent = selected_item;
-            let child: &Item<'_> = child.into();
+            let child: &Item<'_> = child.get_item();
 
             let higher_priority_than_this = if parent.has_children(Filter::Active) {
                 todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
@@ -76,12 +123,15 @@ pub(crate) async fn state_a_smaller_next_step(
                 DisplayItem::new(parent.get_item())
             );
             let default_selection = match parent.get_staging() {
-                Staging::NotSet => Some(StagingMenuSelection::NotSet),
-                Staging::MentallyResident { .. } => Some(StagingMenuSelection::MentallyResident),
-                Staging::OnDeck { .. } => Some(StagingMenuSelection::OnDeck),
-                Staging::Planned => Some(StagingMenuSelection::Planned),
-                Staging::ThinkingAbout => Some(StagingMenuSelection::ThinkingAbout),
-                Staging::Released => Some(StagingMenuSelection::Released),
+                SurrealStaging::NotSet => Some(StagingMenuSelection::NotSet),
+                SurrealStaging::MentallyResident { .. } => {
+                    Some(StagingMenuSelection::MentallyResident)
+                }
+                SurrealStaging::OnDeck { .. } => Some(StagingMenuSelection::OnDeck),
+                SurrealStaging::Planned => Some(StagingMenuSelection::Planned),
+                SurrealStaging::ThinkingAbout => Some(StagingMenuSelection::ThinkingAbout),
+                SurrealStaging::Released => Some(StagingMenuSelection::Released),
+                SurrealStaging::InRelationTo { .. } => Some(StagingMenuSelection::InRelationTo),
             };
             present_set_staging_menu(
                 parent.get_item(),
@@ -90,12 +140,10 @@ pub(crate) async fn state_a_smaller_next_step(
             )
             .await
         }
-        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
+        Ok(None) => {
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
         }
-        Err(err) => {
-            todo!("Error: {:?}", err);
-        }
+        Err(()) => Err(()),
     }
 }
 
@@ -144,7 +192,10 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                 .prompt()
                 .unwrap();
             new_item.staging = match selection {
-                StagingMenuSelection::NotSet => Staging::NotSet,
+                StagingMenuSelection::InRelationTo => {
+                    todo!("In relation to")
+                }
+                StagingMenuSelection::NotSet => SurrealStaging::NotSet,
                 StagingMenuSelection::MentallyResident => {
                     let result = mentally_resident_query().await;
                     match result {
@@ -167,9 +218,9 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
                         Err(err) => todo!("{:?}", err),
                     }
                 }
-                StagingMenuSelection::Planned => Staging::Planned,
-                StagingMenuSelection::ThinkingAbout => Staging::ThinkingAbout,
-                StagingMenuSelection::Released => Staging::Released,
+                StagingMenuSelection::Planned => SurrealStaging::Planned,
+                StagingMenuSelection::ThinkingAbout => SurrealStaging::ThinkingAbout,
+                StagingMenuSelection::Released => SurrealStaging::Released,
                 StagingMenuSelection::MakeItemReactive => {
                     todo!("I need to modify the return type to account for this different choice and pass up that information")
                 }

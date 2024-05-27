@@ -9,7 +9,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },
-    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    node::{item_lap_count::ItemLapCount, item_node::ItemNode, Filter},
     surrealdb_layer::DataLayerCommands,
     systems::bullet_list::BulletList,
 };
@@ -61,7 +61,7 @@ impl WorkingOnNow {
 }
 
 pub(crate) async fn starting_to_work_on_this_now(
-    currently_working_on: &ItemStatus<'_>,
+    currently_working_on: &ItemLapCount<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
     bullet_list_created: &DateTime<Utc>,
@@ -86,7 +86,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         }
         Ok(WorkingOnNow::IFinished) => {
             finish_bullet_item(
-                currently_working_on,
+                currently_working_on.get_item_status(),
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
