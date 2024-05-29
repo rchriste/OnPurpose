@@ -22,6 +22,9 @@ impl Display for DisplaySurrealLap<'_> {
             SurrealLap::WorkedOnCounter { stride } => {
                 write!(f, "1 / {stride}")
             }
+            SurrealLap::InherentFromParent => {
+                write!(f, "🧑‍🧒 Inherent from parent")
+            }
         }
     }
 }

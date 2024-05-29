@@ -105,7 +105,11 @@ pub(crate) async fn state_a_smaller_next_step(
             let child: &Item<'_> = child.get_item();
 
             let higher_priority_than_this = if parent.has_children(Filter::Active) {
-                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
+                let items = parent
+                    .get_smaller(Filter::Active)
+                    .map(|x| x.get_item())
+                    .collect::<Vec<_>>();
+                select_higher_priority_than_this(&items)
             } else {
                 None
             };

@@ -430,6 +430,7 @@ pub(crate) enum SurrealLap {
     WorkedOnCounter {
         stride: u32,
     },
+    InherentFromParent,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]

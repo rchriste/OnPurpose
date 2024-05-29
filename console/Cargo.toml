@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.232"
+version = "0.0.233"
 edition = "2021"
 
 [dependencies]
@@ -13,7 +13,7 @@ surrealdb_extra = "0.8.1" #Added because I think using this for table definition
 serde = "1.0.198" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
 duration-str = "0.10.0" #So I can parse the amount of time to wait
-parse_datetime = "0.5.0" #So I can parse when to expect something to be available
+parse_datetime = "0.6.0" #So I can parse when to expect something to be available
 dateparser = "0.2.1"
 itertools = "0.13.0"
  #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher

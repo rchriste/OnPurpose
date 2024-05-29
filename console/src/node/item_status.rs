@@ -179,12 +179,15 @@ pub(crate) enum LapCount {
         other_item: RecordId,
         greater_or_less: LapCountGreaterOrLess,
     },
+    MaxOf(Vec<RecordId>),
 }
 
 impl PartialOrd for LapCount {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (LapCount::F32(a), LapCount::F32(b)) => a.partial_cmp(b),
+            (LapCount::MaxOf(..), _) => todo!(),
+            (_, LapCount::MaxOf(..)) => todo!(),
             (LapCount::Ratio { .. }, LapCount::F32(_)) => todo!(),
             (LapCount::F32(_), LapCount::Ratio { .. }) => todo!(),
             (
@@ -247,6 +250,32 @@ impl LapCount {
                         }
                     }
                     LapCountGreaterOrLess::LessThan => 0.0,
+                }
+            }
+            LapCount::MaxOf(record_ids) => {
+                let max = record_ids
+                    .iter()
+                    .map(|record_id| {
+                        let item_status = all_status
+                            .iter()
+                            .find(|x| x.get_surreal_record_id() == record_id)
+                            .expect("record_id should be in all_status");
+                        if call_chain.contains(&item_status) {
+                            todo!("We have a loop, what I want to do is something sensible here but I'm not sure what that is so put in this to do as a placeholder")
+                        } else {
+                            let mut call_chain = call_chain.clone();
+                            call_chain.push(item_status);
+                            let lap_count = item_status.get_lap_count();
+                            lap_count.resolve_internal(all_status, call_chain)
+                        }
+                    })
+                    .max_by(|a, b| a.partial_cmp(b).expect("Should be able to compare"));
+                match max {
+                    Some(max) => max,
+                    None => todo!(
+                        "Number of items should be at least one not {}",
+                        record_ids.len()
+                    ),
                 }
             }
         }
@@ -331,6 +360,13 @@ fn calculate_lap_count(
                             let stride: f32 = *stride as f32;
                             LapCount::F32(1.0 / stride * worked_on_since)
                         }
+                        SurrealLap::InherentFromParent => {
+                            let parents = item_node
+                                .get_larger(Filter::Active)
+                                .map(|x| x.get_surreal_record_id().clone())
+                                .collect::<Vec<_>>();
+                            LapCount::MaxOf(parents)
+                        }
                     }
                 }
                 EnterListReason::HighestUncovered {
@@ -361,6 +397,13 @@ fn calculate_lap_count(
                                     get_worked_on_since(enter_time, time_spent_log);
                                 let stride: f32 = *stride as f32;
                                 LapCount::F32(1.0 / stride * worked_on_since)
+                            }
+                            SurrealLap::InherentFromParent => {
+                                let parents = item_node
+                                    .get_larger(Filter::Active)
+                                    .map(|x| x.get_surreal_record_id().clone())
+                                    .collect::<Vec<_>>();
+                                LapCount::MaxOf(parents)
                             }
                         }
                     } else {
@@ -417,6 +460,13 @@ fn calculate_lap_count(
                                                 get_worked_on_since(uncovered_when, time_spent_log);
                                             let stride: f32 = *stride as f32;
                                             LapCount::F32(1.0 / stride * worked_on_since)
+                                        }
+                                        SurrealLap::InherentFromParent => {
+                                            let parents = item_node
+                                                .get_larger(Filter::Active)
+                                                .map(|x| x.get_surreal_record_id().clone())
+                                                .collect::<Vec<_>>();
+                                            LapCount::MaxOf(parents)
                                         }
                                     }
                                 } else {

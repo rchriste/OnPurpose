@@ -279,6 +279,10 @@ impl<'s> GrowingItemNode<'s> {
         items.push(self.item);
         items
     }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
+        self.item.get_surreal_record_id()
+    }
 }
 
 pub(crate) fn create_growing_nodes<'a>(

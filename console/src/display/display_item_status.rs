@@ -32,6 +32,13 @@ impl Display for DisplayItemStatus<'_> {
                         LapCountGreaterOrLess::LessThan => write!(f, "⭳ ")?,
                     }
                 }
+                LapCount::MaxOf(children) => {
+                    write!(f, "max(")?;
+                    for child in children {
+                        write!(f, "{}, ", child)?;
+                    }
+                    write!(f, ")")?;
+                }
             }
             write!(f, "| ")?;
         }

@@ -142,6 +142,7 @@ enum LapSelection {
     ElapsedWallClock,
     ElapsedLogged,
     WorkedOnCounter,
+    InherentFromParent,
 }
 
 impl Display for LapSelection {
@@ -150,6 +151,7 @@ impl Display for LapSelection {
             LapSelection::ElapsedWallClock => write!(f, "Elapsed Wall Clock"),
             LapSelection::ElapsedLogged => write!(f, "Elapsed Logged"),
             LapSelection::WorkedOnCounter => write!(f, "Times worked on counter"),
+            LapSelection::InherentFromParent => write!(f, "Inherent from parent"),
         }
     }
 }
@@ -161,6 +163,7 @@ pub(crate) fn prompt_for_surreal_lap() -> Result<Option<SurrealLap>, InquireErro
             LapSelection::ElapsedLogged,
             LapSelection::WorkedOnCounter,
             LapSelection::ElapsedWallClock,
+            LapSelection::InherentFromParent,
         ],
     )
     .prompt()?;
@@ -195,5 +198,6 @@ pub(crate) fn prompt_for_surreal_lap() -> Result<Option<SurrealLap>, InquireErro
                 }
             }
         }
+        LapSelection::InherentFromParent => Ok(Some(SurrealLap::InherentFromParent)),
     }
 }
