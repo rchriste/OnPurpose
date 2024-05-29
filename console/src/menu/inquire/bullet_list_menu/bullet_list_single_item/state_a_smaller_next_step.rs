@@ -193,6 +193,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
 
             let selection = Select::new("Select from the below list|", list)
                 .with_starting_cursor(starting_cursor)
+                .with_page_size(9)
                 .prompt()
                 .unwrap();
             new_item.staging = match selection {
