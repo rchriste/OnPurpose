@@ -124,9 +124,9 @@ pub(crate) async fn state_a_smaller_next_step(
 
             println!(
                 "Please update Staging for {}",
-                DisplayItem::new(parent.get_item())
+                DisplayItem::new(child)
             );
-            let default_selection = match parent.get_staging() {
+            let default_selection = match child.get_staging() {
                 SurrealStaging::NotSet => Some(StagingMenuSelection::NotSet),
                 SurrealStaging::MentallyResident { .. } => {
                     Some(StagingMenuSelection::MentallyResident)
@@ -138,7 +138,7 @@ pub(crate) async fn state_a_smaller_next_step(
                 SurrealStaging::InRelationTo { .. } => Some(StagingMenuSelection::InRelationTo),
             };
             present_set_staging_menu(
-                parent.get_item(),
+                child,
                 send_to_data_storage_layer,
                 default_selection,
             )
