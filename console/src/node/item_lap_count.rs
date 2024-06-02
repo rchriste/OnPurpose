@@ -44,10 +44,6 @@ impl<'s> ItemLapCount<'s> {
         self.lap_count
     }
 
-    pub(crate) fn is_first_lap_finished(&self) -> bool {
-        self.get_lap_count() > 1.0
-    }
-
     pub(crate) fn get_surreal_record_id(&self) -> &RecordId {
         self.item_status.get_surreal_record_id()
     }

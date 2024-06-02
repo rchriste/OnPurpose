@@ -1,6 +1,6 @@
 use surrealdb::{opt::RecordId, sql::Thing};
 
-use crate::{base_data::item::Item, surrealdb_layer::surreal_item::SurrealStaging};
+use crate::base_data::item::Item;
 
 use super::{item_lap_count::ItemLapCount, item_node::ItemNode, item_status::ItemStatus, Filter};
 
@@ -89,21 +89,8 @@ impl<'s> ItemHighestLapCount<'s> {
         self.item_lap_count.is_staging_not_set()
     }
 
-    pub(crate) fn is_first_lap_finished(&self) -> bool {
-        self.item_lap_count.is_first_lap_finished()
-    }
-
-    pub(crate) fn get_staging(&self) -> &SurrealStaging {
-        //I might consider changing this function so this is getting the staging of the highest lap count item
-        self.item_lap_count.get_staging()
-    }
-
     pub(crate) fn get_lap_count(&self) -> f32 {
         self.item_lap_count.get_lap_count()
-    }
-
-    pub(crate) fn is_staging_mentally_resident(&self) -> bool {
-        self.item_lap_count.is_staging_mentally_resident()
     }
 }
 

@@ -122,10 +122,7 @@ pub(crate) async fn state_a_smaller_next_step(
                 .await
                 .unwrap();
 
-            println!(
-                "Please update Staging for {}",
-                DisplayItem::new(child)
-            );
+            println!("Please update Staging for {}", DisplayItem::new(child));
             let default_selection = match child.get_staging() {
                 SurrealStaging::NotSet => Some(StagingMenuSelection::NotSet),
                 SurrealStaging::MentallyResident { .. } => {
@@ -137,12 +134,7 @@ pub(crate) async fn state_a_smaller_next_step(
                 SurrealStaging::Released => Some(StagingMenuSelection::Released),
                 SurrealStaging::InRelationTo { .. } => Some(StagingMenuSelection::InRelationTo),
             };
-            present_set_staging_menu(
-                child,
-                send_to_data_storage_layer,
-                default_selection,
-            )
-            .await
+            present_set_staging_menu(child, send_to_data_storage_layer, default_selection).await
         }
         Ok(None) => {
             state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await

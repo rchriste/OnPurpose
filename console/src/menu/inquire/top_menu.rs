@@ -418,9 +418,7 @@ impl Eq for ItemTimeSpent<'_> {}
 
 impl PartialOrd for ItemTimeSpent<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.item_status
-            .get_summary()
-            .partial_cmp(other.item_status.get_summary())
+        Some(self.cmp(other))
     }
 }
 

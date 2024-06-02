@@ -335,153 +335,188 @@ fn calculate_lap_count(
             }
         }
         SurrealStaging::NotSet => LapCount::F32(0.0),
-        SurrealStaging::OnDeck { enter_list, lap }
-        | SurrealStaging::MentallyResident { enter_list, lap } => {
-            match enter_list {
-                EnterListReason::DateTime(enter_time) => {
-                    let enter_time: DateTime<Utc> = enter_time.clone().into();
-                    match lap {
-                        SurrealLap::AlwaysTimer(lap) => {
-                            let lap: Duration = (*lap).into();
-                            let elapsed = current_date_time.sub(enter_time);
-                            let elapsed = elapsed.num_seconds() as f32;
-                            let lap = lap.as_secs_f32();
-                            LapCount::F32(elapsed / lap)
-                        }
-                        SurrealLap::LoggedTimer(lap) => {
-                            let logged_worked =
-                                get_worked_on_since_elapsed(enter_time, time_spent_log);
-                            let elapsed = logged_worked.num_seconds() as f32;
-                            let lap = lap.as_secs_f32();
-                            LapCount::F32(elapsed / lap)
-                        }
-                        SurrealLap::WorkedOnCounter { stride } => {
-                            let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
-                            let stride: f32 = *stride as f32;
-                            LapCount::F32(1.0 / stride * worked_on_since)
-                        }
-                        SurrealLap::InherentFromParent => {
-                            let parents = item_node
-                                .get_larger(Filter::Active)
-                                .map(|x| x.get_surreal_record_id().clone())
-                                .collect::<Vec<_>>();
-                            LapCount::MaxOf(parents)
-                        }
-                    }
+        SurrealStaging::OnDeck { enter_list, lap } => {
+            calculate_raw_lap_count_for_on_deck_or_mentally_resident(
+                item_node,
+                all_nodes,
+                time_spent_log,
+                current_date_time,
+                enter_list,
+                lap,
+            )
+        }
+        SurrealStaging::MentallyResident { enter_list, lap } => {
+            let raw_lap_count = calculate_raw_lap_count_for_on_deck_or_mentally_resident(
+                item_node,
+                all_nodes,
+                time_spent_log,
+                current_date_time,
+                enter_list,
+                lap,
+            );
+            if let LapCount::F32(raw_lap_count) = raw_lap_count {
+                if raw_lap_count > 1.0 {
+                    // Mentally Resident items that are expired should have a faster growing lap count
+                    LapCount::F32(f32::powf(raw_lap_count, 1.5))
+                } else {
+                    LapCount::F32(raw_lap_count)
                 }
-                EnterListReason::HighestUncovered {
-                    earliest,
-                    review_after,
-                } => {
-                    if current_date_time < earliest {
-                        LapCount::F32(0.0)
-                    } else if current_date_time > review_after {
-                        let enter_time: DateTime<Utc> = review_after.clone().into();
-                        match lap {
-                            SurrealLap::AlwaysTimer(lap) => {
-                                let lap: Duration = (*lap).into();
-                                let elapsed = current_date_time.sub(enter_time);
-                                let elapsed = elapsed.num_seconds() as f32;
-                                let lap = lap.as_secs_f32();
-                                LapCount::F32(elapsed / lap)
-                            }
-                            SurrealLap::LoggedTimer(lap) => {
-                                let logged_worked =
-                                    get_worked_on_since_elapsed(enter_time, time_spent_log);
-                                let elapsed = logged_worked.num_seconds() as f32;
-                                let lap = lap.as_secs_f32();
-                                LapCount::F32(elapsed / lap)
-                            }
-                            SurrealLap::WorkedOnCounter { stride } => {
-                                let worked_on_since =
-                                    get_worked_on_since(enter_time, time_spent_log);
-                                let stride: f32 = *stride as f32;
-                                LapCount::F32(1.0 / stride * worked_on_since)
-                            }
-                            SurrealLap::InherentFromParent => {
-                                let parents = item_node
-                                    .get_larger(Filter::Active)
-                                    .map(|x| x.get_surreal_record_id().clone())
-                                    .collect::<Vec<_>>();
-                                LapCount::MaxOf(parents)
-                            }
-                        }
-                    } else {
-                        let all_larger = item_node.get_larger(Filter::All);
-                        let all_larger = all_larger
-                            .map(|x| x.get_node(all_nodes))
-                            .collect::<Vec<_>>();
-                        let mut all_larger_iter = all_larger.iter();
-                        let (highest_uncovered, uncovered_when) = loop {
-                            let larger = all_larger_iter.next();
-                            match larger {
-                                Some(larger) => {
-                                    let (highest_uncovered, uncovered_when) =
-                                        find_highest_uncovered_child_with_when_uncovered(
-                                            larger,
-                                            current_date_time,
-                                            Vec::default(),
-                                        );
-                                    if let Some(highest_uncovered) = highest_uncovered {
-                                        break (Some(highest_uncovered), uncovered_when);
-                                    }
-                                }
-                                None => break (None, None),
-                            }
-                        };
-                        match highest_uncovered {
-                            Some(highest_uncovered) => {
-                                let item = item_node.get_item();
-                                if highest_uncovered == item {
-                                    let mut uncovered_when: DateTime<Utc> =
-                                        uncovered_when.unwrap_or_else(|| earliest.clone().into());
-                                    if &uncovered_when < item.get_created() {
-                                        // If the uncovered_when is before the item was created, then we'll just use the item's created time
-                                        uncovered_when = *item.get_created();
-                                    }
-                                    let elapsed = current_date_time.sub(uncovered_when);
-                                    let elapsed = elapsed.num_seconds() as f32;
-                                    match lap {
-                                        SurrealLap::AlwaysTimer(lap) => {
-                                            let lap = lap.as_secs_f32();
-                                            LapCount::F32(elapsed / lap)
-                                        }
-                                        SurrealLap::LoggedTimer(lap) => {
-                                            let logged_worked = get_worked_on_since_elapsed(
-                                                uncovered_when,
-                                                time_spent_log,
-                                            );
-                                            let elapsed = logged_worked.num_seconds() as f32;
-                                            let lap = lap.as_secs_f32();
-                                            LapCount::F32(elapsed / lap)
-                                        }
-                                        SurrealLap::WorkedOnCounter { stride } => {
-                                            let worked_on_since =
-                                                get_worked_on_since(uncovered_when, time_spent_log);
-                                            let stride: f32 = *stride as f32;
-                                            LapCount::F32(1.0 / stride * worked_on_since)
-                                        }
-                                        SurrealLap::InherentFromParent => {
-                                            let parents = item_node
-                                                .get_larger(Filter::Active)
-                                                .map(|x| x.get_surreal_record_id().clone())
-                                                .collect::<Vec<_>>();
-                                            LapCount::MaxOf(parents)
-                                        }
-                                    }
-                                } else {
-                                    LapCount::F32(0.0)
-                                }
-                            }
-                            None => LapCount::F32(0.0),
-                        }
-                    }
-                }
+            } else {
+                raw_lap_count
             }
         }
         SurrealStaging::Planned => LapCount::F32(0.0),
         SurrealStaging::ThinkingAbout => LapCount::F32(0.0),
         SurrealStaging::Released => LapCount::F32(0.0),
+    }
+}
+
+fn calculate_raw_lap_count_for_on_deck_or_mentally_resident(
+    item_node: &ItemNode<'_>,
+    all_nodes: &[ItemNode<'_>],
+    time_spent_log: &[TimeSpent<'_>],
+    current_date_time: &DateTime<Utc>,
+    enter_list: &EnterListReason,
+    lap: &SurrealLap,
+) -> LapCount {
+    match enter_list {
+        EnterListReason::DateTime(enter_time) => {
+            let enter_time: DateTime<Utc> = enter_time.clone().into();
+            match lap {
+                SurrealLap::AlwaysTimer(lap) => {
+                    let lap: Duration = (*lap).into();
+                    let elapsed = current_date_time.sub(enter_time);
+                    let elapsed = elapsed.num_seconds() as f32;
+                    let lap = lap.as_secs_f32();
+                    let raw_lap_count = elapsed / lap;
+                    LapCount::F32(raw_lap_count)
+                }
+                SurrealLap::LoggedTimer(lap) => {
+                    let logged_worked = get_worked_on_since_elapsed(enter_time, time_spent_log);
+                    let elapsed = logged_worked.num_seconds() as f32;
+                    let lap = lap.as_secs_f32();
+                    let raw_lap_count = elapsed / lap;
+                    LapCount::F32(raw_lap_count)
+                }
+                SurrealLap::WorkedOnCounter { stride } => {
+                    let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
+                    let stride: f32 = *stride as f32;
+                    let raw_lap_count = 1.0 / stride * worked_on_since;
+                    LapCount::F32(raw_lap_count)
+                }
+                SurrealLap::InherentFromParent => {
+                    let parents = item_node
+                        .get_larger(Filter::Active)
+                        .map(|x| x.get_surreal_record_id().clone())
+                        .collect::<Vec<_>>();
+                    LapCount::MaxOf(parents)
+                }
+            }
+        }
+        EnterListReason::HighestUncovered {
+            earliest,
+            review_after,
+        } => {
+            if current_date_time < earliest {
+                LapCount::F32(0.0)
+            } else if current_date_time > review_after {
+                let enter_time: DateTime<Utc> = review_after.clone().into();
+                match lap {
+                    SurrealLap::AlwaysTimer(lap) => {
+                        let lap: Duration = (*lap).into();
+                        let elapsed = current_date_time.sub(enter_time);
+                        let elapsed = elapsed.num_seconds() as f32;
+                        let lap = lap.as_secs_f32();
+                        LapCount::F32(elapsed / lap)
+                    }
+                    SurrealLap::LoggedTimer(lap) => {
+                        let logged_worked = get_worked_on_since_elapsed(enter_time, time_spent_log);
+                        let elapsed = logged_worked.num_seconds() as f32;
+                        let lap = lap.as_secs_f32();
+                        LapCount::F32(elapsed / lap)
+                    }
+                    SurrealLap::WorkedOnCounter { stride } => {
+                        let worked_on_since = get_worked_on_since(enter_time, time_spent_log);
+                        let stride: f32 = *stride as f32;
+                        LapCount::F32(1.0 / stride * worked_on_since)
+                    }
+                    SurrealLap::InherentFromParent => {
+                        let parents = item_node
+                            .get_larger(Filter::Active)
+                            .map(|x| x.get_surreal_record_id().clone())
+                            .collect::<Vec<_>>();
+                        LapCount::MaxOf(parents)
+                    }
+                }
+            } else {
+                let all_larger = item_node.get_larger(Filter::All);
+                let all_larger = all_larger
+                    .map(|x| x.get_node(all_nodes))
+                    .collect::<Vec<_>>();
+                let mut all_larger_iter = all_larger.iter();
+                let (highest_uncovered, uncovered_when) = loop {
+                    let larger = all_larger_iter.next();
+                    match larger {
+                        Some(larger) => {
+                            let (highest_uncovered, uncovered_when) =
+                                find_highest_uncovered_child_with_when_uncovered(
+                                    larger,
+                                    current_date_time,
+                                    Vec::default(),
+                                );
+                            if let Some(highest_uncovered) = highest_uncovered {
+                                break (Some(highest_uncovered), uncovered_when);
+                            }
+                        }
+                        None => break (None, None),
+                    }
+                };
+                match highest_uncovered {
+                    Some(highest_uncovered) => {
+                        let item = item_node.get_item();
+                        if highest_uncovered == item {
+                            let mut uncovered_when: DateTime<Utc> =
+                                uncovered_when.unwrap_or_else(|| earliest.clone().into());
+                            if &uncovered_when < item.get_created() {
+                                // If the uncovered_when is before the item was created, then we'll just use the item's created time
+                                uncovered_when = *item.get_created();
+                            }
+                            let elapsed = current_date_time.sub(uncovered_when);
+                            let elapsed = elapsed.num_seconds() as f32;
+                            match lap {
+                                SurrealLap::AlwaysTimer(lap) => {
+                                    let lap = lap.as_secs_f32();
+                                    LapCount::F32(elapsed / lap)
+                                }
+                                SurrealLap::LoggedTimer(lap) => {
+                                    let logged_worked =
+                                        get_worked_on_since_elapsed(uncovered_when, time_spent_log);
+                                    let elapsed = logged_worked.num_seconds() as f32;
+                                    let lap = lap.as_secs_f32();
+                                    LapCount::F32(elapsed / lap)
+                                }
+                                SurrealLap::WorkedOnCounter { stride } => {
+                                    let worked_on_since =
+                                        get_worked_on_since(uncovered_when, time_spent_log);
+                                    let stride: f32 = *stride as f32;
+                                    LapCount::F32(1.0 / stride * worked_on_since)
+                                }
+                                SurrealLap::InherentFromParent => {
+                                    let parents = item_node
+                                        .get_larger(Filter::Active)
+                                        .map(|x| x.get_surreal_record_id().clone())
+                                        .collect::<Vec<_>>();
+                                    LapCount::MaxOf(parents)
+                                }
+                            }
+                        } else {
+                            LapCount::F32(0.0)
+                        }
+                    }
+                    None => LapCount::F32(0.0),
+                }
+            }
+        }
     }
 }
 

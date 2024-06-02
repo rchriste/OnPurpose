@@ -18,7 +18,12 @@ impl Display for DisplayItemLapCount<'_> {
             let lap_count = self.get_lap_count();
             write!(f, "|")?;
             if lap_count >= 0.0 {
-                write!(f, "{:.1}", lap_count)?;
+                if self.item_lap_count.is_staging_mentally_resident() && lap_count > 1. {
+                    let raw_lap_count = lap_count.powf(1.0 / 1.5);
+                    write!(f, "{:.1}̇¹", raw_lap_count)?;
+                } else {
+                    write!(f, "{:.1}", lap_count)?;
+                }
             }
             write!(f, "| ")?;
         }
