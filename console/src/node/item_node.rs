@@ -1,3 +1,5 @@
+use std::iter;
+
 use chrono::{DateTime, Utc};
 use surrealdb::sql::Thing;
 
@@ -39,6 +41,13 @@ impl<'s> ItemNode<'s> {
         let visited = vec![item];
         let parents = item.find_parents(coverings, all_items, &visited);
         let larger = create_growing_nodes(parents, coverings, all_items, visited.clone());
+        let visited: Vec<&Item<'s>> = iter::once(item)
+            .chain(
+                larger
+                    .iter()
+                    .flat_map(|x| x.get_self_and_larger(Vec::default())),
+            )
+            .collect();
         let children = item.find_children(coverings, all_items, &visited);
         let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
         let snoozed_until = item.get_covered_by_date_time(snoozed);
