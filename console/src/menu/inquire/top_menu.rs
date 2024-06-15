@@ -21,7 +21,10 @@ use crate::{
 };
 
 use super::{
-    bullet_list_menu::{present_normal_bullet_list_menu_version_1, present_normal_bullet_list_menu_version_2}, update_item_summary::update_item_summary,
+    bullet_list_menu::{
+        present_normal_bullet_list_menu_version_1, present_normal_bullet_list_menu_version_2,
+    },
+    update_item_summary::update_item_summary,
 };
 
 enum TopMenuSelection {
@@ -41,8 +44,12 @@ impl Display for TopMenuSelection {
         match self {
             TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝  Change Routine            ↜"),
             TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
-            TopMenuSelection::ViewBulletListVersion1 => write!(f, "👁 🗒️  View Bullet List Version 1 👁"),
-            TopMenuSelection::ViewBulletListVersion2 => write!(f, "👁 🗒️  View Bullet List Version 2 👁"),
+            TopMenuSelection::ViewBulletListVersion1 => {
+                write!(f, "👁 🗒️  View Bullet List Version 1 👁")
+            }
+            TopMenuSelection::ViewBulletListVersion2 => {
+                write!(f, "👁 🗒️  View Bullet List Version 2 👁")
+            }
             TopMenuSelection::ViewExpectations => {
                 write!(f, "👁 🙏 View Expectations          👁")
             }

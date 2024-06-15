@@ -31,8 +31,9 @@ impl BulletList {
                     .cloned()
                     .collect::<Vec<_>>();
                 todo!()
-            }
-        }.build()
+            },
+        }
+        .build()
     }
 
     pub(crate) fn new_bullet_list_version_1(calculated_data: CalculatedData) -> Self {

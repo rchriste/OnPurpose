@@ -293,20 +293,14 @@ pub(crate) fn create_growing_nodes<'a>(
 ) -> Vec<GrowingItemNode<'a>> {
     items
         .iter()
-        .map(|x| {
+        .filter_map(|x| {
             if !visited.contains(x) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
                 visited.push(x);
-                create_growing_node(x, coverings, possible_parents, visited)
+                Some(create_growing_node(x, coverings, possible_parents, visited))
             } else {
-                let item_facing = x.get_facing();
-                let facing = item_facing.to_vec();
-                GrowingItemNode {
-                    item: x,
-                    larger: vec![],
-                    facing,
-                }
+                None
             }
         })
         .collect()
@@ -381,17 +375,14 @@ pub(crate) fn create_shrinking_nodes<'a>(
 ) -> Vec<ShrinkingItemNode<'a>> {
     items
         .iter()
-        .map(|x| {
+        .filter_map(|x| {
             if !visited.contains(x) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
                 visited.push(x);
-                create_shrinking_node(x, coverings, possible_children, visited)
+                Some(create_shrinking_node(x, coverings, possible_children, visited))
             } else {
-                ShrinkingItemNode {
-                    item: x,
-                    smaller: vec![],
-                }
+                None
             }
         })
         .collect()
