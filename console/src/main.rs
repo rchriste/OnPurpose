@@ -12,7 +12,7 @@ pub(crate) mod systems;
 use tokio::sync::mpsc;
 
 use crate::{
-    menu::inquire::bullet_list_menu::present_normal_bullet_list_menu,
+    menu::inquire::bullet_list_menu::present_normal_bullet_list_menu_version_1,
     surrealdb_layer::data_storage_start_and_run,
 };
 
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     loop {
-        match present_normal_bullet_list_menu(&send_to_data_storage_layer_tx).await {
+        match present_normal_bullet_list_menu_version_1(&send_to_data_storage_layer_tx).await {
             Result::Ok(..) => (),
             Result::Err(..) => break,
         };

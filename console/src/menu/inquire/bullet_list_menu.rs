@@ -69,7 +69,7 @@ impl<'a> InquireBulletListItem<'a> {
     }
 }
 
-pub(crate) async fn present_normal_bullet_list_menu(
+pub(crate) async fn present_normal_bullet_list_menu_version_2(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let before_db_query = Local::now();
@@ -83,7 +83,29 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    let bullet_list = BulletList::new_bullet_list(calculated_data);
+    let bullet_list = BulletList::new_bullet_list_version_2(calculated_data);
+    let elapsed = Utc::now() - now;
+    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
+        println!("Slow to create bullet list. Time taken: {}", elapsed);
+    }
+    present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
+}
+
+pub(crate) async fn present_normal_bullet_list_menu_version_1(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
+    let before_db_query = Local::now();
+    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+        .await
+        .unwrap();
+    let elapsed = Local::now() - before_db_query;
+    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
+        println!("Slow to get data from database. Time taken: {}", elapsed);
+    }
+    let now = Utc::now();
+    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+    let bullet_list = BulletList::new_bullet_list_version_1(calculated_data);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
@@ -138,7 +160,7 @@ pub(crate) async fn present_bullet_list_menu(
                 //Pressing Esc is meant to refresh the list unless you press it twice in a row then it will go to the top menu
                 if Utc::now() - bullet_list_created > TimeDelta::seconds(5) {
                     println!("Refreshing the list");
-                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
+                    Box::pin(present_normal_bullet_list_menu_version_1(send_to_data_storage_layer)).await
                 } else {
                     Box::pin(present_top_menu(send_to_data_storage_layer)).await
                 }

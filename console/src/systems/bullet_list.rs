@@ -19,7 +19,23 @@ pub(crate) struct BulletList {
 }
 
 impl BulletList {
-    pub(crate) fn new_bullet_list(calculated_data: CalculatedData) -> Self {
+    pub(crate) fn new_bullet_list_version_2(calculated_data: CalculatedData) -> Self {
+        BulletListBuilder {
+            calculated_data,
+            ordered_bullet_list_builder: |calculated_data| {
+                //Get all top level items
+                let _all_top_parents = calculated_data
+                    .get_items_highest_lap_count()
+                    .iter()
+                    .filter(|x| !x.has_larger(Filter::Active) && !x.is_finished())
+                    .cloned()
+                    .collect::<Vec<_>>();
+                todo!()
+            }
+        }.build()
+    }
+
+    pub(crate) fn new_bullet_list_version_1(calculated_data: CalculatedData) -> Self {
         BulletListBuilder {
             calculated_data,
             ordered_bullet_list_builder: |calculated_data| {

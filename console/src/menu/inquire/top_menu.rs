@@ -21,13 +21,14 @@ use crate::{
 };
 
 use super::{
-    bullet_list_menu::present_normal_bullet_list_menu, update_item_summary::update_item_summary,
+    bullet_list_menu::{present_normal_bullet_list_menu_version_1, present_normal_bullet_list_menu_version_2}, update_item_summary::update_item_summary,
 };
 
 enum TopMenuSelection {
     ChangeRoutine,
     Reflection,
-    ViewBulletList,
+    ViewBulletListVersion1,
+    ViewBulletListVersion2,
     ViewExpectations,
     ViewMotivations,
     ViewPriorities,
@@ -40,7 +41,8 @@ impl Display for TopMenuSelection {
         match self {
             TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝  Change Routine            ↜"),
             TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
-            TopMenuSelection::ViewBulletList => write!(f, "👁 🗒️  View Bullet List (To Dos) 👁"),
+            TopMenuSelection::ViewBulletListVersion1 => write!(f, "👁 🗒️  View Bullet List Version 1 👁"),
+            TopMenuSelection::ViewBulletListVersion2 => write!(f, "👁 🗒️  View Bullet List Version 2 👁"),
             TopMenuSelection::ViewExpectations => {
                 write!(f, "👁 🙏 View Expectations          👁")
             }
@@ -65,7 +67,8 @@ impl TopMenuSelection {
             Self::ViewPrioritiesRatatui,
             Self::ChangeRoutine,
             Self::Reflection,
-            Self::ViewBulletList,
+            Self::ViewBulletListVersion1,
+            Self::ViewBulletListVersion2,
             Self::ViewExpectations,
             Self::ViewMotivations,
             Self::DebugViewAllItems,
@@ -85,8 +88,11 @@ pub(crate) async fn present_top_menu(
         Ok(TopMenuSelection::ViewExpectations) => {
             view_expectations(send_to_data_storage_layer).await
         }
-        Ok(TopMenuSelection::ViewBulletList) => {
-            present_normal_bullet_list_menu(send_to_data_storage_layer).await
+        Ok(TopMenuSelection::ViewBulletListVersion1) => {
+            present_normal_bullet_list_menu_version_1(send_to_data_storage_layer).await
+        }
+        Ok(TopMenuSelection::ViewBulletListVersion2) => {
+            present_normal_bullet_list_menu_version_2(send_to_data_storage_layer).await
         }
         Ok(TopMenuSelection::ViewMotivations) => view_motivations().await,
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
