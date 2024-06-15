@@ -36,7 +36,7 @@ impl<'s> ItemNode<'s> {
         snoozed: &'s [&'s CoveringUntilDateTime<'s>],
         all_items: &'s [Item<'s>],
     ) -> Self {
-        let visited = vec![];
+        let visited = vec![item];
         let parents = item.find_parents(coverings, all_items, &visited);
         let larger = create_growing_nodes(parents, coverings, all_items, visited.clone());
         let children = item.find_children(coverings, all_items, &visited);
@@ -380,7 +380,12 @@ pub(crate) fn create_shrinking_nodes<'a>(
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
                 visited.push(x);
-                Some(create_shrinking_node(x, coverings, possible_children, visited))
+                Some(create_shrinking_node(
+                    x,
+                    coverings,
+                    possible_children,
+                    visited,
+                ))
             } else {
                 None
             }
