@@ -5,7 +5,11 @@ use crate::{
     surrealdb_layer::surreal_item::{ItemType, SurrealStaging},
 };
 
-use super::{item_node::ItemNode, item_status::ItemStatus, Filter};
+use super::{
+    item_node::ItemNode,
+    item_status::{ItemStatus, PriorityLevel},
+    Filter,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ItemLapCount<'s> {
@@ -84,10 +88,6 @@ impl<'s> ItemLapCount<'s> {
         self.item_status.get_thing()
     }
 
-    pub(crate) fn is_responsibility_reactive(&self) -> bool {
-        self.item_status.is_responsibility_reactive()
-    }
-
     pub(crate) fn is_type_undeclared(&self) -> bool {
         self.item_status.is_type_undeclared()
     }
@@ -117,6 +117,10 @@ impl<'s> ItemLapCount<'s> {
 
     pub(crate) fn is_type_motivation(&self) -> bool {
         self.item_status.is_type_motivation()
+    }
+
+    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
+        self.item_status.get_priority_level()
     }
 }
 

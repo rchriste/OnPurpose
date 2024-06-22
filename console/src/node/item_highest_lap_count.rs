@@ -2,7 +2,12 @@ use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::base_data::item::Item;
 
-use super::{item_lap_count::ItemLapCount, item_node::ItemNode, item_status::ItemStatus, Filter};
+use super::{
+    item_lap_count::ItemLapCount,
+    item_node::ItemNode,
+    item_status::{ItemStatus, PriorityLevel},
+    Filter,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct ItemHighestLapCount<'s> {
@@ -77,10 +82,6 @@ impl<'s> ItemHighestLapCount<'s> {
         self.item_lap_count.get_thing()
     }
 
-    pub(crate) fn is_responsibility_reactive(&self) -> bool {
-        self.item_lap_count.is_responsibility_reactive()
-    }
-
     pub(crate) fn is_type_undeclared(&self) -> bool {
         self.item_lap_count.is_type_undeclared()
     }
@@ -91,6 +92,10 @@ impl<'s> ItemHighestLapCount<'s> {
 
     pub(crate) fn get_lap_count(&self) -> f32 {
         self.item_lap_count.get_lap_count()
+    }
+
+    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
+        self.item_lap_count.get_priority_level()
     }
 }
 

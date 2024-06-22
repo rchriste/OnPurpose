@@ -25,6 +25,20 @@ pub(crate) struct ItemStatus<'s> {
     is_snoozed: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum PriorityLevel {
+    BeforeAnythingElse,
+    BeforeScheduled,
+    Scheduled,
+    BeforeRoutine,
+    RoutineScheduled,
+    RoutineKeepMentallyResident,
+    RoutineUrgent,
+    RoutineReview,
+    Routine,
+    NothingForMeToDo,
+}
+
 impl PartialEq for ItemStatus<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.item_node == other.item_node
@@ -143,6 +157,17 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn is_active(&self) -> bool {
         self.item_node.is_active()
+    }
+
+    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
+        //Reactive items should be shown at the bottom so they are searchable TODO: I should show this in the UI that this is just for searching
+        if self.is_responsibility_reactive() || self.is_snoozed() {
+            PriorityLevel::NothingForMeToDo
+        } else if self.is_type_undeclared() || self.is_staging_not_set() {
+            PriorityLevel::BeforeAnythingElse
+        } else {
+            PriorityLevel::Routine
+        }
     }
 }
 

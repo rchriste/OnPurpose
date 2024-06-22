@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
@@ -60,61 +58,7 @@ impl BulletList {
                 all_leaf_status_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
 
                 all_leaf_status_nodes.sort_by(|a, b| {
-                    //Reactive items should be shown at the bottom so they are searchable TODO: I should show this in the UI that this is just for searching
-                    //TODO: I should have an item to state the purpose so the User knows they are not meant to do this
-                    (if a.is_responsibility_reactive() {
-                        if b.is_responsibility_reactive() {
-                            Ordering::Equal
-                        } else {
-                            Ordering::Greater
-                        }
-                    } else if b.is_responsibility_reactive() {
-                        Ordering::Less
-                    } else {
-                        Ordering::Equal
-                    })
-                    .then_with(|| {
-                        //Snoozed items should be shown at the bottom so they are searchable
-                        //TODO: I should have an item to state the purpose so the User knows they are not meant to do this, only if they need to search
-                        if a.is_snoozed() {
-                            if b.is_snoozed() {
-                                Ordering::Equal
-                            } else {
-                                Ordering::Greater
-                            }
-                        } else if b.is_snoozed() {
-                            Ordering::Less
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                    .then_with(|| {
-                        if a.is_type_undeclared() {
-                            if b.is_type_undeclared() {
-                                Ordering::Equal
-                            } else {
-                                Ordering::Less
-                            }
-                        } else if b.is_type_undeclared() {
-                            Ordering::Greater
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                    .then_with(|| {
-                        if a.is_staging_not_set() {
-                            if b.is_staging_not_set() {
-                                Ordering::Equal
-                            } else {
-                                Ordering::Less
-                            }
-                        } else if b.is_staging_not_set() {
-                            Ordering::Greater
-                        } else {
-                            Ordering::Equal
-                        }
-                    })
-                    .then_with(|| {
+                    (a.get_priority_level().cmp(&b.get_priority_level())).then_with(|| {
                         b.get_lap_count()
                             .partial_cmp(&a.get_lap_count())
                             .expect("Lap count is never a weird NaN")
