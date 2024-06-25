@@ -54,7 +54,9 @@ pub(crate) struct SurrealItem {
 
     #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
-    //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) scheduled: SurrealScheduled,
 }
 
 impl From<SurrealItem> for Option<Thing> {
@@ -80,6 +82,7 @@ impl SurrealItem {
             permanence: new_item.permanence,
             staging: new_item.staging,
             created: new_item.created.into(),
+            scheduled: new_item.scheduled,
         }
     }
 
@@ -139,18 +142,6 @@ pub(crate) enum HowMuchIsInMyControl {
     MostlyInMyControl,
     PartiallyInMyControl,
     LargelyOutOfMyControl,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum ItemTypeOldVersion {
-    #[default]
-    Undeclared,
-    Simple,
-    Action,
-    Goal(HowMuchIsInMyControl),
-    IdeaOrThought,
-    Motivation,
-    PersonOrGroup,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -403,23 +394,6 @@ impl Ord for SurrealStaging {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum StagingOldVersion {
-    #[default]
-    NotSet,
-    MentallyResident {
-        enter_list: EnterListReason,
-        lap: Duration,
-    },
-    OnDeck {
-        enter_list: EnterListReason,
-        lap: Duration,
-    },
-    Planned,
-    ThinkingAbout,
-    Released,
-}
-
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealLap {
     AlwaysTimer(Duration),
@@ -460,6 +434,28 @@ pub(crate) enum NotesLocation {
     WebLink(String),
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealScheduled {
+    #[default]
+    NotScheduled,
+    ScheduledExact {
+        start: Datetime,
+        duration: Duration,
+        priority: SurrealScheduledPriority,
+    },
+    ScheduledRange {
+        start_range: (Datetime, Datetime),
+        duration: Duration,
+        priority: SurrealScheduledPriority,
+    },
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealScheduledPriority {
+    Always,
+    WhenRoutineIsActive,
+}
+
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
 //it always to see if that addresses these phantom errors. Nov2023.
@@ -489,7 +485,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) permanence: Permanence,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: StagingOldVersion,
+    pub(crate) staging: SurrealStaging,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -507,46 +503,14 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
+            facing: value.facing,
             item_type: value.item_type,
             notes_location: value.notes_location,
             permanence: value.permanence,
-            staging: value.staging.into(),
+            staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: value.created,
-            facing: value.facing,
+            scheduled: SurrealScheduled::NotScheduled,
         }
-    }
-}
-
-impl From<StagingOldVersion> for SurrealStaging {
-    fn from(value: StagingOldVersion) -> Self {
-        match value {
-            StagingOldVersion::NotSet => SurrealStaging::NotSet,
-            StagingOldVersion::MentallyResident { enter_list, lap } => {
-                SurrealStaging::MentallyResident {
-                    enter_list,
-                    lap: lap.into(),
-                }
-            }
-            StagingOldVersion::OnDeck { enter_list, lap } => SurrealStaging::OnDeck {
-                enter_list,
-                lap: lap.into(),
-            },
-            StagingOldVersion::Planned => SurrealStaging::Planned,
-            StagingOldVersion::ThinkingAbout => SurrealStaging::ThinkingAbout,
-            StagingOldVersion::Released => SurrealStaging::Released,
-        }
-    }
-}
-
-impl From<Duration> for SurrealLap {
-    fn from(value: Duration) -> Self {
-        SurrealLap::AlwaysTimer(value)
-    }
-}
-
-impl From<Datetime> for EnterListReason {
-    fn from(value: Datetime) -> Self {
-        EnterListReason::DateTime(value)
     }
 }
