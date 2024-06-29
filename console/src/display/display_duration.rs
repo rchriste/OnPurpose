@@ -7,6 +7,7 @@ pub(crate) struct DisplayDuration<'s> {
 impl Display for DisplayDuration<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let duration = self.duration;
+        let millis = duration.as_millis() % 1000;
         let seconds = duration.as_secs();
         let minutes = seconds / 60;
         let hours = minutes / 60;
@@ -76,6 +77,12 @@ impl Display for DisplayDuration<'_> {
                 result.push(' ');
             }
             result.push_str(&format!("{} seconds", seconds));
+        }
+        if millis > 0 {
+            if !first {
+                result.push(' ');
+            }
+            result.push_str(&format!("{} ms", millis));
         }
         write!(f, "{}", result)
     }

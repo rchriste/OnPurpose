@@ -1,6 +1,7 @@
 mod create_or_update_children;
 pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
+mod plan_when_to_do_this;
 pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
@@ -24,6 +25,7 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::{
             create_or_update_children::create_or_update_children,
             give_this_item_a_parent::give_this_item_a_parent,
+            plan_when_to_do_this::plan_when_to_do_this,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
@@ -348,7 +350,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             Ok(())
         }
         Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
-            todo!("TODO: Implement PlanWhenToDoThis");
+            plan_when_to_do_this(menu_for, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");

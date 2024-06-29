@@ -9,7 +9,8 @@ use surrealdb::{
 use crate::{
     base_data::{item::Item, time_spent::TimeSpent},
     surrealdb_layer::surreal_item::{
-        EnterListReason, EqF32, InRelationToRatioType, ItemType, SurrealLap, SurrealStaging,
+        EnterListReason, EqF32, InRelationToRatioType, ItemType, SurrealLap, SurrealScheduled,
+        SurrealScheduledPriority, SurrealStaging,
     },
 };
 
@@ -159,15 +160,60 @@ impl<'s> ItemStatus<'s> {
         self.item_node.is_active()
     }
 
-    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
+    pub(crate) fn get_priority_level(&self, now: &DateTime<Utc>) -> PriorityLevel {
+        let now: Datetime = (*now).into();
         //Reactive items should be shown at the bottom so they are searchable TODO: I should show this in the UI that this is just for searching
         if self.is_responsibility_reactive() || self.is_snoozed() {
             PriorityLevel::NothingForMeToDo
         } else if self.is_type_undeclared() || self.is_staging_not_set() {
             PriorityLevel::BeforeAnythingElse
+        } else if self.is_scheduled() {
+            match self.get_scheduled() {
+                SurrealScheduled::NotScheduled => {
+                    panic!("is_scheduled is true so code should never reach here")
+                }
+                SurrealScheduled::ScheduledExact {
+                    priority, start, ..
+                } => {
+                    if start <= &now {
+                        match priority {
+                            SurrealScheduledPriority::Always => PriorityLevel::Scheduled,
+                            SurrealScheduledPriority::WhenRoutineIsActive => {
+                                PriorityLevel::RoutineScheduled
+                            }
+                        }
+                    } else {
+                        PriorityLevel::NothingForMeToDo
+                    }
+                }
+                SurrealScheduled::ScheduledRange {
+                    priority,
+                    start_range,
+                    ..
+                } => {
+                    if start_range.0 <= now {
+                        match priority {
+                            SurrealScheduledPriority::Always => PriorityLevel::Scheduled,
+                            SurrealScheduledPriority::WhenRoutineIsActive => {
+                                PriorityLevel::RoutineScheduled
+                            }
+                        }
+                    } else {
+                        PriorityLevel::NothingForMeToDo
+                    }
+                }
+            }
         } else {
             PriorityLevel::Routine
         }
+    }
+
+    pub(crate) fn is_scheduled(&self) -> bool {
+        self.item_node.is_scheduled()
+    }
+
+    pub(crate) fn get_scheduled(&self) -> &SurrealScheduled {
+        self.item_node.get_scheduled()
     }
 }
 

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::base_data::item::Item;
@@ -94,8 +95,16 @@ impl<'s> ItemHighestLapCount<'s> {
         self.item_lap_count.get_lap_count()
     }
 
-    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
-        self.item_lap_count.get_priority_level()
+    pub(crate) fn get_priority_level(&self, now: &DateTime<Utc>) -> PriorityLevel {
+        self.item_lap_count.get_priority_level(now)
+    }
+
+    pub(crate) fn is_scheduled(&self) -> bool {
+        self.item_lap_count.is_scheduled()
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.item_lap_count.is_active()
     }
 }
 

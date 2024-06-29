@@ -5,7 +5,7 @@ use surrealdb::{opt::RecordId, sql::Thing};
 use crate::surrealdb_layer::{
     surreal_item::{
         Facing, ItemType, NotesLocation, Permanence, Responsibility, SurrealItem,
-        SurrealOrderedSubItem, SurrealStaging,
+        SurrealOrderedSubItem, SurrealScheduled, SurrealStaging,
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };
@@ -322,6 +322,19 @@ impl<'b> Item<'b> {
 
     pub(crate) fn get_created(&self) -> &DateTime<Utc> {
         &self.surreal_item.created
+    }
+
+    pub(crate) fn is_scheduled(&self) -> bool {
+        match self.surreal_item.scheduled {
+            SurrealScheduled::NotScheduled => false,
+            SurrealScheduled::ScheduledExact { .. } | SurrealScheduled::ScheduledRange { .. } => {
+                true
+            }
+        }
+    }
+
+    pub(crate) fn get_scheduled(&self) -> &SurrealScheduled {
+        &self.surreal_item.scheduled
     }
 }
 

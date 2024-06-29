@@ -10,7 +10,9 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
-    display::display_item_lap_count::DisplayItemLapCount,
+    display::{
+        display_item_lap_count::DisplayItemLapCount, display_scheduled_item::DisplayScheduledItem,
+    },
     menu::inquire::top_menu::present_top_menu,
     node::item_lap_count::ItemLapCount,
     surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
@@ -83,7 +85,7 @@ pub(crate) async fn present_normal_bullet_list_menu_version_2(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    let bullet_list = BulletList::new_bullet_list_version_2(calculated_data);
+    let bullet_list = BulletList::new_bullet_list_version_2(calculated_data, &now);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
@@ -105,12 +107,28 @@ pub(crate) async fn present_normal_bullet_list_menu_version_1(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    let bullet_list = BulletList::new_bullet_list_version_1(calculated_data);
+    let bullet_list = BulletList::new_bullet_list_version_1(calculated_data, &now);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
+    present_upcoming(&bullet_list, now);
     present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
+}
+
+pub(crate) fn present_upcoming(bullet_list: &BulletList, now: DateTime<Utc>) {
+    let upcoming = bullet_list.get_upcoming();
+    if !upcoming.is_empty() {
+        println!("Upcoming:");
+        for scheduled_item in upcoming
+            .get_ordered_scheduled_items()
+            .as_ref()
+            .expect("upcoming is not empty")
+        {
+            let display_scheduled_item = DisplayScheduledItem::new(scheduled_item, &now);
+            println!("{}", display_scheduled_item);
+        }
+    }
 }
 
 pub(crate) async fn present_bullet_list_menu(

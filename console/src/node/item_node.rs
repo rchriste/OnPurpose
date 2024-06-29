@@ -5,7 +5,9 @@ use surrealdb::sql::Thing;
 
 use crate::{
     base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{Facing, ItemType, SurrealItem, SurrealStaging},
+    surrealdb_layer::surreal_item::{
+        Facing, ItemType, SurrealItem, SurrealScheduled, SurrealStaging,
+    },
 };
 
 use super::Filter;
@@ -235,6 +237,14 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_active(&self) -> bool {
         !self.is_finished()
+    }
+
+    pub(crate) fn is_scheduled(&self) -> bool {
+        self.item.is_scheduled()
+    }
+
+    pub(crate) fn get_scheduled(&self) -> &SurrealScheduled {
+        self.item.get_scheduled()
     }
 }
 

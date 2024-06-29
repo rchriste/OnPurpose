@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.0.243"
+version = "0.0.244"
 edition = "2021"
 
 [dependencies]
@@ -23,7 +23,7 @@ ouroboros = { git = "https://github.com/rchriste/ouroboros", branch = "main" }
 derive_builder = "0.20.0"
 better_term = "1.4.61" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
 crossterm = "0.27.0" #Added so I can use RATATUI
-ratatui = "0.26.0" #Added to experiment with a TUI rather than just inquire
+ratatui = "0.27.0" #Added to experiment with a TUI rather than just inquire
 
 # Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
 # sure as it seems to require that you come up with your own RecordId without the ability to specify NONE to get 

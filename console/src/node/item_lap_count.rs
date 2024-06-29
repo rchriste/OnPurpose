@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use surrealdb::{opt::RecordId, sql::Thing};
 
 use crate::{
@@ -119,8 +120,16 @@ impl<'s> ItemLapCount<'s> {
         self.item_status.is_type_motivation()
     }
 
-    pub(crate) fn get_priority_level(&self) -> PriorityLevel {
-        self.item_status.get_priority_level()
+    pub(crate) fn get_priority_level(&self, now: &DateTime<Utc>) -> PriorityLevel {
+        self.item_status.get_priority_level(now)
+    }
+
+    pub(crate) fn is_scheduled(&self) -> bool {
+        self.item_status.is_scheduled()
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.item_status.is_active()
     }
 }
 

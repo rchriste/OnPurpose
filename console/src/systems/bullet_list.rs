@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
@@ -5,6 +6,7 @@ use crate::{
     base_data::item::Item,
     calculated_data::CalculatedData,
     node::{item_highest_lap_count::ItemHighestLapCount, item_lap_count::ItemLapCount, Filter},
+    systems::upcoming::Upcoming,
 };
 
 #[self_referencing]
@@ -14,10 +16,17 @@ pub(crate) struct BulletList {
     #[borrows(calculated_data)]
     #[covariant]
     ordered_bullet_list: Vec<BulletListReason<'this>>,
+
+    #[borrows(calculated_data)]
+    #[covariant]
+    upcoming: Upcoming<'this>,
 }
 
 impl BulletList {
-    pub(crate) fn new_bullet_list_version_2(calculated_data: CalculatedData) -> Self {
+    pub(crate) fn new_bullet_list_version_2(
+        calculated_data: CalculatedData,
+        current_time: &DateTime<Utc>,
+    ) -> Self {
         BulletListBuilder {
             calculated_data,
             ordered_bullet_list_builder: |calculated_data| {
@@ -30,11 +39,18 @@ impl BulletList {
                     .collect::<Vec<_>>();
                 todo!()
             },
+            upcoming_builder: |calculated_data| {
+                let upcoming = Upcoming::new(calculated_data, current_time);
+                upcoming
+            },
         }
         .build()
     }
 
-    pub(crate) fn new_bullet_list_version_1(calculated_data: CalculatedData) -> Self {
+    pub(crate) fn new_bullet_list_version_1(
+        calculated_data: CalculatedData,
+        current_time: &DateTime<Utc>,
+    ) -> Self {
         BulletListBuilder {
             calculated_data,
             ordered_bullet_list_builder: |calculated_data| {
@@ -58,7 +74,9 @@ impl BulletList {
                 all_leaf_status_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
 
                 all_leaf_status_nodes.sort_by(|a, b| {
-                    (a.get_priority_level().cmp(&b.get_priority_level())).then_with(|| {
+                    (a.get_priority_level(current_time)
+                        .cmp(&b.get_priority_level(current_time)))
+                    .then_with(|| {
                         b.get_lap_count()
                             .partial_cmp(&a.get_lap_count())
                             .expect("Lap count is never a weird NaN")
@@ -70,6 +88,10 @@ impl BulletList {
                     .map(BulletListReason::new)
                     .collect::<Vec<_>>()
             },
+            upcoming_builder: |calculated_data| {
+                let upcoming = Upcoming::new(calculated_data, current_time);
+                upcoming
+            },
         }
         .build()
     }
@@ -80,6 +102,10 @@ impl BulletList {
 
     pub(crate) fn get_all_items_highest_lap_count(&self) -> &[ItemHighestLapCount<'_>] {
         self.borrow_calculated_data().get_items_highest_lap_count()
+    }
+
+    pub(crate) fn get_upcoming(&self) -> &Upcoming {
+        self.borrow_upcoming()
     }
 }
 

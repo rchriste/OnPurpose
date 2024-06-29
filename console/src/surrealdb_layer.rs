@@ -9,6 +9,7 @@ pub(crate) mod surreal_tables;
 pub(crate) mod surreal_time_spent;
 
 use chrono::{DateTime, Local, Utc};
+use surreal_item::SurrealScheduled;
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     opt::RecordId,
@@ -85,6 +86,7 @@ pub(crate) enum DataLayerCommands {
     UpdateItemStaging(RecordId, SurrealStaging),
     UpdateItemSummary(RecordId, String),
     UpdateFacing(RecordId, Vec<Facing>),
+    UpdateScheduled(RecordId, SurrealScheduled),
 }
 
 impl DataLayerCommands {
@@ -264,6 +266,30 @@ pub(crate) async fn data_storage_start_and_run(
                 item.facing = new_facing;
                 let updated = item.clone().update(&db).await.unwrap().unwrap();
                 assert_eq!(item, updated);
+            }
+            Some(DataLayerCommands::UpdateScheduled(record_id, new_scheduled)) => {
+                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                item.scheduled = new_scheduled;
+                let updated = item.clone().update(&db).await.unwrap().unwrap();
+                if item != updated {
+                    let updated: SurrealItem = db
+                        .update((
+                            SurrealItem::TABLE_NAME,
+                            item.get_id().clone().unwrap().id.clone().to_raw(),
+                        ))
+                        //I am doing this directly rather than using the update method on the surreal_item type because I need to call content rather than update
+                        //because I changed the type of Staging::OnDeck to include two parameters and update will silently not update and content will properly
+                        //do this update. Although in theory content is creating a new record so that might cause more churn if it is not required. I might consider
+                        //just migrating all records all at once and one time to prevent this need to use content for ever more.
+                        .content(item.clone())
+                        .await
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(item, updated);
+                }
             }
             None => return, //Channel closed, time to shutdown down, exit
         }
