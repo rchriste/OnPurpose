@@ -23,6 +23,11 @@ use std::fmt::Display;
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub(crate) enum StagingMenuSelection<'e> {
     KeepAsIs(&'e SurrealStaging),
+    BeforeAnythingScheduled,
+    Schedule,
+    BeforeRoutine,
+    AlwaysUrgent,
+    WillBecomeUrgent,
     InRelationTo,
     NotSet,
     MentallyResident,
@@ -37,6 +42,7 @@ impl Display for StagingMenuSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StagingMenuSelection::NotSet => write!(f, "Not Set"),
+            StagingMenuSelection::BeforeAnythingScheduled => write!(f, "Before Anything Scheduled"),
             StagingMenuSelection::MentallyResident => write!(f, "🧠 Mentally Resident"),
             StagingMenuSelection::OnDeck => write!(f, "🔜 On Deck"),
             StagingMenuSelection::Planned => write!(f, "📌 Planned"),

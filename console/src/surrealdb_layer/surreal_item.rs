@@ -46,7 +46,16 @@ pub(crate) struct SurrealItem {
     pub(crate) permanence: Permanence,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: SurrealStaging,
+    pub(crate) lap: Option<SurrealLap>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) ready: SurrealReady,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) importance_review: Option<SurrealImportanceReview>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) plan_review: Option<SurrealPlanReview>,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -57,6 +66,9 @@ pub(crate) struct SurrealItem {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) scheduled: SurrealScheduled,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) urgency_plan: SurrealUrgencyPlan,
 }
 
 impl From<SurrealItem> for Option<Thing> {
@@ -83,6 +95,7 @@ impl SurrealItem {
             staging: new_item.staging,
             created: new_item.created.into(),
             scheduled: new_item.scheduled,
+            urgency_plan: new_item.urgency_plan,
         }
     }
 
@@ -169,15 +182,59 @@ pub(crate) enum Permanence {
     NotSet,
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealReady {
+    #[default]
+    Always,
+    AfterDateTime(Datetime),
+    DuringItem(RecordId),
+    AfterItem(RecordId)
+}
+
+pub(crate) struct SurrealMentallyResident {
+    pub(crate) last_worked_on: Datetime,
+    pub(crate) save_state: SurrealSaveState,
+    pub(crate) work_on_frequency: SurrealFrequency,
+}
+
+pub(crate) enum SurrealSaveState {
+    Internal(String),
+    //OneNote is where I hope to move this in the future or maybe inside the linked item
+}
+
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum EnterListReason {
+pub(crate) struct SurrealImportanceReview {
+    pub(crate) last_reviewed: Datetime,
+    pub(crate) when_ready: SurrealReady,
+    pub(crate) review_frequency: SurrealFrequency,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) struct SurrealPlanReview {
+    pub(crate) last_reviewed: Datetime,
+    pub(crate) when_ready: SurrealReady,
+    pub(crate) review_frequency: SurrealFrequency,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealFrequency {
+    Scheduled{ range_start: Datetime, range_end: Datetime},
+    Hourly,
+    Daily,
+    Weekly,
+    Monthly,
+    Quarterly,
+    Yearly,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum EnterListReasonOldVersion {
     DateTime(Datetime),
     HighestUncovered {
         earliest: Datetime,
         review_after: Datetime,
     },
 }
-
 //This is a newtype pattern for f32 that implements PartialEq and Eq
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct EqF32(f32);
@@ -456,6 +513,28 @@ pub(crate) enum SurrealScheduledPriority {
     WhenRoutineIsActive,
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealUrgencyPlan {
+    WillEscalate{start: SurrealUrgency, trigger: Datetime, after_trigger: SurrealUrgency},
+    Always(SurrealUrgency),
+}
+
+impl Default for SurrealUrgencyPlan {
+    fn default() -> Self {
+        SurrealUrgencyPlan::Always(SurrealUrgency::default())
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealUrgency {
+    BeforeScheduledItems,
+    BeforeRoutine,
+    ElavatedInsideRoutine,
+    #[default]
+    Normal,
+}
+
+
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
 //it always to see if that addresses these phantom errors. Nov2023.
@@ -494,6 +573,9 @@ pub(crate) struct SurrealItemOldVersion {
     #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
     //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) scheduled: SurrealScheduled,
 }
 
 impl From<SurrealItemOldVersion> for SurrealItem {
@@ -510,7 +592,8 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             staging: value.staging,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: value.created,
-            scheduled: SurrealScheduled::NotScheduled,
+            scheduled: value.scheduled,
+            urgency_plan: SurrealUrgencyPlan::default(),
         }
     }
 }
