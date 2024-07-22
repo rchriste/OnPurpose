@@ -2,7 +2,7 @@ use crate::base_data::item::Item;
 use inquire::{InquireError, Text};
 use tokio::sync::mpsc::Sender;
 
-use crate::surrealdb_layer::DataLayerCommands;
+use crate::surrealdb_layer::data_layer_commands::DataLayerCommands;
 
 pub(crate) async fn update_item_summary(
     item_to_update: &Item<'_>,
@@ -14,7 +14,7 @@ pub(crate) async fn update_item_summary(
     match new_summary {
         Ok(new_summary) => {
             send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateItemSummary(
+                .send(DataLayerCommands::UpdateSummary(
                     item_to_update.get_surreal_record_id().clone(),
                     new_summary,
                 ))

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     base_data::item::Item,
     node::{item_node::ItemNode, Filter},
-    surrealdb_layer::surreal_item::{ItemType, SurrealStaging},
+    surrealdb_layer::surreal_item::SurrealItemType,
 };
 
 use super::display_item::DisplayItem;
@@ -15,17 +15,6 @@ pub struct DisplayItemNode<'s> {
 impl Display for DisplayItemNode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_item = DisplayItem::new(self.item_node.get_item());
-
-        let staging = self.get_staging();
-        match staging {
-            SurrealStaging::OnDeck { .. } => write!(f, "🔜 ")?,
-            SurrealStaging::MentallyResident { .. } => write!(f, "🧠 ")?,
-            SurrealStaging::Planned { .. } => write!(f, "📝 ")?,
-            SurrealStaging::ThinkingAbout { .. } => write!(f, "🤔 ")?,
-            SurrealStaging::Released { .. } => write!(f, "🪽 ")?,
-            SurrealStaging::NotSet => write!(f, "❓ ")?,
-            SurrealStaging::InRelationTo { .. } => write!(f, "🔗 ")?,
-        }
 
         if self.item_node.is_person_or_group() {
             write!(f, "Is {} around?", display_item)?;
@@ -52,10 +41,6 @@ impl<'s> DisplayItemNode<'s> {
         item_nodes.iter().map(DisplayItemNode::new).collect()
     }
 
-    pub(crate) fn get_staging(&self) -> &'s SurrealStaging {
-        self.item_node.get_staging()
-    }
-
     pub(crate) fn get_item_node(&self) -> &'s ItemNode<'s> {
         self.item_node
     }
@@ -68,7 +53,7 @@ impl<'s> DisplayItemNode<'s> {
         self.item_node.is_type_goal()
     }
 
-    pub(crate) fn get_type(&self) -> &ItemType {
+    pub(crate) fn get_type(&self) -> &SurrealItemType {
         self.item_node.get_type()
     }
 

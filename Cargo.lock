@@ -2218,6 +2218,7 @@ dependencies = [
  "itertools 0.13.0",
  "ouroboros",
  "parse_datetime",
+ "rand",
  "ratatui",
  "serde",
  "surrealdb",

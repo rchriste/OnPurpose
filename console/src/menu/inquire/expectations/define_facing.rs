@@ -13,8 +13,8 @@ use crate::{
     },
     node::{item_node::ItemNode, Filter},
     surrealdb_layer::{
-        surreal_item::{Facing, HowWellDefined},
-        DataLayerCommands,
+        data_layer_commands::DataLayerCommands,
+        surreal_item::{SurrealFacing, SurrealHowWellDefined},
     },
 };
 
@@ -31,18 +31,17 @@ pub(crate) async fn define_facing(
         let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
         let all_items = base_data.get_items();
         let active_items = base_data.get_active_items();
-        let covering = base_data.get_coverings();
-        let active_covering_until_date_time = base_data.get_active_snoozed();
+        let time_spent_log = base_data.get_time_spent_log();
 
         let item_nodes = active_items
             .iter()
             .filter(|x| !x.is_person_or_group())
-            .map(|x| ItemNode::new(x, covering, active_covering_until_date_time, all_items))
+            .map(|x| ItemNode::new(x, all_items, time_spent_log))
             .collect::<Vec<_>>();
 
         let item_nodes = item_nodes
             .iter()
-            .filter(|x| !x.has_larger(Filter::Active) && x.is_facing_undefined())
+            .filter(|x| !x.has_parents(Filter::Active) && x.is_facing_undefined())
             .collect::<Vec<_>>();
 
         let display_item_nodes = item_nodes
@@ -129,13 +128,13 @@ impl HowWellDefinedSelection {
     }
 }
 
-impl From<HowWellDefinedSelection> for HowWellDefined {
+impl From<HowWellDefinedSelection> for SurrealHowWellDefined {
     fn from(item: HowWellDefinedSelection) -> Self {
         match item {
-            HowWellDefinedSelection::NotSet => HowWellDefined::NotSet,
-            HowWellDefinedSelection::WellDefined => HowWellDefined::WellDefined,
-            HowWellDefinedSelection::RoughlyDefined => HowWellDefined::RoughlyDefined,
-            HowWellDefinedSelection::LooselyDefined => HowWellDefined::LooselyDefined,
+            HowWellDefinedSelection::NotSet => SurrealHowWellDefined::NotSet,
+            HowWellDefinedSelection::WellDefined => SurrealHowWellDefined::WellDefined,
+            HowWellDefinedSelection::RoughlyDefined => SurrealHowWellDefined::RoughlyDefined,
+            HowWellDefinedSelection::LooselyDefined => SurrealHowWellDefined::LooselyDefined,
         }
     }
 }
@@ -156,7 +155,7 @@ async fn single_item_define_facing(
             let selection = Select::new("Select How Well Defined |", list).prompt();
             match selection {
                 Ok(selection) => {
-                    let facing = Facing::Myself(selection.into());
+                    let facing = SurrealFacing::Myself(selection.into());
                     send_to_data_storage_layer
                         .send(DataLayerCommands::UpdateFacing(
                             item_node.get_surreal_record_id().clone(),
@@ -185,7 +184,7 @@ async fn single_item_define_facing(
             let selection = Select::new("Select How Well Defined |", list).prompt();
             match selection {
                 Ok(selection) => {
-                    let facing = Facing::Others {
+                    let facing = SurrealFacing::Others {
                         how_well_defined: selection.into(),
                         who: person_or_group,
                     };
@@ -217,8 +216,8 @@ async fn single_item_define_facing(
             let selection = Select::new("Select How Well Defined |", list).prompt();
             match selection {
                 Ok(selection) => {
-                    let myself_facing = Facing::Myself(selection.into());
-                    let others_facing = Facing::Others {
+                    let myself_facing = SurrealFacing::Myself(selection.into());
+                    let others_facing = SurrealFacing::Others {
                         how_well_defined: selection.into(),
                         who: person_or_group,
                     };
