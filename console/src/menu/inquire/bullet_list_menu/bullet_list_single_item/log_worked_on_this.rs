@@ -3,64 +3,34 @@ use std::{fmt::Display, time::Duration};
 use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
-use surrealdb::{opt::RecordId, sql::Datetime};
+use surrealdb::sql::Datetime;
 use tokio::sync::{mpsc::Sender, oneshot};
 
 use crate::{
     display::display_duration::DisplayDuration,
     new_time_spent::NewTimeSpent,
-    node::{item_lap_count::ItemLapCount, item_status::ItemStatus, Filter},
+    node::{item_status::ItemStatus, Filter},
     surrealdb_layer::{
-        surreal_time_spent::{SurrealBulletListPosition, SurrealDedication},
-        DataLayerCommands,
+        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
+        surreal_time_spent::SurrealDedication,
     },
-    systems::bullet_list::BulletListReason,
 };
 
 pub(crate) async fn log_worked_on_this(
-    selected: &ItemLapCount<'_>,
+    selected: &ItemStatus<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-    ordered_bullet_list: &[BulletListReason<'_>],
 ) -> Result<(), ()> {
     //TODO: Change Error return type to a custom struct ExitProgram or something
     // This logs time spent on an item with the goal of in the future making it possible for the user to adjust items and balance
     // Logs the following:
     // When starting to work on item
-    // -Position in list
-    let position_in_list = ordered_bullet_list
-        .iter()
-        .position(|reason| reason.get_surreal_record_id() == selected.get_surreal_record_id());
+    // -urgency in list
+    let urgency = selected.get_urgency_now().cloned();
 
-    let bullet_list_position = if let Some(position_in_list) = position_in_list {
-        // -Lap count
-        let lap_count = selected.get_lap_count();
-
-        // -Lap count of next lower and next higher so you know how much you would need to dampen or boost to work on something else
-        let next_lower_lap_count: Option<f32> = ordered_bullet_list
-            .get(position_in_list + 1)
-            .map(|reason| reason.get_lap_count());
-        let next_higher_lap_count: Option<f32> = if position_in_list == 0 {
-            None
-        } else {
-            ordered_bullet_list
-                .get(position_in_list - 1)
-                .map(|reason| reason.get_lap_count())
-        };
-
-        Some(SurrealBulletListPosition {
-            position_in_list: position_in_list as u64,
-            lap_count,
-            next_lower_lap_count,
-            next_higher_lap_count,
-        })
-    } else {
-        None
-    };
-
-    let working_on = create_working_on_list(selected.get_item_status());
+    let working_on = create_working_on_list(selected);
     // -When started
     loop {
         let (when_started, when_stopped) = ask_when_started_and_stopped(
@@ -75,10 +45,10 @@ pub(crate) async fn log_worked_on_this(
         if let Some(dedication) = ask_about_dedication()? {
             let time_spent = NewTimeSpent {
                 working_on,
-                bullet_list_position,
+                urgency,
                 when_started,
                 when_stopped,
-                dedication,
+                dedication: Some(dedication),
             };
             send_to_data_storage_layer
                 .send(DataLayerCommands::RecordTimeSpent(time_spent))
@@ -92,11 +62,11 @@ pub(crate) async fn log_worked_on_this(
     Ok(())
 }
 
-fn create_working_on_list(selected: &ItemStatus<'_>) -> Vec<RecordId> {
+fn create_working_on_list(selected: &ItemStatus<'_>) -> Vec<SurrealAction> {
     selected
-        .get_self_and_larger_flattened(Filter::Active)
+        .get_self_and_parents_flattened(Filter::Active)
         .iter()
-        .map(|x| x.get_surreal_record_id().clone())
+        .map(|x| SurrealAction::MakeProgress(x.get_surreal_record_id().clone()))
         .collect()
 }
 
@@ -320,24 +290,26 @@ async fn get_when_the_last_item_finished(
 
 enum Dedication {
     Primary,
-    Secondary,
+    Background,
 }
 
 impl Display for Dedication {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Dedication::Primary => write!(f, "Primary or Main Task"),
-            Dedication::Secondary => write!(f, "Secondary or Background Task"),
+            Dedication::Background => {
+                write!(f, "Background Task, with another Task in the Foreground")
+            }
         }
     }
 }
 
 fn ask_about_dedication() -> Result<Option<SurrealDedication>, ()> {
-    let dedication = vec![Dedication::Primary, Dedication::Secondary];
+    let dedication = vec![Dedication::Primary, Dedication::Background];
     let dedication = Select::new("What is the dedication of this time spent?", dedication).prompt();
     match dedication {
         Ok(Dedication::Primary) => Ok(Some(SurrealDedication::PrimaryTask)),
-        Ok(Dedication::Secondary) => Ok(Some(SurrealDedication::SecondaryTask)),
+        Ok(Dedication::Background) => Ok(Some(SurrealDedication::BackgroundTask)),
         Err(InquireError::OperationCanceled) => Ok(None),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => todo!("{:?}", err),

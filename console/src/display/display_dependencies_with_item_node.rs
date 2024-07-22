@@ -1,0 +1,61 @@
+use std::fmt::{self, Display};
+
+use chrono::{DateTime, Local};
+
+use crate::node::item_status::DependencyWithItemNode;
+
+use super::display_item_node::DisplayItemNode;
+
+pub(crate) struct DisplayDependenciesWithItemNode<'s> {
+    dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>,
+}
+
+impl Display for DisplayDependenciesWithItemNode<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.dependencies.is_empty() {
+            write!(f, "Always")
+        } else {
+            for waiting_on in self.dependencies.iter() {
+                match waiting_on {
+                    DependencyWithItemNode::AfterDateTime {
+                        after,
+                        is_active: _is_active,
+                    } => {
+                        let datetime: DateTime<Local> = after.with_timezone(&Local);
+                        write!(f, "After {}", datetime.format("%a %d %b %Y %I:%M:%S%p"))?;
+                    }
+                    DependencyWithItemNode::UntilScheduled {
+                        after,
+                        is_active: _is_active,
+                    } => {
+                        let datetime: DateTime<Local> = after.with_timezone(&Local);
+                        write!(
+                            f,
+                            "Until scheduled {}",
+                            datetime.format("%a %d %b %Y %I:%M:%S%p")
+                        )?
+                    }
+                    DependencyWithItemNode::AfterItem(dependency) => {
+                        let display_item_node = DisplayItemNode::new(dependency);
+                        write!(f, "After dependency {}", display_item_node)?
+                    }
+                    DependencyWithItemNode::AfterChildItem(smaller_item) => {
+                        let display_item_node = DisplayItemNode::new(smaller_item);
+                        write!(f, "After child item {}", display_item_node)?
+                    }
+                    DependencyWithItemNode::DuringItem(item_node) => {
+                        let display_item_node = DisplayItemNode::new(item_node);
+                        write!(f, "During item {}", display_item_node)?
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
+impl<'s> DisplayDependenciesWithItemNode<'s> {
+    pub(crate) fn new(dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>) -> Self {
+        DisplayDependenciesWithItemNode { dependencies }
+    }
+}

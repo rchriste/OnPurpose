@@ -5,43 +5,43 @@ use chrono::{DateTime, Local, Utc};
 
 use crate::{
     display::display_duration_one_unit::DisplayDurationOneUnit,
-    surrealdb_layer::surreal_item::{SurrealScheduled, SurrealScheduledPriority},
+    surrealdb_layer::surreal_item::SurrealScheduled,
     systems::upcoming::scheduled_item::ScheduledItem,
 };
 
 pub(crate) struct DisplayScheduledItem<'s> {
     scheduled_item: &'s ScheduledItem<'s>,
-    now: DateTime<Local>,
+    now_local: DateTime<Local>,
 }
 
 impl<'s> Display for DisplayScheduledItem<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         //scheduled_start in bold then +duration also in bold then start range
         //tab then name in italics
-        match self.scheduled_item.get_scheduled() {
-            SurrealScheduled::NotScheduled => panic!("Programming error, not a scheduled item"),
-            SurrealScheduled::ScheduledExact {
+        match self
+            .scheduled_item
+            .get_scheduled_now()
+            .expect("This should only be used for scheduled items")
+        {
+            SurrealScheduled::Exact {
                 start: _start,
                 duration,
-                priority,
             } => {
                 let scheduled_start = self.scheduled_item.get_scheduled_start();
                 let scheduled_start = scheduled_start.with_timezone(&Local);
+                let now_local = self.get_now().with_timezone(&Local);
                 writeln!(
                     f,
-                    "{}={} lasting {}{} {}{}",
+                    "{}={} lasting {}{}",
                     Style::default().bold(),
-                    duration_or_time(&self.now, &scheduled_start),
+                    duration_or_time(&now_local, &scheduled_start),
                     DisplayDurationOneUnit::new(duration),
-                    Style::default().italic(),
-                    format_priority(priority),
                     Style::default()
                 )?;
             }
-            SurrealScheduled::ScheduledRange {
+            SurrealScheduled::Range {
                 start_range,
                 duration,
-                priority,
             } => {
                 let scheduled_start = self.scheduled_item.get_scheduled_start();
                 let scheduled_start = scheduled_start.with_timezone(&Local);
@@ -51,13 +51,11 @@ impl<'s> Display for DisplayScheduledItem<'s> {
                 let delay_up_to = DisplayDurationOneUnit::new(&delay_up_to);
                 writeln!(
                     f,
-                    "{}~{} delay up to {} lasting {}{} {}{}",
+                    "{}~{} delay up to {} lasting {}{}",
                     Style::default().bold(),
-                    duration_or_time(&self.now, &scheduled_start),
+                    duration_or_time(&self.now_local, &scheduled_start),
                     delay_up_to,
                     DisplayDurationOneUnit::new(duration),
-                    Style::default().italic(),
-                    format_priority(priority),
                     Style::default()
                 )?;
             }
@@ -67,12 +65,16 @@ impl<'s> Display for DisplayScheduledItem<'s> {
 }
 
 impl<'s> DisplayScheduledItem<'s> {
-    pub(crate) fn new(scheduled_item: &'s ScheduledItem<'s>, now: &DateTime<Utc>) -> Self {
-        let now = now.with_timezone(&Local);
+    pub(crate) fn new(scheduled_item: &'s ScheduledItem<'s>) -> Self {
+        let now_local = scheduled_item.get_now().with_timezone(&Local);
         Self {
             scheduled_item,
-            now,
+            now_local,
         }
+    }
+
+    fn get_now(&self) -> &DateTime<Utc> {
+        self.scheduled_item.get_now()
     }
 }
 
@@ -86,12 +88,5 @@ fn duration_or_time(now: &DateTime<Local>, time: &DateTime<Local>) -> String {
         format!("{}", DisplayDurationOneUnit::new(&duration))
     } else {
         format!("{}", time.format("%a %d %b %Y %I:%M%p"))
-    }
-}
-
-fn format_priority(priority: &SurrealScheduledPriority) -> String {
-    match priority {
-        SurrealScheduledPriority::Always => "Always".to_string(),
-        SurrealScheduledPriority::WhenRoutineIsActive => "When Routine Scheduled".to_string(),
     }
 }

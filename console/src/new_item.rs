@@ -3,7 +3,8 @@ use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
 use crate::surrealdb_layer::surreal_item::{
-    Facing, ItemType, Permanence, Responsibility, SurrealScheduled, SurrealStaging,
+    Responsibility, SurrealDependency, SurrealFacing, SurrealItemReview, SurrealItemType,
+    SurrealLap, SurrealUrgencyPlan,
 };
 
 #[derive(Builder)]
@@ -18,22 +19,25 @@ pub(crate) struct NewItem {
     pub(crate) responsibility: Responsibility,
 
     #[builder(default)]
-    pub(crate) facing: Vec<Facing>,
+    pub(crate) facing: Vec<SurrealFacing>,
 
     #[builder(default)]
-    pub(crate) item_type: ItemType,
-
-    #[builder(default)]
-    pub(crate) permanence: Permanence,
-
-    #[builder(default)]
-    pub(crate) staging: SurrealStaging,
+    pub(crate) item_type: SurrealItemType,
 
     #[builder(default = "Utc::now()")]
     pub(crate) created: DateTime<Utc>,
 
     #[builder(default)]
-    pub(crate) scheduled: SurrealScheduled,
+    pub(crate) urgency_plan: Option<SurrealUrgencyPlan>,
+
+    #[builder(default)]
+    pub(crate) lap: Option<SurrealLap>,
+
+    #[builder(default)]
+    pub(crate) dependencies: Vec<SurrealDependency>,
+
+    #[builder(default)]
+    pub(crate) item_review: Option<SurrealItemReview>,
 }
 
 impl NewItem {
@@ -43,11 +47,12 @@ impl NewItem {
             finished: None,
             responsibility: Responsibility::default(),
             facing: Default::default(),
-            item_type: ItemType::Undeclared,
-            permanence: Permanence::default(),
-            staging: SurrealStaging::default(),
+            item_type: SurrealItemType::Undeclared,
             created: now,
-            scheduled: SurrealScheduled::default(),
+            urgency_plan: None,
+            lap: None,
+            dependencies: Default::default(),
+            item_review: None,
         }
     }
 
@@ -57,11 +62,12 @@ impl NewItem {
             finished: None,
             responsibility: Responsibility::ReactiveBeAvailableToAct,
             facing: Default::default(),
-            item_type: ItemType::PersonOrGroup,
-            permanence: Permanence::default(),
-            staging: SurrealStaging::default(),
+            item_type: SurrealItemType::PersonOrGroup,
             created: now,
-            scheduled: SurrealScheduled::default(),
+            urgency_plan: None,
+            lap: None,
+            dependencies: Default::default(),
+            item_review: None,
         }
     }
 }

@@ -7,21 +7,16 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
-    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
-    menu::inquire::{
-        bullet_list_menu::bullet_list_single_item::set_staging::{
-            present_set_staging_menu, StagingMenuSelection,
-        },
-        select_higher_priority_than_this::select_higher_priority_than_this,
-        staging_query::{mentally_resident_query, on_deck_query},
-    },
-    node::{item_highest_lap_count::ItemHighestLapCount, item_node::ItemNode, Filter},
-    surrealdb_layer::{
-        surreal_item::SurrealStaging, surreal_tables::SurrealTables, DataLayerCommands,
-    },
+    display::display_item_node::DisplayItemNode,
+    menu::inquire::select_higher_importance_than_this::select_higher_importance_than_this,
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
-use super::ItemTypeSelection;
+use super::{
+    urgency_plan::{prompt_for_dependencies_and_urgency_plan, AddOrRemove},
+    ItemTypeSelection,
+};
 
 pub(crate) enum SelectAnItemSortingOrder {
     MotivationsFirst,
@@ -32,9 +27,9 @@ pub(crate) async fn select_an_item<'a>(
     dont_show_these_items: Vec<&Item<'_>>,
     sorting_order: SelectAnItemSortingOrder,
     calculated_data: &'a CalculatedData,
-) -> Result<Option<&'a ItemHighestLapCount<'a>>, ()> {
+) -> Result<Option<&'a ItemStatus<'a>>, ()> {
     let active_items = calculated_data
-        .get_items_highest_lap_count()
+        .get_items_status()
         .iter()
         .filter(|x| !dont_show_these_items.iter().any(|y| x.get_item() == *y) && !x.is_finished())
         .collect::<Vec<_>>();
@@ -91,7 +86,7 @@ pub(crate) async fn state_a_smaller_next_step(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+    let calculated_data = CalculatedData::new_from_base_data(base_data);
     let selection = select_an_item(
         vec![selected_item.get_item()],
         SelectAnItemSortingOrder::NewestFirst,
@@ -104,12 +99,12 @@ pub(crate) async fn state_a_smaller_next_step(
             let parent = selected_item;
             let child: &Item<'_> = child.get_item();
 
-            let higher_priority_than_this = if parent.has_children(Filter::Active) {
+            let higher_importance_than_this = if parent.has_children(Filter::Active) {
                 let items = parent
-                    .get_smaller(Filter::Active)
+                    .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_priority_than_this(&items)
+                select_higher_importance_than_this(&items, None)
             } else {
                 None
             };
@@ -117,33 +112,21 @@ pub(crate) async fn state_a_smaller_next_step(
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: child.get_surreal_record_id().clone(),
                     parent: parent.get_surreal_record_id().clone(),
-                    higher_priority_than_this,
+                    higher_importance_than_this,
                 })
                 .await
                 .unwrap();
 
-            println!("Please update Staging for {}", DisplayItem::new(child));
-            let default_selection = match child.get_staging() {
-                SurrealStaging::NotSet => Some(StagingMenuSelection::NotSet),
-                SurrealStaging::MentallyResident { .. } => {
-                    Some(StagingMenuSelection::MentallyResident)
-                }
-                SurrealStaging::OnDeck { .. } => Some(StagingMenuSelection::OnDeck),
-                SurrealStaging::Planned => Some(StagingMenuSelection::Planned),
-                SurrealStaging::ThinkingAbout => Some(StagingMenuSelection::ThinkingAbout),
-                SurrealStaging::Released => Some(StagingMenuSelection::Released),
-                SurrealStaging::InRelationTo { .. } => Some(StagingMenuSelection::InRelationTo),
-            };
-            present_set_staging_menu(child, send_to_data_storage_layer, default_selection).await
+            Ok(())
         }
         Ok(None) => {
-            state_a_smaller_next_step_new_item(selected_item, send_to_data_storage_layer).await
+            state_a_child_next_step_new_item(selected_item, send_to_data_storage_layer).await
         }
         Err(()) => Err(()),
     }
 }
 
-pub(crate) async fn state_a_smaller_next_step_new_item(
+pub(crate) async fn state_a_child_next_step_new_item(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -153,7 +136,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(state_a_smaller_next_step_new_item(
+            Box::pin(state_a_child_next_step_new_item(
                 selected_item,
                 send_to_data_storage_layer,
             ))
@@ -161,7 +144,7 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
         }
         Ok(ItemTypeSelection::ResponsiveHelp) => {
             ItemTypeSelection::print_responsive_help();
-            Box::pin(state_a_smaller_next_step_new_item(
+            Box::pin(state_a_child_next_step_new_item(
                 selected_item,
                 send_to_data_storage_layer,
             ))
@@ -169,66 +152,32 @@ pub(crate) async fn state_a_smaller_next_step_new_item(
         }
         Ok(item_type_selection) => {
             let mut new_item = item_type_selection.create_new_item_prompt_user_for_summary();
-            let higher_priority_than_this = if selected_item.has_children(Filter::Active) {
+            let higher_importance_than_this = if selected_item.has_children(Filter::Active) {
                 let items = selected_item
-                    .get_smaller(Filter::Active)
+                    .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_priority_than_this(&items)
+                select_higher_importance_than_this(&items, None)
             } else {
                 None
             };
             let parent = selected_item;
 
-            let (list, starting_cursor) =
-                StagingMenuSelection::make_list(Some(StagingMenuSelection::NotSet), None);
-
-            let selection = Select::new("Select from the below list|", list)
-                .with_starting_cursor(starting_cursor)
-                .with_page_size(9)
-                .prompt()
-                .unwrap();
-            new_item.staging = match selection {
-                StagingMenuSelection::InRelationTo => {
-                    todo!("In relation to")
-                }
-                StagingMenuSelection::NotSet => SurrealStaging::NotSet,
-                StagingMenuSelection::MentallyResident => {
-                    let result = mentally_resident_query().await;
-                    match result {
-                        Ok(mentally_resident) => mentally_resident,
-                        Err(InquireError::OperationCanceled) => {
-                            todo!("I probably need to refactor this into a function so I can use recursion here")
-                        }
-                        Err(InquireError::OperationInterrupted) => return Err(()),
-                        Err(err) => todo!("{:?}", err),
-                    }
-                }
-                StagingMenuSelection::OnDeck => {
-                    let result = on_deck_query().await;
-                    match result {
-                        Ok(staging) => staging,
-                        Err(InquireError::OperationCanceled) => {
-                            todo!("I probably need to refactor this into a function so I can use recursion here")
-                        }
-                        Err(InquireError::OperationInterrupted) => return Err(()),
-                        Err(err) => todo!("{:?}", err),
-                    }
-                }
-                StagingMenuSelection::Planned => SurrealStaging::Planned,
-                StagingMenuSelection::ThinkingAbout => SurrealStaging::ThinkingAbout,
-                StagingMenuSelection::Released => SurrealStaging::Released,
-                StagingMenuSelection::MakeItemReactive => {
-                    todo!("I need to modify the return type to account for this different choice and pass up that information")
-                }
-                StagingMenuSelection::KeepAsIs(staging) => staging.clone(),
-            };
+            let (dependencies, urgency_plan) =
+                prompt_for_dependencies_and_urgency_plan(None, send_to_data_storage_layer).await;
+            let dependencies = dependencies.into_iter().map(|(a, b)|
+        match a {
+            AddOrRemove::Add => b,
+            AddOrRemove::Remove => panic!("You are adding a new item there is nothing to remove so this case will never be hit"),
+        }).collect::<Vec<_>>();
+            new_item.dependencies = dependencies;
+            new_item.urgency_plan = Some(urgency_plan);
 
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemWithANewChildItem {
                     child: new_item,
                     parent: parent.get_surreal_record_id().clone(),
-                    higher_priority_than_this,
+                    higher_importance_than_this,
                 })
                 .await
                 .unwrap();

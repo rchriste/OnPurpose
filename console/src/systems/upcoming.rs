@@ -6,17 +6,12 @@ use chrono::{DateTime, Utc};
 use scheduled_item::{Scheduled, ScheduledItem};
 
 use crate::{
-    base_data::item::Item, calculated_data::CalculatedData,
+    base_data::item::Item, calculated_data::CalculatedData, node::item_status::ItemStatus,
     surrealdb_layer::surreal_item::SurrealScheduled,
 };
 
 pub(crate) struct Upcoming<'s> {
     order: Order<'s>,
-}
-
-pub(crate) enum Conflict<'e> {
-    NoConflict,
-    Conflict(Vec<Item<'e>>),
 }
 
 impl<'s> Upcoming<'s> {
@@ -25,15 +20,9 @@ impl<'s> Upcoming<'s> {
         earliest_starting_time: &DateTime<Utc>,
     ) -> Self {
         let items = calculated_data
-            .get_items_highest_lap_count()
+            .get_items_status()
             .iter()
-            .filter_map(|x| {
-                if x.is_scheduled() && x.is_active() {
-                    Some(x.get_item())
-                } else {
-                    None
-                }
-            })
+            .filter(|x| x.is_scheduled_now() && x.is_active())
             .collect::<Vec<_>>();
         let order = find_a_valid_order(&items, earliest_starting_time, Vec::default());
         Self { order }
@@ -107,7 +96,7 @@ impl<'s> Order<'s> {
 }
 
 fn find_a_valid_order<'s>(
-    items: &[&'s Item<'s>],
+    items: &[&'s ItemStatus<'s>],
     earliest_starting_time: &DateTime<Utc>,
     scheduled: Vec<ScheduledItem<'s>>,
 ) -> Order<'s> {
@@ -120,19 +109,18 @@ fn find_a_valid_order<'s>(
             continue;
         }
         let mut scheduled = scheduled.clone();
-        let to_schedule = item.get_scheduled();
+        let to_schedule = item
+            .get_scheduled_now()
+            .expect("We should only be dealing with scheduled items");
         let (mut start, duration): (DateTime<Utc>, Duration) = match to_schedule {
-            SurrealScheduled::ScheduledExact {
+            SurrealScheduled::Exact {
                 start, duration, ..
             } => (start.clone().into(), (*duration).into()),
-            SurrealScheduled::ScheduledRange {
+            SurrealScheduled::Range {
                 start_range,
                 duration,
                 ..
             } => (start_range.0.clone().into(), (*duration).into()),
-            SurrealScheduled::NotScheduled => panic!(
-                "We should only be dealing with scheduled items, this code should never execute"
-            ),
         };
         //I'm looking for the earliest available time that fits to schedule this item
         if earliest_starting_time > &start {
@@ -161,7 +149,7 @@ fn find_a_valid_order<'s>(
             }
         } else {
             //This ordering won't work
-            result.add_conflict_if_new(item);
+            result.add_conflict_if_new(item.get_item());
         }
     }
     result
@@ -170,15 +158,14 @@ fn find_a_valid_order<'s>(
 impl SurrealScheduled {
     fn is_this_a_valid_starting_time(&self, proposed: DateTime<Utc>) -> bool {
         match self {
-            SurrealScheduled::ScheduledExact {
+            SurrealScheduled::Exact {
                 start: scheduled_start,
                 ..
             } => proposed == scheduled_start.clone().into(),
-            SurrealScheduled::ScheduledRange {
+            SurrealScheduled::Range {
                 start_range: (start, end),
                 ..
             } => proposed >= start.clone().into() && proposed <= end.clone().into(),
-            SurrealScheduled::NotScheduled => false,
         }
     }
 }

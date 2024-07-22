@@ -7,7 +7,7 @@ use crate::{
     base_data::BaseData,
     display::display_item::DisplayItem,
     new_item::NewItemBuilder,
-    surrealdb_layer::{surreal_item::ItemType, DataLayerCommands},
+    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_item::SurrealItemType},
 };
 
 pub(crate) async fn select_person_or_group(
@@ -50,7 +50,7 @@ async fn select_person_or_group_new_person_or_group(
 
     let new_item = NewItemBuilder::default()
         .summary(summary.clone())
-        .item_type(ItemType::PersonOrGroup)
+        .item_type(SurrealItemType::PersonOrGroup)
         .build()
         .unwrap();
     send_to_data_storage_layer

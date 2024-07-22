@@ -4,7 +4,7 @@ use std::{
     ops::{Div, Mul, Sub},
 };
 
-use chrono::TimeDelta;
+use chrono::{DateTime, TimeDelta, Utc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
@@ -15,7 +15,7 @@ use surrealdb_extra::table::Table;
 
 use crate::{base_data::item::Item, new_item::NewItem};
 
-use super::surreal_required_circumstance::SurrealRequiredCircumstance;
+use super::{surreal_required_circumstance::SurrealRequiredCircumstance, SurrealTrigger};
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
@@ -34,19 +34,22 @@ pub(crate) struct SurrealItem {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: Vec<Facing>,
+    pub(crate) facing: Vec<SurrealFacing>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemType,
+    pub(crate) item_type: SurrealItemType,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) permanence: Permanence,
+    pub(crate) lap: Option<SurrealLap>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: SurrealStaging,
+    pub(crate) dependencies: Vec<SurrealDependency>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) item_review: Option<SurrealItemReview>,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -56,7 +59,7 @@ pub(crate) struct SurrealItem {
     pub(crate) created: Datetime,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) scheduled: SurrealScheduled,
+    pub(crate) urgency_plan: Option<SurrealUrgencyPlan>,
 }
 
 impl From<SurrealItem> for Option<Thing> {
@@ -79,16 +82,18 @@ impl SurrealItem {
             item_type: new_item.item_type,
             smaller_items_in_priority_order,
             notes_location: NotesLocation::default(),
-            permanence: new_item.permanence,
-            staging: new_item.staging,
             created: new_item.created.into(),
-            scheduled: new_item.scheduled,
+            urgency_plan: new_item.urgency_plan,
+            lap: new_item.lap,
+            dependencies: new_item.dependencies,
+            item_review: new_item.item_review,
         }
     }
 
     pub(crate) fn make_item<'a>(
         &'a self,
         requirements: &'a [SurrealRequiredCircumstance],
+        now: &'a DateTime<Utc>,
     ) -> Item<'a> {
         let my_requirements = requirements
             .iter()
@@ -101,22 +106,22 @@ impl SurrealItem {
             })
             .collect();
 
-        Item::new(self, my_requirements)
+        Item::new(self, my_requirements, now)
     }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum Facing {
+pub(crate) enum SurrealFacing {
     Others {
-        how_well_defined: HowWellDefined,
+        how_well_defined: SurrealHowWellDefined,
         who: RecordId,
     },
-    Myself(HowWellDefined),
+    Myself(SurrealHowWellDefined),
     InternalOrSmaller,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum HowWellDefined {
+pub(crate) enum SurrealHowWellDefined {
     #[default]
     NotSet,
     WellDefined,
@@ -125,18 +130,49 @@ pub(crate) enum HowWellDefined {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum ItemType {
+pub(crate) enum SurrealItemType {
     #[default]
     Undeclared,
     Action,
-    Goal(HowMuchIsInMyControl),
+    Goal(SurrealHowMuchIsInMyControl),
+    IdeaOrThought,
+    Motivation(SurrealMotivationKind),
+    PersonOrGroup,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealItemTypeOld {
+    #[default]
+    Undeclared,
+    Action,
+    Goal(SurrealHowMuchIsInMyControl),
+    IdeaOrThought,
+    Motivation,
+    PersonOrGroup,
+}
+
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealMotivationKind {
+    #[default]
+    NotSet,
+    CoreWork,
+    NonCoreWork,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum ItemTypeOld {
+    #[default]
+    Undeclared,
+    Action,
+    Goal(SurrealHowMuchIsInMyControl),
     IdeaOrThought,
     Motivation,
     PersonOrGroup,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum HowMuchIsInMyControl {
+pub(crate) enum SurrealHowMuchIsInMyControl {
     #[default]
     NotSet,
     MostlyInMyControl,
@@ -170,14 +206,44 @@ pub(crate) enum Permanence {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum EnterListReason {
+pub(crate) enum SurrealDependency {
+    AfterDateTime(Datetime),
+    DuringItem(RecordId),
+    AfterItem(RecordId),
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) struct SurrealItemReview {
+    pub(crate) last_reviewed: Option<Datetime>,
+    pub(crate) review_frequency: SurrealFrequency,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealFrequency {
+    NoneReviewWithParent,
+    Range {
+        range_min: Duration,
+        range_max: Duration,
+    },
+    Hourly,
+    Daily,
+    EveryFewDays,
+    Weekly,
+    BiMonthly,
+    Monthly,
+    Quarterly,
+    SemiAnnually,
+    Yearly,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum EnterListReasonOldVersion {
     DateTime(Datetime),
     HighestUncovered {
         earliest: Datetime,
         review_after: Datetime,
     },
 }
-
 //This is a newtype pattern for f32 that implements PartialEq and Eq
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct EqF32(f32);
@@ -327,11 +393,11 @@ pub(crate) enum SurrealStaging {
     #[default]
     NotSet,
     MentallyResident {
-        enter_list: EnterListReason,
+        enter_list: EnterListReasonOldVersion,
         lap: SurrealLap,
     },
     OnDeck {
-        enter_list: EnterListReason,
+        enter_list: EnterListReasonOldVersion,
         lap: SurrealLap,
     },
     Planned,
@@ -409,21 +475,8 @@ pub(crate) enum SurrealLap {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealOrderedSubItem {
-    SubItem {
-        surreal_item_id: Thing,
-    },
-    Split {
-        shared_priority: Vec<SurrealPriorityGoal>,
-    },
-}
-
-//Each of these variants should be containing data but I don't want the data layer to get too far ahead of the prototype UI
-//so I want to wait until I can try it out before working out these details so just this for now.
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum SurrealPriorityGoal {
-    AbsoluteInvocationCount,
-    AbsoluteAmountOfTime,
-    RelativePercentageOfTime,
+    SubItem { surreal_item_id: Thing },
+    //This could be expanded to state multiple items that are at the same priority meaning you would go with lap count or something else to determine which to work on first.
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -434,26 +487,79 @@ pub(crate) enum NotesLocation {
     WebLink(String),
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealScheduled {
-    #[default]
-    NotScheduled,
-    ScheduledExact {
+    Exact {
         start: Datetime,
         duration: Duration,
-        priority: SurrealScheduledPriority,
     },
-    ScheduledRange {
+    Range {
         start_range: (Datetime, Datetime),
         duration: Duration,
-        priority: SurrealScheduledPriority,
     },
+}
+
+impl PartialOrd for SurrealScheduled {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SurrealScheduled {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self {
+            SurrealScheduled::Exact { start, .. } => match other {
+                SurrealScheduled::Exact {
+                    start: other_start, ..
+                } => start.cmp(other_start),
+                SurrealScheduled::Range { start_range, .. } => start.cmp(&start_range.0),
+            },
+            SurrealScheduled::Range { start_range, .. } => match other {
+                SurrealScheduled::Exact { start, .. } => start_range.0.cmp(start),
+                SurrealScheduled::Range {
+                    start_range: other_start_range,
+                    ..
+                } => start_range.0.cmp(&other_start_range.0),
+            },
+        }
+    }
+}
+
+impl SurrealScheduled {
+    pub(crate) fn get_earliest_start(&self) -> &Datetime {
+        match self {
+            SurrealScheduled::Exact { start, .. } => start,
+            SurrealScheduled::Range { start_range, .. } => &(start_range.0),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealScheduledPriority {
     Always,
     WhenRoutineIsActive,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealUrgencyPlan {
+    //If any of the triggers, trigger then the urgency will escalate to the later urgency
+    WillEscalate {
+        initial: SurrealUrgency,
+        triggers: Vec<SurrealTrigger>,
+        later: SurrealUrgency,
+    },
+    StaysTheSame(SurrealUrgency),
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, PartialOrd, Ord)]
+pub(crate) enum SurrealUrgency {
+    MoreUrgentThanAnythingIncludingScheduled,
+    ScheduledAnyMode(SurrealScheduled),
+    MoreUrgentThanMode,
+    InTheModeScheduled(SurrealScheduled),
+    InTheModeDefinitelyUrgent,
+    InTheModeMaybeUrgent, //This is one of the things that map to PriorityLevel::RoutineReview
+    InTheModeByImportance,
 }
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
@@ -473,10 +579,10 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: Vec<Facing>,
+    pub(crate) facing: Vec<SurrealFacing>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: ItemType,
+    pub(crate) item_type: SurrealItemTypeOld,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
@@ -494,23 +600,67 @@ pub(crate) struct SurrealItemOldVersion {
     #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
     //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
+    #[cfg_attr(test, builder(default))]
+    pub(crate) scheduled: SurrealScheduledOldVersion,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealScheduledOldVersion {
+    #[default]
+    NotScheduled,
+    ScheduledExact {
+        start: Datetime,
+        duration: Duration,
+        priority: SurrealScheduledPriority,
+    },
+    ScheduledRange {
+        start_range: (Datetime, Datetime),
+        duration: Duration,
+        priority: SurrealScheduledPriority,
+    },
 }
 
 impl From<SurrealItemOldVersion> for SurrealItem {
     fn from(value: SurrealItemOldVersion) -> Self {
+        let lap = match &value.staging {
+            SurrealStaging::MentallyResident { lap, .. } => Some(lap.clone()),
+            SurrealStaging::OnDeck { lap, .. } => Some(lap.clone()),
+            _ => None,
+        };
+        let dependencies = match value.staging {
+            SurrealStaging::MentallyResident { enter_list, .. }
+            | SurrealStaging::OnDeck { enter_list, .. } => match enter_list {
+                EnterListReasonOldVersion::DateTime(dt) => {
+                    vec![SurrealDependency::AfterDateTime(dt)]
+                }
+                EnterListReasonOldVersion::HighestUncovered { review_after, .. } => {
+                    vec![SurrealDependency::AfterDateTime(review_after)]
+                }
+            },
+            _ => Vec::default(),
+        };
+        let item_type = match value.item_type {
+            SurrealItemTypeOld::Undeclared => SurrealItemType::Undeclared,
+            SurrealItemTypeOld::Action => SurrealItemType::Action,
+            SurrealItemTypeOld::Goal(how_much) => SurrealItemType::Goal(how_much),
+            SurrealItemTypeOld::IdeaOrThought => SurrealItemType::IdeaOrThought,
+            SurrealItemTypeOld::Motivation => SurrealItemType::Motivation(SurrealMotivationKind::NotSet),
+            SurrealItemTypeOld::PersonOrGroup => SurrealItemType::PersonOrGroup,
+        };
         SurrealItem {
             id: value.id,
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
             facing: value.facing,
-            item_type: value.item_type,
+            item_type,
             notes_location: value.notes_location,
-            permanence: value.permanence,
-            staging: value.staging,
+            lap,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: value.created,
-            scheduled: SurrealScheduled::NotScheduled,
+            urgency_plan: None,
+            dependencies,
+            item_review: None,
         }
     }
 }

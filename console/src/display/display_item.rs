@@ -2,7 +2,10 @@ use std::fmt::Display;
 
 use surrealdb::opt::RecordId;
 
-use crate::{base_data::item::Item, surrealdb_layer::surreal_item::ItemType};
+use crate::{
+    base_data::item::Item,
+    surrealdb_layer::surreal_item::{SurrealItemType, SurrealMotivationKind},
+};
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
 /// putting that onto the core Item type that should not be tied to specific display or printing logic for a console
@@ -39,12 +42,20 @@ impl From<DisplayItem<'_>> for RecordId {
 impl Display for DisplayItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.item.get_item_type() {
-            ItemType::Goal(_) => write!(f, "🪧 {}", self.item.get_summary()),
-            ItemType::Motivation => write!(f, "🎯 {}", self.item.get_summary()),
-            ItemType::Action => write!(f, "🪜 {}", self.item.get_summary()),
-            ItemType::Undeclared => write!(f, "❓ {}", self.item.get_summary()),
-            ItemType::PersonOrGroup => write!(f, "👤 {}", self.item.get_summary()),
-            ItemType::IdeaOrThought => write!(f, "💡 {}", self.item.get_summary()),
+            SurrealItemType::Goal(_) => write!(f, "🪧 {}", self.item.get_summary()),
+            SurrealItemType::Motivation(kind) => {
+                write!(f, "🎯")?;
+                match kind {
+                    SurrealMotivationKind::NotSet => {}
+                    SurrealMotivationKind::CoreWork => write!(f, "🏢")?,
+                    SurrealMotivationKind::NonCoreWork => write!(f, "🏞")?,
+                }
+                write!(f, " {}", self.item.get_summary())
+            }
+            SurrealItemType::Action => write!(f, "🪜 {}", self.item.get_summary()),
+            SurrealItemType::Undeclared => write!(f, "❓ {}", self.item.get_summary()),
+            SurrealItemType::PersonOrGroup => write!(f, "👤 {}", self.item.get_summary()),
+            SurrealItemType::IdeaOrThought => write!(f, "💡 {}", self.item.get_summary()),
         }
     }
 }
@@ -52,10 +63,6 @@ impl Display for DisplayItem<'_> {
 impl<'s> DisplayItem<'s> {
     pub(crate) fn new(item: &'s Item<'s>) -> Self {
         DisplayItem { item }
-    }
-
-    pub(crate) fn make_list(items: &'s [&'s Item<'s>]) -> Vec<Self> {
-        items.iter().map(|x| DisplayItem::new(x)).collect()
     }
 
     pub(crate) fn get_surreal_record_id(&'s self) -> &'s RecordId {

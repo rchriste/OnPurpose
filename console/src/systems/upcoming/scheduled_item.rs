@@ -2,24 +2,24 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 
-use crate::{base_data::item::Item, surrealdb_layer::surreal_item::SurrealScheduled};
+use crate::{node::item_status::ItemStatus, surrealdb_layer::surreal_item::SurrealScheduled};
 
 #[derive(Clone)]
 pub struct ScheduledItem<'s> {
-    item: &'s Item<'s>,
+    item: &'s ItemStatus<'s>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 }
 
 pub(crate) trait Scheduled {
-    fn contains(&self, item: &Item) -> bool;
+    fn contains(&self, item: &ItemStatus) -> bool;
     fn find_next_available_time(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> DateTime<Utc>;
     fn calculate_gap_penalty(&self) -> f64;
     fn calculate_big_to_little_count(&self) -> u32;
 }
 
 impl<'s> Scheduled for Vec<ScheduledItem<'s>> {
-    fn contains(&self, item: &Item) -> bool {
+    fn contains(&self, item: &ItemStatus) -> bool {
         self.iter().any(|x| x.item == item)
     }
 
@@ -72,7 +72,7 @@ impl<'s> Scheduled for Vec<ScheduledItem<'s>> {
 }
 
 impl<'s> ScheduledItem<'s> {
-    pub(crate) fn new(item: &'s Item<'s>, start: DateTime<Utc>, end: DateTime<Utc>) -> Self {
+    pub(crate) fn new(item: &'s ItemStatus<'s>, start: DateTime<Utc>, end: DateTime<Utc>) -> Self {
         ScheduledItem { item, start, end }
     }
 
@@ -84,7 +84,11 @@ impl<'s> ScheduledItem<'s> {
         self.item.get_summary()
     }
 
-    pub(crate) fn get_scheduled(&self) -> &'s SurrealScheduled {
-        self.item.get_scheduled()
+    pub(crate) fn get_scheduled_now(&self) -> Option<&'s SurrealScheduled> {
+        self.item.get_scheduled_now()
+    }
+
+    pub(crate) fn get_now(&self) -> &DateTime<Utc> {
+        self.item.get_now()
     }
 }

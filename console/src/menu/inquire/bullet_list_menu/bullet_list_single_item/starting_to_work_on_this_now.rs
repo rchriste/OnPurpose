@@ -9,8 +9,8 @@ use crate::{
         bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
         top_menu::capture,
     },
-    node::{item_lap_count::ItemLapCount, item_node::ItemNode, Filter},
-    surrealdb_layer::DataLayerCommands,
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    surrealdb_layer::data_layer_commands::DataLayerCommands,
     systems::bullet_list::BulletList,
 };
 
@@ -19,7 +19,7 @@ use super::finish_bullet_item;
 enum WorkingOnNow {
     CaptureAnUnrelatedItem,
     DefineFutureItemOntoParent,
-    DefineSmallerNextStepToWorkOnNow,
+    DefineSmallerChildNextStepToWorkOnNow,
     DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish,
     WorkedOnThisButMoreToDoBeforeItIsFinished,
     IFinished,
@@ -30,8 +30,8 @@ impl Display for WorkingOnNow {
         match self {
             WorkingOnNow::CaptureAnUnrelatedItem => write!(f, "Capture an unrelated item"),
             WorkingOnNow::DefineFutureItemOntoParent => write!(f, "Define future item onto parent"),
-            WorkingOnNow::DefineSmallerNextStepToWorkOnNow => {
-                write!(f, "Define smaller next step to work on now")
+            WorkingOnNow::DefineSmallerChildNextStepToWorkOnNow => {
+                write!(f, "Define smaller child next step to work on now")
             }
             WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish => {
                 write!(f, "I did something and now I am waiting for a response or for a command to finish")
@@ -49,11 +49,11 @@ impl WorkingOnNow {
         let mut list = vec![
             WorkingOnNow::CaptureAnUnrelatedItem,
             WorkingOnNow::IFinished,
-            WorkingOnNow::DefineSmallerNextStepToWorkOnNow,
+            WorkingOnNow::DefineSmallerChildNextStepToWorkOnNow,
             WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished,
             WorkingOnNow::DidSomethingAndNowIAmWaitingForAResponseOrForACommandToFinish,
         ];
-        if currently_working_on.has_larger(Filter::Active) {
+        if currently_working_on.has_children(Filter::Active) {
             list.push(WorkingOnNow::DefineFutureItemOntoParent);
         }
         list
@@ -61,7 +61,7 @@ impl WorkingOnNow {
 }
 
 pub(crate) async fn starting_to_work_on_this_now(
-    currently_working_on: &ItemLapCount<'_>,
+    currently_working_on: &ItemStatus<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
     bullet_list_created: &DateTime<Utc>,
@@ -75,7 +75,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         Ok(WorkingOnNow::DefineFutureItemOntoParent) => {
             todo!("Define future item onto parent")
         }
-        Ok(WorkingOnNow::DefineSmallerNextStepToWorkOnNow) => {
+        Ok(WorkingOnNow::DefineSmallerChildNextStepToWorkOnNow) => {
             todo!("Define smaller next step")
         }
         Ok(WorkingOnNow::WorkedOnThisButMoreToDoBeforeItIsFinished) => {
@@ -86,7 +86,7 @@ pub(crate) async fn starting_to_work_on_this_now(
         }
         Ok(WorkingOnNow::IFinished) => {
             finish_bullet_item(
-                currently_working_on.get_item_status(),
+                currently_working_on,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),

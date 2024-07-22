@@ -1,77 +1,76 @@
 pub(crate) mod bullet_list_single_item;
+pub(crate) mod parent_back_to_a_motivation;
+pub(crate) mod pick_item_review_frequency;
+pub(crate) mod pick_what_should_be_done_first;
+pub(crate) mod review_item;
+pub(crate) mod search;
 
 use std::{fmt::Display, iter::once};
 
+use bullet_list_single_item::urgency_plan::present_set_ready_and_urgency_plan_menu;
 use chrono::{DateTime, Local, TimeDelta, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
+use parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu;
+use pick_item_review_frequency::present_pick_item_review_frequency_menu;
+use pick_what_should_be_done_first::present_pick_what_should_be_done_first_menu;
+use review_item::present_review_item_menu;
+use search::present_search_menu;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
     display::{
-        display_item_lap_count::DisplayItemLapCount, display_scheduled_item::DisplayScheduledItem,
+        display_item_action::DisplayItemAction, display_scheduled_item::DisplayScheduledItem,
     },
     menu::inquire::top_menu::present_top_menu,
-    node::item_lap_count::ItemLapCount,
-    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
-    systems::bullet_list::{BulletList, BulletListReason},
+    node::item_action::ActionWithItemStatus,
+    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
+    systems::bullet_list::BulletList,
 };
 
 use self::bullet_list_single_item::{
     present_bullet_list_item_selected, present_is_person_or_group_around_menu,
-    set_staging::{present_set_staging_menu, StagingMenuSelection},
 };
 
 use super::top_menu::capture;
 
 pub(crate) enum InquireBulletListItem<'e> {
     CaptureNewItem,
-    SetStaging(&'e ItemLapCount<'e>),
-    Item(&'e ItemLapCount<'e>, &'e DateTime<Utc>),
+    Search,
+    BulletListSingleItem(&'e ActionWithItemStatus<'e>),
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CaptureNewItem => write!(f, "🗬   Capture New Item          🗭")?,
-            Self::Item(item_lap_count, _current_date_time) => {
-                let display_item_lap_count = DisplayItemLapCount::new(item_lap_count);
-                write!(f, "{}", display_item_lap_count)?;
-            }
-            Self::SetStaging(item_lap_count) => {
-                let display_item_status = DisplayItemLapCount::new(item_lap_count);
-                write!(f, "[SET STAGING] {}", display_item_status)?;
+            Self::CaptureNewItem => write!(f, "🗬   Capture New Item  🗭"),
+            Self::Search => write!(f, "🔍  Search            🔍"),
+            Self::BulletListSingleItem(item) => {
+                let display = DisplayItemAction::new(item);
+                write!(f, "{}", display)
             }
         }
-        Ok(())
     }
 }
 
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list(
-        item_status: &'a [BulletListReason<'a>],
-        bullet_list_created: &'a DateTime<Utc>,
+        item_action: &'a [ActionWithItemStatus<'a>],
     ) -> Vec<InquireBulletListItem<'a>> {
         chain!(
             once(InquireBulletListItem::CaptureNewItem),
-            item_status.iter().map(|x| match x {
-                BulletListReason::SetStaging(item_status) =>
-                    InquireBulletListItem::SetStaging(item_status.get_item_lap_count()),
-                BulletListReason::WorkOn(item_status) => {
-                    InquireBulletListItem::Item(
-                        item_status.get_item_lap_count(),
-                        bullet_list_created,
-                    )
-                }
-            })
+            once(InquireBulletListItem::Search),
+            item_action
+                .iter()
+                .map(InquireBulletListItem::BulletListSingleItem)
         )
         .collect()
     }
 }
 
-pub(crate) async fn present_normal_bullet_list_menu_version_2(
+pub(crate) async fn present_normal_bullet_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let before_db_query = Local::now();
@@ -84,39 +83,17 @@ pub(crate) async fn present_normal_bullet_list_menu_version_2(
     }
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    let bullet_list = BulletList::new_bullet_list_version_2(calculated_data, &now);
+    let calculated_data = CalculatedData::new_from_base_data(base_data);
+    let bullet_list = BulletList::new_bullet_list(calculated_data, &now);
     let elapsed = Utc::now() - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
     }
+    present_upcoming(&bullet_list);
     present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
 }
 
-pub(crate) async fn present_normal_bullet_list_menu_version_1(
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<(), ()> {
-    let before_db_query = Local::now();
-    let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
-        .await
-        .unwrap();
-    let elapsed = Local::now() - before_db_query;
-    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
-        println!("Slow to get data from database. Time taken: {}", elapsed);
-    }
-    let now = Utc::now();
-    let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-    let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
-    let bullet_list = BulletList::new_bullet_list_version_1(calculated_data, &now);
-    let elapsed = Utc::now() - now;
-    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
-        println!("Slow to create bullet list. Time taken: {}", elapsed);
-    }
-    present_upcoming(&bullet_list, now);
-    present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
-}
-
-pub(crate) fn present_upcoming(bullet_list: &BulletList, now: DateTime<Utc>) {
+pub(crate) fn present_upcoming(bullet_list: &BulletList) {
     let upcoming = bullet_list.get_upcoming();
     if !upcoming.is_empty() {
         println!("Upcoming:");
@@ -125,7 +102,7 @@ pub(crate) fn present_upcoming(bullet_list: &BulletList, now: DateTime<Utc>) {
             .as_ref()
             .expect("upcoming is not empty")
         {
-            let display_scheduled_item = DisplayScheduledItem::new(scheduled_item, &now);
+            let display_scheduled_item = DisplayScheduledItem::new(scheduled_item);
             println!("{}", display_scheduled_item);
         }
     }
@@ -138,8 +115,7 @@ pub(crate) async fn present_bullet_list_menu(
 ) -> Result<(), ()> {
     let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
 
-    let inquire_bullet_list =
-        InquireBulletListItem::create_list(ordered_bullet_list, &bullet_list_created);
+    let inquire_bullet_list = InquireBulletListItem::create_list(ordered_bullet_list);
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("Select from the below list|", inquire_bullet_list)
@@ -148,40 +124,71 @@ pub(crate) async fn present_bullet_list_menu(
 
         match selected {
             Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
-            Ok(InquireBulletListItem::Item(item_status, bullet_list_created)) => {
-                if item_status.is_person_or_group() {
-                    present_is_person_or_group_around_menu(
-                        item_status.get_item_node(),
+            Ok(InquireBulletListItem::Search) => {
+                present_search_menu(bullet_list, send_to_data_storage_layer).await
+            }
+            Ok(InquireBulletListItem::BulletListSingleItem(selected)) => match selected {
+                ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
+                    present_pick_what_should_be_done_first_menu(choices, send_to_data_storage_layer)
+                        .await
+                }
+                ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
+                    present_pick_item_review_frequency_menu(
+                        item_status,
+                        selected.get_urgency_now(),
                         send_to_data_storage_layer,
                     )
                     .await
-                } else {
-                    Box::pin(present_bullet_list_item_selected(
+                }
+                ActionWithItemStatus::ReviewItem(item_status) => {
+                    present_review_item_menu(
                         item_status,
-                        chrono::Utc::now(),
-                        bullet_list,
-                        bullet_list_created,
+                        selected.get_urgency_now(),
+                        bullet_list.get_all_items_status(),
                         send_to_data_storage_layer,
-                    ))
+                    )
                     .await
                 }
-            }
-            Ok(InquireBulletListItem::SetStaging(item_status)) => {
-                present_set_staging_menu(
-                    item_status.get_item(),
-                    send_to_data_storage_layer,
-                    Some(StagingMenuSelection::OnDeck),
-                )
-                .await
-            }
+                ActionWithItemStatus::MakeProgress(item_status) => {
+                    if item_status.is_person_or_group() {
+                        present_is_person_or_group_around_menu(
+                            item_status.get_item_node(),
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    } else {
+                        Box::pin(present_bullet_list_item_selected(
+                            item_status,
+                            chrono::Utc::now(),
+                            bullet_list,
+                            &bullet_list_created,
+                            send_to_data_storage_layer,
+                        ))
+                        .await
+                    }
+                }
+                ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+                    present_set_ready_and_urgency_plan_menu(
+                        item_status,
+                        Some(selected.get_urgency_now()),
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
+                ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
+                    present_parent_back_to_a_motivation_menu(
+                        item_status,
+                        selected.get_urgency_now(),
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
+            },
             Err(InquireError::OperationCanceled) => {
                 //Pressing Esc is meant to refresh the list unless you press it twice in a row then it will go to the top menu
                 if Utc::now() - bullet_list_created > TimeDelta::seconds(5) {
                     println!("Refreshing the list");
-                    Box::pin(present_normal_bullet_list_menu_version_1(
-                        send_to_data_storage_layer,
-                    ))
-                    .await
+                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
                 } else {
                     Box::pin(present_top_menu(send_to_data_storage_layer)).await
                 }

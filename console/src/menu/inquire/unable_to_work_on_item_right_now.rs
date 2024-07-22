@@ -14,7 +14,7 @@ use crate::{
     },
     display::display_item::DisplayItem,
     new_item::NewItem,
-    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
+    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 use super::super::YesOrNo;

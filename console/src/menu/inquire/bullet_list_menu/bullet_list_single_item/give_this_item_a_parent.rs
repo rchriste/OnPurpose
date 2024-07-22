@@ -9,10 +9,10 @@ use crate::{
     display::display_item_node::DisplayItemNode,
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
-        select_higher_priority_than_this::select_higher_priority_than_this,
+        select_higher_importance_than_this::select_higher_importance_than_this,
     },
     node::{item_node::ItemNode, Filter},
-    surrealdb_layer::{surreal_tables::SurrealTables, DataLayerCommands},
+    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 pub(crate) async fn give_this_item_a_parent(
@@ -26,16 +26,11 @@ pub(crate) async fn give_this_item_a_parent(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
+    let time_spent_log = base_data.get_time_spent_log();
     let mut list = active_items
         .iter()
-        .map(|item| {
-            ItemNode::new(
-                item,
-                base_data.get_coverings(),
-                base_data.get_active_snoozed(),
-                all_items,
-            )
-        })
+        .filter(|x| x.get_surreal_record_id() != parent_this.get_surreal_record_id())
+        .map(|item| ItemNode::new(item, all_items, time_spent_log))
         //Collect the ItemNodes because they need a place to be so they don't go out of scope as DisplayItemNode
         //only takes a reference.
         .collect::<Vec<_>>();
@@ -62,12 +57,12 @@ pub(crate) async fn give_this_item_a_parent(
         Ok(parent) => {
             let parent: &ItemNode<'_> = parent.get_item_node();
 
-            let higher_priority_than_this = if parent.has_children(Filter::Active) {
+            let higher_importance_than_this = if parent.has_children(Filter::Active) {
                 let items = parent
-                    .get_smaller(Filter::Active)
+                    .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_priority_than_this(&items)
+                select_higher_importance_than_this(&items, None)
             } else {
                 None
             };
@@ -75,13 +70,13 @@ pub(crate) async fn give_this_item_a_parent(
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: parent_this.get_surreal_record_id().clone(),
                     parent: parent.get_surreal_record_id().clone(),
-                    higher_priority_than_this,
+                    higher_importance_than_this,
                 })
                 .await
                 .unwrap();
             Ok(())
         }
-        Err(InquireError::OperationCanceled) => {
+        Err(InquireError::OperationCanceled) | Err(InquireError::InvalidConfiguration(_)) => {
             parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,

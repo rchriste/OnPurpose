@@ -1,11 +1,14 @@
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
-use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::item::Item,
     calculated_data::CalculatedData,
-    node::{item_highest_lap_count::ItemHighestLapCount, item_lap_count::ItemLapCount, Filter},
+    node::{
+        item_action::{ActionListsByUrgency, ActionWithItemStatus},
+        item_status::ItemStatus,
+        Filter,
+    },
+    surrealdb_layer::surreal_item::SurrealUrgency,
     systems::upcoming::Upcoming,
 };
 
@@ -15,7 +18,7 @@ pub(crate) struct BulletList {
 
     #[borrows(calculated_data)]
     #[covariant]
-    ordered_bullet_list: Vec<BulletListReason<'this>>,
+    ordered_bullet_list: Vec<ActionWithItemStatus<'this>>,
 
     #[borrows(calculated_data)]
     #[covariant]
@@ -23,7 +26,7 @@ pub(crate) struct BulletList {
 }
 
 impl BulletList {
-    pub(crate) fn new_bullet_list_version_2(
+    pub(crate) fn new_bullet_list(
         calculated_data: CalculatedData,
         current_time: &DateTime<Utc>,
     ) -> Self {
@@ -31,13 +34,68 @@ impl BulletList {
             calculated_data,
             ordered_bullet_list_builder: |calculated_data| {
                 //Get all top level items
-                let _all_top_parents = calculated_data
-                    .get_items_highest_lap_count()
+                let everything_that_has_no_parent = calculated_data
+                    .get_items_status()
                     .iter()
-                    .filter(|x| !x.has_larger(Filter::Active) && !x.is_finished())
-                    .cloned()
+                    .filter(|x| !x.has_parents(Filter::Active) && x.is_active())
                     .collect::<Vec<_>>();
-                todo!()
+
+                let all_items_status = calculated_data.get_items_status();
+                let most_important_items = everything_that_has_no_parent
+                    .iter()
+                    .filter_map(|x| x.recursive_get_most_important_and_ready(all_items_status))
+                    .collect::<Vec<_>>();
+                let urgent_items = everything_that_has_no_parent
+                    .iter()
+                    .flat_map(|x| {
+                        x.recursive_get_urgent_bullet_list(all_items_status, Vec::default())
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut bullet_lists_by_urgency = ActionListsByUrgency::default();
+
+                for item in most_important_items.into_iter() {
+                    let item = ActionWithItemStatus::MakeProgress(item);
+                    bullet_lists_by_urgency
+                        .in_the_mode_maybe_urgent_and_by_importance
+                        .push(item);
+                }
+
+                for item in urgent_items.into_iter() {
+                    match item.get_urgency_now() {
+                        SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => {
+                            bullet_lists_by_urgency
+                                .more_urgent_than_anything_including_scheduled
+                                .push(item);
+                        }
+                        SurrealUrgency::ScheduledAnyMode(_) => {
+                            bullet_lists_by_urgency.scheduled_any_mode.push(item);
+                        }
+                        SurrealUrgency::MoreUrgentThanMode => {
+                            bullet_lists_by_urgency.more_urgent_than_mode.push(item);
+                        }
+                        SurrealUrgency::InTheModeScheduled(_) => {
+                            bullet_lists_by_urgency.in_the_mode_scheduled.push(item);
+                        }
+                        SurrealUrgency::InTheModeDefinitelyUrgent => {
+                            bullet_lists_by_urgency
+                                .in_the_mode_definitely_urgent
+                                .push(item);
+                        }
+                        SurrealUrgency::InTheModeMaybeUrgent
+                        | SurrealUrgency::InTheModeByImportance => {
+                            bullet_lists_by_urgency
+                                .in_the_mode_maybe_urgent_and_by_importance
+                                .push(item);
+                        }
+                    }
+                }
+
+                let all_priorities = calculated_data.get_in_the_moment_priorities();
+                let ordered_bullet_list =
+                    bullet_lists_by_urgency.apply_in_the_moment_priorities(all_priorities);
+
+                ordered_bullet_list
             },
             upcoming_builder: |calculated_data| {
                 let upcoming = Upcoming::new(calculated_data, current_time);
@@ -47,98 +105,15 @@ impl BulletList {
         .build()
     }
 
-    pub(crate) fn new_bullet_list_version_1(
-        calculated_data: CalculatedData,
-        current_time: &DateTime<Utc>,
-    ) -> Self {
-        BulletListBuilder {
-            calculated_data,
-            ordered_bullet_list_builder: |calculated_data| {
-                //Note that some of these bottom items might be from detecting a circular dependency
-                let mut all_leaf_status_nodes = calculated_data
-                    .get_items_highest_lap_count()
-                    .iter()
-                    .filter(|x| !x.is_snoozed())
-                    .filter(|x| !x.is_finished())
-                    //Person or group items without a parent, meaning a reason for being on the list,
-                    // should be filtered out.
-                    .filter(|x| {
-                        !x.is_person_or_group()
-                            || (x.is_person_or_group() && x.has_larger(Filter::Active))
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
-
-                //This first sort is just to give a stable order to the items. Another way of sorting would
-                //work as well.
-                all_leaf_status_nodes.sort_by(|a, b| a.get_thing().cmp(b.get_thing()));
-
-                all_leaf_status_nodes.sort_by(|a, b| {
-                    (a.get_priority_level(current_time)
-                        .cmp(&b.get_priority_level(current_time)))
-                    .then_with(|| {
-                        b.get_lap_count()
-                            .partial_cmp(&a.get_lap_count())
-                            .expect("Lap count is never a weird NaN")
-                    })
-                });
-
-                all_leaf_status_nodes
-                    .into_iter()
-                    .map(BulletListReason::new)
-                    .collect::<Vec<_>>()
-            },
-            upcoming_builder: |calculated_data| {
-                let upcoming = Upcoming::new(calculated_data, current_time);
-                upcoming
-            },
-        }
-        .build()
-    }
-
-    pub(crate) fn get_ordered_bullet_list(&self) -> &[BulletListReason<'_>] {
+    pub(crate) fn get_ordered_bullet_list(&self) -> &[ActionWithItemStatus<'_>] {
         self.borrow_ordered_bullet_list()
     }
 
-    pub(crate) fn get_all_items_highest_lap_count(&self) -> &[ItemHighestLapCount<'_>] {
-        self.borrow_calculated_data().get_items_highest_lap_count()
+    pub(crate) fn get_all_items_status(&self) -> &[ItemStatus<'_>] {
+        self.borrow_calculated_data().get_items_status()
     }
 
     pub(crate) fn get_upcoming(&self) -> &Upcoming {
         self.borrow_upcoming()
-    }
-}
-
-pub(crate) enum BulletListReason<'e> {
-    SetStaging(ItemHighestLapCount<'e>),
-    WorkOn(ItemHighestLapCount<'e>),
-}
-
-impl<'e> BulletListReason<'e> {
-    pub(crate) fn new(item_lap_count: ItemHighestLapCount<'e>) -> Self {
-        if item_lap_count.is_staging_not_set() && !item_lap_count.is_type_undeclared() {
-            BulletListReason::SetStaging(item_lap_count)
-        } else {
-            BulletListReason::WorkOn(item_lap_count)
-        }
-    }
-
-    pub(crate) fn get_item_lap_count(&'e self) -> &ItemLapCount<'e> {
-        match self {
-            BulletListReason::SetStaging(item_lap_count) => item_lap_count.get_item_lap_count(),
-            BulletListReason::WorkOn(item_lap_count) => item_lap_count.get_item_lap_count(),
-        }
-    }
-
-    pub(crate) fn get_item(&'e self) -> &'e Item<'e> {
-        self.get_item_lap_count().get_item()
-    }
-
-    pub(crate) fn get_lap_count(&self) -> f32 {
-        self.get_item_lap_count().get_lap_count()
-    }
-
-    pub(crate) fn get_surreal_record_id(&'e self) -> &'e RecordId {
-        self.get_item().get_surreal_record_id()
     }
 }

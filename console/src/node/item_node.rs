@@ -1,25 +1,245 @@
-use std::iter;
+use std::{iter, time::Duration};
 
 use chrono::{DateTime, Utc};
-use surrealdb::sql::Thing;
+use surrealdb::{
+    opt::RecordId,
+    sql::{Datetime, Thing},
+};
 
 use crate::{
-    base_data::{covering::Covering, covering_until_date_time::CoveringUntilDateTime, item::Item},
-    surrealdb_layer::surreal_item::{
-        Facing, ItemType, SurrealItem, SurrealScheduled, SurrealStaging,
+    base_data::{item::Item, time_spent::TimeSpent, FindRecordId},
+    surrealdb_layer::{
+        surreal_item::{
+            SurrealDependency, SurrealFacing, SurrealItem, SurrealItemType, SurrealScheduled,
+            SurrealUrgency, SurrealUrgencyPlan,
+        },
+        SurrealItemsInScope, SurrealTrigger,
     },
 };
 
-use super::Filter;
+use super::{Filter, GetUrgencyNow, IsActive, IsTriggered};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
-    larger: Vec<GrowingItemNode<'s>>,
-    smaller: Vec<ShrinkingItemNode<'s>>,
-    snoozed_until: Vec<&'s DateTime<Utc>>,
-    facing: Vec<Facing>,
+    parents: Vec<GrowingItemNode<'s>>,
+    children: Vec<ShrinkingItemNode<'s>>,
+    facing: Vec<SurrealFacing>,
+    dependencies: Vec<DependencyWithItem<'s>>,
+    urgency_plan: Option<UrgencyPlanWithItem<'s>>,
+    urgent_action_items: Vec<ActionWithItem<'s>>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DependencyWithItem<'e> {
+    AfterDateTime {
+        after: DateTime<Utc>,
+        is_active: bool,
+    },
+    UntilScheduled {
+        after: DateTime<Utc>,
+        is_active: bool,
+    }, //Scheduled items should use this to state that they are not ready until the scheduled time
+    AfterItem(&'e Item<'e>),
+    AfterChildItem(&'e Item<'e>),
+    DuringItem(&'e Item<'e>),
+}
+
+impl IsActive for DependencyWithItem<'_> {
+    fn is_active(&self) -> bool {
+        match self {
+            DependencyWithItem::AfterDateTime { is_active, .. } => *is_active,
+            DependencyWithItem::UntilScheduled { is_active, .. } => *is_active,
+            DependencyWithItem::AfterItem(item) => item.is_active(),
+            DependencyWithItem::AfterChildItem(item) => item.is_active(),
+            DependencyWithItem::DuringItem(item) => item.is_active(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum UrgencyPlanWithItem<'e> {
+    WillEscalate {
+        initial: SurrealUrgency,
+        triggers: Vec<TriggerWithItem<'e>>,
+        later: SurrealUrgency,
+    },
+    StaysTheSame(SurrealUrgency),
+}
+
+impl GetUrgencyNow for UrgencyPlanWithItem<'_> {
+    fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+        match self {
+            UrgencyPlanWithItem::WillEscalate {
+                initial,
+                triggers,
+                later,
+            } => {
+                if triggers.is_triggered() {
+                    Some(later)
+                } else {
+                    Some(initial)
+                }
+            }
+            UrgencyPlanWithItem::StaysTheSame(urgency) => Some(urgency),
+        }
+    }
+}
+
+impl GetUrgencyNow for Option<UrgencyPlanWithItem<'_>> {
+    fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+        self.as_ref().and_then(|x| x.get_urgency_now())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TriggerWithItem<'e> {
+    WallClockDateTime {
+        after: DateTime<Utc>,
+        is_triggered: bool,
+    },
+    LoggedInvocationCount {
+        starting: DateTime<Utc>,
+        count_needed: u32,
+        current_count: u32,
+        items_in_scope: ItemsInScopeWithItem<'e>,
+    },
+    LoggedAmountOfTime {
+        starting: DateTime<Utc>,
+        duration_needed: Duration,
+        current_duration: Duration,
+        items_in_scope: ItemsInScopeWithItem<'e>,
+    },
+}
+
+impl IsTriggered for Vec<TriggerWithItem<'_>> {
+    fn is_triggered(&self) -> bool {
+        if self.is_empty() {
+            true
+        } else {
+            self.iter().any(|x| x.is_triggered())
+        }
+    }
+}
+
+impl IsTriggered for TriggerWithItem<'_> {
+    fn is_triggered(&self) -> bool {
+        match self {
+            TriggerWithItem::WallClockDateTime { is_triggered, .. } => *is_triggered,
+            TriggerWithItem::LoggedInvocationCount {
+                count_needed,
+                current_count,
+                ..
+            } => count_needed <= current_count,
+            TriggerWithItem::LoggedAmountOfTime {
+                duration_needed,
+                current_duration,
+                ..
+            } => duration_needed <= current_duration,
+        }
+    }
+}
+
+impl<'e> TriggerWithItem<'e> {
+    pub(crate) fn new(
+        surreal_trigger: &'e SurrealTrigger,
+        now_sql: &Datetime,
+        all_items: &'e [Item<'e>],
+        time_spent_log: &[TimeSpent<'_>],
+    ) -> Self {
+        match surreal_trigger {
+            SurrealTrigger::WallClockDateTime(after) => TriggerWithItem::WallClockDateTime {
+                after: after.clone().into(),
+                is_triggered: now_sql >= after,
+            },
+            SurrealTrigger::LoggedInvocationCount {
+                starting,
+                count,
+                items_in_scope,
+            } => {
+                let starting = starting.clone().into();
+                let items_in_scope = ItemsInScopeWithItem::new(items_in_scope, all_items);
+                let time_spent_on_this =
+                    get_time_spent_on_this(&starting, &items_in_scope, time_spent_log);
+                TriggerWithItem::LoggedInvocationCount {
+                    starting,
+                    count_needed: *count,
+                    current_count: time_spent_on_this.count() as u32,
+                    items_in_scope,
+                }
+            }
+            SurrealTrigger::LoggedAmountOfTime {
+                starting,
+                duration,
+                items_in_scope,
+            } => {
+                let starting = starting.clone().into();
+                let items_in_scope = ItemsInScopeWithItem::new(items_in_scope, all_items);
+                let time_spent_on_this =
+                    get_time_spent_on_this(&starting, &items_in_scope, time_spent_log);
+                TriggerWithItem::LoggedAmountOfTime {
+                    starting,
+                    duration_needed: (*duration).into(),
+                    current_duration: time_spent_on_this.map(|x| x.get_duration()).sum(),
+                    items_in_scope,
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ItemsInScopeWithItem<'e> {
+    All,
+    Include(Vec<&'e Item<'e>>),
+    Exclude(Vec<&'e Item<'e>>),
+}
+
+impl<'e> ItemsInScopeWithItem<'e> {
+    pub(crate) fn new(
+        surreal_items_in_scope: &'e SurrealItemsInScope,
+        all_items: &'e [Item<'e>],
+    ) -> Self {
+        match surreal_items_in_scope {
+            SurrealItemsInScope::All => ItemsInScopeWithItem::All,
+            SurrealItemsInScope::Include(include) => {
+                let include = include
+                    .iter()
+                    .map(|x| {
+                        all_items
+                            .iter()
+                            .find(|y| y.get_surreal_record_id() == x)
+                            .expect("All items should contain this")
+                    })
+                    .collect::<Vec<_>>();
+                ItemsInScopeWithItem::Include(include)
+            }
+            SurrealItemsInScope::Exclude(exclude) => {
+                let exclude = exclude
+                    .iter()
+                    .map(|x| {
+                        all_items
+                            .iter()
+                            .find(|y| y.get_surreal_record_id() == x)
+                            .expect("All items should contain this")
+                    })
+                    .collect();
+                ItemsInScopeWithItem::Exclude(exclude)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ActionWithItem<'e> {
+    SetReadyAndUrgency(&'e Item<'e>),
+    ParentBackToAMotivation(&'e Item<'e>),
+    ReviewItem(&'e Item<'e>),
+    PickItemReviewFrequency(&'e Item<'e>),
+    MakeProgress(&'e Item<'e>),
+}
+
+impl ActionWithItem<'_> {}
 
 impl<'a> From<&'a ItemNode<'a>> for &'a Item<'a> {
     fn from(value: &ItemNode<'a>) -> Self {
@@ -33,32 +253,36 @@ impl<'a> From<&'a ItemNode<'a>> for &'a SurrealItem {
     }
 }
 
+impl<'r> FindRecordId<'r, ItemNode<'r>> for &'r [ItemNode<'r>] {
+    fn find_record_id(&self, record_id: &RecordId) -> Option<&'r ItemNode<'r>> {
+        self.iter().find(|x| x.get_surreal_record_id() == record_id)
+    }
+}
+
 impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
-        coverings: &'s [Covering<'s>],
-        snoozed: &'s [&'s CoveringUntilDateTime<'s>],
         all_items: &'s [Item<'s>],
+        time_spent_log: &[TimeSpent],
     ) -> Self {
         let visited = vec![item];
-        let parents = item.find_parents(coverings, all_items, &visited);
-        let larger = create_growing_nodes(parents, coverings, all_items, visited.clone());
+        let parents = item.find_parents(all_items, &visited);
+        let parents = create_growing_nodes(parents, all_items, visited.clone());
         let visited: Vec<&Item<'s>> = iter::once(item)
             .chain(
-                larger
+                parents
                     .iter()
-                    .flat_map(|x| x.get_self_and_larger(Vec::default())),
+                    .flat_map(|x| x.get_self_and_parents(Vec::default())),
             )
             .collect();
-        let children = item.find_children(coverings, all_items, &visited);
-        let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
-        let snoozed_until = item.get_covered_by_date_time(snoozed);
-        let item_facing = item.get_facing();
+        let children = item.find_children(all_items, &visited);
+        let children = create_shrinking_nodes(&children, all_items, visited);
+        let item_facing = item.get_surreal_facing();
         let facing = if item_facing.is_empty() {
             //Look to parents for a setting
-            larger
+            parents
                 .iter()
-                .map(|x| x.get_facing())
+                .map(|x| x.get_surreal_facing())
                 .filter(|x| !x.is_empty())
                 .flatten()
                 .cloned()
@@ -67,12 +291,18 @@ impl<'s> ItemNode<'s> {
             //Value is set so use it
             item_facing.to_vec()
         };
+        let urgency_plan = calculate_urgency_plan(item, all_items, time_spent_log);
+        let dependencies = calculate_dependencies(item, &urgency_plan, all_items, &children);
+        let urgent_action_items =
+            calculate_urgent_action_items(item, &parents, &children, &urgency_plan, &dependencies);
         ItemNode {
             item,
-            larger,
-            smaller,
-            snoozed_until,
+            parents,
+            children,
+            dependencies,
             facing,
+            urgency_plan,
+            urgent_action_items,
         }
     }
 
@@ -82,7 +312,7 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn create_parent_chain(&'s self) -> Vec<&'s Item<'s>> {
         let mut result = Vec::default();
-        for i in self.larger.iter() {
+        for i in self.parents.iter() {
             result.push(i.item);
             let parents = i.create_growing_parents();
             result.extend(parents.iter());
@@ -90,11 +320,11 @@ impl<'s> ItemNode<'s> {
         result
     }
 
-    pub(crate) fn get_smaller(
+    pub(crate) fn get_children(
         &'s self,
         filter: Filter,
     ) -> Box<dyn Iterator<Item = &'s ShrinkingItemNode<'s>> + 's + Send> {
-        Box::new(self.smaller.iter().filter(move |x| match filter {
+        Box::new(self.children.iter().filter(move |x| match filter {
             Filter::All => true,
             Filter::Active => !x.item.is_finished(),
             Filter::Finished => x.item.is_finished(),
@@ -113,51 +343,43 @@ impl<'s> ItemNode<'s> {
         self.item.is_person_or_group()
     }
 
-    pub(crate) fn is_maintenance(&self) -> bool {
-        self.item.is_maintenance()
-    }
-
     pub(crate) fn is_goal(&self) -> bool {
         self.item.is_goal()
     }
 
-    pub(crate) fn has_larger(&self, filter: Filter) -> bool {
-        match filter {
-            Filter::All => !self.larger.is_empty(),
-            Filter::Active => self.larger.iter().any(|x| !x.item.is_finished()),
-            Filter::Finished => self.larger.iter().any(|x| x.item.is_finished()),
-        }
+    pub(crate) fn has_parents(&self, filter: Filter) -> bool {
+        has_parents(&self.parents, filter)
     }
 
-    pub(crate) fn get_larger(
+    pub(crate) fn get_parents(
         &'s self,
         filter: Filter,
     ) -> Box<dyn Iterator<Item = &'s GrowingItemNode<'s>> + 's + Send> {
         match filter {
-            Filter::All => Box::new(self.larger.iter()),
-            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
-            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.item.is_finished())),
+            Filter::All => Box::new(self.parents.iter()),
+            Filter::Active => Box::new(self.parents.iter().filter(|x| !x.item.is_finished())),
+            Filter::Finished => Box::new(self.parents.iter().filter(|x| x.item.is_finished())),
         }
     }
 
     /// Get's larger items and all of their parents and the current item
-    pub(crate) fn get_self_and_larger(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
+    pub(crate) fn get_self_and_parents(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         let mut items = Vec::default();
-        for item in self.get_larger(filter) {
-            items = item.get_self_and_larger(items);
+        for item in self.get_parents(filter) {
+            items = item.get_self_and_parents(items);
         }
         items.push(self.item);
         items
     }
 
-    pub(crate) fn get_type(&self) -> &ItemType {
+    pub(crate) fn get_type(&self) -> &SurrealItemType {
         self.item.get_type()
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
-        if self.item.get_type() == &ItemType::Undeclared {
+        if self.item.get_type() == &SurrealItemType::Undeclared {
             //Look to parents for a setting
-            self.get_larger(Filter::Active).any(|x| x.is_type_action())
+            self.get_parents(Filter::Active).any(|x| x.is_type_action())
         } else {
             //Value is set so use it
             self.item.is_type_action()
@@ -183,11 +405,7 @@ impl<'s> ItemNode<'s> {
     }
 
     pub(crate) fn has_children(&self, filter: Filter) -> bool {
-        match filter {
-            Filter::All => !self.smaller.is_empty(),
-            Filter::Active => self.smaller.iter().any(|x| !x.get_item().is_finished()),
-            Filter::Finished => self.smaller.iter().any(|x| x.get_item().is_finished()),
-        }
+        has_children(&self.children, filter)
     }
 
     pub(crate) fn is_there_notes(&self) -> bool {
@@ -195,35 +413,11 @@ impl<'s> ItemNode<'s> {
         self.item.is_there_notes()
     }
 
-    pub(crate) fn is_staging_not_set(&self) -> bool {
-        self.item.is_staging_not_set()
-    }
-
-    pub(crate) fn get_staging(&'s self) -> &'s SurrealStaging {
-        self.item.get_staging()
-    }
-
-    pub(crate) fn get_thing(&self) -> &'s Thing {
-        self.item.get_thing()
-    }
-
-    pub(crate) fn is_responsibility_reactive(&self) -> bool {
-        self.item.is_responsibility_reactive()
-    }
-
-    pub(crate) fn is_staging_mentally_resident(&self) -> bool {
-        matches!(self.get_staging(), SurrealStaging::MentallyResident { .. })
-    }
-
-    pub(crate) fn get_snoozed_until(&'s self) -> &'s [&'s DateTime<Utc>] {
-        &self.snoozed_until
-    }
-
     pub(crate) fn get_summary(&self) -> &str {
         self.item.get_summary()
     }
 
-    pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
+    pub(crate) fn get_facing(&'s self) -> &'s Vec<SurrealFacing> {
         &self.facing
     }
 
@@ -239,12 +433,43 @@ impl<'s> ItemNode<'s> {
         !self.is_finished()
     }
 
-    pub(crate) fn is_scheduled(&self) -> bool {
-        self.item.is_scheduled()
+    pub(crate) fn is_scheduled_now(&self) -> bool {
+        self.urgency_plan.is_scheduled_now()
     }
 
-    pub(crate) fn get_scheduled(&self) -> &SurrealScheduled {
-        self.item.get_scheduled()
+    pub(crate) fn get_scheduled_now(&self) -> Option<&SurrealScheduled> {
+        self.urgency_plan.get_scheduled_now()
+    }
+
+    pub(crate) fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+        self.urgency_plan.get_urgency_now()
+    }
+
+    pub(crate) fn has_dependencies(&self, filter: Filter) -> bool {
+        self.get_dependencies(filter).next().is_some()
+    }
+
+    pub(crate) fn get_dependencies(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &'s DependencyWithItem> + 's> {
+        get_dependencies(&self.dependencies, filter)
+    }
+
+    pub(crate) fn get_urgency_plan(&'s self) -> &Option<UrgencyPlanWithItem<'s>> {
+        &self.urgency_plan
+    }
+
+    pub(crate) fn get_now(&self) -> &DateTime<Utc> {
+        self.item.get_now()
+    }
+
+    pub(crate) fn is_ready_to_be_worked_on(&self) -> bool {
+        self.get_dependencies(Filter::Active).next().is_none()
+    }
+
+    pub(crate) fn get_urgent_action_items(&'s self) -> &Vec<ActionWithItem<'s>> {
+        &self.urgent_action_items
     }
 }
 
@@ -252,7 +477,8 @@ impl<'s> ItemNode<'s> {
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
-    facing: Vec<Facing>,
+    //surreal_facing is either for this item or if not set then the parents are checked, the value is precomputed and stored here
+    surreal_facing: Vec<SurrealFacing>,
 }
 
 impl<'s> GrowingItemNode<'s> {
@@ -267,7 +493,7 @@ impl<'s> GrowingItemNode<'s> {
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
-        if self.item.get_type() == &ItemType::Undeclared {
+        if self.item.get_type() == &SurrealItemType::Undeclared {
             //Look to parents for a setting
             self.larger.iter().any(|x| x.is_type_action())
         } else {
@@ -280,33 +506,21 @@ impl<'s> GrowingItemNode<'s> {
         self.item
     }
 
-    pub(crate) fn get_facing(&'s self) -> &'s Vec<Facing> {
-        &self.facing
+    pub(crate) fn get_surreal_facing(&'s self) -> &'s Vec<SurrealFacing> {
+        &self.surreal_facing
     }
 
-    pub(crate) fn get_node<'a>(&self, all_nodes: &'a [ItemNode<'a>]) -> &'a ItemNode<'a> {
-        all_nodes
-            .iter()
-            .find(|x| x.get_item() == self.item)
-            .expect("It should be in all nodes, programming error")
-    }
-
-    pub(crate) fn get_self_and_larger(&self, mut items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
+    pub(crate) fn get_self_and_parents(&self, mut items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
         for item in &self.larger {
-            items = item.get_self_and_larger(items);
+            items = item.get_self_and_parents(items);
         }
         items.push(self.item);
         items
-    }
-
-    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
-        self.item.get_surreal_record_id()
     }
 }
 
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
-    coverings: &'a [Covering<'a>],
     possible_parents: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> Vec<GrowingItemNode<'a>> {
@@ -317,7 +531,7 @@ pub(crate) fn create_growing_nodes<'a>(
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
                 visited.push(x);
-                Some(create_growing_node(x, coverings, possible_parents, visited))
+                Some(create_growing_node(x, possible_parents, visited))
             } else {
                 None
             }
@@ -327,18 +541,17 @@ pub(crate) fn create_growing_nodes<'a>(
 
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
-    coverings: &'a [Covering<'a>],
     all_items: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> GrowingItemNode<'a> {
-    let parents = item.find_parents(coverings, all_items, &visited);
-    let larger = create_growing_nodes(parents, coverings, all_items, visited);
-    let item_facing = item.get_facing();
-    let facing = if item_facing.is_empty() {
+    let parents = item.find_parents(all_items, &visited);
+    let larger = create_growing_nodes(parents, all_items, visited);
+    let item_facing = item.get_surreal_facing();
+    let surreal_facing = if item_facing.is_empty() {
         //Look to parents for a setting
         larger
             .iter()
-            .map(|x| x.get_facing())
+            .map(|x| x.get_surreal_facing())
             .filter(|x| !x.is_empty())
             .flatten()
             .cloned()
@@ -350,7 +563,110 @@ pub(crate) fn create_growing_node<'a>(
     GrowingItemNode {
         item,
         larger,
-        facing,
+        surreal_facing,
+    }
+}
+
+fn calculate_dependencies<'a>(
+    item: &'a Item,
+    urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
+    all_items: &'a [Item<'a>],
+    smaller: &[ShrinkingItemNode<'a>],
+) -> Vec<DependencyWithItem<'a>> {
+    //Making smaller of type ShrinkingItemNode gets rid of the circular reference as that is checked when creating the ShrinkingItemNode
+    let mut result = item
+        .get_surreal_dependencies()
+        .iter()
+        .map(|x| match x {
+            SurrealDependency::AfterDateTime(after) => {
+                let after = after.clone().into();
+                DependencyWithItem::AfterDateTime {
+                    after,
+                    is_active: item.get_now() < &after,
+                }
+            }
+            SurrealDependency::AfterItem(after) => {
+                let item = all_items
+                    .iter()
+                    .find(|x| x.get_surreal_record_id() == after)
+                    .expect("All items should contain this");
+                DependencyWithItem::AfterItem(item)
+            }
+            SurrealDependency::DuringItem(during) => {
+                let item = all_items
+                    .iter()
+                    .find(|x| x.get_surreal_record_id() == during)
+                    .expect("All items should contain this");
+                DependencyWithItem::DuringItem(item)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    //If item is scheduled then I need to add that as a dependency as well
+    if urgency_plan.is_scheduled_now() {
+        let scheduled = urgency_plan
+            .get_scheduled_now()
+            .expect("is_scheduled_now is true so this should be Some");
+        let after = scheduled.get_earliest_start().clone().into();
+        result.push(DependencyWithItem::UntilScheduled {
+            after,
+            is_active: &after > item.get_now(),
+        });
+    }
+
+    //If item has smaller items then those need to be added a dependencies as well
+    for smaller in smaller.iter() {
+        result.push(DependencyWithItem::AfterChildItem(smaller.get_item()));
+    }
+
+    result
+}
+
+fn calculate_urgency_plan<'a>(
+    item: &'a Item,
+    all_items: &'a [Item],
+    time_spent_log: &[TimeSpent],
+) -> Option<UrgencyPlanWithItem<'a>> {
+    item.get_surreal_urgency_plan().as_ref().map(|x| match x {
+        SurrealUrgencyPlan::WillEscalate {
+            initial,
+            triggers,
+            later,
+        } => UrgencyPlanWithItem::WillEscalate {
+            initial: initial.clone(),
+            triggers: triggers
+                .iter()
+                .map(|x| TriggerWithItem::new(x, item.get_now_sql(), all_items, time_spent_log))
+                .collect(),
+            later: later.clone(),
+        },
+        SurrealUrgencyPlan::StaysTheSame(urgency) => {
+            UrgencyPlanWithItem::StaysTheSame(urgency.clone())
+        }
+    })
+}
+
+fn get_time_spent_on_this<'a>(
+    after: &'a DateTime<Utc>,
+    items_in_scope: &'a ItemsInScopeWithItem<'a>,
+    time_spent_log: &'a [TimeSpent<'a>],
+) -> Box<dyn Iterator<Item = &'a TimeSpent<'a>> + 'a> {
+    match items_in_scope {
+        ItemsInScopeWithItem::All => Box::new(
+            time_spent_log
+                .iter()
+                .filter(|x| x.get_started_at() >= after),
+        ),
+        ItemsInScopeWithItem::Include(include) => Box::new(
+            time_spent_log
+                .iter()
+                .filter(|x| x.get_started_at() >= after && x.did_work_towards_any(include)),
+        ),
+        ItemsInScopeWithItem::Exclude(exclude) => Box::new(
+            time_spent_log
+                .iter()
+                .filter(|x| x.get_started_at() >= after && !x.did_work_towards_any(exclude)),
+        ),
     }
 }
 
@@ -364,31 +680,10 @@ impl<'s> ShrinkingItemNode<'s> {
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
     }
-
-    pub(crate) fn has_smaller(&self, filter: Filter) -> bool {
-        match filter {
-            Filter::All => !self.smaller.is_empty(),
-            Filter::Active => self.smaller.iter().any(|x| !x.item.is_finished()),
-            Filter::Finished => self.smaller.iter().any(|x| x.item.is_finished()),
-        }
-    }
-
-    pub(crate) fn is_finished(&self) -> bool {
-        self.item.is_finished()
-    }
-
-    pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {
-        self.item.when_finished()
-    }
-
-    pub(crate) fn get_staging(&self) -> &SurrealStaging {
-        self.item.get_staging()
-    }
 }
 
 pub(crate) fn create_shrinking_nodes<'a>(
-    items: Vec<&'a Item<'a>>,
-    coverings: &'a [Covering<'a>],
+    items: &[&'a Item<'a>],
     possible_children: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> Vec<ShrinkingItemNode<'a>> {
@@ -399,12 +694,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
                 visited.push(x);
-                Some(create_shrinking_node(
-                    x,
-                    coverings,
-                    possible_children,
-                    visited,
-                ))
+                Some(create_shrinking_node(x, possible_children, visited))
             } else {
                 None
             }
@@ -414,23 +704,117 @@ pub(crate) fn create_shrinking_nodes<'a>(
 
 pub(crate) fn create_shrinking_node<'a>(
     item: &'a Item<'a>,
-    coverings: &'a [Covering<'a>],
     all_items: &'a [Item<'a>],
     visited: Vec<&'a Item<'a>>,
 ) -> ShrinkingItemNode<'a> {
-    let children = item.find_children(coverings, all_items, &visited);
-    let smaller = create_shrinking_nodes(children, coverings, all_items, visited);
+    let children = item.find_children(all_items, &visited);
+    let smaller = create_shrinking_nodes(&children, all_items, visited);
     ShrinkingItemNode { item, smaller }
+}
+
+fn has_parents(parents: &[GrowingItemNode<'_>], filter: Filter) -> bool {
+    match filter {
+        Filter::All => !parents.is_empty(),
+        Filter::Active => parents.iter().any(|x| !x.item.is_finished()),
+        Filter::Finished => parents.iter().any(|x| x.item.is_finished()),
+    }
+}
+
+fn has_children(children: &[ShrinkingItemNode<'_>], filter: Filter) -> bool {
+    match filter {
+        Filter::All => !children.is_empty(),
+        Filter::Active => children.iter().any(|x| !x.item.is_finished()),
+        Filter::Finished => children.iter().any(|x| x.item.is_finished()),
+    }
+}
+
+fn get_dependencies<'a>(
+    dependencies: &'a [DependencyWithItem],
+    filter: Filter,
+) -> Box<dyn Iterator<Item = &'a DependencyWithItem<'a>> + 'a> {
+    match filter {
+        Filter::All => Box::new(dependencies.iter()),
+        Filter::Active => Box::new(dependencies.iter().filter(|x| x.is_active())),
+        Filter::Finished => Box::new(dependencies.iter().filter(|x| !x.is_active())),
+    }
+}
+
+fn has_dependencies(dependencies: &[DependencyWithItem], filter: Filter) -> bool {
+    get_dependencies(dependencies, filter).next().is_some()
+}
+
+fn calculate_urgent_action_items<'a>(
+    item: &'a Item,
+    parents: &[GrowingItemNode],
+    children: &[ShrinkingItemNode],
+    urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
+    dependencies: &[DependencyWithItem],
+) -> Vec<ActionWithItem<'a>> {
+    let mut result = Vec::default();
+    //Does it need a parent?
+    if !has_parents(parents, Filter::Active) && !item.is_type_motivation() {
+        result.push(ActionWithItem::ParentBackToAMotivation(item));
+    }
+
+    //Does it need to pick a review frequency?
+    if !item.has_review_frequency() {
+        result.push(ActionWithItem::PickItemReviewFrequency(item));
+    }
+
+    //Does it need to be reviewed?
+    if item.is_a_review_due() {
+        result.push(ActionWithItem::ReviewItem(item));
+    }
+
+    match urgency_plan.get_urgency_now() {
+        Some(SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled)
+        | Some(SurrealUrgency::InTheModeMaybeUrgent)
+        | Some(SurrealUrgency::MoreUrgentThanMode)
+        | Some(SurrealUrgency::InTheModeDefinitelyUrgent) => {
+            if !has_dependencies(dependencies, Filter::Active) {
+                result.push(ActionWithItem::MakeProgress(item));
+            }
+        }
+        Some(SurrealUrgency::InTheModeScheduled(surreal_scheduled))
+        | Some(SurrealUrgency::ScheduledAnyMode(surreal_scheduled)) => {
+            if !has_dependencies(dependencies, Filter::Active) {
+                match surreal_scheduled {
+                    SurrealScheduled::Exact { start, .. } => {
+                        if start > item.get_now_sql() {
+                            result.push(ActionWithItem::MakeProgress(item));
+                        }
+                    }
+                    SurrealScheduled::Range { start_range, .. } => {
+                        if &start_range.0 > item.get_now_sql() {
+                            result.push(ActionWithItem::MakeProgress(item));
+                        }
+                    }
+                }
+            }
+        }
+        Some(SurrealUrgency::InTheModeByImportance) => {
+            //Do nothing, not urgent
+        }
+        None => {
+            //Need to set an urgency plan
+            if !has_children(children, Filter::Active) {
+                result.push(ActionWithItem::SetReadyAndUrgency(item));
+            }
+        }
+    }
+
+    result
 }
 
 #[cfg(test)]
 mod tests {
+    use chrono::Utc;
+
     use crate::{
         base_data::item::ItemVecExtensions,
         node::{item_node::ItemNode, Filter},
         surrealdb_layer::{
-            surreal_covering::SurrealCovering,
-            surreal_item::{ItemType, SurrealItemBuilder},
+            surreal_item::{SurrealDependency, SurrealItemBuilder, SurrealItemType},
             surreal_tables::SurrealTablesBuilder,
         },
     };
@@ -442,54 +826,43 @@ mod tests {
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "1").into()))
                 .summary("Main Item that covers something else")
-                .item_type(ItemType::Action)
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "3").into(),
+                )])
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "2").into()))
                 .summary("Item that is covered by main item and the item this covers")
-                .item_type(ItemType::Action)
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "1").into(),
+                )])
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "3").into()))
                 .summary("Item that is covers the item it is covered by, circular reference")
-                .item_type(ItemType::Action)
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "2").into(),
+                )])
                 .build()
                 .unwrap(),
         ];
-        let surreal_coverings = vec![
-            SurrealCovering {
-                id: Some(("surreal_covering", "1").into()),
-                smaller: surreal_items[0].id.as_ref().expect("set above").clone(),
-                parent: surreal_items[1].id.as_ref().expect("set above").clone(),
-            },
-            SurrealCovering {
-                id: Some(("surreal_covering", "2").into()),
-                smaller: surreal_items[1].id.as_ref().expect("set above").clone(),
-                parent: surreal_items[2].id.as_ref().expect("set above").clone(),
-            },
-            SurrealCovering {
-                id: Some(("surreal_covering", "3").into()),
-                smaller: surreal_items[2].id.as_ref().expect("set above").clone(),
-                parent: surreal_items[1].id.as_ref().expect("set above").clone(),
-            },
-        ];
         let surreal_tables = SurrealTablesBuilder::default()
             .surreal_items(surreal_items)
-            .surreal_coverings(surreal_coverings)
             .build()
             .expect("no required fields");
-        let items = surreal_tables.make_items();
+        let all_time_spent = surreal_tables.make_time_spent_log().collect::<Vec<_>>();
+        let now = Utc::now();
+        let items = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&active_items);
-        let coverings_until_date_time =
-            surreal_tables.make_coverings_until_date_time(&active_items);
-        let active_snoozed = coverings_until_date_time.iter().collect::<Vec<_>>();
 
         let to_dos = active_items.iter().filter(|x| x.is_type_action());
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &coverings, &active_snoozed, &items))
+            .map(|x| ItemNode::new(x, &items, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 
@@ -502,6 +875,62 @@ mod tests {
                 .create_parent_chain()
                 .len(),
             2
+        );
+    }
+
+    #[test]
+    fn when_you_cover_yourself_causing_a_circular_reference_create_growing_node_detects_this_and_terminates(
+    ) {
+        let surreal_items = vec![
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "1").into()))
+                .summary("Main Item that covers something else")
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "1").into(),
+                )])
+                .build()
+                .unwrap(),
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "2").into()))
+                .summary("Item that is covered by main item and the item this covers")
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "2").into(),
+                )])
+                .build()
+                .unwrap(),
+            SurrealItemBuilder::default()
+                .id(Some(("surreal_item", "3").into()))
+                .summary("Item that is covers the item it is covered by, circular reference")
+                .item_type(SurrealItemType::Action)
+                .dependencies(vec![SurrealDependency::AfterItem(
+                    ("surreal_item", "3").into(),
+                )])
+                .build()
+                .unwrap(),
+        ];
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(surreal_items)
+            .build()
+            .expect("no required fields");
+        let all_time_spent = surreal_tables.make_time_spent_log().collect::<Vec<_>>();
+        let now = Utc::now();
+        let items = surreal_tables.make_items(&now);
+        let active_items = items.filter_active_items();
+
+        let to_dos = active_items.iter().filter(|x| x.is_type_action());
+        let next_step_nodes = to_dos
+            .map(|x| ItemNode::new(x, &items, &all_time_spent))
+            .filter(|x| !x.has_children(Filter::Active))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            next_step_nodes
+                .iter()
+                .filter(|x| x.has_dependencies(Filter::Active) == false)
+                .count(),
+            0
         );
     }
 }

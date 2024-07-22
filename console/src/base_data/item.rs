@@ -1,22 +1,28 @@
-use chrono::{DateTime, Local, Utc};
-use itertools::chain;
-use surrealdb::{opt::RecordId, sql::Thing};
+use std::time::Duration;
+
+use chrono::{DateTime, Utc};
+use surrealdb::{
+    opt::RecordId,
+    sql::{Datetime, Thing},
+};
 
 use crate::surrealdb_layer::{
     surreal_item::{
-        Facing, ItemType, NotesLocation, Permanence, Responsibility, SurrealItem,
-        SurrealOrderedSubItem, SurrealScheduled, SurrealStaging,
+        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
+        SurrealItemType, SurrealOrderedSubItem, SurrealUrgencyPlan,
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };
 
-use super::{covering::Covering, covering_until_date_time::CoveringUntilDateTime};
+use super::FindRecordId;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
     id: &'s RecordId,
     required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
     surreal_item: &'s SurrealItem,
+    now: &'s DateTime<Utc>,
+    now_sql: Datetime,
 }
 
 impl<'a> From<&'a Item<'a>> for &'a SurrealItem {
@@ -42,11 +48,15 @@ impl From<Item<'_>> for RecordId {
     }
 }
 
+impl<'r> FindRecordId<'r, Item<'r>> for &'r [Item<'r>] {
+    fn find_record_id(&self, record_id: &RecordId) -> Option<&'r Item<'r>> {
+        self.iter().find(|x| x.get_surreal_record_id() == record_id)
+    }
+}
+
 pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
-    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item>;
-    fn filter_just_goals(&'t self) -> Self::ItemIterator;
     fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_active_items(&self) -> Vec<&Item>;
 }
@@ -57,27 +67,13 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
         Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
 
-    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
-        self.iter().find(|x| x.id == record_id)
-    }
-
-    fn filter_just_goals(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x: &'s Item<'s>| {
-            if matches!(x.get_item_type(), &ItemType::Goal(..)) {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
     fn filter_active_items(&self) -> Vec<&Item> {
         self.iter().filter(|x| !x.is_finished()).collect()
     }
 
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::PersonOrGroup {
+            if x.get_item_type() == &SurrealItemType::PersonOrGroup {
                 Some(x)
             } else {
                 None
@@ -92,23 +88,9 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
 
-    fn lookup_from_record_id<'a>(&'a self, record_id: &RecordId) -> Option<&'a Item> {
-        self.iter().find(|x| x.id == record_id).copied()
-    }
-
-    fn filter_just_goals(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x: &&'s Item<'s>| {
-            if matches!(x.get_item_type(), &ItemType::Goal(..)) {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
-
     fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
         self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &ItemType::PersonOrGroup {
+            if x.get_item_type() == &SurrealItemType::PersonOrGroup {
                 Some(x)
             } else {
                 None
@@ -125,110 +107,32 @@ impl<'b> Item<'b> {
     pub(crate) fn new(
         surreal_item: &'b SurrealItem,
         required_circumstances: Vec<&'b SurrealRequiredCircumstance>,
+        now: &'b DateTime<Utc>,
     ) -> Self {
+        let now_sql = (*now).into();
         Self {
             id: surreal_item.id.as_ref().expect("Already in DB"),
             required_circumstances,
             surreal_item,
+            now,
+            now_sql,
         }
     }
 
-    pub(crate) fn get_item_type(&self) -> &'b ItemType {
+    pub(crate) fn get_item_type(&self) -> &'b SurrealItemType {
         &self.surreal_item.item_type
     }
 
     pub(crate) fn is_person_or_group(&self) -> bool {
-        self.get_item_type() == &ItemType::PersonOrGroup
+        self.get_item_type() == &SurrealItemType::PersonOrGroup
     }
 
     pub(crate) fn is_finished(&self) -> bool {
         self.surreal_item.finished.is_some()
     }
 
-    pub(crate) fn when_finished(&self) -> Option<DateTime<Utc>> {
-        match self.surreal_item.finished {
-            Some(ref finished) => {
-                let finished = finished.clone().into();
-                Some(finished)
-            }
-            None => None,
-        }
-    }
-
-    pub(crate) fn get_covered_by_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
-        let covered_by = coverings.iter().filter(|x| self == x.parent);
-        //Now see if the items that are covering are finished or active
-        covered_by
-            .filter_map(|x| {
-                if !x.smaller.is_finished() {
-                    Some(x.smaller)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    pub(crate) fn get_covering_another_item(&self, coverings: &[Covering<'b>]) -> Vec<&Self> {
-        let cover_others = coverings.iter().filter(|x| self == x.smaller);
-        //Now see if the items that are covering are finished or active
-        cover_others
-            .filter_map(|x| {
-                if !x.parent.is_finished() {
-                    Some(x.parent)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    pub(crate) fn get_covered_by_date_time_filter_out_the_past<'a>(
-        &self,
-        coverings_until_date_time: &'a [CoveringUntilDateTime<'a>],
-        now: &DateTime<Local>,
-    ) -> Vec<&'a DateTime<Utc>> {
-        let covered_by_date_time = coverings_until_date_time
-            .iter()
-            .filter(|x| self == x.cover_this);
-        covered_by_date_time
-            .filter_map(|x| if now < &x.until { Some(&x.until) } else { None })
-            .collect()
-    }
-
-    pub(crate) fn get_covered_by_date_time<'a>(
-        &self,
-        coverings_until_date_time: &'a [&'a CoveringUntilDateTime<'a>],
-    ) -> Vec<&'a DateTime<Utc>> {
-        let covered_by_date_time = coverings_until_date_time
-            .iter()
-            .filter(|x| self == x.cover_this);
-        covered_by_date_time.map(|x| &x.until).collect()
-    }
-
-    pub(crate) fn covered_by(
-        &'b self,
-        coverings: &'b [Covering<'b>],
-        all_items: &'b [Item<'b>],
-    ) -> impl Iterator<Item = &'b Item<'b>> + 'b {
-        chain!(
-            coverings.iter().filter_map(move |x| {
-                if x.parent == self && !x.smaller.is_finished() {
-                    Some(x.smaller)
-                } else {
-                    None
-                }
-            }),
-            self.surreal_item
-                .smaller_items_in_priority_order
-                .iter()
-                .filter_map(|x| match x {
-                    SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
-                        .iter()
-                        .find(|x| x.id == surreal_item_id && !x.is_finished()),
-                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
-                })
-        )
+    pub(crate) fn is_active(&self) -> bool {
+        !self.is_finished()
     }
 
     pub(crate) fn get_id(&self) -> &'b Thing {
@@ -243,80 +147,35 @@ impl<'b> Item<'b> {
         &self.surreal_item.summary
     }
 
-    pub(crate) fn get_type(&self) -> &'b ItemType {
+    pub(crate) fn get_type(&self) -> &'b SurrealItemType {
         self.get_item_type()
     }
 
     pub(crate) fn is_type_undeclared(&self) -> bool {
-        self.get_item_type() == &ItemType::Undeclared
+        self.get_item_type() == &SurrealItemType::Undeclared
     }
 
     pub(crate) fn is_type_action(&self) -> bool {
-        self.get_item_type() == &ItemType::Action
+        self.get_item_type() == &SurrealItemType::Action
     }
 
     pub(crate) fn is_type_goal(&self) -> bool {
-        matches!(self.get_item_type(), &ItemType::Goal(..))
+        matches!(self.get_item_type(), &SurrealItemType::Goal(..))
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
-        self.get_item_type() == &ItemType::Motivation
-    }
-
-    pub(crate) fn has_children(&self) -> bool {
-        !self.surreal_item.smaller_items_in_priority_order.is_empty()
+        matches!(self.get_item_type(), &SurrealItemType::Motivation(..))
     }
 
     pub(crate) fn is_there_notes(&self) -> bool {
         self.surreal_item.notes_location != NotesLocation::None
     }
 
-    pub(crate) fn get_staging(&self) -> &SurrealStaging {
-        &self.surreal_item.staging
-    }
-
-    pub(crate) fn is_mentally_resident(&self) -> bool {
-        matches!(self.get_staging(), SurrealStaging::MentallyResident { .. })
-    }
-
-    pub(crate) fn is_staging_not_set(&self) -> bool {
-        self.get_staging() == &SurrealStaging::NotSet
-    }
-
-    pub(crate) fn get_permanence(&self) -> &Permanence {
-        &self.surreal_item.permanence
-    }
-
-    pub(crate) fn is_project(&self) -> bool {
-        self.get_permanence() == &Permanence::Project
-    }
-
-    pub(crate) fn is_permanence_not_set(&self) -> bool {
-        self.get_permanence() == &Permanence::NotSet
-    }
-
-    pub(crate) fn is_maintenance(&self) -> bool {
-        self.get_permanence() == &Permanence::Maintenance
-    }
-
     pub(crate) fn is_goal(&self) -> bool {
-        matches!(self.get_item_type(), &ItemType::Goal(..))
+        matches!(self.get_item_type(), &SurrealItemType::Goal(..))
     }
 
-    pub(crate) fn is_covered_by_a_goal(
-        &self,
-        coverings: &[Covering<'_>],
-        all_items: &[Item<'_>],
-    ) -> bool {
-        self.covered_by(coverings, all_items)
-            .any(|x| x.is_type_goal() && !x.is_finished())
-    }
-
-    pub(crate) fn get_thing(&self) -> &Thing {
-        self.surreal_item.id.as_ref().expect("Already in DB")
-    }
-
-    pub(crate) fn get_facing(&self) -> &Vec<Facing> {
+    pub(crate) fn get_surreal_facing(&self) -> &Vec<SurrealFacing> {
         &self.surreal_item.facing
     }
 
@@ -324,67 +183,51 @@ impl<'b> Item<'b> {
         &self.surreal_item.created
     }
 
-    pub(crate) fn is_scheduled(&self) -> bool {
-        match self.surreal_item.scheduled {
-            SurrealScheduled::NotScheduled => false,
-            SurrealScheduled::ScheduledExact { .. } | SurrealScheduled::ScheduledRange { .. } => {
-                true
-            }
-        }
+    pub(crate) fn get_surreal_urgency_plan(&self) -> &Option<SurrealUrgencyPlan> {
+        &self.surreal_item.urgency_plan
     }
 
-    pub(crate) fn get_scheduled(&self) -> &SurrealScheduled {
-        &self.surreal_item.scheduled
+    pub(crate) fn get_surreal_dependencies(&self) -> &Vec<SurrealDependency> {
+        &self.surreal_item.dependencies
+    }
+
+    pub(crate) fn get_now(&self) -> &DateTime<Utc> {
+        self.now
+    }
+
+    pub(crate) fn get_now_sql(&self) -> &Datetime {
+        &self.now_sql
     }
 }
 
 impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
-        linkage: &'a [Covering<'a>],
         other_items: &'a [Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
-        chain!(
-            linkage.iter().filter_map(|x| {
-                if x.smaller == self && !visited.contains(&x.parent) {
-                    Some(x.parent)
-                } else {
-                    None
-                }
-            }),
-            other_items.iter().filter(|other_item| {
+        other_items
+            .iter()
+            .filter(|other_item| {
                 other_item.is_this_a_smaller_item(self) && !visited.contains(other_item)
             })
-        )
-        .collect()
+            .collect()
     }
 
     pub(crate) fn find_children<'a>(
         &self,
-        linkage: &'a [Covering<'a>],
         other_items: &'a [Item<'a>],
         visited: &[&Item<'_>],
     ) -> Vec<&'a Item<'a>> {
-        chain!(
-            self.surreal_item
-                .smaller_items_in_priority_order
-                .iter()
-                .filter_map(|x| match x {
-                    SurrealOrderedSubItem::SubItem { surreal_item_id } => other_items
-                        .iter()
-                        .find(|x| x.id == surreal_item_id && !visited.contains(x)),
-                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
-                }),
-            linkage.iter().filter_map(|x| {
-                if x.parent == self && !visited.contains(&x.smaller) {
-                    Some(x.smaller)
-                } else {
-                    None
-                }
+        self.surreal_item
+            .smaller_items_in_priority_order
+            .iter()
+            .filter_map(|x| match x {
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => other_items
+                    .iter()
+                    .find(|x| x.id == surreal_item_id && !visited.contains(x)),
             })
-        )
-        .collect()
+            .collect()
     }
 
     pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
@@ -400,18 +243,91 @@ impl Item<'_> {
                         .expect("Should always be in DB")
                         == surreal_item_id
                 }
-                SurrealOrderedSubItem::Split { shared_priority: _ } => {
-                    todo!("Implement this now that this variant is more than a placeholder")
-                }
             })
     }
 
-    pub(crate) fn is_responsibility_reactive(&self) -> bool {
-        self.get_responsibility() == &Responsibility::ReactiveBeAvailableToAct
+    pub(crate) fn has_review_frequency(&self) -> bool {
+        self.surreal_item.item_review.is_some()
     }
 
-    pub(crate) fn get_responsibility(&self) -> &Responsibility {
-        &self.surreal_item.responsibility
+    pub(crate) fn is_a_review_due(&self) -> bool {
+        match &self.surreal_item.item_review {
+            Some(item_review) => match item_review.review_frequency {
+                SurrealFrequency::NoneReviewWithParent => false,
+                SurrealFrequency::Range {
+                    range_min,
+                    range_max: _range_max,
+                } => item_review.last_reviewed.as_ref().map_or(true, |x| {
+                    let last_reviewed: DateTime<Utc> = x.clone().into();
+                    let range_min: Duration = range_min.into();
+                    last_reviewed + range_min < *self.now
+                }),
+                SurrealFrequency::Hourly => {
+                    let one_hour = Duration::from_secs(60 * 60);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + one_hour < *self.now
+                    })
+                }
+                SurrealFrequency::Daily => {
+                    let one_day = Duration::from_secs(60 * 60 * 24);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + one_day < *self.now
+                    })
+                }
+                SurrealFrequency::EveryFewDays => {
+                    let three_days = Duration::from_secs(60 * 60 * 24 * 3);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + three_days < *self.now
+                    })
+                }
+                SurrealFrequency::Weekly => {
+                    let one_week = Duration::from_secs(60 * 60 * 24 * 7);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + one_week < *self.now
+                    })
+                }
+                SurrealFrequency::BiMonthly => {
+                    let two_months = Duration::from_secs(60 * 60 * 24 * 30 / 2);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + two_months < *self.now
+                    })
+                }
+                SurrealFrequency::Monthly => {
+                    let one_month = Duration::from_secs(60 * 60 * 24 * 30);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + one_month < *self.now
+                    })
+                }
+                SurrealFrequency::Quarterly => {
+                    let three_months = Duration::from_secs(60 * 60 * 24 * 30 * 3);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + three_months < *self.now
+                    })
+                }
+                SurrealFrequency::SemiAnnually => {
+                    let six_months = Duration::from_secs(60 * 60 * 24 * 30 * 6);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + six_months < *self.now
+                    })
+                }
+                SurrealFrequency::Yearly => {
+                    let one_year = Duration::from_secs(60 * 60 * 24 * 365);
+                    item_review.last_reviewed.as_ref().map_or(true, |x| {
+                        let last_reviewed: DateTime<Utc> = x.clone().into();
+                        last_reviewed + one_year < *self.now
+                    })
+                }
+            },
+            None => false,
+        }
     }
 }
 
@@ -433,7 +349,6 @@ mod tests {
                         .iter()
                         .find(|x| x.id == surreal_item_id)
                         .is_some_and(|x| !x.is_finished()),
-                    SurrealOrderedSubItem::Split { shared_priority: _ } => todo!(),
                 })
         }
     }
@@ -443,14 +358,14 @@ mod tests {
         let smaller_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Smaller item")
-            .item_type(ItemType::Action)
+            .item_type(SurrealItemType::Action)
             .build()
             .unwrap();
         let parent_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
             .finished(None)
-            .item_type(ItemType::Action)
+            .item_type(SurrealItemType::Action)
             .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }])
@@ -460,16 +375,15 @@ mod tests {
             .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
             .build()
             .unwrap();
-        let items: Vec<Item> = surreal_tables.make_items();
-        let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&active_items);
+        let now = Utc::now();
+        let items: Vec<Item> = surreal_tables.make_items(&now);
 
         let smaller_item = items
             .iter()
             .find(|x| smaller_item.id.as_ref().unwrap() == x.id)
             .unwrap();
         let visited = vec![];
-        let find_results = smaller_item.find_parents(&coverings, &items, &visited);
+        let find_results = smaller_item.find_parents(&items, &visited);
 
         assert_eq!(find_results.len(), 1);
         assert_eq!(
@@ -483,13 +397,13 @@ mod tests {
         let smaller_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Smaller item")
-            .item_type(ItemType::Action)
+            .item_type(SurrealItemType::Action)
             .build()
             .unwrap();
         let parent_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
-            .item_type(ItemType::Action)
+            .item_type(SurrealItemType::Action)
             .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
                 surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
             }])
@@ -499,7 +413,8 @@ mod tests {
             .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
             .build()
             .unwrap();
-        let items: Vec<Item> = surreal_tables.make_items();
+        let now = Utc::now();
+        let items: Vec<Item> = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
 
         let under_test_parent_item = items
@@ -508,46 +423,5 @@ mod tests {
             .unwrap();
 
         assert!(under_test_parent_item.has_active_children(&active_items));
-    }
-
-    #[test]
-    fn when_active_smaller_items_in_priority_order_exist_covered_by_returns_the_items() {
-        let smaller_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "1").into()))
-            .summary("Smaller item")
-            .item_type(ItemType::Action)
-            .build()
-            .unwrap();
-        let parent_item = SurrealItemBuilder::default()
-            .id(Some(("surreal_item", "2").into()))
-            .summary("Parent item")
-            .item_type(ItemType::Action)
-            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
-            }])
-            .build()
-            .unwrap();
-        let surreal_tables = SurrealTablesBuilder::default()
-            .surreal_items(vec![smaller_item.clone(), parent_item.clone()])
-            .build()
-            .unwrap();
-        let items: Vec<Item> = surreal_tables.make_items();
-        let active_items = items.filter_active_items();
-        let coverings = surreal_tables.make_coverings(&active_items);
-
-        let under_test_parent_item = items
-            .iter()
-            .find(|x| parent_item.id.as_ref().unwrap() == x.id)
-            .unwrap();
-
-        let covered_by = under_test_parent_item
-            .covered_by(&coverings, &items)
-            .collect::<Vec<_>>();
-
-        assert_eq!(covered_by.len(), 1);
-        assert_eq!(
-            covered_by.first().expect("checked in assert above").id,
-            smaller_item.id.as_ref().expect("set above")
-        );
     }
 }

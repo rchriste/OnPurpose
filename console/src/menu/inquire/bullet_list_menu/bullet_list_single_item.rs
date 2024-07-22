@@ -1,11 +1,10 @@
 mod create_or_update_children;
 pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
-mod plan_when_to_do_this;
-pub(crate) mod set_staging;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
-mod state_a_smaller_next_step;
+pub(crate) mod state_a_smaller_next_step;
+pub(crate) mod urgency_plan;
 
 use std::fmt::Display;
 
@@ -13,50 +12,43 @@ use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
+use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
-    display::{
-        display_item::DisplayItem, display_item_node::DisplayItemNode,
-        display_staging::DisplayStaging,
-    },
+    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::{
             create_or_update_children::create_or_update_children,
             give_this_item_a_parent::give_this_item_a_parent,
-            plan_when_to_do_this::plan_when_to_do_this,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
         },
-        select_higher_priority_than_this::select_higher_priority_than_this,
+        select_higher_importance_than_this::select_higher_importance_than_this,
         top_menu::capture,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
         update_item_summary::update_item_summary,
     },
     new_item,
-    node::{
-        item_highest_lap_count::ItemHighestLapCount, item_lap_count::ItemLapCount,
-        item_node::ItemNode, item_status::ItemStatus, Filter,
-    },
+    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
     surrealdb_layer::{
-        surreal_item::{HowMuchIsInMyControl, ItemType, Responsibility, SurrealStaging},
+        data_layer_commands::DataLayerCommands,
+        surreal_item::{
+            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
+        },
         surreal_tables::SurrealTables,
-        DataLayerCommands,
     },
     systems::bullet_list::BulletList,
 };
-
-use self::set_staging::{present_set_staging_menu, StagingMenuSelection};
 
 enum BulletListSingleItemSelection<'e> {
     DeclareItemType,
     CaptureNewItem,
     StartingToWorkOnThisNow,
     GiveThisItemAParent,
-    PlanWhenToDoThis,
-    ChangeStaging,
+    ChangeReadyAndUrgencyPlan,
     EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
@@ -80,9 +72,9 @@ enum BulletListSingleItemSelection<'e> {
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
-    SwitchToParentItem(DisplayItem<'e>, ItemLapCount<'e>),
+    SwitchToParentItem(DisplayItem<'e>, &'e ItemStatus<'e>),
     ParentToItem,
-    RemoveParent(DisplayItem<'e>, ItemStatus<'e>),
+    RemoveParent(DisplayItem<'e>, &'e ItemStatus<'e>),
     CaptureAFork,
     DebugPrintItem,
 }
@@ -103,9 +95,6 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
             Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove Parent: {}", parent_item),
-            Self::PlanWhenToDoThis => {
-                write!(f, "Plan when to do this")
-            }
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
             Self::SomethingElseShouldBeDoneFirst => {
                 write!(f, "Something else should be done first")
@@ -139,7 +128,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
             Self::ChangeType => write!(f, "Change Type"),
-            Self::ChangeStaging => write!(f, "Change Staging"),
+            Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
         }
     }
 }
@@ -147,12 +136,12 @@ impl Display for BulletListSingleItemSelection<'_> {
 impl<'e> BulletListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
-        all_items_highest_lap_count: &'e [ItemHighestLapCount<'e>],
+        all_items_status: &'e [ItemStatus<'e>],
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
         let is_type_action = item_node.is_type_action();
-        let has_no_parent = !item_node.has_larger(Filter::Active);
+        let has_no_parent = !item_node.has_parents(Filter::Active);
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
         let is_type_undeclared = item_node.is_type_undeclared();
@@ -164,10 +153,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if (is_type_goal || is_type_motivation) && !has_active_children {
             list.push(Self::StateASmallerNextStep);
-        }
-
-        if !is_type_goal && !is_type_motivation && !is_type_undeclared {
-            list.push(Self::PlanWhenToDoThis);
         }
 
         if is_type_undeclared {
@@ -227,21 +212,18 @@ impl<'e> BulletListSingleItemSelection<'e> {
         if is_type_action || is_type_goal || is_type_motivation || is_type_undeclared {
             list.push(Self::ParentToItem);
             list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_highest_lap_count = all_items_highest_lap_count
+                let item_status = all_items_status
                     .iter()
                     .find(|y| y.get_item() == *x)
                     .expect("All items are here");
-                Self::SwitchToParentItem(
-                    DisplayItem::new(x),
-                    item_highest_lap_count.get_item_lap_count().clone(),
-                )
+                Self::SwitchToParentItem(DisplayItem::new(x), item_status)
             }));
             list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_status = all_items_highest_lap_count
+                let item_status = all_items_status
                     .iter()
                     .find(|y| y.get_item() == *x)
                     .expect("All items are here");
-                Self::RemoveParent(DisplayItem::new(x), item_status.get_item_status().clone())
+                Self::RemoveParent(DisplayItem::new(x), item_status)
             }));
         }
 
@@ -263,7 +245,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if is_type_action || is_type_goal || is_type_motivation {
             list.push(Self::ChangeType);
-            list.push(Self::ChangeStaging);
+            list.push(Self::ChangeReadyAndUrgencyPlan);
         }
 
         if !is_type_undeclared {
@@ -280,17 +262,17 @@ impl<'e> BulletListSingleItemSelection<'e> {
 }
 
 pub(crate) async fn present_bullet_list_item_selected(
-    menu_for: &ItemLapCount<'_>,
+    menu_for: &ItemStatus<'_>,
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
     bullet_list: &BulletList,
     bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    print_completed_children(menu_for.get_item_status());
-    print_in_progress_children(menu_for.get_item_status());
+    print_completed_children(menu_for);
+    print_in_progress_children(menu_for);
     println!();
 
-    let all_items_lap_highest_count = bullet_list.get_all_items_highest_lap_count();
+    let all_items_lap_highest_count = bullet_list.get_all_items_status();
     let list = BulletListSingleItemSelection::create_list(
         menu_for.get_item_node(),
         all_items_lap_highest_count,
@@ -349,9 +331,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .unwrap();
             Ok(())
         }
-        Ok(BulletListSingleItemSelection::PlanWhenToDoThis) => {
-            plan_when_to_do_this(menu_for, send_to_data_storage_layer).await
-        }
         Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
             todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
         }
@@ -382,10 +361,10 @@ pub(crate) async fn present_bullet_list_item_selected(
             todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
-            present_set_staging_menu(
-                menu_for.get_item(),
+            present_set_ready_and_urgency_plan_menu(
+                menu_for,
+                menu_for.get_urgency_now().cloned(),
                 send_to_data_storage_layer,
-                Some(StagingMenuSelection::MentallyResident),
             )
             .await?;
             log_worked_on_this::log_worked_on_this(
@@ -394,13 +373,12 @@ pub(crate) async fn present_bullet_list_item_selected(
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
-                bullet_list.get_ordered_bullet_list(),
             )
             .await
         }
         Ok(BulletListSingleItemSelection::Finished) => {
             finish_bullet_item(
-                menu_for.get_item_status(),
+                menu_for,
                 bullet_list,
                 bullet_list_created,
                 Utc::now(),
@@ -413,7 +391,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
-                bullet_list.get_ordered_bullet_list(),
             )
             .await
         }
@@ -449,11 +426,11 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::ChangeType) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::ChangeStaging) => {
-            present_set_staging_menu(
-                menu_for.get_item(),
+        Ok(BulletListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
+            present_set_ready_and_urgency_plan_menu(
+                menu_for,
+                menu_for.get_urgency_now().cloned(),
                 send_to_data_storage_layer,
-                Some(StagingMenuSelection::OnDeck),
             )
             .await
         }
@@ -474,7 +451,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
             present_bullet_list_item_parent_selected(
-                &selected,
+                selected,
                 bullet_list,
                 bullet_list_created,
                 send_to_data_storage_layer,
@@ -496,7 +473,7 @@ pub(crate) async fn present_bullet_list_item_selected(
 
 fn print_completed_children(menu_for: &ItemStatus<'_>) {
     let completed_children = menu_for
-        .get_smaller(Filter::Finished)
+        .get_children(Filter::Finished)
         .map(|x| x.get_item())
         .collect::<Vec<_>>();
     if !completed_children.is_empty() {
@@ -513,7 +490,7 @@ fn print_completed_children(menu_for: &ItemStatus<'_>) {
 
 fn print_in_progress_children(menu_for: &ItemStatus<'_>) {
     let in_progress_children = menu_for
-        .get_smaller(Filter::Active)
+        .get_children(Filter::Active)
         .map(|x| x.get_item())
         .collect::<Vec<_>>();
     if !in_progress_children.is_empty() {
@@ -531,8 +508,6 @@ fn print_in_progress_children(menu_for: &ItemStatus<'_>) {
 enum FinishSelection<'e> {
     CreateNextStepWithParent(&'e Item<'e>),
     GoToParent(&'e Item<'e>),
-    UpdateStagingForParent(&'e Item<'e>),
-    ApplyStagingToParent(&'e Item<'e>, SurrealStaging),
     CaptureNewItem,
     ReturnToBulletList,
 }
@@ -548,20 +523,6 @@ impl Display for FinishSelection<'_> {
             FinishSelection::GoToParent(parent) => {
                 write!(f, "Go to Parent: {}", DisplayItem::new(parent))
             }
-            FinishSelection::UpdateStagingForParent(parent) => {
-                write!(
-                    f,
-                    "Update Staging for Parent: {} Current Staging: {}",
-                    DisplayItem::new(parent),
-                    DisplayStaging::new(parent.get_staging())
-                )
-            }
-            FinishSelection::ApplyStagingToParent(parent, staging) => write!(
-                f,
-                "Apply Staging: {} to Parent: {}",
-                DisplayStaging::new(staging),
-                DisplayItem::new(parent)
-            ),
             FinishSelection::CaptureNewItem => write!(f, "Capture New Item"),
             FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
         }
@@ -569,18 +530,15 @@ impl Display for FinishSelection<'_> {
 }
 
 impl<'e> FinishSelection<'e> {
-    fn make_list(parents: &[&'e Item<'e>], finished_item: &Item<'_>) -> Vec<Self> {
+    fn make_list(parents: &[&'e Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
         list.push(Self::ReturnToBulletList);
         list.push(Self::CaptureNewItem);
-        list.extend(parents.iter().flat_map(|x| {
-            vec![
-                Self::CreateNextStepWithParent(x),
-                Self::UpdateStagingForParent(x),
-                Self::ApplyStagingToParent(x, finished_item.get_staging().clone()),
-                Self::GoToParent(x),
-            ]
-        }));
+        list.extend(
+            parents
+                .iter()
+                .flat_map(|x| vec![Self::CreateNextStepWithParent(x), Self::GoToParent(x)]),
+        );
         list
     }
 }
@@ -603,10 +561,9 @@ async fn finish_bullet_item(
 
     let list = FinishSelection::make_list(
         &finish_this
-            .get_larger(Filter::Active)
+            .get_parents(Filter::Active)
             .map(|x| x.get_item())
             .collect::<Vec<_>>(),
-        finish_this.get_item(),
     );
     let selection = Select::new("Select from the below list|", list).prompt();
 
@@ -621,17 +578,11 @@ async fn finish_bullet_item(
             let items = base_data.get_items();
             let active_items = base_data.get_active_items();
             let parent_surreal_record_id = parent.get_surreal_record_id();
+            let time_spent_log = base_data.get_time_spent_log();
             let updated_parent = active_items
                 .iter()
                 .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
-                .map(|x| {
-                    ItemNode::new(
-                        x,
-                        base_data.get_coverings(),
-                        base_data.get_active_snoozed(),
-                        items,
-                    )
-                })
+                .map(|x| ItemNode::new(x, items, time_spent_log))
                 .next()
                 .expect("We will find this existing item once");
 
@@ -653,49 +604,19 @@ async fn finish_bullet_item(
                 .unwrap();
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-            let calculated_data = CalculatedData::new_from_base_data(base_data, &now);
+            let calculated_data = CalculatedData::new_from_base_data(base_data);
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let updated_parent = calculated_data
-                .get_items_highest_lap_count()
+                .get_items_status()
                 .iter()
                 .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
             Box::pin(present_bullet_list_item_selected(
-                updated_parent.get_item_lap_count(),
+                updated_parent,
                 when_this_function_was_called,
                 bullet_list,
                 bullet_list_created,
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
-        Ok(FinishSelection::UpdateStagingForParent(parent)) => {
-            present_set_staging_menu(parent, send_to_data_storage_layer, None).await?;
-            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            Box::pin(finish_bullet_item(
-                finish_this,
-                bullet_list,
-                bullet_list_created,
-                Utc::now(),
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
-        Ok(FinishSelection::ApplyStagingToParent(parent, staging)) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateItemStaging(
-                    parent.get_surreal_record_id().clone(),
-                    staging,
-                ))
-                .await
-                .unwrap();
-            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            Box::pin(finish_bullet_item(
-                finish_this,
-                bullet_list,
-                bullet_list_created,
-                Utc::now(),
                 send_to_data_storage_layer,
             ))
             .await
@@ -741,13 +662,16 @@ async fn process_and_finish_bullet_item(
 }
 
 async fn present_bullet_list_item_parent_selected(
-    selected_item: &ItemLapCount<'_>,
+    selected_item: &ItemStatus<'_>,
     bullet_list: &BulletList,
     current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     match selected_item.get_type() {
-        ItemType::Action | ItemType::Goal(..) | ItemType::Motivation | ItemType::Undeclared => {
+        SurrealItemType::Action
+        | SurrealItemType::Goal(..)
+        | SurrealItemType::Motivation(..)
+        | SurrealItemType::Undeclared => {
             Box::pin(present_bullet_list_item_selected(
                 selected_item,
                 chrono::Utc::now(),
@@ -757,8 +681,8 @@ async fn present_bullet_list_item_parent_selected(
             ))
             .await
         }
-        ItemType::IdeaOrThought => todo!(),
-        ItemType::PersonOrGroup => todo!(),
+        SurrealItemType::IdeaOrThought => todo!(),
+        SurrealItemType::PersonOrGroup => todo!(),
     }
 }
 
@@ -773,16 +697,10 @@ async fn parent_to_item(
     let base_data = BaseData::new_from_surreal_tables(raw_data, now);
     let items = base_data.get_items();
     let active_items = base_data.get_active_items();
+    let time_spent_log = base_data.get_time_spent_log();
     let item_nodes = active_items
         .iter()
-        .map(|x| {
-            ItemNode::new(
-                x,
-                base_data.get_coverings(),
-                base_data.get_active_snoozed(),
-                items,
-            )
-        })
+        .map(|x| ItemNode::new(x, items, time_spent_log))
         .collect::<Vec<_>>();
     let list = DisplayItemNode::make_list(&item_nodes);
 
@@ -790,12 +708,12 @@ async fn parent_to_item(
     match selection {
         Ok(display_item) => {
             let item_node: &ItemNode = display_item.get_item_node();
-            let higher_priority_than_this = if item_node.has_children(Filter::Active) {
+            let higher_importance_than_this = if item_node.has_children(Filter::Active) {
                 let items = item_node
-                    .get_smaller(Filter::Active)
+                    .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_priority_than_this(&items)
+                select_higher_importance_than_this(&items, None)
             } else {
                 None
             };
@@ -803,7 +721,7 @@ async fn parent_to_item(
                 .send(DataLayerCommands::ParentItemWithExistingItem {
                     child: parent_this.get_surreal_record_id().clone(),
                     parent: item_node.get_surreal_record_id().clone(),
-                    higher_priority_than_this,
+                    higher_importance_than_this,
                 })
                 .await
                 .unwrap();
@@ -816,53 +734,14 @@ async fn parent_to_item(
     }
 }
 
-pub(crate) async fn cover_with_item(
-    parent_this: &Item<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<(), ()> {
-    //TODO: cover_to_item and parent_to_item are the same except for the command sent to the data storage layer, refactor to reduce duplicated code
-    let raw_data = SurrealTables::new(send_to_data_storage_layer)
-        .await
-        .unwrap();
-    let now = Utc::now();
-    let base_data = BaseData::new_from_surreal_tables(raw_data, now);
-    let items = base_data.get_active_items();
-
-    let list = DisplayItem::make_list(items);
-
-    let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
-    match selection {
-        Ok(display_item) => {
-            let item: &Item = display_item.into();
-            let higher_priority_than_this = if item.has_children() {
-                todo!("User needs to pick what item this should be before. Although if all of the children are finished then it should be fine to just put it at the end. Also there is probably common menu code to call for this purpose")
-            } else {
-                None
-            };
-            send_to_data_storage_layer
-                .send(DataLayerCommands::ParentItemWithExistingItem {
-                    child: item.get_surreal_record_id().clone(),
-                    parent: parent_this.get_surreal_record_id().clone(),
-                    higher_priority_than_this,
-                })
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
-            cover_with_new_item(parent_this, send_to_data_storage_layer).await
-        }
-        Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
-    }
-}
-
 pub(crate) enum ItemTypeSelection {
     Action,
     Goal,
     ResponsiveGoal,
-    Motivation,
-    ResponsiveMotivation,
+    MotivationCore,
+    MotivationNonCore,
+    ResponsiveMotivationCore,
+    ResponsiveMotivationNonCore,
     NormalHelp,
     ResponsiveHelp,
 }
@@ -873,11 +752,17 @@ impl Display for ItemTypeSelection {
             Self::Action => write!(f, "Action 🪜"),
             Self::Goal => write!(f, "Multi-Step Goal 🪧"),
             Self::ResponsiveGoal => write!(f, "Responsive Multi-Step Goal 🪧"),
-            Self::Motivation => {
-                write!(f, "Motivational Reason 🎯")
+            Self::MotivationCore => {
+                write!(f, "Motivational Core Reason 🎯🏢")
             }
-            Self::ResponsiveMotivation => {
-                write!(f, "Responsive Motivational Reason 🎯")
+            Self::MotivationNonCore => {
+                write!(f, "Motivational Non-Core Reason 🎯🏞")
+            }
+            Self::ResponsiveMotivationCore => {
+                write!(f, "Responsive Motivational Core Reason 🎯🏢")
+            }
+            Self::ResponsiveMotivationNonCore => {
+                write!(f, "Responsive Motivational Non-Core Reason 🎯🏞")
             }
             Self::NormalHelp | Self::ResponsiveHelp => write!(f, "Help"),
         }
@@ -886,15 +771,23 @@ impl Display for ItemTypeSelection {
 
 impl ItemTypeSelection {
     pub(crate) fn create_list() -> Vec<Self> {
-        vec![Self::Action, Self::Goal, Self::Motivation, Self::NormalHelp]
+        vec![
+            Self::Action,
+            Self::Goal,
+            Self::MotivationCore,
+            Self::MotivationNonCore,
+            Self::NormalHelp,
+        ]
     }
 
     pub(crate) fn create_list_goals_and_motivations() -> Vec<Self> {
         vec![
             Self::Goal,
-            Self::Motivation,
+            Self::MotivationCore,
+            Self::MotivationNonCore,
             Self::ResponsiveGoal,
-            Self::ResponsiveMotivation,
+            Self::ResponsiveMotivationCore,
+            Self::ResponsiveMotivationNonCore,
             Self::ResponsiveHelp,
         ]
     }
@@ -910,19 +803,29 @@ impl ItemTypeSelection {
         let new_item_builder = match self {
             ItemTypeSelection::Action => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Action),
+                .item_type(SurrealItemType::Action),
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Goal(HowMuchIsInMyControl::default())),
+                .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
             ItemTypeSelection::ResponsiveGoal => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Goal(HowMuchIsInMyControl::default())),
-            ItemTypeSelection::Motivation => new_item_builder
+                .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
+            ItemTypeSelection::MotivationCore => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(ItemType::Motivation),
-            ItemTypeSelection::ResponsiveMotivation => new_item_builder
+                .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
+            ItemTypeSelection::MotivationNonCore => new_item_builder
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(SurrealItemType::Motivation(
+                    SurrealMotivationKind::NonCoreWork,
+                )),
+            ItemTypeSelection::ResponsiveMotivationCore => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(ItemType::Motivation),
+                .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
+            ItemTypeSelection::ResponsiveMotivationNonCore => new_item_builder
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
+                .item_type(SurrealItemType::Motivation(
+                    SurrealMotivationKind::NonCoreWork,
+                )),
             ItemTypeSelection::NormalHelp => {
                 panic!("NormalHelp should be handled before this point")
             }
@@ -1032,39 +935,6 @@ pub(crate) async fn parent_to_new_item(
     }
 }
 
-pub(crate) async fn cover_with_new_item(
-    cover_this: &Item<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<(), ()> {
-    let list = ItemTypeSelection::create_list();
-
-    let selection = Select::new("Select from the below list|", list).prompt();
-    match selection {
-        Ok(ItemTypeSelection::NormalHelp) => {
-            ItemTypeSelection::print_normal_help();
-            Box::pin(cover_with_new_item(cover_this, send_to_data_storage_layer)).await
-        }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
-            Box::pin(cover_with_new_item(cover_this, send_to_data_storage_layer)).await
-        }
-        Ok(item_type_selection) => {
-            let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
-            send_to_data_storage_layer
-                .send(DataLayerCommands::CoverItemWithANewItem {
-                    cover_this: cover_this.get_surreal_record_id().clone(),
-                    cover_with: new_item,
-                })
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Err(InquireError::OperationCanceled) => todo!(),
-        Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
-    }
-}
-
 pub(crate) async fn declare_item_type(
     item: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -1078,7 +948,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::Action,
+                    SurrealItemType::Action,
                 ))
                 .await
                 .unwrap();
@@ -1089,7 +959,7 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::Goal(HowMuchIsInMyControl::default()),
+                    SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()),
                 ))
                 .await
                 .unwrap();
@@ -1100,29 +970,51 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    ItemType::Goal(HowMuchIsInMyControl::default()),
+                    SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()),
                 ))
                 .await
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::Motivation) => {
+        Ok(ItemTypeSelection::MotivationCore) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    ItemType::Motivation,
+                    SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
                 ))
                 .await
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::ResponsiveMotivation) => {
+        Ok(ItemTypeSelection::MotivationNonCore) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_record_id().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
+                ))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Ok(ItemTypeSelection::ResponsiveMotivationCore) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    ItemType::Motivation,
+                    SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
+                ))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Ok(ItemTypeSelection::ResponsiveMotivationNonCore) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_record_id().clone(),
+                    Responsibility::ReactiveBeAvailableToAct,
+                    SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
                 ))
                 .await
                 .unwrap();
