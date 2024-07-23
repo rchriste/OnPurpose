@@ -289,6 +289,20 @@ impl Display for TriggerType {
     }
 }
 
+enum AddAnotherTrigger {
+    AllDone,
+    AddAnother,
+}
+
+impl Display for AddAnotherTrigger {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddAnotherTrigger::AllDone => write!(f, "Done, Move on to stating final urgency"),
+            AddAnotherTrigger::AddAnother => write!(f, "Add another trigger, (only one trigger needs to happen)"),
+        }
+    }
+}
+
 pub(crate) async fn prompt_for_triggers(
     now: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -297,12 +311,12 @@ pub(crate) async fn prompt_for_triggers(
     loop {
         let trigger = prompt_for_trigger(now, send_to_data_storage_layer).await;
         result.push(trigger);
-        let more = Select::new("Do you want to add more triggers?", vec![true, false])
-            .with_starting_cursor(1)
+        let more = Select::new("Is there anything else that should also trigger?", vec![AddAnotherTrigger::AllDone, AddAnotherTrigger::AddAnother])
             .prompt()
             .unwrap();
-        if !more {
-            break;
+        match more {
+            AddAnotherTrigger::AllDone => break,
+            AddAnotherTrigger::AddAnother => continue,
         }
     }
 

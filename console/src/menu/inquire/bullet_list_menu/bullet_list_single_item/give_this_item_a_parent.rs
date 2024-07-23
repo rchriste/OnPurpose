@@ -17,7 +17,7 @@ use crate::{
 
 enum ParentItem<'e> {
     ItemNode(DisplayItemNode<'e>),
-    FinishItem
+    FinishItem,
 }
 
 impl fmt::Display for ParentItem<'_> {
@@ -77,12 +77,12 @@ pub(crate) async fn give_this_item_a_parent(
     match selection {
         Ok(ParentItem::FinishItem) => {
             send_to_data_storage_layer
-            .send(DataLayerCommands::FinishItem {
-                item: parent_this.get_surreal_record_id().clone(),
-                when_finished: parent_this.get_now().clone().into(),
-            })
-            .await
-            .unwrap();
+                .send(DataLayerCommands::FinishItem {
+                    item: parent_this.get_surreal_record_id().clone(),
+                    when_finished: parent_this.get_now().clone().into(),
+                })
+                .await
+                .unwrap();
 
             //Return so we can exit out and not continue being that we are finished with the item
             return Ok(());
