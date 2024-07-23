@@ -315,7 +315,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await
         }
         Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
-            give_this_item_a_parent(menu_for.get_item(), send_to_data_storage_layer).await
+            give_this_item_a_parent(menu_for.get_item(), false, send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::RemoveParent(_, selected)) => {
             send_to_data_storage_layer

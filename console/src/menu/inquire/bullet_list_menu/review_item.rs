@@ -336,7 +336,7 @@ async fn present_review_item_menu_internal(
             }
         }
         ReviewItemMenuChoices::AddNewParent => {
-            give_this_item_a_parent(selected_item.get_item(), send_to_data_storage_layer)
+            give_this_item_a_parent(selected_item.get_item(), false, send_to_data_storage_layer)
                 .await
                 .unwrap();
 

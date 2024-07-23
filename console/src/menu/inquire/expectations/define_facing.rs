@@ -148,7 +148,7 @@ async fn single_item_define_facing(
 
     match selection {
         Ok(FacingOptions::PickParent) => {
-            give_this_item_a_parent(item_node.get_item(), send_to_data_storage_layer).await
+            give_this_item_a_parent(item_node.get_item(), false, send_to_data_storage_layer).await
         }
         Ok(FacingOptions::ForMyself) => {
             let list = HowWellDefinedSelection::get_list();

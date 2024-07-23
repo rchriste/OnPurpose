@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt};
 
 use chrono::Utc;
 use inquire::{InquireError, Select};
@@ -15,8 +15,23 @@ use crate::{
     surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
+enum ParentItem<'e> {
+    ItemNode(DisplayItemNode<'e>),
+    FinishItem
+}
+
+impl fmt::Display for ParentItem<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParentItem::ItemNode(node) => write!(f, "{}", node),
+            ParentItem::FinishItem => write!(f, "🚪Finish Item"),
+        }
+    }
+}
+
 pub(crate) async fn give_this_item_a_parent(
     parent_this: &Item<'_>,
+    show_finish_option: bool,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
@@ -27,7 +42,7 @@ pub(crate) async fn give_this_item_a_parent(
     let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
     let time_spent_log = base_data.get_time_spent_log();
-    let mut list = active_items
+    let mut nodes = active_items
         .iter()
         .filter(|x| x.get_surreal_record_id() != parent_this.get_surreal_record_id())
         .map(|item| ItemNode::new(item, all_items, time_spent_log))
@@ -35,7 +50,7 @@ pub(crate) async fn give_this_item_a_parent(
         //only takes a reference.
         .collect::<Vec<_>>();
 
-    list.sort_by(|a, b| {
+    nodes.sort_by(|a, b| {
         //Motivational items first, then goals, then everything else.
         if a.is_type_motivation() && !b.is_type_motivation() {
             Ordering::Less
@@ -50,11 +65,29 @@ pub(crate) async fn give_this_item_a_parent(
         }
     });
 
-    let list = list.iter().map(DisplayItemNode::new).collect::<Vec<_>>();
+    let mut list = Vec::new();
+    if show_finish_option {
+        list.push(ParentItem::FinishItem);
+    }
+    for node in nodes.iter() {
+        list.push(ParentItem::ItemNode(DisplayItemNode::new(node)));
+    }
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
-        Ok(parent) => {
+        Ok(ParentItem::FinishItem) => {
+            send_to_data_storage_layer
+            .send(DataLayerCommands::FinishItem {
+                item: parent_this.get_surreal_record_id().clone(),
+                when_finished: parent_this.get_now().clone().into(),
+            })
+            .await
+            .unwrap();
+
+            //Return so we can exit out and not continue being that we are finished with the item
+            return Ok(());
+        }
+        Ok(ParentItem::ItemNode(parent)) => {
             let parent: &ItemNode<'_> = parent.get_item_node();
 
             let higher_importance_than_this = if parent.has_children(Filter::Active) {

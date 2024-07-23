@@ -18,7 +18,7 @@ pub(crate) async fn present_parent_back_to_a_motivation_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_present_parent_back_to_a_motivation_menu = Utc::now();
-    give_this_item_a_parent(item_status.get_item(), send_to_data_storage_layer).await?;
+    give_this_item_a_parent(item_status.get_item(), true, send_to_data_storage_layer).await?;
 
     let new_time_spent = NewTimeSpent {
         working_on: vec![SurrealAction::ParentBackToAMotivation(

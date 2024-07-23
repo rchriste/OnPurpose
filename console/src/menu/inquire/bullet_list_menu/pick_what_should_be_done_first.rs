@@ -60,7 +60,6 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         .collect::<Vec<_>>();
 
     let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());
-    println!("starting choice is {}", starting_choice);
     let choice = Select::new("Pick a priority?", display_choices)
         .with_starting_cursor(starting_choice)
         .prompt()

@@ -4,6 +4,8 @@
         "ADHD",
         "binutils",
         "chrono",
+        "clippy",
+        "crossterm",
         "Datelike",
         "dateparser",
         "Datetime",
@@ -33,6 +35,7 @@
         "surrealdb",
         "testcopy",
         "thiserror",
+        "upstreamed",
         "Ｗｏｒｋ"
     ],
     "rust-analyzer.showUnlinkedFileNotification": false
