@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    item_action::ActionWithItemStatus,
+    action_with_item_status::ActionWithItemStatus,
     item_node::{
         ActionWithItem, DependencyWithItem, ItemNode, ItemsInScopeWithItem, TriggerWithItem,
         UrgencyPlanWithItem,

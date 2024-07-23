@@ -643,7 +643,6 @@ pub(crate) async fn present_search_menu(
                         item,
                         Utc::now(),
                         bullet_list,
-                        item.get_now(),
                         send_to_data_storage_layer,
                     )
                     .await
@@ -701,7 +700,6 @@ pub(crate) async fn present_search_menu(
                         item,
                         Utc::now(),
                         bullet_list,
-                        item.get_now(),
                         send_to_data_storage_layer,
                     )
                     .await
@@ -714,7 +712,6 @@ pub(crate) async fn present_search_menu(
                 item,
                 Utc::now(),
                 bullet_list,
-                item.get_now(),
                 send_to_data_storage_layer,
             )
             .await

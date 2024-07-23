@@ -64,7 +64,6 @@ pub(crate) async fn starting_to_work_on_this_now(
     currently_working_on: &ItemStatus<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
-    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = WorkingOnNow::make_list(currently_working_on.get_item_node());
@@ -88,7 +87,6 @@ pub(crate) async fn starting_to_work_on_this_now(
             finish_bullet_item(
                 currently_working_on,
                 bullet_list,
-                bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
             )
@@ -99,7 +97,6 @@ pub(crate) async fn starting_to_work_on_this_now(
                 currently_working_on,
                 *when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await

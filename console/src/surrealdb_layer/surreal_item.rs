@@ -151,7 +151,6 @@ pub(crate) enum SurrealItemTypeOld {
     PersonOrGroup,
 }
 
-
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum SurrealMotivationKind {
     #[default]
@@ -644,7 +643,9 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             SurrealItemTypeOld::Action => SurrealItemType::Action,
             SurrealItemTypeOld::Goal(how_much) => SurrealItemType::Goal(how_much),
             SurrealItemTypeOld::IdeaOrThought => SurrealItemType::IdeaOrThought,
-            SurrealItemTypeOld::Motivation => SurrealItemType::Motivation(SurrealMotivationKind::NotSet),
+            SurrealItemTypeOld::Motivation => {
+                SurrealItemType::Motivation(SurrealMotivationKind::NotSet)
+            }
             SurrealItemTypeOld::PersonOrGroup => SurrealItemType::PersonOrGroup,
         };
         SurrealItem {

@@ -1,3 +1,5 @@
+use surrealdb::opt::RecordId;
+
 use crate::{
     base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, FindRecordId},
     surrealdb_layer::{
@@ -100,6 +102,19 @@ impl<'e> ActionWithItemStatus<'e> {
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => todo!("It is not valid to call get_surreal_action in this scenario. If that is desired then we need to work out what to do."),
             ActionWithItemStatus::ReviewItem(item) => SurrealAction::ReviewItem(item.get_surreal_record_id().clone()),
             ActionWithItemStatus::SetReadyAndUrgency(item) => SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone()),
+        }
+    }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &RecordId {
+        match self {
+            ActionWithItemStatus::SetReadyAndUrgency(item)
+            | ActionWithItemStatus::ParentBackToAMotivation(item)
+            | ActionWithItemStatus::ReviewItem(item)
+            | ActionWithItemStatus::PickItemReviewFrequency(item)
+            | ActionWithItemStatus::MakeProgress(item) => item.get_surreal_record_id(),
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
+                todo!("It is not valid to call this function on this item")
+            }
         }
     }
 
@@ -274,13 +289,14 @@ mod tests {
     use crate::{
         base_data::BaseData,
         calculated_data,
-        node::item_action::{ActionWithItemStatus, ApplyInTheMomentPriorities},
+        node::action_with_item_status::{ActionWithItemStatus, ApplyInTheMomentPriorities},
         surrealdb_layer::{
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
             surreal_item::SurrealItemBuilder,
-            surreal_tables::SurrealTablesBuilder, SurrealTrigger,
+            surreal_tables::SurrealTablesBuilder,
+            SurrealTrigger,
         },
     };
 
@@ -395,7 +411,7 @@ mod tests {
             .not_chosen(vec![SurrealAction::MakeProgress(
                 second_item.id.clone().expect("hard coded to a value"),
             )])
-            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into()) ])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
             .build()
             .unwrap();
 
@@ -429,10 +445,7 @@ mod tests {
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(
-            result,
-            first_item_action,
-        );
+        assert_eq!(result, first_item_action,);
     }
 
     #[test]

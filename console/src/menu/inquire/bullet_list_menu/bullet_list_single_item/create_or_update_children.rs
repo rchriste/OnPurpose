@@ -60,7 +60,6 @@ pub(crate) async fn create_or_update_children(
     item_status: &ItemStatus<'_>,
     when_selected: &DateTime<Utc>,
     bullet_list: &BulletList,
-    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     if !item_status.has_children(Filter::Active) {
@@ -103,7 +102,6 @@ pub(crate) async fn create_or_update_children(
                 item_status,
                 *when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await

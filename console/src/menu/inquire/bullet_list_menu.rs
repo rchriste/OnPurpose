@@ -22,10 +22,11 @@ use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
     display::{
-        display_item_action::DisplayItemAction, display_scheduled_item::DisplayScheduledItem,
+        display_action_with_item_status::DisplayActionWithItemStatus,
+        display_scheduled_item::DisplayScheduledItem,
     },
     menu::inquire::top_menu::present_top_menu,
-    node::item_action::ActionWithItemStatus,
+    node::action_with_item_status::ActionWithItemStatus,
     surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
     systems::bullet_list::BulletList,
 };
@@ -48,7 +49,7 @@ impl Display for InquireBulletListItem<'_> {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item  🗭"),
             Self::Search => write!(f, "🔍  Search            🔍"),
             Self::BulletListSingleItem(item) => {
-                let display = DisplayItemAction::new(item);
+                let display = DisplayActionWithItemStatus::new(item);
                 write!(f, "{}", display)
             }
         }
@@ -129,8 +130,12 @@ pub(crate) async fn present_bullet_list_menu(
             }
             Ok(InquireBulletListItem::BulletListSingleItem(selected)) => match selected {
                 ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                    present_pick_what_should_be_done_first_menu(choices, send_to_data_storage_layer)
-                        .await
+                    present_pick_what_should_be_done_first_menu(
+                        choices,
+                        bullet_list,
+                        send_to_data_storage_layer,
+                    )
+                    .await
                 }
                 ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                     present_pick_item_review_frequency_menu(
@@ -161,7 +166,6 @@ pub(crate) async fn present_bullet_list_menu(
                             item_status,
                             chrono::Utc::now(),
                             bullet_list,
-                            &bullet_list_created,
                             send_to_data_storage_layer,
                         ))
                         .await

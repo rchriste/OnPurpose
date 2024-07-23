@@ -1,18 +1,20 @@
 use std::fmt::{Display, Formatter};
 
+use surrealdb::opt::RecordId;
+
 use crate::{
     display::display_item_status::DisplayItemStatus,
-    node::item_action::ActionWithItemStatus,
+    node::action_with_item_status::ActionWithItemStatus,
     surrealdb_layer::{
         surreal_in_the_moment_priority::SurrealAction, surreal_item::SurrealUrgency,
     },
 };
 
-pub(crate) struct DisplayItemAction<'s> {
+pub(crate) struct DisplayActionWithItemStatus<'s> {
     item: &'s ActionWithItemStatus<'s>,
 }
 
-impl<'s> Display for DisplayItemAction<'s> {
+impl<'s> Display for DisplayActionWithItemStatus<'s> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let urgency = self.get_urgency_now();
         match urgency {
@@ -57,9 +59,13 @@ impl<'s> Display for DisplayItemAction<'s> {
     }
 }
 
-impl<'s> DisplayItemAction<'s> {
+impl<'s> DisplayActionWithItemStatus<'s> {
     pub(crate) fn new(item: &'s ActionWithItemStatus<'s>) -> Self {
         Self { item }
+    }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &RecordId {
+        self.item.get_surreal_record_id()
     }
 
     pub(crate) fn get_urgency_now(&self) -> SurrealUrgency {

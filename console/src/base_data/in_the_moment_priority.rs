@@ -2,7 +2,7 @@ use surrealdb::sql::Datetime;
 
 use crate::{
     node::{
-        item_action::ActionWithItemStatus,
+        action_with_item_status::ActionWithItemStatus,
         item_node::{ItemNode, TriggerWithItem},
         item_status::{ItemStatus, TriggerWithItemNode},
         IsTriggered,

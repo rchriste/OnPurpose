@@ -19,23 +19,18 @@ impl<'s> TimeSpent<'s> {
     pub(crate) fn new(surreal_time_spent: &'s SurrealTimeSpent) -> TimeSpent<'s> {
         let when_started: DateTime<Utc> = surreal_time_spent.when_started.clone().into();
         let when_stopped: DateTime<Utc> = surreal_time_spent.when_stopped.clone().into();
-        let duration = match when_stopped
-            .signed_duration_since(when_started)
-            .to_std()
-            {
+        let duration = match when_stopped.signed_duration_since(when_started).to_std() {
+            Ok(duration) => duration,
+            Err(_) => match when_started.signed_duration_since(when_stopped).to_std() {
                 Ok(duration) => duration,
-                Err(_) => {
-                    match when_started.signed_duration_since(when_stopped).to_std() {
-                        Ok(duration) => duration,
-                        Err(err) => {
-                            println!("when_started: {:?}", when_started);
-                            println!("when_stopped: {:?}", when_stopped);
-                            println!("Error: {:?}", err);
-                            panic!("Error in TimeSpent::new");
-                        }
-                    }                    
+                Err(err) => {
+                    println!("when_started: {:?}", when_started);
+                    println!("when_stopped: {:?}", when_stopped);
+                    println!("Error: {:?}", err);
+                    panic!("Error in TimeSpent::new");
                 }
-            };
+            },
+        };
         let worked_towards = surreal_time_spent
             .working_on
             .iter()

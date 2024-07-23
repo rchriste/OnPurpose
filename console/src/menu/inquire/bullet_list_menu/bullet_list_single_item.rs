@@ -265,7 +265,6 @@ pub(crate) async fn present_bullet_list_item_selected(
     menu_for: &ItemStatus<'_>,
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
     bullet_list: &BulletList,
-    bullet_list_created: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     print_completed_children(menu_for);
@@ -291,7 +290,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 menu_for,
                 &when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -302,7 +300,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await
@@ -313,7 +310,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await
@@ -349,7 +345,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 menu_for,
                 &when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -370,7 +365,6 @@ pub(crate) async fn present_bullet_list_item_selected(
             log_worked_on_this::log_worked_on_this(
                 menu_for,
                 &when_selected,
-                bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
             )
@@ -380,7 +374,6 @@ pub(crate) async fn present_bullet_list_item_selected(
             finish_bullet_item(
                 menu_for,
                 bullet_list,
-                bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
             )
@@ -388,7 +381,6 @@ pub(crate) async fn present_bullet_list_item_selected(
             log_worked_on_this::log_worked_on_this(
                 menu_for,
                 &when_selected,
-                bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
             )
@@ -444,7 +436,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await
@@ -453,7 +444,6 @@ pub(crate) async fn present_bullet_list_item_selected(
             present_bullet_list_item_parent_selected(
                 selected,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             )
             .await
@@ -546,7 +536,6 @@ impl<'e> FinishSelection<'e> {
 async fn finish_bullet_item(
     finish_this: &ItemStatus<'_>,
     bullet_list: &BulletList,
-    bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -592,7 +581,6 @@ async fn finish_bullet_item(
             Box::pin(finish_bullet_item(
                 finish_this,
                 bullet_list,
-                bullet_list_created,
                 Utc::now(),
                 send_to_data_storage_layer,
             ))
@@ -616,7 +604,6 @@ async fn finish_bullet_item(
                 updated_parent,
                 when_this_function_was_called,
                 bullet_list,
-                bullet_list_created,
                 send_to_data_storage_layer,
             ))
             .await
@@ -664,7 +651,6 @@ async fn process_and_finish_bullet_item(
 async fn present_bullet_list_item_parent_selected(
     selected_item: &ItemStatus<'_>,
     bullet_list: &BulletList,
-    current_date_time: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     match selected_item.get_type() {
@@ -676,7 +662,6 @@ async fn present_bullet_list_item_parent_selected(
                 selected_item,
                 chrono::Utc::now(),
                 bullet_list,
-                current_date_time,
                 send_to_data_storage_layer,
             ))
             .await

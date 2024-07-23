@@ -411,7 +411,8 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
         let _: SurrealTimeSpent = db
             .update((
                 SurrealTimeSpent::TABLE_NAME,
-                time_spent.get_id()
+                time_spent
+                    .get_id()
                     .clone()
                     .ok_or(TableError::IdEmpty)
                     .unwrap()

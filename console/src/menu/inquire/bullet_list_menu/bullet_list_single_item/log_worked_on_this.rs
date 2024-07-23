@@ -19,7 +19,6 @@ use crate::{
 pub(crate) async fn log_worked_on_this(
     selected: &ItemStatus<'_>,
     when_selected: &DateTime<Utc>,
-    bullet_list_created: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -36,7 +35,7 @@ pub(crate) async fn log_worked_on_this(
         let (when_started, when_stopped) = ask_when_started_and_stopped(
             send_to_data_storage_layer,
             when_selected,
-            bullet_list_created,
+            selected.get_now(),
             now,
         )
         .await?;
