@@ -120,6 +120,7 @@ pub(crate) async fn present_bullet_list_menu(
 
     if !inquire_bullet_list.is_empty() {
         let selected = Select::new("Select from the below list|", inquire_bullet_list)
+            .with_starting_cursor(2)
             .with_page_size(10)
             .prompt();
 

@@ -35,7 +35,7 @@ enum HighestOrLowest {
 impl Display for HighestOrLowest {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            HighestOrLowest::PickThisTime => write!(f, "Pick This Time"),
+            HighestOrLowest::PickThisTime => write!(f, "Pick This Once"),
             HighestOrLowest::RecordHighestPriorityUntil => {
                 write!(f, "Set as highest priority of these items until...")
             }
