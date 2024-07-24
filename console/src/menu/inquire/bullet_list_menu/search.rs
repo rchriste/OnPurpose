@@ -200,8 +200,8 @@ impl<'e> SearchMenuUrgencyItem<'e> {
             | SearchMenuUrgencyItem::InTheModeMaybeUrgent { coming_later, .. } => {
                 coming_later.push(to_push)
             }
-            SearchMenuUrgencyItem::HighestImportance { .. } => {
-                panic!("Programming error. Can't push onto highest importance")
+            SearchMenuUrgencyItem::HighestImportance { nothing_is_ready, ..  } => {
+                nothing_is_ready.push(to_push)
             }
             SearchMenuUrgencyItem::Item { .. } => panic!("Programming error. Can't push onto item"),
         }
@@ -438,7 +438,6 @@ pub(crate) async fn present_search_menu(
                         //Nothing is concerning about this urgency level so we don't need to surface it, nothing to do
                     }
                 }
-                todo!()
             }
             UrgencyChanges::WillChange { now, later } => {
                 match now {
