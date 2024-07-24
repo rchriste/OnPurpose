@@ -3,8 +3,7 @@ use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
 use crate::surrealdb_layer::surreal_item::{
-    Responsibility, SurrealDependency, SurrealFacing, SurrealItemReview, SurrealItemType,
-    SurrealLap, SurrealUrgencyPlan,
+    Responsibility, SurrealDependency, SurrealFacing, SurrealItemReview, SurrealItemType, SurrealLap, SurrealReviewGuidance, SurrealUrgencyPlan
 };
 
 #[derive(Builder)]
@@ -38,6 +37,9 @@ pub(crate) struct NewItem {
 
     #[builder(default)]
     pub(crate) item_review: Option<SurrealItemReview>,
+
+    #[builder(default)]
+    pub(crate) review_guidance: Option<SurrealReviewGuidance>,
 }
 
 impl NewItem {
@@ -53,6 +55,7 @@ impl NewItem {
             lap: None,
             dependencies: Default::default(),
             item_review: None,
+            review_guidance: None,
         }
     }
 
@@ -68,6 +71,7 @@ impl NewItem {
             lap: None,
             dependencies: Default::default(),
             item_review: None,
+            review_guidance: None,
         }
     }
 }

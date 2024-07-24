@@ -51,6 +51,8 @@ pub(crate) struct SurrealItem {
     #[cfg_attr(test, builder(default))]
     pub(crate) item_review: Option<SurrealItemReview>,
 
+    pub(crate) review_guidance: Option<SurrealReviewGuidance>,
+
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
     pub(crate) smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
@@ -87,6 +89,7 @@ impl SurrealItem {
             lap: new_item.lap,
             dependencies: new_item.dependencies,
             item_review: new_item.item_review,
+            review_guidance: new_item.review_guidance,
         }
     }
 
@@ -215,6 +218,12 @@ pub(crate) enum SurrealDependency {
 pub(crate) struct SurrealItemReview {
     pub(crate) last_reviewed: Option<Datetime>,
     pub(crate) review_frequency: SurrealFrequency,
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealReviewGuidance {
+    AlwaysReviewChildrenWithThisItem,
+    AskIfChildrenShouldBeReviewed,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
@@ -662,6 +671,7 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             urgency_plan: None,
             dependencies,
             item_review: None,
+            review_guidance: None,
         }
     }
 }

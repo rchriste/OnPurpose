@@ -8,8 +8,7 @@ use surrealdb::{
 
 use crate::surrealdb_layer::{
     surreal_item::{
-        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-        SurrealItemType, SurrealOrderedSubItem, SurrealUrgencyPlan,
+        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };
@@ -328,6 +327,10 @@ impl Item<'_> {
             },
             None => false,
         }
+    }
+
+    pub(crate) fn get_surreal_review_guidance(&self) -> &Option<SurrealReviewGuidance> {
+        &self.surreal_item.review_guidance
     }
 }
 
