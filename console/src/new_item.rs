@@ -3,7 +3,8 @@ use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
 use crate::surrealdb_layer::surreal_item::{
-    Responsibility, SurrealDependency, SurrealFacing, SurrealItemReview, SurrealItemType, SurrealLap, SurrealReviewGuidance, SurrealUrgencyPlan
+    Responsibility, SurrealDependency, SurrealFacing, SurrealItemReview, SurrealItemType,
+    SurrealLap, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 #[derive(Builder)]

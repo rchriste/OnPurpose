@@ -200,9 +200,9 @@ impl<'e> SearchMenuUrgencyItem<'e> {
             | SearchMenuUrgencyItem::InTheModeMaybeUrgent { coming_later, .. } => {
                 coming_later.push(to_push)
             }
-            SearchMenuUrgencyItem::HighestImportance { nothing_is_ready, ..  } => {
-                nothing_is_ready.push(to_push)
-            }
+            SearchMenuUrgencyItem::HighestImportance {
+                nothing_is_ready, ..
+            } => nothing_is_ready.push(to_push),
             SearchMenuUrgencyItem::Item { .. } => panic!("Programming error. Can't push onto item"),
         }
     }

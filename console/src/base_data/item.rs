@@ -8,7 +8,8 @@ use surrealdb::{
 
 use crate::surrealdb_layer::{
     surreal_item::{
-        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan
+        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
+        SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
     },
     surreal_required_circumstance::SurrealRequiredCircumstance,
 };

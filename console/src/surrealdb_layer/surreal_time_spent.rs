@@ -72,7 +72,7 @@ impl From<SurrealTimeSpentOldVersion> for SurrealTimeSpent {
             working_on: old_version
                 .working_on
                 .into_iter()
-                .map(|x| SurrealAction::MakeProgress(x))
+                .map(SurrealAction::MakeProgress)
                 .collect(),
             when_started: old_version.when_started,
             when_stopped: old_version.when_stopped,

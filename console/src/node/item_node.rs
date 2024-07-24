@@ -10,7 +10,8 @@ use crate::{
     base_data::{item::Item, time_spent::TimeSpent, FindRecordId},
     surrealdb_layer::{
         surreal_item::{
-            SurrealDependency, SurrealFacing, SurrealItem, SurrealItemType, SurrealReviewGuidance, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan
+            SurrealDependency, SurrealFacing, SurrealItem, SurrealItemType, SurrealReviewGuidance,
+            SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
         },
         SurrealItemsInScope, SurrealTrigger,
     },
@@ -523,11 +524,17 @@ impl<'s> GrowingItemNode<'s> {
 }
 
 pub(crate) trait ShouldChildrenHaveReviewFrequencySet {
-    fn should_children_have_review_frequency_set<'a>(&'a self, visited: Vec<&'a GrowingItemNode<'a>>) -> bool;
+    fn should_children_have_review_frequency_set<'a>(
+        &'a self,
+        visited: Vec<&'a GrowingItemNode<'a>>,
+    ) -> bool;
 }
 
 impl ShouldChildrenHaveReviewFrequencySet for &[GrowingItemNode<'_>] {
-    fn should_children_have_review_frequency_set(&self, visited: Vec<&GrowingItemNode<'_>>) -> bool {
+    fn should_children_have_review_frequency_set(
+        &self,
+        visited: Vec<&GrowingItemNode<'_>>,
+    ) -> bool {
         if self.is_empty() {
             true
         } else {
@@ -540,13 +547,20 @@ impl ShouldChildrenHaveReviewFrequencySet for &[GrowingItemNode<'_>] {
 }
 
 impl ShouldChildrenHaveReviewFrequencySet for Vec<GrowingItemNode<'_>> {
-    fn should_children_have_review_frequency_set(&self, visited: Vec<&GrowingItemNode<'_>>) -> bool {
-        self.as_slice().should_children_have_review_frequency_set(visited)
+    fn should_children_have_review_frequency_set(
+        &self,
+        visited: Vec<&GrowingItemNode<'_>>,
+    ) -> bool {
+        self.as_slice()
+            .should_children_have_review_frequency_set(visited)
     }
 }
 
 impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
-    fn should_children_have_review_frequency_set<'a>(&'a self, mut visited: Vec<&'a GrowingItemNode<'a>>) -> bool {
+    fn should_children_have_review_frequency_set<'a>(
+        &'a self,
+        mut visited: Vec<&'a GrowingItemNode<'a>>,
+    ) -> bool {
         if visited.contains(self) {
             //Circular reference
             false
@@ -555,7 +569,9 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
             match self.get_surreal_review_guidance() {
                 Some(SurrealReviewGuidance::AskIfChildrenShouldBeReviewed) => true,
                 Some(SurrealReviewGuidance::AlwaysReviewChildrenWithThisItem) => false,
-                None => self.larger.should_children_have_review_frequency_set(visited),
+                None => self
+                    .larger
+                    .should_children_have_review_frequency_set(visited),
             }
         }
     }
@@ -799,7 +815,9 @@ fn calculate_urgent_action_items<'a>(
     }
 
     //Does it need to pick a review frequency?
-    if parents.should_children_have_review_frequency_set(Default::default()) && !item.has_review_frequency()  {
+    if parents.should_children_have_review_frequency_set(Default::default())
+        && !item.has_review_frequency()
+    {
         result.push(ActionWithItem::PickItemReviewFrequency(item));
     }
 

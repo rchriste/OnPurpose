@@ -298,7 +298,9 @@ impl Display for AddAnotherTrigger {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             AddAnotherTrigger::AllDone => write!(f, "Done, Move on to stating final urgency"),
-            AddAnotherTrigger::AddAnother => write!(f, "Add another trigger, (only one trigger needs to happen)"),
+            AddAnotherTrigger::AddAnother => {
+                write!(f, "Add another trigger, (only one trigger needs to happen)")
+            }
         }
     }
 }
@@ -311,9 +313,12 @@ pub(crate) async fn prompt_for_triggers(
     loop {
         let trigger = prompt_for_trigger(now, send_to_data_storage_layer).await;
         result.push(trigger);
-        let more = Select::new("Is there anything else that should also trigger?", vec![AddAnotherTrigger::AllDone, AddAnotherTrigger::AddAnother])
-            .prompt()
-            .unwrap();
+        let more = Select::new(
+            "Is there anything else that should also trigger?",
+            vec![AddAnotherTrigger::AllDone, AddAnotherTrigger::AddAnother],
+        )
+        .prompt()
+        .unwrap();
         match more {
             AddAnotherTrigger::AllDone => break,
             AddAnotherTrigger::AddAnother => continue,
