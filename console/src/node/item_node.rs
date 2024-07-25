@@ -567,7 +567,7 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
         } else {
             visited.push(self);
             match self.get_surreal_review_guidance() {
-                Some(SurrealReviewGuidance::AskIfChildrenShouldBeReviewed) => true,
+                Some(SurrealReviewGuidance::ReviewChildrenSeparately) => true,
                 Some(SurrealReviewGuidance::AlwaysReviewChildrenWithThisItem) => false,
                 None => self
                     .larger
@@ -816,7 +816,7 @@ fn calculate_urgent_action_items<'a>(
 
     //Does it need to pick a review frequency?
     if parents.should_children_have_review_frequency_set(Default::default())
-        && !item.has_review_frequency()
+        && !(item.has_review_frequency() && item.has_review_guidance())
     {
         result.push(ActionWithItem::PickItemReviewFrequency(item));
     }

@@ -10,7 +10,7 @@ use crate::{
     surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_in_the_moment_priority::SurrealAction,
-        surreal_item::{SurrealFrequency, SurrealUrgency},
+        surreal_item::{SurrealFrequency, SurrealReviewGuidance, SurrealUrgency},
     },
 };
 
@@ -64,6 +64,42 @@ impl Frequency {
     }
 }
 
+enum ReviewGuidance {
+    ReviewChildrenTogether,
+    ReviewChildrenSeparately,
+}
+
+impl Display for ReviewGuidance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ReviewGuidance::ReviewChildrenTogether => write!(f, "Review Children Together"),
+            ReviewGuidance::ReviewChildrenSeparately => write!(f, "Review Children Separately"),
+        }
+    }
+}
+
+impl From<ReviewGuidance> for SurrealReviewGuidance {
+    fn from(review_guidance: ReviewGuidance) -> Self {
+        match review_guidance {
+            ReviewGuidance::ReviewChildrenTogether => SurrealReviewGuidance::AlwaysReviewChildrenWithThisItem,
+            ReviewGuidance::ReviewChildrenSeparately => {
+                SurrealReviewGuidance::ReviewChildrenSeparately
+            }
+        }
+    }
+}
+
+impl ReviewGuidance {
+    pub(crate) fn make_list() -> Vec<ReviewGuidance> {
+        vec![
+            ReviewGuidance::ReviewChildrenTogether,
+            ReviewGuidance::ReviewChildrenSeparately,
+        ]
+    }
+}
+
+
+
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
@@ -94,10 +130,18 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
         Frequency::Yearly => SurrealFrequency::Yearly,
     };
 
+    let review_guidance = Select::new(
+        "Should children items be reviewed with this item?",
+        ReviewGuidance::make_list(),
+    ).prompt().unwrap();
+
+
+
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemReviewFrequency(
             item_status.get_surreal_record_id().clone(),
             surreal_review_frequency,
+            review_guidance.into(),
         ))
         .await
         .unwrap();

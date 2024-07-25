@@ -250,6 +250,10 @@ impl Item<'_> {
         self.surreal_item.item_review.is_some()
     }
 
+    pub(crate) fn has_review_guidance(&self) -> bool {
+        self.surreal_item.review_guidance.is_some()
+    }
+
     pub(crate) fn is_a_review_due(&self) -> bool {
         match &self.surreal_item.item_review {
             Some(item_review) => match item_review.review_frequency {

@@ -18,9 +18,7 @@ use super::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
     surreal_item::{
-        Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-        SurrealItemOldVersion, SurrealItemReview, SurrealItemType, SurrealOrderedSubItem,
-        SurrealUrgencyPlan,
+        Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem, SurrealItemOldVersion, SurrealItemReview, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
@@ -80,7 +78,7 @@ pub(crate) enum DataLayerCommands {
     UpdateSummary(RecordId, String),
     UpdateFacing(RecordId, Vec<SurrealFacing>),
     UpdateUrgencyPlan(RecordId, Option<SurrealUrgencyPlan>),
-    UpdateItemReviewFrequency(RecordId, SurrealFrequency),
+    UpdateItemReviewFrequency(RecordId, SurrealFrequency, SurrealReviewGuidance),
     UpdateItemLastReviewedDate(RecordId, Datetime),
     DeclareInTheMomentPriority {
         choice: SurrealAction,
@@ -240,7 +238,7 @@ pub(crate) async fn data_storage_start_and_run(
                 let updated = item.clone().update(&db).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
-            Some(DataLayerCommands::UpdateItemReviewFrequency(record_id, surreal_frequency)) => {
+            Some(DataLayerCommands::UpdateItemReviewFrequency(record_id, surreal_frequency, surreal_review_guidance)) => {
                 let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
                     .await
                     .unwrap()
@@ -252,6 +250,7 @@ pub(crate) async fn data_storage_start_and_run(
                     },
                     review_frequency: surreal_frequency,
                 });
+                item.review_guidance = Some(surreal_review_guidance);
                 let updated = item.clone().update(&db).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }

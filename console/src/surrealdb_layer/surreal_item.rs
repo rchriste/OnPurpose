@@ -223,7 +223,7 @@ pub(crate) struct SurrealItemReview {
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealReviewGuidance {
     AlwaysReviewChildrenWithThisItem,
-    AskIfChildrenShouldBeReviewed,
+    ReviewChildrenSeparately,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
