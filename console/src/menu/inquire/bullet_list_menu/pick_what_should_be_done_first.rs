@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 use chrono::Utc;
-use inquire::Select;
+use inquire::{InquireError, Select};
 use rand::Rng;
 use tokio::sync::mpsc::Sender;
 
@@ -11,10 +11,7 @@ use crate::{
         bullet_list_single_item::{
             present_bullet_list_item_selected, present_is_person_or_group_around_menu,
             urgency_plan::present_set_ready_and_urgency_plan_menu,
-        },
-        parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu,
-        pick_item_review_frequency::present_pick_item_review_frequency_menu,
-        review_item::present_review_item_menu,
+        }, parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu, pick_item_review_frequency::present_pick_item_review_frequency_menu, present_bullet_list_menu, review_item::present_review_item_menu
     },
     node::action_with_item_status::ActionWithItemStatus,
     surrealdb_layer::{
@@ -62,8 +59,14 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
     let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());
     let choice = Select::new("Pick a priority?", display_choices)
         .with_starting_cursor(starting_choice)
-        .prompt()
-        .unwrap();
+        .prompt();
+    let choice = match choice {
+        Ok(choice) => choice,
+        Err(InquireError::OperationCanceled) => 
+            return Box::pin(present_bullet_list_menu(bullet_list, *bullet_list.get_now(), send_to_data_storage_layer)).await,
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => todo!("Unknown err {}", err),
+    };
 
     let highest_or_lowest = Select::new(
         "Highest or lowest priority?",

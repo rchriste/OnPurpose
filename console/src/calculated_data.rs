@@ -2,6 +2,7 @@ use crate::{
     base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, BaseData},
     node::{item_node::ItemNode, item_status::ItemStatus},
 };
+use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 
 #[self_referencing]
@@ -69,5 +70,9 @@ impl CalculatedData {
 
     pub(crate) fn get_in_the_moment_priorities(&self) -> &[InTheMomentPriorityWithItemAction] {
         self.borrow_in_the_moment_priorities()
+    }
+
+    pub(crate) fn get_now(&self) -> &DateTime<Utc> {
+        self.borrow_base_data().get_now()
     }
 }

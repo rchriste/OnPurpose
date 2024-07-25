@@ -116,4 +116,8 @@ impl BulletList {
     pub(crate) fn get_upcoming(&self) -> &Upcoming {
         self.borrow_upcoming()
     }
+
+    pub(crate) fn get_now(&self) -> &DateTime<Utc> {
+        self.borrow_calculated_data().get_now()
+    }
 }
