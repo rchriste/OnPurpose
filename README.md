@@ -14,11 +14,14 @@ _On Purpose_ is meant to be a program that integrates with existing systems beca
 * Microsoft OneNote (Guides you to exact pages to help you save and resume work)
 * OneDrive (information sync's between machines through OneDrive rather than a dedicated service)
 
-Currently _On Purpose_ is a console, text based Windows program written in Rust that uses an embedded SurrealDB database for data storage. I hope to eventually create an Android app for the phone. 
+Currently _On Purpose_ is a text based Windows program written in Rust that uses an embedded SurrealDB database for data storage. I hope to eventually create an Android app for the phone. 
 
 ## Principals of _On Purpose: Time Management_:
 * Everything we do is done because of a motivational reason, tieing everything we do back to the motivational reason helps us do the right thing in the right way.
-* To pick between available tasks the following needs to be taken into account: each tasks urgency, the relative importance of tasks that have the same motivation, the ephemeral priorities of the moment.
+* To pick between available tasks the following needs to be taken into account:
+    * each tasks urgency, 
+    * the relative importance of tasks that have the same parent (i.e. motivation), and
+    * the ephemeral priorities of the moment.
 * Items should be reviewed periodically: the plan, the importance, and the urgency
 
 ## Existing solutions
