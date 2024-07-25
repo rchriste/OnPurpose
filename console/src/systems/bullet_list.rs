@@ -84,9 +84,21 @@ impl BulletList {
                         }
                         SurrealUrgency::InTheModeMaybeUrgent
                         | SurrealUrgency::InTheModeByImportance => {
-                            bullet_lists_by_urgency
+                            match bullet_lists_by_urgency
                                 .in_the_mode_maybe_urgent_and_by_importance
-                                .push(item);
+                                .iter()
+                                .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
+                            {
+                                None => {
+                                    bullet_lists_by_urgency
+                                        .in_the_mode_maybe_urgent_and_by_importance
+                                        .push(item);
+                                }
+                                Some(_) => {
+                                    //Do nothing
+                                    //An item can be in the list twice if it is the most important and still urgent so only add the item if it is not there
+                                }
+                            }
                         }
                     }
                 }
