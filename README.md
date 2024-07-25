@@ -1,13 +1,23 @@
 # On Purpose: Time Management
 
-Hi my name is Russ Christensen and I have come up with a time management system that I call _On Purpose: Natural Time Management_. I have been diagnosed with Autism and I consider time management as one of my biggest problems. I have spent the last few years rethinking the problem space and experimenting with what information is required to make a decision of what to do now. _On Purpose_ is a time management system. In order to implement this system I have written a console application in Rust. _On Purpose_ is meant to be a program that is used inside your habit loop of deciding what to do. It is meant to be used consistently throughout the day to get guidance on what to do next. Because I work for Microsoft and personally use Microsoft products _On Purpose_ is meant to integrate with the Microsoft platform. Meaning Microsoft Teams, Azure Dev Ops, OneNote, Outlook, Microsoft To Do, and OneDrive. For privacy and security reasons there is no web service rather it is a standalone console application that will eventually sync information between machines through OneDrive.
+Hi my name is Russ Christensen and I have come up with a time management system that I call _On Purpose: Natural Time Management_. I have been diagnosed with Autism and time management experimentation and programming is my current hobby. I have spent the last few years experimenting with various ideas with the goal of writing a program that helps me decide what to do right now. _On Purpose_ is the name that I have given this experimentation. _On Purpose_ is a time management system that is meant to reflect how we naturally operate. All to often I have heard or read great guidance on how to manage my time, but the guidance is very principal based with implementation details left the reader. _On Purpose_ is meant to fill this void.
+
+I envision _On Purpose_ as the personal or individualized view. When it comes to groups or companies there are many existing systems and programs that help plan, implement, and track work. _On Purpose_ on the other hand is for the individual. It aspires to integrate with these existing programs and help that person track and balance all that they need to keep track of. This includes inside and outside of work, meaning the ability to understand your regular routine and what is upcoming. For work it includes the core work that I am getting paid to do and the non-core work that for various reasons are still meetings or work items that are enough of a priority to attend.
+
+Rather than being designed to help the group track your work it is designed for the individual doing the work so it is next step driven. _On Purpose_ encourages you to break work down to next steps until you get to a next step that you can do. When the next step is to wait for someone to get back to you or wait for some program or process to do something then _On Purpose_ is meant to help save or remember what is required to easily resume the work later and it is designed to integrate with existing systems to automate knowing when you can return to something, if this automation does not exist then you set a timer for when to check back.
+
+_On Purpose_ is meant to be a program that integrates with existing systems because that provides the most value and is economical as a hobby, side project. My goal with _On Purpose_ is to integrate with the Microsoft Platform because as a long time Microsoft employee I use Microsoft products. This means that I plan on having On Purpose integrate with the following products:
+* Azure Dev Ops
+* Outlook Email & Calendaring
+* Microsoft Teams
+* Microsoft To Do
+* OneDrive (information sync's between machines through OneDrive rather than a dedicated service)
+
+Currently _On Purpose_ is a console, text based Windows program written in Rust that uses an embedded SurrealDB database for data storage. I hope to eventually create an Android app for the phone. 
 
 ## Principals of _On Purpose: Time Management_:
-* Everything we do is done because of a motivational reason
-* To pick between what can be done now: urgency, importance, your mood, and your routine should be taken into account
-* Inside the same motivational reason items can be prioritized against each other and stack ranked
-* Prioritizing between motivational reasons should consider your mood and your routine, but it is otherwise an ephemeral (in the moment) decision
-* Urgency can be classified into various levels, but prioritization inside the same level is an ephemeral decision
+* Everything we do is done because of a motivational reason, tieing everything we do back to the motivational reason helps us do the right thing in the right way.
+* To pick between available tasks the following needs to be taken into account: each tasks urgency, the relative importance of tasks that have the same motivation, the ephemeral priorities of the moment.
 * Items should be reviewed periodically: the plan, the importance, and the urgency
 
 ## Existing solutions
