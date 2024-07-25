@@ -11,6 +11,7 @@ _On Purpose_ is meant to be a program that integrates with existing systems beca
 * Outlook Email & Calendaring
 * Microsoft Teams
 * Microsoft To Do
+* Microsoft OneNote (Guides you to exact pages to help you save and resume work)
 * OneDrive (information sync's between machines through OneDrive rather than a dedicated service)
 
 Currently _On Purpose_ is a console, text based Windows program written in Rust that uses an embedded SurrealDB database for data storage. I hope to eventually create an Android app for the phone. 
