@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
-    opt::RecordId,
+    opt::{PatchOp, RecordId},
     sql::{Datetime, Thing},
     Surreal,
 };
@@ -195,10 +195,9 @@ pub(crate) async fn data_storage_start_and_run(
                 child,
                 parent_to_remove,
             }) => {
-                let mut parent = SurrealItem::get_by_id(&db, parent_to_remove.id.to_raw())
-                    .await
-                    .unwrap()
-                    .unwrap();
+                let mut parent: SurrealItem =
+                    db.select(parent_to_remove.clone()).await.unwrap().unwrap();
+
                 parent.smaller_items_in_priority_order = parent
                     .smaller_items_in_priority_order
                     .into_iter()
@@ -208,7 +207,12 @@ pub(crate) async fn data_storage_start_and_run(
                         }
                     })
                     .collect::<Vec<_>>();
-                let saved = parent.clone().update(&db).await.unwrap().unwrap();
+                let saved = db
+                    .update(parent_to_remove)
+                    .content(&parent)
+                    .await
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(parent, saved);
             }
             Some(DataLayerCommands::AddItemDependency(record_id, new_ready)) => {
@@ -249,19 +253,19 @@ pub(crate) async fn data_storage_start_and_run(
                 surreal_frequency,
                 surreal_review_guidance,
             )) => {
-                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
-                    .await
-                    .unwrap()
-                    .unwrap();
+                //TODO: I should probably fix this so it does the update all as one transaction rather than reading in the data and then changing it and writing it out again. That could cause issues if there are multiple writers. The reason why I didn't do it yet is because I only want to update part of the SurrealItemReview type and I need to experiment with the PatchOp::replace to see if and how to make it work with the nested type. Otherwise I might consider just making review_frequency and last_reviewed separate fields and then I can just update the review_frequency and not have to worry about the last_reviewed field.
+                let previous_value: SurrealItem =
+                    db.select(record_id.clone()).await.unwrap().unwrap();
+                let mut item = previous_value.clone();
                 item.item_review = Some(SurrealItemReview {
-                    last_reviewed: match item.item_review {
+                    last_reviewed: match previous_value.item_review {
                         Some(SurrealItemReview { last_reviewed, .. }) => last_reviewed,
                         None => None,
                     },
                     review_frequency: surreal_frequency,
                 });
                 item.review_guidance = Some(surreal_review_guidance);
-                let updated = item.clone().update(&db).await.unwrap().unwrap();
+                let updated = db.update(record_id).content(&item).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateSummary(item, new_summary)) => {
@@ -272,65 +276,36 @@ pub(crate) async fn data_storage_start_and_run(
                 new_responsibility,
                 new_item_type,
             )) => {
-                let mut item = SurrealItem::get_by_id(&db, item.id.to_raw())
-                    .await
-                    .unwrap()
-                    .unwrap();
-                item.responsibility = new_responsibility;
-                item.item_type = new_item_type;
-                let new = db
-                    .update((
-                        SurrealItem::TABLE_NAME,
-                        item.get_id()
-                            .clone()
-                            .expect("Came from the DB")
-                            .id
-                            .clone()
-                            .to_raw(),
+                let updated: SurrealItem = db
+                    .update(item.clone())
+                    .patch(PatchOp::replace(
+                        "/responsibility",
+                        new_responsibility.clone(),
                     ))
-                    .content(&item)
+                    .patch(PatchOp::replace("/item_type", new_item_type.clone()))
                     .await
                     .unwrap()
                     .unwrap();
-                assert_eq!(item, new);
+                assert_eq!(updated.responsibility, new_responsibility);
+                assert_eq!(updated.item_type, new_item_type);
             }
             Some(DataLayerCommands::UpdateFacing(record_id, new_facing)) => {
-                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
+                let updated: SurrealItem = db
+                    .update(record_id)
+                    .patch(PatchOp::replace("/facing", new_facing.clone()))
                     .await
                     .unwrap()
                     .unwrap();
-                item.facing = new_facing;
-                let updated = item.clone().update(&db).await.unwrap().unwrap();
-                assert_eq!(item, updated);
+                assert_eq!(updated.facing, new_facing);
             }
             Some(DataLayerCommands::UpdateUrgencyPlan(record_id, new_urgency_plan)) => {
-                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
+                let updated: SurrealItem = db
+                    .update(record_id)
+                    .patch(PatchOp::replace("/urgency_plan", new_urgency_plan.clone()))
                     .await
                     .unwrap()
                     .unwrap();
-                item.urgency_plan = new_urgency_plan;
-                let updated = item.clone().update(&db).await.unwrap().unwrap();
-                if item != updated {
-                    let updated: SurrealItem = db
-                        .update((
-                            SurrealItem::TABLE_NAME,
-                            item.get_id().clone().unwrap().id.clone().to_raw(),
-                        ))
-                        //I am doing this directly rather than using the update method on the surreal_item type because I need to call content rather than update
-                        //because I changed the type of Staging::OnDeck to include two parameters and update will silently not update and content will properly
-                        //do this update. Although in theory content is creating a new record so that might cause more churn if it is not required. I might consider
-                        //just migrating all records all at once and one time to prevent this need to use content for ever more.
-                        .content(item.clone())
-                        .await
-                        .unwrap()
-                        .unwrap();
-                    assert_eq!(item, updated);
-                }
-                let check = SurrealItem::get_by_id(&db, record_id.id.to_raw())
-                    .await
-                    .unwrap()
-                    .unwrap();
-                assert_eq!(check, item);
+                assert_eq!(updated.urgency_plan, new_urgency_plan);
             }
             Some(DataLayerCommands::DeclareInTheMomentPriority {
                 choice,
@@ -483,12 +458,13 @@ async fn record_time_spent(new_time_spent: NewTimeSpent, db: &Surreal<Any>) {
 }
 
 pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, db: &Surreal<Any>) {
-    let mut finish_this = SurrealItem::get_by_id(db, finish_this.id.to_raw())
+    let updated: SurrealItem = db
+        .update(finish_this)
+        .patch(PatchOp::replace("/finished", Some(when_finished.clone())))
         .await
         .unwrap()
         .unwrap();
-    finish_this.finished = Some(when_finished);
-    finish_this.update(db).await.unwrap();
+    assert_eq!(updated.finished, Some(when_finished));
 }
 
 async fn create_new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
@@ -537,21 +513,20 @@ async fn cover_item_until_an_exact_date_time(
 }
 
 async fn parent_item_with_existing_item(
-    child: RecordId,
-    parent: RecordId,
+    child_record_id: RecordId,
+    parent_record_id: RecordId,
     higher_importance_than_this: Option<RecordId>,
     db: &Surreal<Any>,
 ) {
-    let mut parent = SurrealItem::get_by_id(db, parent.id.to_raw())
-        .await
-        .unwrap()
-        .unwrap();
-    //Remove the child if it is already in the list
+    //TODO: This should be refactored so it happens inside of a transaction and ideally as one query because if the data is modified between the time that the data is read and the time that the data is written back out then the data could be lost. I haven't done this yet because I need to figure out how to do this inside of a SurrealDB query and I haven't done that yet.
+    let mut parent: SurrealItem = db.select(parent_record_id.clone()).await.unwrap().unwrap();
     parent.smaller_items_in_priority_order = parent
         .smaller_items_in_priority_order
         .into_iter()
         .filter(|x| match x {
-            SurrealOrderedSubItem::SubItem { surreal_item_id } => surreal_item_id != &child,
+            SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                surreal_item_id != &child_record_id
+            }
         })
         .collect::<Vec<_>>();
     if let Some(higher_priority_than_this) = higher_importance_than_this {
@@ -570,17 +545,22 @@ async fn parent_item_with_existing_item(
         parent.smaller_items_in_priority_order.insert(
             index_of_higher_priority,
             SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child,
+                surreal_item_id: child_record_id,
             },
         );
     } else {
         parent
             .smaller_items_in_priority_order
             .push(SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child,
+                surreal_item_id: child_record_id,
             });
     }
-    let saved = parent.clone().update(db).await.unwrap().unwrap();
+    let saved = db
+        .update(parent_record_id)
+        .content(&parent)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(parent, saved);
 }
 

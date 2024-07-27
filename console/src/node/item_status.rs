@@ -1,7 +1,7 @@
 use std::{iter, time::Duration};
 
 use chrono::{DateTime, TimeDelta, Utc};
-use surrealdb::{opt::RecordId, sql::Datetime};
+use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::{item::Item, FindRecordId},
@@ -160,7 +160,7 @@ pub(crate) enum ItemsInScopeWithItemNode<'e> {
 impl From<DependencyWithItemNode<'_>> for SurrealDependency {
     fn from(dependency_with_item_node: DependencyWithItemNode) -> Self {
         match dependency_with_item_node {
-            DependencyWithItemNode::AfterDateTime{ after, is_active: _is_active } => SurrealDependency::AfterDateTime(Datetime(after)),
+            DependencyWithItemNode::AfterDateTime{ after, is_active: _is_active } => SurrealDependency::AfterDateTime(after.into()),
             DependencyWithItemNode::UntilScheduled{..} => panic!("Programming error, UntilScheduled, is not represented in SurrealDependency, it is derived. Do not call into on this."),
             DependencyWithItemNode::AfterItem(item_node) => SurrealDependency::AfterItem(item_node.get_surreal_record_id().clone()),
             DependencyWithItemNode::AfterChildItem(..) => panic!("Programming error, AfterSmallerItem, is not represented in SurrealDependency, it is derived. Do not call into on this."),
@@ -614,7 +614,6 @@ fn calculate_urgent_action_items<'a>(
 #[cfg(test)]
 mod tests {
     use chrono::{DateTime, Days, Utc};
-    use surrealdb::sql::Datetime;
     use tokio::sync::mpsc;
 
     use crate::{
@@ -650,11 +649,12 @@ mod tests {
             .send(DataLayerCommands::NewItem(
                 NewItemBuilder::default()
                     .summary("Item that needs to wait until tomorrow")
-                    .dependencies(vec![SurrealDependency::AfterDateTime(Datetime(
+                    .dependencies(vec![SurrealDependency::AfterDateTime(
                         DateTime::from(Utc::now())
                             .checked_add_days(Days::new(1))
-                            .expect("Far from overflowing"),
-                    ))])
+                            .expect("Far from overflowing")
+                            .into(),
+                    )])
                     .build()
                     .expect("valid new item"),
             ))

@@ -4,3 +4,6 @@ resolver = "2"
 members = [
     "console"
 ]
+
+[profile.rust-analyzer]
+inherits = "dev"

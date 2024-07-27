@@ -18,12 +18,15 @@ use crate::{
     calculated_data::CalculatedData,
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::inquire::{
-        bullet_list_menu::{bullet_list_single_item::{
-            give_this_item_a_parent::give_this_item_a_parent,
-            something_else_should_be_done_first::something_else_should_be_done_first,
-            starting_to_work_on_this_now::starting_to_work_on_this_now,
-            state_a_smaller_next_step::state_a_smaller_next_step,
-        }, review_item},
+        bullet_list_menu::{
+            bullet_list_single_item::{
+                give_this_item_a_parent::give_this_item_a_parent,
+                something_else_should_be_done_first::something_else_should_be_done_first,
+                starting_to_work_on_this_now::starting_to_work_on_this_now,
+                state_a_smaller_next_step::state_a_smaller_next_step,
+            },
+            review_item,
+        },
         select_higher_importance_than_this::select_higher_importance_than_this,
         top_menu::capture,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
@@ -34,7 +37,8 @@ use crate::{
     surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
-            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind, SurrealUrgency,
+            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
+            SurrealUrgency,
         },
         surreal_tables::SurrealTables,
     },
@@ -341,10 +345,14 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::ReviewItem) => {
             review_item::present_review_item_menu(
                 menu_for,
-                menu_for.get_urgency_now().unwrap_or(&SurrealUrgency::InTheModeByImportance).clone(),
+                menu_for
+                    .get_urgency_now()
+                    .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                    .clone(),
                 bullet_list.get_all_items_status(),
                 send_to_data_storage_layer,
-            ).await
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::DefineMilestones) => {
             todo!("TODO: Implement DefineMilestones");

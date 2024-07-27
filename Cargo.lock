@@ -2216,7 +2216,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "better_term",
  "chrono",
@@ -2586,9 +2586,9 @@ dependencies = [
 
 [[package]]
 name = "quick_cache"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1380629287ed1247c1e0fcc6d43efdcec508b65382c9ab775cc8f3df7ca07b0"
+checksum = "4a4b807ec70346b4fac3c13ae967634237847d49871f623fe0d455403346bad4"
 dependencies = [
  "ahash 0.8.11",
  "equivalent",
@@ -3425,9 +3425,9 @@ dependencies = [
 
 [[package]]
 name = "spade"
-version = "2.9.0"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f4ec45f91925e2c9ab3b6a857ee9ed36916990df76a1c475d783a328e247cc8"
+checksum = "7d676a3ce6cfd1e455199fefcf82db082f970872ce017df660f076a4e07a0d64"
 dependencies = [
  "hashbrown 0.14.5",
  "num-traits",
@@ -3777,9 +3777,8 @@ dependencies = [
 
 [[package]]
 name = "surrealdb_extra"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76440db7febc31322ebcd36a12747dc84693f9dbc8a84f33aa09c5bf2a7b9d63"
+version = "0.9.0"
+source = "git+https://github.com/jakin010/surrealdb_extra?branch=main#860e5a979bb0399ab43c48d279c67e96ab54f780"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3792,9 +3791,8 @@ dependencies = [
 
 [[package]]
 name = "surrealdb_extra_derive"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1307600faf1deea5df32f141424d8dcadb6a917dc98c243af8613d54164b029"
+version = "0.9.0"
+source = "git+https://github.com/jakin010/surrealdb_extra?branch=main#860e5a979bb0399ab43c48d279c67e96ab54f780"
 dependencies = [
  "quote",
  "surrealdb",
@@ -4045,9 +4043,9 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4badfd56924ae69bcc9039335b2e017639ce3f9b001c393c1b2d1ef846ce2cbf"
+checksum = "f8fb9f64314842840f1d940ac544da178732128f1c78c21772e876579e0da1db"
 
 [[package]]
 name = "toml_edit"
@@ -4281,9 +4279,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"
-version = "0.9.4"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "waker-fn"
