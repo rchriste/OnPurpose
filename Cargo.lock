@@ -1910,9 +1910,9 @@ dependencies = [
 
 [[package]]
 name = "matrixmultiply"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7574c1cf36da4798ab73da5b215bbf444f50718207754cb522201d78d1cd0ff2"
+checksum = "9380b911e3e96d10c1f415da0876389aaf1b56759054eeb0de7df940c456ba1a"
 dependencies = [
  "autocfg",
  "rawpointer",
@@ -2216,7 +2216,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "better_term",
  "chrono",
@@ -3778,7 +3778,7 @@ dependencies = [
 [[package]]
 name = "surrealdb_extra"
 version = "0.9.0"
-source = "git+https://github.com/jakin010/surrealdb_extra?branch=main#860e5a979bb0399ab43c48d279c67e96ab54f780"
+source = "git+https://github.com/rchriste/surrealdb_extra.git#860e5a979bb0399ab43c48d279c67e96ab54f780"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3792,7 +3792,7 @@ dependencies = [
 [[package]]
 name = "surrealdb_extra_derive"
 version = "0.9.0"
-source = "git+https://github.com/jakin010/surrealdb_extra?branch=main#860e5a979bb0399ab43c48d279c67e96ab54f780"
+source = "git+https://github.com/rchriste/surrealdb_extra.git#860e5a979bb0399ab43c48d279c67e96ab54f780"
 dependencies = [
  "quote",
  "surrealdb",
@@ -3976,9 +3976,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.39.1"
+version = "1.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d040ac2b29ab03b09d4129c2f5bbd012a3ac2f79d38ff506a4bf8dd34b0eac8a"
+checksum = "daa4fb1bc778bd6f04cbfc4bb2d06a7396a8f299dc33ea1900cedaa316f467b1"
 dependencies = [
  "backtrace",
  "bytes",
