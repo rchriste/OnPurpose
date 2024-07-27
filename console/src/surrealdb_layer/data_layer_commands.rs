@@ -468,25 +468,22 @@ pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, 
 }
 
 async fn create_new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
-    let surreal_item: SurrealItem = SurrealItem::new(new_item, vec![]);
-    surreal_item
-        .create(db)
+    let mut surreal_item: SurrealItem = SurrealItem::new(new_item, vec![]);
+    let created: Vec<SurrealItem> = db
+        .create(SurrealItem::TABLE_NAME)
+        .content(surreal_item.clone())
         .await
-        .unwrap()
-        .into_iter()
-        .next()
-        .expect("I just created one item it should be there")
+        .unwrap();
+    assert!(created.len() == 1);
+    let created = created.into_iter().next().unwrap();
+    surreal_item.id = created.id.clone();
+    assert_eq!(surreal_item, created);
+
+    created
 }
 
 async fn cover_with_a_new_item(cover_this: RecordId, cover_with: NewItem, db: &Surreal<Any>) {
-    let cover_with = SurrealItem::new(cover_with, vec![]);
-    let cover_with = cover_with
-        .create(db)
-        .await
-        .unwrap()
-        .into_iter()
-        .next()
-        .unwrap();
+    let cover_with = create_new_item(cover_with, db).await;
 
     let cover_with: Option<Thing> = cover_with.into();
     let cover_with = cover_with.expect("always exists the .into() wraps it in an option");
@@ -595,45 +592,38 @@ async fn parent_new_item_with_an_existing_child_item(
 }
 
 async fn add_dependency(record_id: RecordId, new_dependency: SurrealDependency, db: &Surreal<Any>) {
-    let mut surreal_item = SurrealItem::get_by_id(db, record_id.id.to_raw())
+    //TODO: This should be refactored so it happens inside of a transaction and ideally as one query because if the data is modified between the time that the data is read and the time that the data is written back out then the data could be lost. I haven't done this yet because I need to figure out how to do this inside of a SurrealDB query and I haven't done that yet.
+
+    let mut surreal_item: SurrealItem = db
+        .select(record_id.clone())
         .await
         .unwrap()
-        .unwrap();
+        .expect("Record exists");
     if surreal_item.dependencies.contains(&new_dependency) {
         //Is already there, nothing to do
     } else {
         surreal_item.dependencies.push(new_dependency);
 
-        if surreal_item.id.is_some() {
-            let updated: SurrealItem = db
-                .update((
-                    SurrealItem::TABLE_NAME,
-                    surreal_item.get_id().clone().unwrap().id.clone().to_raw(),
-                ))
-                //I am doing this directly rather than using the update method on the surreal_item type because I need to call content rather than update
-                //because I changed the type of Staging::OnDeck to include two parameters and update will silently not update and content will properly
-                //do this update. Although in theory content is creating a new record so that might cause more churn if it is not required. I might consider
-                //just migrating all records all at once and one time to prevent this need to use content for ever more.
-                .content(surreal_item.clone())
-                .await
-                .unwrap()
-                .unwrap();
-            assert!(surreal_item == updated);
-        } else {
-            //Create record
-            surreal_item.create(db).await.unwrap();
-        }
+        let updated: SurrealItem = db
+            .update(record_id)
+            .content(&surreal_item)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(surreal_item, updated);
     }
 }
 
 async fn remove_dependency(record_id: RecordId, to_remove: SurrealDependency, db: &Surreal<Any>) {
-    let mut surreal_item = SurrealItem::get_by_id(db, record_id.id.to_raw())
+    let mut surreal_item: SurrealItem = db.select(record_id.clone()).await.unwrap().unwrap();
+    surreal_item.dependencies.retain(|x| x != &to_remove);
+
+    let update = db
+        .update(record_id)
+        .content(surreal_item.clone())
         .await
         .unwrap()
         .unwrap();
-    surreal_item.dependencies.retain(|x| x != &to_remove);
-
-    let update = surreal_item.clone().update(db).await.unwrap().unwrap();
     assert_eq!(surreal_item, update);
 }
 
