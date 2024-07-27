@@ -81,7 +81,9 @@ impl Display for ReviewGuidance {
 impl From<ReviewGuidance> for SurrealReviewGuidance {
     fn from(review_guidance: ReviewGuidance) -> Self {
         match review_guidance {
-            ReviewGuidance::ReviewChildrenTogether => SurrealReviewGuidance::AlwaysReviewChildrenWithThisItem,
+            ReviewGuidance::ReviewChildrenTogether => {
+                SurrealReviewGuidance::AlwaysReviewChildrenWithThisItem
+            }
             ReviewGuidance::ReviewChildrenSeparately => {
                 SurrealReviewGuidance::ReviewChildrenSeparately
             }
@@ -97,8 +99,6 @@ impl ReviewGuidance {
         ]
     }
 }
-
-
 
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
@@ -133,9 +133,9 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
     let review_guidance = Select::new(
         "Should children items be reviewed with this item?",
         ReviewGuidance::make_list(),
-    ).prompt().unwrap();
-
-
+    )
+    .prompt()
+    .unwrap();
 
     send_to_data_storage_layer
         .send(DataLayerCommands::UpdateItemReviewFrequency(

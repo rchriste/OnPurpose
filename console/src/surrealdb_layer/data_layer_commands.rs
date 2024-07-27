@@ -18,7 +18,9 @@ use super::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
     surreal_item::{
-        Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem, SurrealItemOldVersion, SurrealItemReview, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan
+        Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
+        SurrealItemOldVersion, SurrealItemReview, SurrealItemType, SurrealOrderedSubItem,
+        SurrealReviewGuidance, SurrealUrgencyPlan,
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
@@ -124,6 +126,10 @@ pub(crate) async fn data_storage_start_and_run(
     let db = connect(endpoint).await.unwrap();
     db.use_ns("OnPurpose").use_db("Russ").await.unwrap(); //TODO: "Russ" should be a parameter, maybe the username or something
 
+    // let updated: Option<SurrealItem> = db.update((SurrealItem::TABLE_NAME, "5i5mkemqn0f1716v3ycw"))
+    //     .patch(PatchOp::replace("/urgency_plan", None::<Option<SurrealUrgencyPlan>>)).await.unwrap();
+    // assert!(updated.is_some());
+    // panic!("Finished");
     loop {
         let received = data_storage_layer_receive_rx.recv().await;
         match received {
@@ -238,7 +244,11 @@ pub(crate) async fn data_storage_start_and_run(
                 let updated = item.clone().update(&db).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
-            Some(DataLayerCommands::UpdateItemReviewFrequency(record_id, surreal_frequency, surreal_review_guidance)) => {
+            Some(DataLayerCommands::UpdateItemReviewFrequency(
+                record_id,
+                surreal_frequency,
+                surreal_review_guidance,
+            )) => {
                 let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
                     .await
                     .unwrap()
@@ -316,6 +326,11 @@ pub(crate) async fn data_storage_start_and_run(
                         .unwrap();
                     assert_eq!(item, updated);
                 }
+                let check = SurrealItem::get_by_id(&db, record_id.id.to_raw())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(check, item);
             }
             Some(DataLayerCommands::DeclareInTheMomentPriority {
                 choice,

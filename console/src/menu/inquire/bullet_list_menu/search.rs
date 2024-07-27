@@ -364,7 +364,7 @@ pub(crate) async fn present_search_menu(
         coming_later: Vec::default(),
     };
 
-    for item in items {
+    for item in items.iter().filter(|x| x.is_active()) {
         let urgency_plan = item.get_urgency_plan();
         let urgency_changes = match urgency_plan {
             Some(UrgencyPlanWithItemNode::StaysTheSame(urgency)) => {
@@ -569,7 +569,7 @@ pub(crate) async fn present_search_menu(
         list.push(highest_importance);
     }
 
-    for item in items {
+    for item in items.iter().filter(|x| x.is_active()) {
         list.push(SearchMenuUrgencyItem::Item { item });
     }
 
