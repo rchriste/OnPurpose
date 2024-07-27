@@ -1,4 +1,3 @@
-mod create_or_update_children;
 pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
 mod something_else_should_be_done_first;
@@ -19,13 +18,12 @@ use crate::{
     calculated_data::CalculatedData,
     display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
     menu::inquire::{
-        bullet_list_menu::bullet_list_single_item::{
-            create_or_update_children::create_or_update_children,
+        bullet_list_menu::{bullet_list_single_item::{
             give_this_item_a_parent::give_this_item_a_parent,
             something_else_should_be_done_first::something_else_should_be_done_first,
             starting_to_work_on_this_now::starting_to_work_on_this_now,
             state_a_smaller_next_step::state_a_smaller_next_step,
-        },
+        }, review_item},
         select_higher_importance_than_this::select_higher_importance_than_this,
         top_menu::capture,
         unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
@@ -36,7 +34,7 @@ use crate::{
     surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
-            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
+            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind, SurrealUrgency,
         },
         surreal_tables::SurrealTables,
     },
@@ -53,7 +51,7 @@ enum BulletListSingleItemSelection<'e> {
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
     SomethingElseShouldBeDoneFirst,
-    CreateOrUpdateChildren,
+    ReviewItem,
     StateASmallerNextStep,
     DefineMilestones, //For a hope
     UpdateMilestones, //For a hope
@@ -90,7 +88,7 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
-            Self::CreateOrUpdateChildren => write!(f, "Create or Update Children"),
+            Self::ReviewItem => write!(f, "Review Item: Update or Reorder Children or Parents"),
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
@@ -198,7 +196,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        list.push(Self::CreateOrUpdateChildren);
+        list.push(Self::ReviewItem);
 
         if is_type_goal {
             if has_active_children {
@@ -340,14 +338,13 @@ pub(crate) async fn present_bullet_list_item_selected(
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
                 .await
         }
-        Ok(BulletListSingleItemSelection::CreateOrUpdateChildren) => {
-            create_or_update_children(
+        Ok(BulletListSingleItemSelection::ReviewItem) => {
+            review_item::present_review_item_menu(
                 menu_for,
-                &when_selected,
-                bullet_list,
+                menu_for.get_urgency_now().unwrap_or(&SurrealUrgency::InTheModeByImportance).clone(),
+                bullet_list.get_all_items_status(),
                 send_to_data_storage_layer,
-            )
-            .await
+            ).await
         }
         Ok(BulletListSingleItemSelection::DefineMilestones) => {
             todo!("TODO: Implement DefineMilestones");

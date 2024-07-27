@@ -16,6 +16,7 @@
         "itertools",
         "Journalling",
         "meds",
+        "mkemqn",
         "neuro",
         "neurodiverse",
         "neurodiversity",
