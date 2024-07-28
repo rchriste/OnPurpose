@@ -666,9 +666,15 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
     Ok(Some(surreal_scheduled))
 }
 
+pub(crate) enum LogTime {
+    SeparateTaskLogTheTime,
+    PartOfAnotherTaskDoNotLogTheTime
+}
+
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     selected: &ItemStatus<'_>,
     current_urgency: Option<SurrealUrgency>,
+    log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_present_set_ready_and_urgency_plan_menu = Utc::now();
@@ -706,20 +712,25 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
         .await
         .unwrap();
 
-    let new_time_spent = NewTimeSpent {
-        working_on: vec![SurrealAction::SetReadyAndUrgency(
-            selected.get_surreal_record_id().clone(),
-        )], //TODO: Should this also be logging onto all the parent items that this is making progress towards the goal?
-        when_started: start_present_set_ready_and_urgency_plan_menu,
-        when_stopped: Utc::now(),
-        dedication: None,
-        urgency: current_urgency,
-    };
-
-    send_to_data_storage_layer
-        .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
-        .await
-        .unwrap();
-
-    Ok(())
+    match log_time {
+        LogTime::SeparateTaskLogTheTime => {
+            let new_time_spent = NewTimeSpent {
+                working_on: vec![SurrealAction::SetReadyAndUrgency(
+                    selected.get_surreal_record_id().clone(),
+                )], //TODO: Should this also be logging onto all the parent items that this is making progress towards the goal?
+                when_started: start_present_set_ready_and_urgency_plan_menu,
+                when_stopped: Utc::now(),
+                dedication: None,
+                urgency: current_urgency,
+            };
+        
+            send_to_data_storage_layer
+                .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
+                .await
+                .unwrap();
+        
+            Ok(())
+        }
+        LogTime::PartOfAnotherTaskDoNotLogTheTime => Ok(()),
+    }
 }

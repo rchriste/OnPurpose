@@ -10,7 +10,7 @@ use crate::{
     menu::inquire::bullet_list_menu::{
         bullet_list_single_item::{
             present_bullet_list_item_selected, present_is_person_or_group_around_menu,
-            urgency_plan::present_set_ready_and_urgency_plan_menu,
+            urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime},
         },
         parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu,
         pick_item_review_frequency::present_pick_item_review_frequency_menu,
@@ -154,6 +154,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     return present_set_ready_and_urgency_plan_menu(
                         item_status,
                         Some(item_action.get_urgency_now()),
+                        LogTime::SeparateTaskLogTheTime,
                         send_to_data_storage_layer,
                     )
                     .await;

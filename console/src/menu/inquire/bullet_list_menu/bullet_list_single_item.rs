@@ -11,7 +11,7 @@ use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
-use urgency_plan::present_set_ready_and_urgency_plan_menu;
+use urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime};
 
 use crate::{
     base_data::{item::Item, BaseData},
@@ -364,6 +364,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 menu_for.get_urgency_now().cloned(),
+                LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 send_to_data_storage_layer,
             )
             .await?;
@@ -427,6 +428,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 menu_for.get_urgency_now().cloned(),
+                LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 send_to_data_storage_layer,
             )
             .await
