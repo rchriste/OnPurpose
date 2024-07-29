@@ -456,14 +456,16 @@ async fn send_time_spent(sender: oneshot::Sender<Vec<SurrealTimeSpent>>, db: &Su
 }
 
 async fn record_time_spent(new_time_spent: NewTimeSpent, db: &Surreal<Any>) {
-    let new_time_spent: SurrealTimeSpent = new_time_spent.into();
+    let mut new_time_spent: SurrealTimeSpent = new_time_spent.into();
     let saved: Vec<SurrealTimeSpent> = db
         .create(SurrealTimeSpent::TABLE_NAME)
         .content(new_time_spent.clone())
         .await
         .unwrap();
     assert_eq!(1, saved.len());
-    assert_eq!(&new_time_spent, saved.first().unwrap());
+    let saved = saved.into_iter().next().unwrap();
+    new_time_spent.id = saved.id.clone();
+    assert_eq!(new_time_spent, saved);
 }
 
 pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, db: &Surreal<Any>) {
