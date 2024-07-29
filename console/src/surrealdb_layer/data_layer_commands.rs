@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     opt::{PatchOp, RecordId},
@@ -330,14 +330,14 @@ pub(crate) async fn data_storage_start_and_run(
 
 pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     //TODO: I should do some timings to see if starting all of these get_all requests and then doing awaits on them later really is faster in Rust. Or if they just for sure don't start until the await. For example I could call this function as many times as possible in 10 sec and time that and then see how many times I can call that function written like this and then again with the get_all being right with the await to make sure that code like this is worth it perf wise.
-    let all_items = SurrealItem::get_all(db);
-    let all_required_circumstances = SurrealRequiredCircumstance::get_all(db);
-    let all_life_areas = SurrealLifeArea::get_all(db);
-    let all_routines = SurrealRoutine::get_all(db);
-    let time_spent_log = SurrealTimeSpent::get_all(db);
-    let surreal_in_the_moment_priorities = SurrealInTheMomentPriority::get_all(db);
+    let all_items = db.select(SurrealItem::TABLE_NAME);
+    let all_required_circumstances = db.select(SurrealRequiredCircumstance::TABLE_NAME);
+    let all_life_areas = db.select(SurrealLifeArea::TABLE_NAME);
+    let all_routines = db.select(SurrealRoutine::TABLE_NAME);
+    let time_spent_log = db.select(SurrealTimeSpent::TABLE_NAME);
+    let surreal_in_the_moment_priorities = db.select(SurrealInTheMomentPriority::TABLE_NAME);
 
-    let all_items = match all_items.await {
+    let all_items: Vec<SurrealItem> = match all_items.await {
         Ok(all_items) => all_items,
         Err(err) => {
             println!("Upgrading items table because of issue: {}", err);
@@ -366,11 +366,8 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 }
 
 async fn upgrade_items_table(db: &Surreal<Any>) {
-    for item_old_version in SurrealItemOldVersion::get_all(db)
-        .await
-        .unwrap()
-        .into_iter()
-    {
+    let a: Vec<SurrealItemOldVersion> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
+    for item_old_version in a.into_iter() {
         let item: SurrealItem = item_old_version.into();
         let _: SurrealItem = db
             .update((
@@ -391,11 +388,11 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
 }
 
 async fn upgrade_time_spent_log(db: &Surreal<Any>) {
-    for time_spent_old in SurrealTimeSpentOldVersion::get_all(db)
+    let a: Vec<SurrealTimeSpentOldVersion> = db
+        .select(SurrealTimeSpentOldVersion::TABLE_NAME)
         .await
-        .unwrap()
-        .into_iter()
-    {
+        .unwrap();
+    for time_spent_old in a.into_iter() {
         let time_spent: SurrealTimeSpent = time_spent_old.into();
         let _: SurrealTimeSpent = db
             .update((
@@ -424,11 +421,17 @@ pub(crate) async fn add_processed_text(
     let for_item: Option<Thing> = for_item.into();
     let data = SurrealProcessedText {
         id: None,
-        text: processed_text,
-        when_written: Local::now().naive_utc().and_utc().into(),
+        text: processed_text.clone(),
+        when_written: Utc::now().into(),
         for_item: for_item.unwrap(),
     };
-    data.create(db).await.unwrap();
+    let saved: Vec<SurrealProcessedText> = db
+        .create(SurrealProcessedText::TABLE_NAME)
+        .content(data)
+        .await
+        .unwrap();
+    assert_eq!(1, saved.len());
+    assert_eq!(processed_text, saved.first().unwrap().text);
 }
 
 pub(crate) async fn send_processed_text(
@@ -448,13 +451,19 @@ pub(crate) async fn send_processed_text(
 }
 
 async fn send_time_spent(sender: oneshot::Sender<Vec<SurrealTimeSpent>>, db: &Surreal<Any>) {
-    let time_spent = SurrealTimeSpent::get_all(db).await.unwrap();
+    let time_spent = db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
     sender.send(time_spent).unwrap();
 }
 
 async fn record_time_spent(new_time_spent: NewTimeSpent, db: &Surreal<Any>) {
     let new_time_spent: SurrealTimeSpent = new_time_spent.into();
-    new_time_spent.create(db).await.unwrap();
+    let saved: Vec<SurrealTimeSpent> = db
+        .create(SurrealTimeSpent::TABLE_NAME)
+        .content(new_time_spent.clone())
+        .await
+        .unwrap();
+    assert_eq!(1, saved.len());
+    assert_eq!(&new_time_spent, saved.first().unwrap());
 }
 
 pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, db: &Surreal<Any>) {
@@ -628,14 +637,13 @@ async fn remove_dependency(record_id: RecordId, to_remove: SurrealDependency, db
 }
 
 async fn update_item_summary(item_to_update: RecordId, new_summary: String, db: &Surreal<Any>) {
-    let mut item_to_update = SurrealItem::get_by_id(db, item_to_update.id.to_raw())
+    let updated: SurrealItem = db
+        .update(item_to_update.clone())
+        .patch(PatchOp::replace("/summary", new_summary.clone()))
         .await
         .unwrap()
         .unwrap();
-    item_to_update.summary = new_summary;
-
-    let update = item_to_update.clone().update(db).await.unwrap().unwrap();
-    assert_eq!(item_to_update, update)
+    assert_eq!(updated.summary, new_summary);
 }
 
 #[cfg(test)]

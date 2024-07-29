@@ -668,7 +668,7 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
 
 pub(crate) enum LogTime {
     SeparateTaskLogTheTime,
-    PartOfAnotherTaskDoNotLogTheTime
+    PartOfAnotherTaskDoNotLogTheTime,
 }
 
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(
@@ -723,12 +723,12 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
                 dedication: None,
                 urgency: current_urgency,
             };
-        
+
             send_to_data_storage_layer
                 .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
                 .await
                 .unwrap();
-        
+
             Ok(())
         }
         LogTime::PartOfAnotherTaskDoNotLogTheTime => Ok(()),
