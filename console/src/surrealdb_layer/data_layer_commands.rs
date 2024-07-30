@@ -318,7 +318,8 @@ pub(crate) async fn data_storage_start_and_run(
                     choice,
                     kind,
                 };
-                let updated = db.create(SurrealInTheMomentPriority::TABLE_NAME)
+                let updated = db
+                    .create(SurrealInTheMomentPriority::TABLE_NAME)
                     .content(priority.clone())
                     .await
                     .unwrap();
@@ -375,11 +376,7 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
     for item_old_version in a.into_iter() {
         let item: SurrealItem = item_old_version.into();
         let updated: SurrealItem = db
-            .update(
-                item.id
-                    .clone()
-                    .unwrap()
-            )
+            .update(item.id.clone().unwrap())
             .content(item.clone())
             .await
             .unwrap()
@@ -396,11 +393,7 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
     for time_spent_old in a.into_iter() {
         let time_spent: SurrealTimeSpent = time_spent_old.into();
         let updated: SurrealTimeSpent = db
-            .update(
-                time_spent
-                    .id
-                    .clone().expect("In DB")
-            )
+            .update(time_spent.id.clone().expect("In DB"))
             .content(time_spent.clone())
             .await
             .unwrap()
@@ -594,8 +587,13 @@ async fn parent_new_item_with_an_existing_child_item(
         surreal_item_id: child,
     }];
 
-    let mut parent_surreal_item = SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
-    let created = db.create(SurrealItem::TABLE_NAME).content(parent_surreal_item.clone()).await.unwrap();
+    let mut parent_surreal_item =
+        SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
+    let created = db
+        .create(SurrealItem::TABLE_NAME)
+        .content(parent_surreal_item.clone())
+        .await
+        .unwrap();
     assert_eq!(1, created.len());
     let created: SurrealItem = created.into_iter().next().unwrap();
     parent_surreal_item.id = created.id.clone();
@@ -739,10 +737,7 @@ mod tests {
         let next_step = surreal_tables.surreal_items.first().unwrap();
         sender
             .send(DataLayerCommands::SendProcessedText(
-                next_step
-                    .id
-                    .clone()
-                    .expect("Item exists in DB"),
+                next_step.id.clone().expect("Item exists in DB"),
                 processed_text_tx,
             ))
             .await

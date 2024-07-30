@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.1.17"
+version = "0.1.18"
 edition = "2021"
 
 [dependencies]
@@ -8,7 +8,7 @@ inquire = { version = "0.7.4", features = ["editor"] } #inquire is for building 
 tokio = { version = "1.37.0", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
-surrealdb = { version = "1.5.4", features = ["kv-mem", "kv-rocksdb", "sql2"] } 
+surrealdb = { version = "1.5.4", features = ["kv-mem", "kv-rocksdb", "sql2"] }
 serde = "1.0.198" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
 duration-str = "0.11.2" #So I can parse the amount of time to wait

@@ -840,16 +840,18 @@ fn calculate_urgent_action_items<'a>(
             if !has_dependencies(dependencies, Filter::Active) {
                 match surreal_scheduled {
                     SurrealScheduled::Exact { start, .. } => {
-                        if start > item.get_now_sql() {
+                        if start <= item.get_now_sql() {
                             result.push(ActionWithItem::MakeProgress(item));
                         }
                     }
                     SurrealScheduled::Range { start_range, .. } => {
-                        if &start_range.0 > item.get_now_sql() {
+                        if &start_range.0 <= item.get_now_sql() {
                             result.push(ActionWithItem::MakeProgress(item));
                         }
                     }
                 }
+            } else {
+                println!("Has Dependencies: {}", item.get_summary());
             }
         }
         Some(SurrealUrgency::InTheModeByImportance) => {
