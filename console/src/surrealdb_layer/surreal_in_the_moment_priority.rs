@@ -4,15 +4,13 @@ use surrealdb::{
     opt::RecordId,
     sql::{Datetime, Thing},
 };
-use surrealdb_extra::table::Table;
 
 use super::SurrealTrigger;
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
 //it always to see if that addresses these phantom errors. Nov2023.
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
-#[table(name = "in_the_moment_priorities")]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Builder)]
 pub(crate) struct SurrealInTheMomentPriority {
     pub(crate) id: Option<Thing>,
     pub(crate) choice: SurrealAction,
@@ -50,4 +48,8 @@ impl SurrealAction {
 pub(crate) enum SurrealPriorityKind {
     HighestPriority,
     LowestPriority,
+}
+
+impl SurrealInTheMomentPriority {
+    pub(crate) const TABLE_NAME: &'static str = "in_the_moment_priorities";
 }

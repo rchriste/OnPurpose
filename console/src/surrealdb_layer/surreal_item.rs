@@ -11,7 +11,6 @@ use surrealdb::{
     opt::RecordId,
     sql::{Datetime, Duration, Thing},
 };
-use surrealdb_extra::table::Table;
 
 use crate::{base_data::item::Item, new_item::NewItem};
 
@@ -20,9 +19,8 @@ use super::{surreal_required_circumstance::SurrealRequiredCircumstance, SurrealT
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
 //it always to see if that addresses these phantom errors. Nov2023.
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Builder)]
 #[builder(setter(into))]
-#[table(name = "item")] //TODO: This should be renamed items
 pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
@@ -71,6 +69,8 @@ impl From<SurrealItem> for Option<Thing> {
 }
 
 impl SurrealItem {
+    pub(crate) const TABLE_NAME: &'static str = "item";
+
     pub(crate) fn new(
         new_item: NewItem,
         smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
@@ -573,9 +573,8 @@ pub(crate) enum SurrealUrgency {
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
 //it always to see if that addresses these phantom errors. Nov2023.
-#[derive(PartialEq, Eq, Table, Serialize, Deserialize, Clone, Debug, Builder)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Builder)]
 #[builder(setter(into))]
-#[table(name = "item")]
 pub(crate) struct SurrealItemOldVersion {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
@@ -674,4 +673,8 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             review_guidance: None,
         }
     }
+}
+
+impl SurrealItemOldVersion {
+    pub(crate) const TABLE_NAME: &'static str = "item";
 }

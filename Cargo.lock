@@ -486,9 +486,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.6"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2aba8f4e9906c7ce3c73463f62a7f0c65183ada1a2d47e397cc8810827f9694f"
+checksum = "26a5c3fd7bfa1ce3897a3a3501d362b2d87b7f2583ebcb4a949ec25911025cbc"
 dependencies = [
  "jobserver",
  "libc",
@@ -2216,7 +2216,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "better_term",
  "chrono",
@@ -2233,7 +2233,6 @@ dependencies = [
  "ratatui",
  "serde",
  "surrealdb",
- "surrealdb_extra",
  "tokio",
 ]
 
@@ -3774,30 +3773,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "simple_asn1",
-]
-
-[[package]]
-name = "surrealdb_extra"
-version = "0.9.0"
-source = "git+https://github.com/rchriste/surrealdb_extra.git#860e5a979bb0399ab43c48d279c67e96ab54f780"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "serde",
- "surrealdb",
- "surrealdb_extra_derive",
- "thiserror",
-]
-
-[[package]]
-name = "surrealdb_extra_derive"
-version = "0.9.0"
-source = "git+https://github.com/rchriste/surrealdb_extra.git#860e5a979bb0399ab43c48d279c67e96ab54f780"
-dependencies = [
- "quote",
- "surrealdb",
- "syn 2.0.72",
 ]
 
 [[package]]

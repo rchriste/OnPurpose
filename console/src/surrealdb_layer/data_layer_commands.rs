@@ -5,7 +5,6 @@ use surrealdb::{
     sql::{Datetime, Thing},
     Surreal,
 };
-use surrealdb_extra::table::{Table, TableError};
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     oneshot::{self, error::RecvError},
@@ -235,17 +234,15 @@ pub(crate) async fn data_storage_start_and_run(
                 .await
             }
             Some(DataLayerCommands::UpdateItemLastReviewedDate(record_id, new_last_reviewed)) => {
-                let mut item = SurrealItem::get_by_id(&db, record_id.id.to_raw())
-                    .await
-                    .unwrap()
-                    .unwrap();
+                //TODO: I should probably fix this so it does the update all as one transaction rather than reading in the data and then changing it and writing it out again. That could cause issues if there are multiple writers. The reason why I didn't do it yet is because I only want to update part of the SurrealItemReview type and I need to experiment with the PatchOp::replace to see if and how to make it work with the nested type. Otherwise I might consider just making review_frequency and last_reviewed separate fields and then I can just update the review_frequency and not have to worry about the last_reviewed field.
+                let mut item: SurrealItem = db.select(record_id.clone()).await.unwrap().unwrap();
                 let mut item_review = item
                     .item_review
                     .expect("You should only review items that have a review frequency");
                 item_review.last_reviewed = Some(new_last_reviewed);
 
                 item.item_review = Some(item_review);
-                let updated = item.clone().update(&db).await.unwrap().unwrap();
+                let updated = db.update(record_id).content(&item).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateItemReviewFrequency(
@@ -313,7 +310,7 @@ pub(crate) async fn data_storage_start_and_run(
                 not_chosen,
                 in_effect_until,
             }) => {
-                let priority = SurrealInTheMomentPriority {
+                let mut priority = SurrealInTheMomentPriority {
                     id: None,
                     not_chosen,
                     in_effect_until,
@@ -321,7 +318,15 @@ pub(crate) async fn data_storage_start_and_run(
                     choice,
                     kind,
                 };
-                priority.create(&db).await.unwrap();
+                let updated = db.create(SurrealInTheMomentPriority::TABLE_NAME)
+                    .content(priority.clone())
+                    .await
+                    .unwrap();
+                assert_eq!(1, updated.len());
+
+                let updated: SurrealInTheMomentPriority = updated.into_iter().next().unwrap();
+                priority.id = updated.id.clone();
+                assert_eq!(priority, updated);
             }
             None => return, //Channel closed, time to shutdown down, exit
         }
@@ -342,7 +347,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         Err(err) => {
             println!("Upgrading items table because of issue: {}", err);
             upgrade_items_table(db).await;
-            SurrealItem::get_all(db).await.unwrap()
+            db.select(SurrealItem::TABLE_NAME).await.unwrap()
         }
     };
 
@@ -351,7 +356,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         Err(err) => {
             println!("Time spent log is missing because of issue: {}", err);
             upgrade_time_spent_log(db).await;
-            SurrealTimeSpent::get_all(db).await.unwrap()
+            db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap()
         }
     };
 
@@ -369,21 +374,17 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
     let a: Vec<SurrealItemOldVersion> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
     for item_old_version in a.into_iter() {
         let item: SurrealItem = item_old_version.into();
-        let _: SurrealItem = db
-            .update((
-                SurrealItem::TABLE_NAME,
-                item.get_id()
+        let updated: SurrealItem = db
+            .update(
+                item.id
                     .clone()
-                    .ok_or(TableError::IdEmpty)
                     .unwrap()
-                    .id
-                    .clone()
-                    .to_raw(),
-            ))
-            .content(item)
+            )
+            .content(item.clone())
             .await
             .unwrap()
             .unwrap();
+        assert_eq!(item, updated);
     }
 }
 
@@ -394,22 +395,17 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
         .unwrap();
     for time_spent_old in a.into_iter() {
         let time_spent: SurrealTimeSpent = time_spent_old.into();
-        let _: SurrealTimeSpent = db
-            .update((
-                SurrealTimeSpent::TABLE_NAME,
+        let updated: SurrealTimeSpent = db
+            .update(
                 time_spent
-                    .get_id()
-                    .clone()
-                    .ok_or(TableError::IdEmpty)
-                    .unwrap()
                     .id
-                    .clone()
-                    .to_raw(),
-            ))
-            .content(time_spent)
+                    .clone().expect("In DB")
+            )
+            .content(time_spent.clone())
             .await
             .unwrap()
             .unwrap();
+        assert_eq!(time_spent, updated);
     }
 }
 
@@ -598,8 +594,12 @@ async fn parent_new_item_with_an_existing_child_item(
         surreal_item_id: child,
     }];
 
-    let parent_surreal_item = SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
-    parent_surreal_item.create(db).await.unwrap();
+    let mut parent_surreal_item = SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
+    let created = db.create(SurrealItem::TABLE_NAME).content(parent_surreal_item.clone()).await.unwrap();
+    assert_eq!(1, created.len());
+    let created: SurrealItem = created.into_iter().next().unwrap();
+    parent_surreal_item.id = created.id.clone();
+    assert_eq!(parent_surreal_item, created);
 }
 
 async fn add_dependency(record_id: RecordId, new_dependency: SurrealDependency, db: &Surreal<Any>) {
@@ -720,7 +720,7 @@ mod tests {
         let item = surreal_tables.surreal_items.first().unwrap();
         let processed_text = DataLayerCommands::get_processed_text(
             &sender,
-            item.get_id().as_ref().expect("Item exists in DB").clone(),
+            item.id.clone().expect("Item exists in DB"),
         )
         .await
         .unwrap();
@@ -730,7 +730,7 @@ mod tests {
         sender
             .send(DataLayerCommands::AddProcessedText(
                 "Some user processed text".into(),
-                item.get_id().as_ref().expect("Already in DB").clone(),
+                item.id.clone().expect("Already in DB"),
             ))
             .await
             .unwrap();
@@ -740,10 +740,9 @@ mod tests {
         sender
             .send(DataLayerCommands::SendProcessedText(
                 next_step
-                    .get_id()
-                    .as_ref()
-                    .expect("Item exists in DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("Item exists in DB"),
                 processed_text_tx,
             ))
             .await
@@ -844,7 +843,7 @@ mod tests {
 
         sender
             .send(DataLayerCommands::CoverItemWithANewItem {
-                cover_this: item_to_cover.get_id().as_ref().expect("In DB").clone(),
+                cover_this: item_to_cover.id.clone().expect("In DB"),
                 cover_with: new_item,
             })
             .await
@@ -1060,19 +1059,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Item that needs a parent")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: None,
             })
             .await
@@ -1185,19 +1182,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item at the top of the list")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: None,
             })
             .await
@@ -1212,19 +1207,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item bottom position")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: None,
             })
             .await
@@ -1237,29 +1230,26 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item 2nd position")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: Some(
                     surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item bottom position")
                         .unwrap()
-                        .get_id()
-                        .as_ref()
-                        .expect("In DB")
-                        .clone(),
+                        .id
+                        .clone()
+                        .expect("In DB"),
                 ),
             })
             .await
@@ -1272,29 +1262,26 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item 3rd position")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: Some(
                     surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item bottom position")
                         .unwrap()
-                        .get_id()
-                        .as_ref()
-                        .expect("In DB")
-                        .clone(),
+                        .id
+                        .clone()
+                        .expect("In DB"),
                 ),
             })
             .await
@@ -1429,19 +1416,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item at the top of the list")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: None,
             })
             .await
@@ -1456,19 +1441,17 @@ mod tests {
                         x.summary == "Child Item bottom position, then moved to above 2nd position"
                     })
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: None,
             })
             .await
@@ -1481,19 +1464,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item 2nd position")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: Some(
                     surreal_tables
                         .surreal_items
@@ -1503,10 +1484,9 @@ mod tests {
                                 == "Child Item bottom position, then moved to above 2nd position"
                         })
                         .unwrap()
-                        .get_id()
-                        .as_ref()
-                        .expect("In DB")
-                        .clone(),
+                        .id
+                        .clone()
+                        .expect("In DB"),
                 ),
             })
             .await
@@ -1519,19 +1499,17 @@ mod tests {
                     .iter()
                     .find(|x| x.summary == "Child Item 3rd position")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 higher_importance_than_this: Some(
                     surreal_tables
                         .surreal_items
@@ -1541,10 +1519,9 @@ mod tests {
                                 == "Child Item bottom position, then moved to above 2nd position"
                         })
                         .unwrap()
-                        .get_id()
-                        .as_ref()
-                        .expect("In DB")
-                        .clone(),
+                        .id
+                        .clone()
+                        .expect("In DB"),
                 ),
             })
             .await
@@ -1560,16 +1537,15 @@ mod tests {
                         x.summary == "Child Item bottom position, then moved to above 2nd position"
                     })
                     .unwrap()
-                    .get_id()
-                    .as_ref()
-                    .expect("In DB")
-                    .clone(),
+                    .id
+                    .clone()
+                    .expect("In DB"),
                 parent: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Parent Item")
                     .unwrap()
-                    .get_id()
+                    .id
                     .as_ref()
                     .expect("In DB")
                     .clone(),
@@ -1579,10 +1555,9 @@ mod tests {
                         .iter()
                         .find(|x| x.summary == "Child Item 2nd position")
                         .unwrap()
-                        .get_id()
-                        .as_ref()
-                        .expect("In DB")
-                        .clone(),
+                        .id
+                        .clone()
+                        .expect("In DB"),
                 ),
             })
             .await

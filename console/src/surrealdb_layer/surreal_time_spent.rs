@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 use surrealdb::sql::{Datetime, Thing};
-use surrealdb_extra::table::Table;
 
 use crate::new_time_spent::NewTimeSpent;
 
 use super::{surreal_in_the_moment_priority::SurrealAction, surreal_item::SurrealUrgency};
 
-#[derive(PartialEq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "time_spent_log")]
+#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct SurrealTimeSpent {
     pub(crate) id: Option<Thing>,
     pub(crate) version: u32,
@@ -52,8 +50,11 @@ pub(crate) struct SurrealBulletListPositionOld {
     pub(crate) next_higher_lap_count: Option<f32>,
 }
 
-#[derive(PartialEq, Table, Serialize, Deserialize, Clone, Debug)]
-#[table(name = "time_spent_log")]
+impl SurrealTimeSpent {
+    pub(crate) const TABLE_NAME: &'static str = "time_spent_log";
+}
+
+#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct SurrealTimeSpentOldVersion {
     pub(crate) id: Option<Thing>,
     pub(crate) version: u32,
@@ -83,4 +84,8 @@ impl From<SurrealTimeSpentOldVersion> for SurrealTimeSpent {
             urgency: None,
         }
     }
+}
+
+impl SurrealTimeSpentOldVersion {
+    pub(crate) const TABLE_NAME: &'static str = "time_spent_log";
 }
