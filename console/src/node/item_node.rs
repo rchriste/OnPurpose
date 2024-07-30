@@ -850,8 +850,6 @@ fn calculate_urgent_action_items<'a>(
                         }
                     }
                 }
-            } else {
-                println!("Has Dependencies: {}", item.get_summary());
             }
         }
         Some(SurrealUrgency::InTheModeByImportance) => {
