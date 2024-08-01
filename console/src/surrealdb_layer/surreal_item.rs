@@ -14,7 +14,7 @@ use surrealdb::{
 
 use crate::{base_data::item::Item, new_item::NewItem};
 
-use super::{surreal_required_circumstance::SurrealRequiredCircumstance, SurrealTrigger};
+use super::SurrealTrigger;
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including
@@ -93,23 +93,8 @@ impl SurrealItem {
         }
     }
 
-    pub(crate) fn make_item<'a>(
-        &'a self,
-        requirements: &'a [SurrealRequiredCircumstance],
-        now: &'a DateTime<Utc>,
-    ) -> Item<'a> {
-        let my_requirements = requirements
-            .iter()
-            .filter(|x| {
-                &x.required_for
-                    == self
-                        .id
-                        .as_ref()
-                        .expect("Item should already be in the database and have an id")
-            })
-            .collect();
-
-        Item::new(self, my_requirements, now)
+    pub(crate) fn make_item<'a>(&'a self, now: &'a DateTime<Utc>) -> Item<'a> {
+        Item::new(self, now)
     }
 }
 

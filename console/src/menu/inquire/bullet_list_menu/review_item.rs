@@ -23,7 +23,11 @@ use crate::{
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
     new_time_spent::NewTimeSpent,
-    node::{item_node::ItemNode, item_status::{DependencyWithItemNode, ItemStatus}, Filter},
+    node::{
+        item_node::ItemNode,
+        item_status::{DependencyWithItemNode, ItemStatus},
+        Filter,
+    },
     surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
         surreal_item::SurrealUrgency, surreal_tables::SurrealTables,
@@ -62,7 +66,7 @@ impl Display for ReviewItemMenuChoices<'_> {
                 let dependencies = current_item
                     .get_dependencies(Filter::Active)
                     .filter(|x| match x {
-                        DependencyWithItemNode::AfterDateTime { .. } 
+                        DependencyWithItemNode::AfterDateTime { .. }
                         | DependencyWithItemNode::UntilScheduled { .. }
                         | DependencyWithItemNode::AfterItem(_)
                         | DependencyWithItemNode::DuringItem(_) => true,

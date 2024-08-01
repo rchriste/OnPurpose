@@ -19,7 +19,7 @@ use crate::{
 
 use super::{Filter, GetUrgencyNow, IsActive, IsTriggered};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     parents: Vec<GrowingItemNode<'s>>,
@@ -256,6 +256,12 @@ impl<'a> From<&'a ItemNode<'a>> for &'a SurrealItem {
 impl<'r> FindRecordId<'r, ItemNode<'r>> for &'r [ItemNode<'r>] {
     fn find_record_id(&self, record_id: &RecordId) -> Option<&'r ItemNode<'r>> {
         self.iter().find(|x| x.get_surreal_record_id() == record_id)
+    }
+}
+
+impl PartialEq for ItemNode<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.item == other.item
     }
 }
 

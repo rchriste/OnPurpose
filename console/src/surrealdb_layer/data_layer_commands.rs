@@ -23,7 +23,6 @@ use super::{
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
-    surreal_required_circumstance::SurrealRequiredCircumstance,
     surreal_routine::SurrealRoutine,
     surreal_tables::SurrealTables,
     surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentOldVersion},
@@ -337,7 +336,6 @@ pub(crate) async fn data_storage_start_and_run(
 pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     //TODO: I should do some timings to see if starting all of these get_all requests and then doing awaits on them later really is faster in Rust. Or if they just for sure don't start until the await. For example I could call this function as many times as possible in 10 sec and time that and then see how many times I can call that function written like this and then again with the get_all being right with the await to make sure that code like this is worth it perf wise.
     let all_items = db.select(SurrealItem::TABLE_NAME);
-    let all_required_circumstances = db.select(SurrealRequiredCircumstance::TABLE_NAME);
     let all_life_areas = db.select(SurrealLifeArea::TABLE_NAME);
     let all_routines = db.select(SurrealRoutine::TABLE_NAME);
     let time_spent_log = db.select(SurrealTimeSpent::TABLE_NAME);
@@ -363,7 +361,6 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     SurrealTables {
         surreal_items: all_items,
-        surreal_required_circumstances: all_required_circumstances.await.unwrap(),
         surreal_life_areas: all_life_areas.await.unwrap(),
         surreal_routines: all_routines.await.unwrap(),
         surreal_time_spent_log: time_spent_log,
@@ -665,7 +662,6 @@ mod tests {
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert!(surreal_tables.surreal_items.is_empty());
-        assert!(surreal_tables.surreal_required_circumstances.is_empty());
         assert!(surreal_tables.surreal_life_areas.is_empty());
         assert!(surreal_tables.surreal_routines.is_empty());
         assert!(surreal_tables.surreal_time_spent_log.is_empty());

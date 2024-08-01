@@ -6,20 +6,16 @@ use surrealdb::{
     sql::{Datetime, Thing},
 };
 
-use crate::surrealdb_layer::{
-    surreal_item::{
-        NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-        SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
-    },
-    surreal_required_circumstance::SurrealRequiredCircumstance,
+use crate::surrealdb_layer::surreal_item::{
+    NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
+    SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 use super::FindRecordId;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
     id: &'s RecordId,
-    required_circumstances: Vec<&'s SurrealRequiredCircumstance>,
     surreal_item: &'s SurrealItem,
     now: &'s DateTime<Utc>,
     now_sql: Datetime,
@@ -103,16 +99,17 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
     }
 }
 
+impl PartialEq for Item<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl<'b> Item<'b> {
-    pub(crate) fn new(
-        surreal_item: &'b SurrealItem,
-        required_circumstances: Vec<&'b SurrealRequiredCircumstance>,
-        now: &'b DateTime<Utc>,
-    ) -> Self {
+    pub(crate) fn new(surreal_item: &'b SurrealItem, now: &'b DateTime<Utc>) -> Self {
         let now_sql = (*now).into();
         Self {
             id: surreal_item.id.as_ref().expect("Already in DB"),
-            required_circumstances,
             surreal_item,
             now,
             now_sql,

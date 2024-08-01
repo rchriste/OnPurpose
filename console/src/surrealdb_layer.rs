@@ -9,7 +9,6 @@ pub(crate) mod surreal_in_the_moment_priority;
 pub(crate) mod surreal_item;
 pub(crate) mod surreal_life_area;
 pub(crate) mod surreal_processed_text;
-pub(crate) mod surreal_required_circumstance;
 pub(crate) mod surreal_routine;
 pub(crate) mod surreal_tables;
 pub(crate) mod surreal_time_spent;

@@ -9,8 +9,8 @@ use crate::base_data::{item::Item, life_area::LifeArea, routine::Routine, time_s
 use super::{
     data_layer_commands::DataLayerCommands,
     surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_item::SurrealItem,
-    surreal_life_area::SurrealLifeArea, surreal_required_circumstance::SurrealRequiredCircumstance,
-    surreal_routine::SurrealRoutine, surreal_time_spent::SurrealTimeSpent,
+    surreal_life_area::SurrealLifeArea, surreal_routine::SurrealRoutine,
+    surreal_time_spent::SurrealTimeSpent,
 };
 
 #[derive(Clone, Debug)]
@@ -18,9 +18,6 @@ use super::{
 pub(crate) struct SurrealTables {
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_items: Vec<SurrealItem>,
-
-    #[cfg_attr(test, builder(default))]
-    pub(crate) surreal_required_circumstances: Vec<SurrealRequiredCircumstance>,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_life_areas: Vec<SurrealLifeArea>,
@@ -45,7 +42,7 @@ impl SurrealTables {
     pub(crate) fn make_items<'a>(&'a self, now: &'a DateTime<Utc>) -> Vec<Item<'a>> {
         self.surreal_items
             .iter()
-            .map(|x| x.make_item(&self.surreal_required_circumstances, now))
+            .map(|x| x.make_item(now))
             .collect()
     }
 
