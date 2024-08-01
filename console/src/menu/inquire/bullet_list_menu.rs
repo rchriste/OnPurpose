@@ -7,6 +7,7 @@ pub(crate) mod search;
 
 use std::{fmt::Display, iter::once};
 
+use better_term::Style;
 use bullet_list_single_item::urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime};
 use chrono::{DateTime, Local, TimeDelta, Utc};
 use inquire::{InquireError, Select};
@@ -22,8 +23,7 @@ use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
     display::{
-        display_action_with_item_status::DisplayActionWithItemStatus,
-        display_scheduled_item::DisplayScheduledItem,
+        display_action_with_item_status::DisplayActionWithItemStatus, display_item::DisplayItem, display_scheduled_item::DisplayScheduledItem
     },
     menu::inquire::top_menu::present_top_menu,
     node::action_with_item_status::ActionWithItemStatus,
@@ -106,6 +106,14 @@ pub(crate) fn present_upcoming(bullet_list: &BulletList) {
             let display_scheduled_item = DisplayScheduledItem::new(scheduled_item);
             println!("{}", display_scheduled_item);
         }
+    } else if upcoming.has_conflicts() {
+        let bold_text = Style::new().bold();
+        let not_bold_text = Style::new();
+        println!("{}Scheduled items don't fit. At least one of the following items need to be adjusted:{}", bold_text, not_bold_text);
+        for conflict in upcoming.get_conflicts() {
+            println!("{}", DisplayItem::new(conflict));
+        }
+        println!();
     }
 }
 

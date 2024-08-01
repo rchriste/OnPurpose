@@ -39,11 +39,6 @@
         "upstreamed",
         "Ｗｏｒｋ"
     ],
-    "rust-analyzer.showUnlinkedFileNotification": false,
-    "rust-analyzer.trace.server": "verbose",
-    "terminal.integrated.env.windows": {
-        "RUSTUP_TOOLCHAIN": "stable"
-    },
     "rust-analyzer.cargo.extraEnv": {
         "CARGO_TARGET_DIR": "target\\ra"
     }

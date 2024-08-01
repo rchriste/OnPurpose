@@ -35,6 +35,14 @@ impl<'s> Upcoming<'s> {
     pub(crate) fn is_empty(&self) -> bool {
         self.order.sorted_best_order.is_none()
     }
+
+    pub(crate) fn has_conflicts(&self) -> bool {
+        !self.order.conflicts.is_empty()
+    }
+
+    pub(crate) fn get_conflicts(&self) -> &Vec<&'s Item<'s>> {
+        &self.order.conflicts
+    }
 }
 
 #[derive(Default)]
