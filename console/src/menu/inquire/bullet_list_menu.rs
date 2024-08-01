@@ -23,7 +23,8 @@ use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
     display::{
-        display_action_with_item_status::DisplayActionWithItemStatus, display_item::DisplayItem, display_scheduled_item::DisplayScheduledItem
+        display_action_with_item_status::DisplayActionWithItemStatus, display_item::DisplayItem,
+        display_scheduled_item::DisplayScheduledItem,
     },
     menu::inquire::top_menu::present_top_menu,
     node::action_with_item_status::ActionWithItemStatus,

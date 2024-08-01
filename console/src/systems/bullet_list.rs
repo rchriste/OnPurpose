@@ -58,7 +58,7 @@ impl BulletList {
                     let item = ActionWithItemStatus::MakeProgress(item);
                     bullet_lists_by_urgency
                         .in_the_mode_maybe_urgent_and_by_importance
-                        .push(item);
+                        .push_if_new(item);
                 }
 
                 for item in urgent_items.into_iter() {
@@ -66,39 +66,31 @@ impl BulletList {
                         SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => {
                             bullet_lists_by_urgency
                                 .more_urgent_than_anything_including_scheduled
-                                .push(item);
+                                .push_if_new(item);
                         }
                         SurrealUrgency::ScheduledAnyMode(_) => {
-                            bullet_lists_by_urgency.scheduled_any_mode.push(item);
+                            bullet_lists_by_urgency.scheduled_any_mode.push_if_new(item);
                         }
                         SurrealUrgency::MoreUrgentThanMode => {
-                            bullet_lists_by_urgency.more_urgent_than_mode.push(item);
+                            bullet_lists_by_urgency
+                                .more_urgent_than_mode
+                                .push_if_new(item);
                         }
                         SurrealUrgency::InTheModeScheduled(_) => {
-                            bullet_lists_by_urgency.in_the_mode_scheduled.push(item);
+                            bullet_lists_by_urgency
+                                .in_the_mode_scheduled
+                                .push_if_new(item);
                         }
                         SurrealUrgency::InTheModeDefinitelyUrgent => {
                             bullet_lists_by_urgency
                                 .in_the_mode_definitely_urgent
-                                .push(item);
+                                .push_if_new(item);
                         }
                         SurrealUrgency::InTheModeMaybeUrgent
                         | SurrealUrgency::InTheModeByImportance => {
-                            match bullet_lists_by_urgency
+                            bullet_lists_by_urgency
                                 .in_the_mode_maybe_urgent_and_by_importance
-                                .iter()
-                                .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
-                            {
-                                None => {
-                                    bullet_lists_by_urgency
-                                        .in_the_mode_maybe_urgent_and_by_importance
-                                        .push(item);
-                                }
-                                Some(_) => {
-                                    //Do nothing
-                                    //An item can be in the list twice if it is the most important and still urgent so only add the item if it is not there
-                                }
-                            }
+                                .push_if_new(item);
                         }
                     }
                 }
@@ -131,5 +123,25 @@ impl BulletList {
 
     pub(crate) fn get_now(&self) -> &DateTime<Utc> {
         self.borrow_calculated_data().get_now()
+    }
+}
+
+trait PushIfNew<'t> {
+    fn push_if_new(&mut self, item: ActionWithItemStatus<'t>);
+}
+
+impl<'t> PushIfNew<'t> for Vec<ActionWithItemStatus<'t>> {
+    fn push_if_new(&mut self, item: ActionWithItemStatus<'t>) {
+        match self
+            .iter()
+            .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
+        {
+            None => {
+                self.push(item);
+            }
+            Some(_) => {
+                //Do nothing, Item is already there
+            }
+        }
     }
 }
