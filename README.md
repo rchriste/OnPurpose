@@ -26,13 +26,12 @@ I am also paying attention to GUI app development in Rust. I am doing this for t
 
 The data storage layer is implemented as an embedded [SurrealDB](https://github.com/surrealdb/surrealdb) database. You can think of this like [SQLLite](https://www.sqlite.org/index.html) except I am using [SurrealDB](https://github.com/surrealdb/surrealdb). Currently I only save data locally. Sync'ing the data between machines is planned, however I want to avoid having a service for multiple reasons. Ideally I would sync the data between machines using the [Microsoft Graph To Do REST APIs](https://lib.rs/crates/graph-rs-sdk), but I doubt I can make my to do items compatible with the Microsoft To Do schema. I plan on trying to extend the To Do API with a json blob in the To Do Notes section, but I'm not sure how much I should be doing this. Also there are things to sync beyond to do items, like time spent logs so beyond the To Do REST API I plan on also syncing data between machines by placing files in [OneDrive](https://lib.rs/crates/onedrive).
 
-## Principals of _On Purpose: Time Management_:
-* Everything we do is done because of a motivational reason, tieing everything we do back to the motivational reason helps us do the right thing in the right way.
-* To pick between available tasks the following needs to be taken into account:
-    * each tasks urgency, 
-    * the relative importance of tasks that have the same parent (i.e. motivation), and
-    * the ephemeral priorities of the moment.
-* Items should be reviewed periodically: the plan, the importance, and the urgency
+## Principals of _On Purpose: Natural Time Management_:
+* Help know what can be done right now and pick what to do by taking into account urgency, relative importance and in the moment priorities.
+* Help be aware of and prepared for what is upcoming.
+* Help transition from one item to the next & save and resume work.
+* Help the user avoid distractions, stay on task, & remember the purpose behind the work.
+* Help recall what was done and feel rewarded for effort.
 
 ## Existing solutions
 The problem that I had with existing self-help time management solutions is almost no one seems to stick with these systems over the course of many years. Especially when someone faces a crises these other system are more commonly abandoned rather than leaned into and relied on. Another signal that the ideal solution doesn't yet exist is the fact that these existing time management self-help systems might be more convenient to carry out with software, but software is not strictly required. Imagine using a modern word processor for a couple years and then returning to a typewriter; and yet people return to a simple bullet list all the time after trying out the time management software of today.
