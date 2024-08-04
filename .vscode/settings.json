@@ -28,6 +28,7 @@
         "prioritizations",
         "protobuf",
         "ratatui",
+        "Ratui",
         "reimagined",
         "rocksdb",
         "rustflags",
