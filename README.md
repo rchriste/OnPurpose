@@ -27,7 +27,7 @@ I am also paying attention to GUI app development in Rust. I am doing this for t
 The data storage layer is implemented as an embedded [SurrealDB](https://github.com/surrealdb/surrealdb) database. You can think of this like [SQLLite](https://www.sqlite.org/index.html) except I am using [SurrealDB](https://github.com/surrealdb/surrealdb). Currently I only save data locally. Sync'ing the data between machines is planned, however I want to avoid having a service for multiple reasons. Ideally I would sync the data between machines using the [Microsoft Graph To Do REST APIs](https://lib.rs/crates/graph-rs-sdk), but I doubt I can make my to do items compatible with the Microsoft To Do schema. I plan on trying to extend the To Do API with a json blob in the To Do Notes section, but I'm not sure how much I should be doing this. Also there are things to sync beyond to do items, like time spent logs so beyond the To Do REST API I plan on also syncing data between machines by placing files in [OneDrive](https://lib.rs/crates/onedrive).
 
 ## Principals of _On Purpose: Intuitive Time Management_:
-* Help pick what item to do by taking into account: urgency, relative importance, and in-the-moment priorities.
+* Help efficiently pick which item to do by taking into account: urgency, relative importance, and in-the-moment priorities.
 * Help be aware of and prepared for what is upcoming.
 * Help transition from one item to the next & save and resume work.
 * Help the user avoid distractions, stay on task, & remember the purpose behind the work.
