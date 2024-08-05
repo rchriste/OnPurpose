@@ -1,4 +1,4 @@
-# On Purpose: Natural Time Management
+# On Purpose: Intuitive Time Management
 ## Why does this project exist?
 
 Hi my name is Russ Christensen, I have been diagnosed with Autism and time management experimentation and programming is my current hobby. Imagine using a word processor and then returning to a typewriter or imagine using spreadsheet software and then giving that up. It is hard to fathom because in these areas a specialized software solution is so much better than what came before; and yet **people give up on time management software and revert to a simple, tried and true, bullet list all the time. Why is that?** I believe it is because this remains an unsolved problem. There is a lot of great self-help guidance out there and time management coaching is commonly done in a clinical setting, but this is not transforming how we write software to help with time management and my goal is to change that.
@@ -26,8 +26,8 @@ I am also paying attention to GUI app development in Rust. I am doing this for t
 
 The data storage layer is implemented as an embedded [SurrealDB](https://github.com/surrealdb/surrealdb) database. You can think of this like [SQLLite](https://www.sqlite.org/index.html) except I am using [SurrealDB](https://github.com/surrealdb/surrealdb). Currently I only save data locally. Sync'ing the data between machines is planned, however I want to avoid having a service for multiple reasons. Ideally I would sync the data between machines using the [Microsoft Graph To Do REST APIs](https://lib.rs/crates/graph-rs-sdk), but I doubt I can make my to do items compatible with the Microsoft To Do schema. I plan on trying to extend the To Do API with a json blob in the To Do Notes section, but I'm not sure how much I should be doing this. Also there are things to sync beyond to do items, like time spent logs so beyond the To Do REST API I plan on also syncing data between machines by placing files in [OneDrive](https://lib.rs/crates/onedrive).
 
-## Principals of _On Purpose: Natural Time Management_:
-* Help know what can be done right now and pick what to do by taking into account urgency, relative importance and in the moment priorities.
+## Principals of _On Purpose: Intuitive Time Management_:
+* Help pick what item to do by taking into account: urgency, relative importance, and in-the-moment priorities.
 * Help be aware of and prepared for what is upcoming.
 * Help transition from one item to the next & save and resume work.
 * Help the user avoid distractions, stay on task, & remember the purpose behind the work.
