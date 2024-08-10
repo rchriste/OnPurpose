@@ -27,7 +27,7 @@ impl<'s> Scheduled for Vec<ScheduledItem<'s>> {
         //Does anything conflict with the given time? If so then advance the time to the end of that conflict and check again (call this function again). Otherwise just return that time as the starting time.
         let conflict = self.iter().find(|x| {
             //Is there any overlap between the range of x and the range of the passed in start and end?
-            (start > x.start && start < x.end) || (end > x.start && end < x.end)
+            (start >= x.start || end >= x.start) && (start <= x.end || end <= x.end)
         });
         match conflict {
             Some(conflict) => {
@@ -52,7 +52,7 @@ impl<'s> Scheduled for Vec<ScheduledItem<'s>> {
             if gap_penalty_raw < 1.0 {
                 //This is because log10 of something less than 1 is a negative number. It is possible that we would want a larger penalty or maybe this would be better to just be an assert as this scenario shouldn't really happen.
                 //gap_penalty_raw = 1.0;
-                panic!("This should never happen, it means that we have things that overlap, or we are not sorted properly, or we have a gap of less than a minute.");
+                panic!("This should never happen, it means that we have things that overlap, or we are not sorted properly, or we have a gap of less than a minute. gap_penalty_raw={}, self[i + 1].start={}, self[i].end={}", gap_penalty_raw, self[i + 1].start, self[i].end);
             }
             gap_penalty_sum += gap_penalty_raw.log10();
         }

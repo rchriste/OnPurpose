@@ -7,7 +7,7 @@ This project exists because I want to be part of the solution. I am a software p
 
 _On Purpose: Intuitive Time Management_ is the name of the program that I eventually came up with. This is a research project. My goal with this project is to experiment with, adjust, and prove out these ideas with the goal of reducing the risk of integrating these ideas into existing software. The risk exists because I am suggesting impactful changes to the software ecosystem. My initial goal was to write a piece of software that changed my life because it reduces the practical impact of my disability and I am proud to say that I have been benefiting from _On Purpose_ constantly and every day since January of 2024. Improving the program for myself remains my top priority but I am also working towards the goal of being able to support others because if these ideas are ever going to be integrated into software more widely then we need to have a group of users who use this program and greatly benefit from it. I am on a multi-year journey.
 
-## What we should expect a to do app to do:
+## What we should expect a To Do app to do:
 
 * Help efficiently pick which item to do by taking into account: urgency, relative importance, and in-the-moment priorities.
 * Help be aware of and prepared for what is upcoming.
@@ -34,6 +34,12 @@ _On Purpose_ is meant to be a program that integrates with existing systems rath
 * Azure Dev Ops
 * OneDrive
 
+## Interested?
+
+If so I want to warn you that _On Purpose_ is currently an unpaid hobby project for me and while this remains true I am the primary customer. At this stage the application is rough with bugs and usability problems. It is more as a proof of concept and research project than it is a serious commercial or open source project. 
+
+I am currently working towards implementing my vision to something that I consider showable. If you want to build it and try it out then be my guest but otherwise I recommend waiting until I am far enough long to feel good about providing binaries to download or install.
+
 ## Core Rust Crates of _On Purpose_
 
 Currently _On Purpose_ is a text based Windows program written in Rust. It brings up a selection of items using the [inquire](https://github.com/mikaelmello/inquire) crate. This is the current UI because it is the easiest to experiment with as I work out the core feature set. In time I intend to adopt [Ratui](https://ratatui.rs/) for a more fully featured but still text based UI. 
@@ -41,12 +47,6 @@ Currently _On Purpose_ is a text based Windows program written in Rust. It bring
 I am also paying attention to GUI app development in Rust. I am doing this for two reasons, on the desktop I would like to eventually be an always viewable docked application similar to the windows start bar. I also hope to eventually create an Android app for the phone and investigate the idea of integrating in some fashion with the Android operating system. I am paying attention to the following projects and I intend to eventually try to prototype _On Purpose_ in each of them: [Makepad](https://github.com/makepad/makepad), [Dioxus](https://dioxuslabs.com/), and [Xilem](https://github.com/linebender/xilem). Also to better share code between platforms I am paying attention to [Robius](https://robius.rs/).
 
 The data storage layer is implemented as an embedded [SurrealDB](https://github.com/surrealdb/surrealdb) database. You can think of this like [SQLLite](https://www.sqlite.org/index.html) except I am using [SurrealDB](https://github.com/surrealdb/surrealdb). Currently I only save data locally. Sync'ing the data between machines is planned, however I want to avoid having a service for multiple reasons. Ideally I would sync the data between machines using the [Microsoft Graph To Do REST APIs](https://lib.rs/crates/graph-rs-sdk), but I doubt I can make my to do items compatible with the Microsoft To Do schema. I plan on trying to extend the To Do API with a json blob in the To Do Notes section, but I'm not sure how much I should be doing this. Also there are things to sync beyond to do items, like time spent logs so beyond the To Do REST API I plan on also syncing data between machines by placing files in [OneDrive](https://lib.rs/crates/onedrive).
-
-## Interested?
-
-If so I want to warn you that _On Purpose_ is currently an unpaid hobby project for me and while this remains true I am the primary customer. At this stage the application is rough with bugs and usability problems. It is more as a proof of concept and research project than it is a serious commercial or open source project. 
-
-I am currently working towards implementing my vision to something that I consider showable. If you want to build it and try it out then be my guest but otherwise I recommend waiting until I am far enough long to feel good about providing binaries to download or install.
 
 ## Installing On Purpose
 

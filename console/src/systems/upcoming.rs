@@ -177,3 +177,87 @@ impl SurrealScheduled {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeDelta, Utc};
+    use tokio::sync::mpsc;
+
+    use crate::base_data::BaseData;
+    use crate::calculated_data::CalculatedData;
+    use crate::new_item::NewItemBuilder;
+    use crate::surrealdb_layer::data_layer_commands::{
+        data_storage_start_and_run, DataLayerCommands,
+    };
+    use crate::surrealdb_layer::surreal_item::{
+        SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
+    };
+    use crate::surrealdb_layer::surreal_tables::SurrealTables;
+    use crate::systems::upcoming::Upcoming;
+
+    #[tokio::test]
+    async fn when_one_item_is_scheduled_inside_of_another_item_it_is_marked_as_a_conflict() {
+        //Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        let now = Utc::now();
+        sender
+            .send(DataLayerCommands::NewItem(
+                NewItemBuilder::default()
+                    .summary("3 hour item")
+                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(
+                        SurrealUrgency::ScheduledAnyMode(SurrealScheduled::Exact {
+                            start: now
+                                .checked_add_signed(TimeDelta::hours(1))
+                                .expect("Won't overflow")
+                                .into(),
+                            duration: (TimeDelta::hours(3)
+                                .to_std()
+                                .expect("Won't overflow")
+                                .into()),
+                        }),
+                    )))
+                    .build()
+                    .expect("Valid new item"),
+            ))
+            .await
+            .expect("Should pass");
+
+        sender
+            .send(DataLayerCommands::NewItem(
+                NewItemBuilder::default()
+                    .summary("1 hour item")
+                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(
+                        SurrealUrgency::ScheduledAnyMode(SurrealScheduled::Exact {
+                            start: now
+                                .checked_add_signed(TimeDelta::hours(2))
+                                .expect("Won't overflow")
+                                .into(),
+                            duration: (TimeDelta::hours(1)
+                                .to_std()
+                                .expect("Won't overflow")
+                                .into()),
+                        }),
+                    )))
+                    .build()
+                    .expect("Valid new item"),
+            ))
+            .await
+            .expect("Should pass");
+
+        let surreal_tables = SurrealTables::new(&sender).await.expect("Should pass");
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let calculated_data = CalculatedData::new_from_base_data(base_data);
+
+        //Act
+        let result = Upcoming::new(&calculated_data, &now);
+
+        //Assert
+        assert_eq!(result.has_conflicts(), true);
+
+        drop(sender);
+        data_storage_join_handle.await.expect("Should pass");
+    }
+}
