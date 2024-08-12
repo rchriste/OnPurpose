@@ -85,11 +85,20 @@ pub(crate) async fn present_normal_bullet_list_menu(
     }
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+    let base_data_checkpoint = Utc::now();
     let calculated_data = CalculatedData::new_from_base_data(base_data);
+    let calculated_data_checkpoint = Utc::now();
     let bullet_list = BulletList::new_bullet_list(calculated_data, &now);
-    let elapsed = Utc::now() - now;
+    let finish_checkpoint = Utc::now();
+    let elapsed = finish_checkpoint - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create bullet list. Time taken: {}", elapsed);
+        println!(
+            "Base data took: {}, calculated data took: {}, bullet list took: {}",
+            base_data_checkpoint - now,
+            calculated_data_checkpoint - base_data_checkpoint,
+            finish_checkpoint - calculated_data_checkpoint
+        );
     }
     present_upcoming(&bullet_list);
     present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
