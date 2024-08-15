@@ -44,7 +44,9 @@ enum ReviewItemMenuChoices<'e> {
     AddNewParent,
     AddNewChild,
     GoToParent(&'e Item<'e>),
+    RemoveParent(&'e Item<'e>),
     GoToChild(&'e Item<'e>),
+    RemoveChild(&'e Item<'e>),
 }
 
 impl Display for ReviewItemMenuChoices<'_> {
@@ -91,9 +93,17 @@ impl Display for ReviewItemMenuChoices<'_> {
                 let display_item = DisplayItem::new(item);
                 write!(f, "Go to parent: {}", display_item)
             }
+            ReviewItemMenuChoices::RemoveParent(item) => {
+                let display_item = DisplayItem::new(item);
+                write!(f, "Remove parent: {}", display_item)
+            }
             ReviewItemMenuChoices::GoToChild(item) => {
                 let display_item = DisplayItem::new(item);
                 write!(f, "Go to child: {}", display_item)
+            }
+            ReviewItemMenuChoices::RemoveChild(item) => {
+                let display_item = DisplayItem::new(item);
+                write!(f, "Remove child: {}", display_item)
             }
         }
     }
@@ -136,12 +146,14 @@ impl ReviewItemMenuChoices<'_> {
 
         for parent in current_item.get_item_node().get_parents(Filter::Active) {
             list.push(ReviewItemMenuChoices::GoToParent(parent.get_item()));
+            list.push(ReviewItemMenuChoices::RemoveParent(parent.get_item()));
         }
 
         list.push(ReviewItemMenuChoices::AddNewChild);
 
         for child in current_item.get_item_node().get_children(Filter::Active) {
             list.push(ReviewItemMenuChoices::GoToChild(child.get_item()));
+            list.push(ReviewItemMenuChoices::RemoveChild(child.get_item()));
         }
 
         list
@@ -383,6 +395,22 @@ async fn present_review_item_menu_internal(
             ))
             .await
         }
+        ReviewItemMenuChoices::RemoveParent(item) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemRemoveParent {
+                    child: selected_item.get_surreal_record_id().clone(),
+                    parent_to_remove: item.get_surreal_record_id().clone(),
+                })
+                .await
+                .unwrap();
+
+            refresh_items_present_review_item_menu_internal(
+                item_under_review,
+                selected_item,
+                send_to_data_storage_layer,
+            )
+            .await
+        }
         ReviewItemMenuChoices::GoToChild(item) => {
             let child = all_items
                 .iter()
@@ -394,6 +422,22 @@ async fn present_review_item_menu_internal(
                 all_items,
                 send_to_data_storage_layer,
             ))
+            .await
+        }
+        ReviewItemMenuChoices::RemoveChild(item) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemRemoveParent {
+                    child: item.get_surreal_record_id().clone(),
+                    parent_to_remove: selected_item.get_surreal_record_id().clone(),
+                })
+                .await
+                .unwrap();
+
+            refresh_items_present_review_item_menu_internal(
+                item_under_review,
+                selected_item,
+                send_to_data_storage_layer,
+            )
             .await
         }
     }
