@@ -146,6 +146,9 @@ impl ReviewItemMenuChoices<'_> {
 
         for parent in current_item.get_item_node().get_parents(Filter::Active) {
             list.push(ReviewItemMenuChoices::GoToParent(parent.get_item()));
+        }
+
+        for parent in current_item.get_item_node().get_parents(Filter::Active) {
             list.push(ReviewItemMenuChoices::RemoveParent(parent.get_item()));
         }
 
@@ -153,6 +156,9 @@ impl ReviewItemMenuChoices<'_> {
 
         for child in current_item.get_item_node().get_children(Filter::Active) {
             list.push(ReviewItemMenuChoices::GoToChild(child.get_item()));
+        }
+
+        for child in current_item.get_item_node().get_children(Filter::Active) {
             list.push(ReviewItemMenuChoices::RemoveChild(child.get_item()));
         }
 

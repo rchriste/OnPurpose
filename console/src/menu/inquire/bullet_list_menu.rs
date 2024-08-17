@@ -137,11 +137,7 @@ pub(crate) async fn present_bullet_list_menu(
     let inquire_bullet_list = InquireBulletListItem::create_list(ordered_bullet_list);
 
     if !inquire_bullet_list.is_empty() {
-        let starting_cursor = if ordered_bullet_list.is_empty() {
-            0
-        } else {
-            2
-        };
+        let starting_cursor = if ordered_bullet_list.is_empty() { 0 } else { 2 };
         let selected = Select::new("Select from the below list|", inquire_bullet_list)
             .with_starting_cursor(starting_cursor)
             .with_page_size(10)

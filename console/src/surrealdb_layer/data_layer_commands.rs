@@ -241,7 +241,12 @@ pub(crate) async fn data_storage_start_and_run(
                 item_review.last_reviewed = Some(new_last_reviewed);
 
                 item.item_review = Some(item_review);
-                let updated = db.update(record_id).content(item.clone()).await.unwrap().unwrap();
+                let updated = db
+                    .update(record_id)
+                    .content(item.clone())
+                    .await
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateItemReviewFrequency(
@@ -261,7 +266,12 @@ pub(crate) async fn data_storage_start_and_run(
                     review_frequency: surreal_frequency,
                 });
                 item.review_guidance = Some(surreal_review_guidance);
-                let updated = db.update(record_id).content(item.clone()).await.unwrap().unwrap();
+                let updated = db
+                    .update(record_id)
+                    .content(item.clone())
+                    .await
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateSummary(item, new_summary)) => {
