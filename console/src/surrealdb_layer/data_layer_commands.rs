@@ -207,7 +207,7 @@ pub(crate) async fn data_storage_start_and_run(
                     .collect::<Vec<_>>();
                 let saved = db
                     .update(parent_to_remove)
-                    .content(&parent)
+                    .content(parent.clone())
                     .await
                     .unwrap()
                     .unwrap();
@@ -241,7 +241,7 @@ pub(crate) async fn data_storage_start_and_run(
                 item_review.last_reviewed = Some(new_last_reviewed);
 
                 item.item_review = Some(item_review);
-                let updated = db.update(record_id).content(&item).await.unwrap().unwrap();
+                let updated = db.update(record_id).content(item.clone()).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateItemReviewFrequency(
@@ -261,7 +261,7 @@ pub(crate) async fn data_storage_start_and_run(
                     review_frequency: surreal_frequency,
                 });
                 item.review_guidance = Some(surreal_review_guidance);
-                let updated = db.update(record_id).content(&item).await.unwrap().unwrap();
+                let updated = db.update(record_id).content(item.clone()).await.unwrap().unwrap();
                 assert_eq!(item, updated);
             }
             Some(DataLayerCommands::UpdateSummary(item, new_summary)) => {
@@ -551,7 +551,7 @@ async fn parent_item_with_existing_item(
     }
     let saved = db
         .update(parent_record_id)
-        .content(&parent)
+        .content(parent.clone())
         .await
         .unwrap()
         .unwrap();
@@ -612,7 +612,7 @@ async fn add_dependency(record_id: RecordId, new_dependency: SurrealDependency, 
 
         let updated: SurrealItem = db
             .update(record_id)
-            .content(&surreal_item)
+            .content(surreal_item.clone())
             .await
             .unwrap()
             .unwrap();
