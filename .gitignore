@@ -4,3 +4,6 @@
 :/
 /.vs/*
 coverage.cobertura.xml
+#Ignore files created when running in Linux
+c:/*
+target*/*
