@@ -24,6 +24,7 @@ use super::SurrealTrigger;
 pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
+    pub(crate) version: u32,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) finished: Option<Datetime>,
@@ -47,7 +48,10 @@ pub(crate) struct SurrealItem {
     pub(crate) dependencies: Vec<SurrealDependency>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_review: Option<SurrealItemReview>,
+    pub(crate) last_reviewed: Option<Datetime>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) review_frequency: Option<SurrealFrequency>,
 
     pub(crate) review_guidance: Option<SurrealReviewGuidance>,
 
@@ -75,8 +79,10 @@ impl SurrealItem {
         new_item: NewItem,
         smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
     ) -> Self {
+        let last_reviewed = new_item.last_reviewed.map(|dt| dt.into());
         SurrealItem {
             id: None,
+            version: 1,
             summary: new_item.summary,
             finished: new_item.finished,
             responsibility: new_item.responsibility,
@@ -88,7 +94,8 @@ impl SurrealItem {
             urgency_plan: new_item.urgency_plan,
             lap: new_item.lap,
             dependencies: new_item.dependencies,
-            item_review: new_item.item_review,
+            last_reviewed,
+            review_frequency: new_item.review_frequency,
             review_guidance: new_item.review_guidance,
         }
     }
@@ -574,16 +581,21 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) facing: Vec<SurrealFacing>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) item_type: SurrealItemTypeOld,
+    pub(crate) item_type: SurrealItemType,
 
     #[cfg_attr(test, builder(default))]
     pub(crate) notes_location: NotesLocation,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) permanence: Permanence,
+    pub(crate) lap: Option<SurrealLap>,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) staging: SurrealStaging,
+    pub(crate) dependencies: Vec<SurrealDependency>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) item_review: Option<SurrealItemReview>,
+
+    pub(crate) review_guidance: Option<SurrealReviewGuidance>,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
     #[cfg_attr(test, builder(default))]
@@ -591,9 +603,9 @@ pub(crate) struct SurrealItemOldVersion {
 
     #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
     pub(crate) created: Datetime,
-    //Touched and worked_on would be joined from separate tables so this does not need to be edited a lot for those purposes
+
     #[cfg_attr(test, builder(default))]
-    pub(crate) scheduled: SurrealScheduledOldVersion,
+    pub(crate) urgency_plan: Option<SurrealUrgencyPlan>,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -614,48 +626,31 @@ pub(crate) enum SurrealScheduledOldVersion {
 
 impl From<SurrealItemOldVersion> for SurrealItem {
     fn from(value: SurrealItemOldVersion) -> Self {
-        let lap = match &value.staging {
-            SurrealStaging::MentallyResident { lap, .. } => Some(lap.clone()),
-            SurrealStaging::OnDeck { lap, .. } => Some(lap.clone()),
-            _ => None,
+        let (last_reviewed, review_frequency) = match value.item_review {
+            Some(item_review) => (
+                item_review.last_reviewed,
+                Some(item_review.review_frequency),
+            ),
+            None => (None, None),
         };
-        let dependencies = match value.staging {
-            SurrealStaging::MentallyResident { enter_list, .. }
-            | SurrealStaging::OnDeck { enter_list, .. } => match enter_list {
-                EnterListReasonOldVersion::DateTime(dt) => {
-                    vec![SurrealDependency::AfterDateTime(dt)]
-                }
-                EnterListReasonOldVersion::HighestUncovered { review_after, .. } => {
-                    vec![SurrealDependency::AfterDateTime(review_after)]
-                }
-            },
-            _ => Vec::default(),
-        };
-        let item_type = match value.item_type {
-            SurrealItemTypeOld::Undeclared => SurrealItemType::Undeclared,
-            SurrealItemTypeOld::Action => SurrealItemType::Action,
-            SurrealItemTypeOld::Goal(how_much) => SurrealItemType::Goal(how_much),
-            SurrealItemTypeOld::IdeaOrThought => SurrealItemType::IdeaOrThought,
-            SurrealItemTypeOld::Motivation => {
-                SurrealItemType::Motivation(SurrealMotivationKind::NotSet)
-            }
-            SurrealItemTypeOld::PersonOrGroup => SurrealItemType::PersonOrGroup,
-        };
+
         SurrealItem {
             id: value.id,
+            version: 1,
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
             facing: value.facing,
-            item_type,
+            item_type: value.item_type,
             notes_location: value.notes_location,
-            lap,
+            lap: value.lap,
             smaller_items_in_priority_order: value.smaller_items_in_priority_order,
             created: value.created,
-            urgency_plan: None,
-            dependencies,
-            item_review: None,
-            review_guidance: None,
+            urgency_plan: value.urgency_plan,
+            dependencies: value.dependencies,
+            review_guidance: value.review_guidance,
+            last_reviewed,
+            review_frequency,
         }
     }
 }

@@ -18,8 +18,8 @@ use super::{
     },
     surreal_item::{
         Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-        SurrealItemOldVersion, SurrealItemReview, SurrealItemType, SurrealOrderedSubItem,
-        SurrealReviewGuidance, SurrealUrgencyPlan,
+        SurrealItemOldVersion, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance,
+        SurrealUrgencyPlan,
     },
     surreal_life_area::SurrealLifeArea,
     surreal_processed_text::SurrealProcessedText,
@@ -235,12 +235,8 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::UpdateItemLastReviewedDate(record_id, new_last_reviewed)) => {
                 //TODO: I should probably fix this so it does the update all as one transaction rather than reading in the data and then changing it and writing it out again. That could cause issues if there are multiple writers. The reason why I didn't do it yet is because I only want to update part of the SurrealItemReview type and I need to experiment with the PatchOp::replace to see if and how to make it work with the nested type. Otherwise I might consider just making review_frequency and last_reviewed separate fields and then I can just update the review_frequency and not have to worry about the last_reviewed field.
                 let mut item: SurrealItem = db.select(record_id.clone()).await.unwrap().unwrap();
-                let mut item_review = item
-                    .item_review
-                    .expect("You should only review items that have a review frequency");
-                item_review.last_reviewed = Some(new_last_reviewed);
 
-                item.item_review = Some(item_review);
+                item.last_reviewed = Some(new_last_reviewed);
                 let updated = db
                     .update(record_id)
                     .content(item.clone())
@@ -258,13 +254,7 @@ pub(crate) async fn data_storage_start_and_run(
                 let previous_value: SurrealItem =
                     db.select(record_id.clone()).await.unwrap().unwrap();
                 let mut item = previous_value.clone();
-                item.item_review = Some(SurrealItemReview {
-                    last_reviewed: match previous_value.item_review {
-                        Some(SurrealItemReview { last_reviewed, .. }) => last_reviewed,
-                        None => None,
-                    },
-                    review_frequency: surreal_frequency,
-                });
+                item.review_frequency = Some(surreal_frequency);
                 item.review_guidance = Some(surreal_review_guidance);
                 let updated = db
                     .update(record_id)
