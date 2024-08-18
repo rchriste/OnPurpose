@@ -112,6 +112,8 @@ pub(crate) fn present_upcoming(bullet_list: &BulletList) {
             .get_ordered_scheduled_items()
             .as_ref()
             .expect("upcoming is not empty")
+            .iter()
+            .rev()
         {
             let display_scheduled_item = DisplayScheduledItem::new(scheduled_item);
             println!("{}", display_scheduled_item);
