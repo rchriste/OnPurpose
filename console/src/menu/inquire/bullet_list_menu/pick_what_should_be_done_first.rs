@@ -129,6 +129,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                         item_status,
                         item_action.get_urgency_now(),
                         bullet_list.get_all_items_status(),
+                        true,
                         send_to_data_storage_layer,
                     )
                     .await;

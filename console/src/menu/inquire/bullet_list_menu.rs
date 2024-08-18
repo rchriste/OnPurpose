@@ -170,6 +170,7 @@ pub(crate) async fn present_bullet_list_menu(
                         item_status,
                         selected.get_urgency_now(),
                         bullet_list.get_all_items_status(),
+                        true,
                         send_to_data_storage_layer,
                     )
                     .await

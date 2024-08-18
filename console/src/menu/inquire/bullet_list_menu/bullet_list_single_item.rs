@@ -350,6 +350,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                     .unwrap_or(&SurrealUrgency::InTheModeByImportance)
                     .clone(),
                 bullet_list.get_all_items_status(),
+                false,
                 send_to_data_storage_layer,
             )
             .await
