@@ -252,7 +252,7 @@ async fn present_review_item_menu_internal(
             let now = Utc::now();
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateItemLastReviewedDate(
-                    selected_item.get_surreal_record_id().clone(),
+                    item_under_review.get_surreal_record_id().clone(),
                     now.into(),
                 ))
                 .await

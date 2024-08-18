@@ -32,6 +32,7 @@
         "reimagined",
         "rocksdb",
         "rustflags",
+        "rustls",
         "serde",
         "struct",
         "surrealdb",
