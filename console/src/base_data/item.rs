@@ -148,14 +148,6 @@ impl<'b> Item<'b> {
         self.get_item_type()
     }
 
-    pub(crate) fn is_type_undeclared(&self) -> bool {
-        self.get_item_type() == &SurrealItemType::Undeclared
-    }
-
-    pub(crate) fn is_type_action(&self) -> bool {
-        self.get_item_type() == &SurrealItemType::Action
-    }
-
     pub(crate) fn is_type_goal(&self) -> bool {
         matches!(self.get_item_type(), &SurrealItemType::Goal(..))
     }

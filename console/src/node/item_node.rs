@@ -382,26 +382,6 @@ impl<'s> ItemNode<'s> {
         self.item.get_type()
     }
 
-    pub(crate) fn is_type_action(&self) -> bool {
-        if self.item.get_type() == &SurrealItemType::Undeclared {
-            //Look to parents for a setting
-            self.get_parents(Filter::Active).any(|x| x.is_type_action())
-        } else {
-            //Value is set so use it
-            self.item.is_type_action()
-        }
-    }
-
-    pub(crate) fn is_type_undeclared(&self) -> bool {
-        let is_type_undeclared = self.item.is_type_undeclared();
-        if is_type_undeclared && self.is_type_action() {
-            //This type can be inferred from the parent so check that first
-            false
-        } else {
-            is_type_undeclared
-        }
-    }
-
     pub(crate) fn is_type_goal(&self) -> bool {
         self.item.is_type_goal()
     }
@@ -496,16 +476,6 @@ impl<'s> GrowingItemNode<'s> {
             result.extend(parents.iter());
         }
         result
-    }
-
-    pub(crate) fn is_type_action(&self) -> bool {
-        if self.item.get_type() == &SurrealItemType::Undeclared {
-            //Look to parents for a setting
-            self.larger.iter().any(|x| x.is_type_action())
-        } else {
-            //Value is set so use it
-            self.item.is_type_action()
-        }
     }
 
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
@@ -926,7 +896,9 @@ mod tests {
         let items = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
 
-        let to_dos = active_items.iter().filter(|x| x.is_type_action());
+        let to_dos = active_items
+            .iter()
+            .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
             .map(|x| ItemNode::new(x, &items, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
@@ -985,7 +957,9 @@ mod tests {
         let items = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
 
-        let to_dos = active_items.iter().filter(|x| x.is_type_action());
+        let to_dos = active_items
+            .iter()
+            .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
             .map(|x| ItemNode::new(x, &items, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))

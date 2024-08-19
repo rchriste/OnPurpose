@@ -4,7 +4,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::item::Item,
-    surrealdb_layer::surreal_item::{SurrealItemType, SurrealMotivationKind},
+    display::display_item_type::{DisplayItemType, DisplayItemTypeStyle},
 };
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
@@ -41,22 +41,9 @@ impl From<DisplayItem<'_>> for RecordId {
 
 impl Display for DisplayItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.item.get_item_type() {
-            SurrealItemType::Goal(_) => write!(f, "🪧 {}", self.item.get_summary()),
-            SurrealItemType::Motivation(kind) => {
-                write!(f, "🎯")?;
-                match kind {
-                    SurrealMotivationKind::NotSet => {}
-                    SurrealMotivationKind::CoreWork => write!(f, "🏢")?,
-                    SurrealMotivationKind::NonCoreWork => write!(f, "🏞")?,
-                }
-                write!(f, " {}", self.item.get_summary())
-            }
-            SurrealItemType::Action => write!(f, "🪜 {}", self.item.get_summary()),
-            SurrealItemType::Undeclared => write!(f, "❓ {}", self.item.get_summary()),
-            SurrealItemType::PersonOrGroup => write!(f, "👤 {}", self.item.get_summary()),
-            SurrealItemType::IdeaOrThought => write!(f, "💡 {}", self.item.get_summary()),
-        }
+        let display_item_type =
+            DisplayItemType::new(DisplayItemTypeStyle::Abbreviated, self.item.get_item_type());
+        write!(f, "{} {}", display_item_type, self.item.get_summary())
     }
 }
 

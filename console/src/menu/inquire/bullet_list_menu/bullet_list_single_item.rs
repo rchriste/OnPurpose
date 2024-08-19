@@ -16,7 +16,11 @@ use urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime};
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
-    display::{display_item::DisplayItem, display_item_node::DisplayItemNode},
+    display::{
+        display_item::DisplayItem,
+        display_item_node::DisplayItemNode,
+        display_item_type::{DisplayItemType, DisplayItemTypeStyle},
+    },
     menu::inquire::{
         bullet_list_menu::{
             bullet_list_single_item::{
@@ -46,7 +50,9 @@ use crate::{
 };
 
 enum BulletListSingleItemSelection<'e> {
-    DeclareItemType,
+    ChangeItemType {
+        current: &'e SurrealItemType,
+    },
     CaptureNewItem,
     StartingToWorkOnThisNow,
     GiveThisItemAParent,
@@ -70,13 +76,14 @@ enum BulletListSingleItemSelection<'e> {
     },
     DoWithSomethingElse,
     SearchForSimilarWork,
-    ChangeType,
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
     SwitchToParentItem(DisplayItem<'e>, &'e ItemStatus<'e>),
     ParentToItem,
     RemoveParent(DisplayItem<'e>, &'e ItemStatus<'e>),
+    SwitchToChildItem(DisplayItem<'e>, &'e ItemStatus<'e>),
+    RemoveChild(DisplayItem<'e>, &'e ItemStatus<'e>),
     CaptureAFork,
     DebugPrintItem,
 }
@@ -87,7 +94,9 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
-            Self::SwitchToParentItem(parent_item, _) => write!(f, "⇄ Switch to: {}", parent_item),
+            Self::SwitchToParentItem(parent_item, _) => {
+                write!(f, "⇄ Switch to parent: {}", parent_item)
+            }
             Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
@@ -96,12 +105,19 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::ParentToItem => {
                 write!(f, "⭱ Parent to a new or existing Item")
             }
+            Self::SwitchToChildItem(child_item, _) => {
+                write!(f, "⇄ Switch to child: {}", child_item)
+            }
+            Self::RemoveChild(child_item, _) => write!(f, "🚫 Remove Child: {}", child_item),
             Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove Parent: {}", parent_item),
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
             Self::SomethingElseShouldBeDoneFirst => {
                 write!(f, "Something else should be done first")
             }
-            Self::DeclareItemType => write!(f, "Declare Item Type"),
+            Self::ChangeItemType { current } => {
+                let current_item_type = DisplayItemType::new(DisplayItemTypeStyle::Full, current);
+                write!(f, "Change Item Type (Currently: {})", current_item_type)
+            }
             Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
             Self::EstimateHowManyFocusPeriodsThisWillTake => {
                 write!(f, "Estimate how many Focus Periods this will take")
@@ -129,7 +145,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::SearchForSimilarWork => write!(f, "Look for similar work to also do"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
-            Self::ChangeType => write!(f, "Change Type"),
             Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
         }
     }
@@ -142,62 +157,39 @@ impl<'e> BulletListSingleItemSelection<'e> {
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
-        let is_type_action = item_node.is_type_action();
         let has_no_parent = !item_node.has_parents(Filter::Active);
         let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
-        let is_type_undeclared = item_node.is_type_undeclared();
         let has_active_children = item_node.has_children(Filter::Active);
 
         if has_no_parent {
             list.push(Self::GiveThisItemAParent);
         }
 
-        if (is_type_goal || is_type_motivation) && !has_active_children {
-            list.push(Self::StateASmallerNextStep);
-        }
-
-        if is_type_undeclared {
-            list.push(Self::DeclareItemType);
-        }
-
-        if is_type_action || is_type_goal || is_type_motivation {
-            list.push(Self::CaptureNewItem);
-            list.push(Self::StartingToWorkOnThisNow);
-            list.push(Self::WorkedOnThis);
-        }
+        list.push(Self::CaptureNewItem);
+        list.push(Self::StartingToWorkOnThisNow);
+        list.push(Self::WorkedOnThis);
 
         list.push(Self::Finished);
 
-        if is_type_action {
-            list.push(Self::UnableToDoThisRightNow);
-            list.push(Self::NotInTheMoodToDoThisRightNow);
-        }
+        list.push(Self::UnableToDoThisRightNow);
+        list.push(Self::NotInTheMoodToDoThisRightNow);
 
-        if is_type_action {
-            list.push(Self::StateASmallerNextStep);
-        }
+        list.push(Self::StateASmallerNextStep);
 
-        if !is_type_undeclared {
-            list.push(Self::SomethingElseShouldBeDoneFirst);
-        }
+        list.push(Self::SomethingElseShouldBeDoneFirst);
 
-        if is_type_action || is_type_goal {
-            list.push(Self::EstimateHowManyFocusPeriodsThisWillTake)
-        }
-
-        if is_type_action || is_type_goal {
+        if !is_type_motivation {
+            list.push(Self::EstimateHowManyFocusPeriodsThisWillTake);
             list.push(Self::DoWithSomethingElse);
             list.push(Self::SearchForSimilarWork);
         }
 
-        if is_type_action || is_type_goal || is_type_motivation {
-            if item_node.is_there_notes() {
-                list.push(Self::OpenNotesForThisItem);
-            } else {
-                list.push(Self::CreateNotesForThisItem);
-                list.push(Self::LinkNotesForThisItem);
-            }
+        if item_node.is_there_notes() {
+            list.push(Self::OpenNotesForThisItem);
+        } else {
+            list.push(Self::CreateNotesForThisItem);
+            list.push(Self::LinkNotesForThisItem);
         }
 
         list.push(Self::ReviewItem);
@@ -210,26 +202,28 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        let parent_items = item_node.create_parent_chain();
-        if is_type_action || is_type_goal || is_type_motivation || is_type_undeclared {
-            list.push(Self::ParentToItem);
-            list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_status = all_items_status
-                    .iter()
-                    .find(|y| y.get_item() == *x)
-                    .expect("All items are here");
-                Self::SwitchToParentItem(DisplayItem::new(x), item_status)
-            }));
-            list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
-                let item_status = all_items_status
-                    .iter()
-                    .find(|y| y.get_item() == *x)
-                    .expect("All items are here");
-                Self::RemoveParent(DisplayItem::new(x), item_status)
-            }));
-        }
+        let parent_items = item_node
+            .get_parents(Filter::Active)
+            .map(|x| x.get_item())
+            .collect::<Vec<_>>();
+        list.push(Self::ParentToItem);
+        list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
+            let item_status = all_items_status
+                .iter()
+                .find(|y| y.get_item() == *x)
+                .expect("All items are here");
+            Self::SwitchToParentItem(DisplayItem::new(x), item_status)
+        }));
+        list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
+            let item_status = all_items_status
+                .iter()
+                .find(|y| y.get_item() == *x)
+                .expect("All items are here");
+            Self::RemoveParent(DisplayItem::new(x), item_status)
+        }));
 
-        for parent in parent_items {
+        let parent_chain = item_node.create_parent_chain();
+        for parent in parent_chain {
             if parent.is_there_notes() {
                 list.push(Self::OpenNotesForParentItem {
                     item_in_chain_with_notes: DisplayItem::new(parent),
@@ -237,27 +231,39 @@ impl<'e> BulletListSingleItemSelection<'e> {
             }
         }
 
-        if is_type_action || is_type_goal || is_type_motivation {
-            list.push(Self::CaptureAFork);
-        }
+        let child_items = item_node
+            .get_children(Filter::Active)
+            .map(|x| x.get_item())
+            .collect::<Vec<_>>();
+        list.extend(child_items.iter().map(|child: &&'e Item<'e>| {
+            let child_item_status = all_items_status
+                .iter()
+                .find(|y| y.get_item() == *child)
+                .expect("All items are here");
+            Self::SwitchToChildItem(DisplayItem::new(child), child_item_status)
+        }));
 
-        if is_type_action || is_type_goal {
-            list.push(Self::ThisIsARepeatingItem);
-        }
+        list.extend(child_items.iter().map(|child: &&'e Item<'e>| {
+            let child_item_status = all_items_status
+                .iter()
+                .find(|y| y.get_item() == *child)
+                .expect("All items are here");
+            Self::RemoveChild(DisplayItem::new(child), child_item_status)
+        }));
 
-        if is_type_action || is_type_goal || is_type_motivation {
-            list.push(Self::ChangeType);
-            list.push(Self::ChangeReadyAndUrgencyPlan);
-        }
+        list.push(Self::CaptureAFork);
+        list.push(Self::ThisIsARepeatingItem);
+        list.push(Self::ChangeItemType {
+            current: item_node.get_type(),
+        });
+        list.push(Self::ChangeReadyAndUrgencyPlan);
 
-        if !is_type_undeclared {
-            list.extend(vec![
-                Self::ProcessAndFinish,
-                Self::UpdateSummary,
-                Self::DebugPrintItem,
-                Self::ReturnToBulletList,
-            ]);
-        }
+        list.extend(vec![
+            Self::ProcessAndFinish,
+            Self::UpdateSummary,
+            Self::DebugPrintItem,
+            Self::ReturnToBulletList,
+        ]);
 
         list
     }
@@ -284,7 +290,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         .prompt();
 
     match selection {
-        Ok(BulletListSingleItemSelection::DeclareItemType) => {
+        Ok(BulletListSingleItemSelection::ChangeItemType { .. }) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
@@ -339,6 +345,16 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .send(DataLayerCommands::ParentItemRemoveParent {
                     child: menu_for.get_item().get_surreal_record_id().clone(),
                     parent_to_remove: selected.get_item().get_surreal_record_id().clone(),
+                })
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Ok(BulletListSingleItemSelection::RemoveChild(_, selected)) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::ParentItemRemoveParent {
+                    child: selected.get_item().get_surreal_record_id().clone(),
+                    parent_to_remove: menu_for.get_item().get_surreal_record_id().clone(),
                 })
                 .await
                 .unwrap();
@@ -437,9 +453,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::CaptureAFork) => {
             todo!("TODO: Implement CaptureAFork");
         }
-        Ok(BulletListSingleItemSelection::ChangeType) => {
-            declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
-        }
         Ok(BulletListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
@@ -463,12 +476,14 @@ pub(crate) async fn present_bullet_list_item_selected(
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected)) => {
-            present_bullet_list_item_parent_selected(
+        Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected))
+        | Ok(BulletListSingleItemSelection::SwitchToChildItem(_, selected)) => {
+            Box::pin(present_bullet_list_item_selected(
                 selected,
+                chrono::Utc::now(),
                 bullet_list,
                 send_to_data_storage_layer,
-            )
+            ))
             .await
         }
         Ok(BulletListSingleItemSelection::ParentToItem) => {
@@ -669,29 +684,6 @@ async fn process_and_finish_bullet_item(
         .unwrap();
 
     Ok(())
-}
-
-async fn present_bullet_list_item_parent_selected(
-    selected_item: &ItemStatus<'_>,
-    bullet_list: &BulletList,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<(), ()> {
-    match selected_item.get_type() {
-        SurrealItemType::Action
-        | SurrealItemType::Goal(..)
-        | SurrealItemType::Motivation(..)
-        | SurrealItemType::Undeclared => {
-            Box::pin(present_bullet_list_item_selected(
-                selected_item,
-                chrono::Utc::now(),
-                bullet_list,
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
-        SurrealItemType::IdeaOrThought => todo!(),
-        SurrealItemType::PersonOrGroup => todo!(),
-    }
 }
 
 async fn parent_to_item(

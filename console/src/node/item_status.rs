@@ -5,9 +5,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::{item::Item, FindRecordId},
-    surrealdb_layer::surreal_item::{
-        EqF32, SurrealDependency, SurrealItemType, SurrealScheduled, SurrealUrgency,
-    },
+    surrealdb_layer::surreal_item::{EqF32, SurrealDependency, SurrealScheduled, SurrealUrgency},
 };
 
 use super::{
@@ -338,10 +336,6 @@ impl<'s> ItemStatus<'s> {
             Filter::Active => Box::new(self.children.iter().copied().filter(|x| x.is_active())),
             Filter::Finished => Box::new(self.children.iter().copied().filter(|x| x.is_finished())),
         }
-    }
-
-    pub(crate) fn get_type(&self) -> &SurrealItemType {
-        self.item_node.get_type()
     }
 
     pub(crate) fn get_surreal_record_id(&self) -> &RecordId {
