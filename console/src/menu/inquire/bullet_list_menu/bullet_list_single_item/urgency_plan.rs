@@ -25,6 +25,8 @@ use crate::{
 use inquire::{InquireError, Select, Text};
 use std::fmt::{Display, Formatter};
 
+use super::LogTime;
+
 enum UrgencyPlanSelection {
     StaysTheSame,
     WillEscalate,
@@ -585,7 +587,7 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
     let start_when = vec![StartWhenOption::ExactTime, StartWhenOption::TimeRange];
     let start_when = Select::new("When do you want to start this item?", start_when).prompt();
     let start_when = match start_when {
-        Ok(StartWhenOption::ExactTime) => {
+        Ok(StartWhenOption::ExactTime) => loop {
             let exact_start = Text::new("Enter the exact time you want to start this item")
                 .prompt()
                 .unwrap();
@@ -596,39 +598,48 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
                 }
                 Err(_) => match dateparser::parse(&exact_start) {
                     Ok(exact_start) => exact_start,
-                    Err(e) => {
-                        todo!("Error: {:?}", e)
+                    Err(_) => {
+                        println!("Invalid date or duration, please try again");
+                        continue;
                     }
                 },
             };
-            StartWhen::ExactTime(exact_start)
-        }
+            break StartWhen::ExactTime(exact_start);
+        },
         Ok(StartWhenOption::TimeRange) => {
-            let range_start = Text::new("Enter the start of the range").prompt().unwrap();
-            let range_start = match parse(&range_start) {
-                Ok(range_start) => {
-                    let now = Utc::now();
-                    now + range_start
-                }
-                Err(_) => match dateparser::parse(&range_start) {
-                    Ok(range_start) => range_start,
-                    Err(e) => {
-                        todo!("Error: {:?}", e)
+            let range_start = loop {
+                let range_start = Text::new("Enter the start of the range").prompt().unwrap();
+                let range_start = match parse(&range_start) {
+                    Ok(range_start) => {
+                        let now = Utc::now();
+                        now + range_start
                     }
-                },
+                    Err(_) => match dateparser::parse(&range_start) {
+                        Ok(range_start) => range_start,
+                        Err(_) => {
+                            println!("Invalid date or duration, please try again");
+                            continue;
+                        }
+                    },
+                };
+                break range_start;
             };
-            let range_end = Text::new("Enter the end of the range").prompt().unwrap();
-            let range_end = match parse(&range_end) {
-                Ok(range_end) => {
-                    let now = Utc::now();
-                    now + range_end
-                }
-                Err(_) => match dateparser::parse(&range_end) {
-                    Ok(range_end) => range_end,
-                    Err(e) => {
-                        todo!("Error: {:?}", e)
+            let range_end = loop {
+                let range_end = Text::new("Enter the end of the range").prompt().unwrap();
+                let range_end = match parse(&range_end) {
+                    Ok(range_end) => {
+                        let now = Utc::now();
+                        now + range_end
                     }
-                },
+                    Err(_) => match dateparser::parse(&range_end) {
+                        Ok(range_end) => range_end,
+                        Err(_) => {
+                            println!("Invalid date or duration, please try again");
+                            continue;
+                        }
+                    },
+                };
+                break range_end;
             };
             StartWhen::TimeRange(range_start, range_end)
         }
@@ -664,11 +675,6 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
     };
 
     Ok(Some(surreal_scheduled))
-}
-
-pub(crate) enum LogTime {
-    SeparateTaskLogTheTime,
-    PartOfAnotherTaskDoNotLogTheTime,
 }
 
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(

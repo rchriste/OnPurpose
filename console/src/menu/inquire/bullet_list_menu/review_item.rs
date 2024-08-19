@@ -34,6 +34,8 @@ use crate::{
     },
 };
 
+use super::bullet_list_single_item::LogTime;
+
 enum ReviewItemMenuChoices<'e> {
     DoneWithReview,
     UpdateRelativeImportanceDontShowSingleParent { parent: &'e Item<'e> },
@@ -170,7 +172,7 @@ pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
     all_items: &[ItemStatus<'_>],
-    auto_log_time_spent: bool,
+    log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_review_item_menu = Utc::now();
@@ -183,21 +185,26 @@ pub(crate) async fn present_review_item_menu(
     )
     .await?;
 
-    if auto_log_time_spent {
-        let new_time_spent = NewTimeSpent {
-            working_on: vec![SurrealAction::ReviewItem(
-                item_status.get_surreal_record_id().clone(),
-            )], //TODO: I should also add all the parent items that this is making progress towards the goal
-            when_started: start_review_item_menu,
-            when_stopped: Utc::now(),
-            dedication: None,
-            urgency: Some(current_urgency),
-        };
+    match log_time {
+        LogTime::SeparateTaskLogTheTime => {
+            let new_time_spent = NewTimeSpent {
+                working_on: vec![SurrealAction::ReviewItem(
+                    item_status.get_surreal_record_id().clone(),
+                )], //TODO: I should also add all the parent items that this is making progress towards the goal
+                when_started: start_review_item_menu,
+                when_stopped: Utc::now(),
+                dedication: None,
+                urgency: Some(current_urgency),
+            };
 
-        send_to_data_storage_layer
-            .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
-            .await
-            .unwrap();
+            send_to_data_storage_layer
+                .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
+                .await
+                .unwrap();
+        }
+        LogTime::PartOfAnotherTaskDoNotLogTheTime => {
+            //Do nothing
+        }
     }
 
     Ok(())

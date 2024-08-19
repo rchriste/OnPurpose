@@ -8,7 +8,7 @@ pub(crate) mod search;
 use std::{fmt::Display, iter::once};
 
 use better_term::Style;
-use bullet_list_single_item::urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime};
+use bullet_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
 use chrono::{DateTime, Local, TimeDelta, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
@@ -172,7 +172,7 @@ pub(crate) async fn present_bullet_list_menu(
                         item_status,
                         selected.get_urgency_now(),
                         bullet_list.get_all_items_status(),
-                        true,
+                        LogTime::SeparateTaskLogTheTime,
                         send_to_data_storage_layer,
                     )
                     .await

@@ -11,7 +11,7 @@ use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{Editor, InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
-use urgency_plan::{present_set_ready_and_urgency_plan_menu, LogTime};
+use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
 use crate::{
     base_data::{item::Item, BaseData},
@@ -48,6 +48,11 @@ use crate::{
     },
     systems::bullet_list::BulletList,
 };
+
+pub(crate) enum LogTime {
+    SeparateTaskLogTheTime,
+    PartOfAnotherTaskDoNotLogTheTime,
+}
 
 enum BulletListSingleItemSelection<'e> {
     ChangeItemType {
@@ -381,7 +386,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                     .unwrap_or(&SurrealUrgency::InTheModeByImportance)
                     .clone(),
                 bullet_list.get_all_items_status(),
-                false,
+                LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 send_to_data_storage_layer,
             )
             .await
