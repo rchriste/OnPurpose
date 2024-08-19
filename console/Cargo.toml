@@ -1,15 +1,15 @@
 [package]
 name = "on_purpose"
-version = "0.1.34"
+version = "0.1.35"
 edition = "2021"
 
 [dependencies]
 inquire = { version = "0.7.4", features = ["editor"] } #inquire is for building interactive prompts in terminals
-tokio = { version = "1.37.0", features = ["full"] } #Added so I can use Surreal DB
+tokio = { version = "1.39.3", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
 surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }
-serde = "1.0.198" #Implied to be required by surrealdb_extra's getting started documentation
+serde = "1.0.208" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
 duration-str = "0.11.2" #So I can parse the amount of time to wait
 parse_datetime = "0.6.0" #So I can parse when to expect something to be available
@@ -21,8 +21,8 @@ itertools = "0.13.0"
 ouroboros = { git = "https://github.com/rchriste/ouroboros", branch = "main" }
 derive_builder = "0.20.0"
 better_term = "1.4.61" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
-crossterm = "0.27.0" #Added so I can use RATATUI
-ratatui = "0.27.0" #Added to experiment with a TUI rather than just inquire
+crossterm = "0.28.1" #Added so I can use RATATUI
+ratatui = "0.28.0" #Added to experiment with a TUI rather than just inquire
 rand = "0.8.5" #So I can pick a random priority
 
 # Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
