@@ -308,10 +308,25 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
             state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await?;
+            //TODO: Refresh menu_for and bullet_list
+            let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+                .await
+                .unwrap();
+            let now = Utc::now();
+            let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+            let calculated_data = CalculatedData::new_from_base_data(base_data);
+            let bullet_list = BulletList::new_bullet_list(calculated_data, &now);
+
+            let menu_for = bullet_list
+                .get_all_items_status()
+                .iter()
+                .find(|x| x.get_item() == menu_for.get_item())
+                .expect("We will find this existing item once");
+
             Box::pin(present_bullet_list_item_selected(
                 menu_for,
                 when_selected,
-                bullet_list,
+                &bullet_list,
                 send_to_data_storage_layer,
             ))
             .await
