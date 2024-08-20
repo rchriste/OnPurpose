@@ -39,6 +39,7 @@
         "testcopy",
         "thiserror",
         "upstreamed",
+        "Visio",
         "Ｗｏｒｋ"
     ],
     "rust-analyzer.cargo.extraEnv": {
