@@ -661,7 +661,7 @@ mod tests {
         let child_to_snooze = base_data
             .get_active_items()
             .iter()
-            .find(|x| x.get_summary() == "Child Item That Should Be Snoozed")
+            .find(|x| x.get_summary() == "Item that needs to wait until tomorrow")
             .unwrap();
 
         sender

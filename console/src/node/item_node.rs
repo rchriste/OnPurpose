@@ -850,40 +850,42 @@ mod tests {
         base_data::item::ItemVecExtensions,
         node::{item_node::ItemNode, Filter},
         surrealdb_layer::{
-            surreal_item::{SurrealDependency, SurrealItemBuilder, SurrealItemType},
+            surreal_item::{
+                SurrealDependency, SurrealItemBuilder, SurrealItemType, SurrealOrderedSubItem,
+            },
             surreal_tables::SurrealTablesBuilder,
         },
     };
 
     #[test]
-    fn when_coverings_causes_a_circular_reference_create_growing_node_detects_this_and_terminates()
-    {
+    fn when_smaller_items_causes_a_circular_reference_create_growing_node_detects_this_and_terminates(
+    ) {
         let surreal_items = vec![
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "1").into()))
                 .summary("Main Item that covers something else")
                 .item_type(SurrealItemType::Action)
-                .dependencies(vec![SurrealDependency::AfterItem(
-                    ("surreal_item", "3").into(),
-                )])
+                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "3").into(),
+                }])
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "2").into()))
                 .summary("Item that is covered by main item and the item this covers")
                 .item_type(SurrealItemType::Action)
-                .dependencies(vec![SurrealDependency::AfterItem(
-                    ("surreal_item", "1").into(),
-                )])
+                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "1").into(),
+                }])
                 .build()
                 .unwrap(),
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "3").into()))
                 .summary("Item that is covers the item it is covered by, circular reference")
                 .item_type(SurrealItemType::Action)
-                .dependencies(vec![SurrealDependency::AfterItem(
-                    ("surreal_item", "2").into(),
-                )])
+                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "2").into(),
+                }])
                 .build()
                 .unwrap(),
         ];
@@ -904,7 +906,7 @@ mod tests {
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 
-        assert_eq!(next_step_nodes.len(), 1);
+        assert_eq!(next_step_nodes.len(), 3);
         assert_eq!(
             next_step_nodes
                 .iter()

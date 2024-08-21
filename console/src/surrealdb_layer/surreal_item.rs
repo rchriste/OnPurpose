@@ -24,6 +24,8 @@ use super::SurrealTrigger;
 pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
+
+    #[cfg_attr(test, builder(default = "1"))]
     pub(crate) version: u32,
 
     #[cfg_attr(test, builder(default))]
@@ -53,6 +55,7 @@ pub(crate) struct SurrealItem {
     #[cfg_attr(test, builder(default))]
     pub(crate) review_frequency: Option<SurrealFrequency>,
 
+    #[cfg_attr(test, builder(default))]
     pub(crate) review_guidance: Option<SurrealReviewGuidance>,
 
     /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
