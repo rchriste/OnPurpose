@@ -597,12 +597,179 @@ mod tests {
     #[test]
     fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_lowest_in_the_moment_priority_over_one_other_item_then_the_other_two_are_returned_to_pick_between(
     ) {
-        todo!()
+        let first_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("First item")
+            .build()
+            .unwrap();
+        let second_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Second item")
+            .build()
+            .unwrap();
+        let third_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "3").into()))
+            .summary("Third item")
+            .build()
+            .unwrap();
+
+        let in_an_hour = Utc::now() + chrono::Duration::hours(1);
+        let in_the_moment_priority = SurrealInTheMomentPriorityBuilder::default()
+            .id(Some(("surreal_in_the_moment_priority", "1").into()))
+            .kind(SurrealPriorityKind::LowestPriority)
+            .choice(SurrealAction::MakeProgress(
+                first_item.id.clone().expect("hard coded to a value"),
+            ))
+            .not_chosen(vec![SurrealAction::MakeProgress(
+                second_item.id.clone().expect("hard coded to a value"),
+            )])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
+            .build()
+            .unwrap();
+
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![
+                first_item.clone(),
+                second_item.clone(),
+                third_item.clone(),
+            ])
+            .surreal_in_the_moment_priorities(vec![in_the_moment_priority])
+            .build()
+            .unwrap();
+
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
+        let items_status = calculated_data.get_items_status();
+
+        let first_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .expect("First item status not found");
+        let second_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .expect("Second item status not found");
+        let third_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
+            .expect("Third item status not found");
+
+        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+
+        let dut = vec![
+            first_item_action.clone(),
+            second_item_action.clone(),
+            third_item_action.clone(),
+        ];
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+
+        assert!(result.is_some());
+        let result = result.expect("assert.is_some() should have passed");
+        assert_eq!(
+            result,
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(vec![
+                second_item_action.clone(),
+                third_item_action.clone()
+            ]),
+        );
     }
 
     #[test]
     fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_highest_priority_over_one_other_and_the_third_is_the_lowest_priority_over_the_one_other_then_the_highest_priority_is_returned(
     ) {
-        todo!()
+        let first_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("First item")
+            .build()
+            .unwrap();
+        let second_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Second item")
+            .build()
+            .unwrap();
+        let third_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "3").into()))
+            .summary("Third item")
+            .build()
+            .unwrap();
+
+        let in_an_hour = Utc::now() + chrono::Duration::hours(1);
+        let highest_in_the_moment_priority = SurrealInTheMomentPriorityBuilder::default()
+            .id(Some(("surreal_in_the_moment_priority", "1").into()))
+            .kind(SurrealPriorityKind::HighestPriority)
+            .choice(SurrealAction::MakeProgress(
+                first_item.id.clone().expect("hard coded to a value"),
+            ))
+            .not_chosen(vec![SurrealAction::MakeProgress(
+                second_item.id.clone().expect("hard coded to a value"),
+            )])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
+            .build()
+            .unwrap();
+        let lowest_in_the_moment_priority = SurrealInTheMomentPriorityBuilder::default()
+            .id(Some(("surreal_in_the_moment_priority", "3").into()))
+            .kind(SurrealPriorityKind::LowestPriority)
+            .choice(SurrealAction::MakeProgress(
+                third_item.id.clone().expect("hard coded to a value"),
+            ))
+            .not_chosen(vec![SurrealAction::MakeProgress(
+                first_item.id.clone().expect("hard coded to a value"),
+            )])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
+            .build()
+            .unwrap();
+
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![
+                first_item.clone(),
+                second_item.clone(),
+                third_item.clone(),
+            ])
+            .surreal_in_the_moment_priorities(vec![
+                highest_in_the_moment_priority,
+                lowest_in_the_moment_priority,
+            ])
+            .build()
+            .unwrap();
+
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
+        let items_status = calculated_data.get_items_status();
+
+        let first_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .expect("First item status not found");
+        let second_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .expect("Second item status not found");
+        let third_item_status = items_status
+            .iter()
+            .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
+            .expect("Third item status not found");
+
+        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+
+        let dut = vec![
+            first_item_action.clone(),
+            second_item_action.clone(),
+            third_item_action.clone(),
+        ];
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+
+        assert!(result.is_some());
+        let result = result.expect("assert.is_some() should have passed");
+        assert_eq!(result, first_item_action);
     }
 }
