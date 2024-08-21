@@ -52,13 +52,10 @@ impl<'s> Display for DisplayItemType<'s> {
                     DisplayItemTypeStyle::Full => write!(f, " Action"),
                 }
             }
-            SurrealItemType::Undeclared => {
-                write!(f, "❓")?;
-                match self.style {
-                    DisplayItemTypeStyle::Abbreviated => Ok(()),
-                    DisplayItemTypeStyle::Full => write!(f, " Undeclared"),
-                }
-            }
+            SurrealItemType::Undeclared => match self.style {
+                DisplayItemTypeStyle::Abbreviated => Ok(()),
+                DisplayItemTypeStyle::Full => write!(f, "❓ Undeclared"),
+            },
             SurrealItemType::PersonOrGroup => {
                 write!(f, "👤")?;
                 match self.style {
