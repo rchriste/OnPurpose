@@ -15,7 +15,11 @@ use crate::{
     systems::bullet_list::BulletList,
 };
 
+#[derive(Debug)]
 enum SearchMenuUrgencyItem<'e> {
+    AllMotivations {
+        motivations: Vec<&'e ItemStatus<'e>>,
+    },
     MoreUrgentThanAnythingIncludingScheduled {
         ready: Vec<&'e ItemStatus<'e>>,
         not_ready: Vec<&'e ItemStatus<'e>>,
@@ -59,6 +63,9 @@ enum SearchMenuUrgencyItem<'e> {
 impl Display for SearchMenuUrgencyItem<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            SearchMenuUrgencyItem::AllMotivations { motivations } => {
+                write!(f, "All motivations ({} items)", motivations.len())
+            }
             SearchMenuUrgencyItem::MoreUrgentThanAnythingIncludingScheduled {
                 ready,
                 not_ready,
@@ -165,7 +172,9 @@ impl<'e> SearchMenuUrgencyItem<'e> {
                 ready_highest_importance: ready,
                 ..
             } => ready.push(to_push),
-            SearchMenuUrgencyItem::Item { .. } => panic!("Programming error. Can't push onto item"),
+            SearchMenuUrgencyItem::Item { .. } | SearchMenuUrgencyItem::AllMotivations { .. } => {
+                panic!("Programming error. Can't push onto {:#?}", self)
+            }
         }
     }
 
@@ -183,7 +192,9 @@ impl<'e> SearchMenuUrgencyItem<'e> {
                 when_ready_will_be_highest_importance: not_ready,
                 ..
             } => not_ready.push(to_push),
-            SearchMenuUrgencyItem::Item { .. } => panic!("Programming error. Can't push onto item"),
+            SearchMenuUrgencyItem::Item { .. } | SearchMenuUrgencyItem::AllMotivations { .. } => {
+                panic!("Programming error. Can't push onto {:#?}", self)
+            }
         }
     }
 
@@ -203,7 +214,25 @@ impl<'e> SearchMenuUrgencyItem<'e> {
             SearchMenuUrgencyItem::HighestImportance {
                 nothing_is_ready, ..
             } => nothing_is_ready.push(to_push),
-            SearchMenuUrgencyItem::Item { .. } => panic!("Programming error. Can't push onto item"),
+            SearchMenuUrgencyItem::Item { .. } | SearchMenuUrgencyItem::AllMotivations { .. } => {
+                panic!("Programming error. Can't push onto {:#?}", self)
+            }
+        }
+    }
+
+    pub(crate) fn push_motivation(&mut self, to_push: &'e ItemStatus<'e>) {
+        match self {
+            SearchMenuUrgencyItem::AllMotivations { motivations } => motivations.push(to_push),
+            SearchMenuUrgencyItem::Item { .. }
+            | SearchMenuUrgencyItem::MoreUrgentThanAnythingIncludingScheduled { .. }
+            | SearchMenuUrgencyItem::ScheduledAnyMode { .. }
+            | SearchMenuUrgencyItem::MoreUrgentThanMode { .. }
+            | SearchMenuUrgencyItem::InTheModeScheduled { .. }
+            | SearchMenuUrgencyItem::InTheModeDefinitelyUrgent { .. }
+            | SearchMenuUrgencyItem::InTheModeMaybeUrgent { .. }
+            | SearchMenuUrgencyItem::HighestImportance { .. } => {
+                panic!("Programming error. Can't push onto {:#?}", self)
+            }
         }
     }
 
@@ -244,6 +273,7 @@ impl<'e> SearchMenuUrgencyItem<'e> {
                 ready_highest_importance: ready,
                 nothing_is_ready: coming_later,
             } => ready.is_empty() && not_ready.is_empty() && coming_later.is_empty(),
+            SearchMenuUrgencyItem::AllMotivations { motivations } => motivations.is_empty(),
             SearchMenuUrgencyItem::Item { item: _item } => false,
         }
     }
@@ -363,8 +393,15 @@ pub(crate) async fn present_search_menu(
         not_ready: Vec::default(),
         coming_later: Vec::default(),
     };
+    let mut all_motivations = SearchMenuUrgencyItem::AllMotivations {
+        motivations: Vec::default(),
+    };
 
     for item in items.iter().filter(|x| x.is_active()) {
+        if item.is_type_motivation() {
+            all_motivations.push_motivation(item);
+        }
+
         let urgency_plan = item.get_urgency_plan();
         let urgency_changes = match urgency_plan {
             Some(UrgencyPlanWithItemNode::StaysTheSame(urgency)) => {
@@ -547,6 +584,9 @@ pub(crate) async fn present_search_menu(
     }
 
     let mut list = Vec::default();
+    if !all_motivations.is_empty() {
+        list.push(all_motivations);
+    }
     if !more_urgent_than_anything_including_scheduled.is_empty() {
         list.push(more_urgent_than_anything_including_scheduled);
     }
@@ -714,6 +754,29 @@ pub(crate) async fn present_search_menu(
                 send_to_data_storage_layer,
             )
             .await
+        }
+        Ok(SearchMenuUrgencyItem::AllMotivations { motivations }) => {
+            let list = motivations
+                .iter()
+                .map(|x| SearchMenuUrgencyItem::Item { item: x })
+                .collect::<Vec<_>>();
+
+            let selection = Select::new("Select an item to view", list)
+                .prompt()
+                .unwrap();
+
+            match selection {
+                SearchMenuUrgencyItem::Item { item } => {
+                    present_bullet_list_item_selected(
+                        item,
+                        Utc::now(),
+                        bullet_list,
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                }
+                _ => panic!("Programming error. Expected item"),
+            }
         }
         Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
