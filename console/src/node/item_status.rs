@@ -640,18 +640,23 @@ mod tests {
             .unwrap();
 
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-        let parent_item = surreal_tables.surreal_items.iter().find(|x| x.summary == "Parent Item with a child").expect("Just added this very item");
+        let parent_item = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Parent Item with a child")
+            .expect("Just added this very item");
 
-        sender.send(DataLayerCommands::ParentItemWithANewChildItem { 
-            child: NewItemBuilder::default()
-            .summary("Child Item")
-            .build()
-            .expect("Valid item"), 
-            parent: parent_item.id.as_ref().expect("Is in DB").clone(), 
-            higher_importance_than_this: None,
-        })
-        .await
-        .expect("Unit test setup/arrange");
+        sender
+            .send(DataLayerCommands::ParentItemWithANewChildItem {
+                child: NewItemBuilder::default()
+                    .summary("Child Item")
+                    .build()
+                    .expect("Valid item"),
+                parent: parent_item.id.as_ref().expect("Is in DB").clone(),
+                higher_importance_than_this: None,
+            })
+            .await
+            .expect("Unit test setup/arrange");
 
         let now = Utc::now();
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
@@ -660,7 +665,10 @@ mod tests {
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data);
         let items_highest_lap_count = calculated_data.get_items_status();
-        let item = items_highest_lap_count.iter().find(|x| x.get_summary() == "Parent Item with a child").expect("Just added this very item");
+        let item = items_highest_lap_count
+            .iter()
+            .find(|x| x.get_summary() == "Parent Item with a child")
+            .expect("Just added this very item");
 
         //Assert
         assert_eq!(item.has_dependencies(Filter::Active), true);
@@ -671,7 +679,56 @@ mod tests {
 
     #[tokio::test]
     async fn item_with_another_item_as_a_dependency_has_a_dependency() {
-        todo!()
+        // Arrange
+        let (sender, receiver) = mpsc::channel(1);
+        let data_storage_join_handle =
+            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
+
+        sender
+            .send(DataLayerCommands::NewItem(
+                NewItemBuilder::default()
+                    .summary("Item to be covered")
+                    .build()
+                    .expect("valid new item"),
+            ))
+            .await
+            .unwrap();
+
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let parent_item = surreal_tables
+            .surreal_items
+            .iter()
+            .find(|x| x.summary == "Item to be covered")
+            .expect("Just added this very item");
+
+        sender
+            .send(DataLayerCommands::CoverItemWithANewItem {
+                cover_this: parent_item.id.as_ref().expect("Is in DB").clone(),
+                cover_with: NewItemBuilder::default()
+                    .summary("Covering Item")
+                    .build()
+                    .expect("Valid item"),
+            })
+            .await
+            .expect("Unit test setup/arrange");
+
+        let now = Utc::now();
+        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+
+        //Act
+        let calculated_data = CalculatedData::new_from_base_data(base_data);
+        let items_highest_lap_count = calculated_data.get_items_status();
+        let item = items_highest_lap_count
+            .iter()
+            .find(|x| x.get_summary() == "Item to be covered")
+            .expect("Just added this very item");
+
+        //Assert
+        assert_eq!(item.has_dependencies(Filter::Active), true);
+
+        drop(sender);
+        data_storage_join_handle.await.unwrap();
     }
 
     #[tokio::test]
