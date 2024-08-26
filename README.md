@@ -16,6 +16,8 @@ This project exists because I want to be part of the solution. My goal is to imp
 * Help recall and summarize what was done.
 * Help reflect, learn from, and celebrate both my effort and my accomplishments.
 
+[You can watch a YouTube video I made that explains these ideas further here.](https://youtu.be/Gji6Yf8byts)
+
 ## Existing solutions
 
 The problem that I have with existing self-help time management solutions is almost no one seems to stick with these systems over the course of many years. Especially when someone faces a crises these other system are more commonly abandoned rather than leaned into and relied on. Another signal that the ideal solution doesn't yet exist is the fact that these existing time management self-help systems might be more convenient to carry out with software, but software is not strictly required. Imagine using a modern word processor for a couple years and then returning to a typewriter; and yet people return to a simple bullet list all the time after trying out the time management software of today.
