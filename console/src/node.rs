@@ -4,6 +4,7 @@ pub(crate) mod action_with_item_status;
 pub(crate) mod item_node;
 pub(crate) mod item_status;
 
+#[derive(Clone, Copy)]
 pub(crate) enum Filter {
     All,
     Active,

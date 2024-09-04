@@ -8,7 +8,7 @@ use crate::{
     surrealdb_layer::surreal_item::{SurrealScheduled, SurrealUrgency},
 };
 
-use super::display_item_node::DisplayItemNode;
+use super::{display_item_node::DisplayItemNode, DisplayStyle};
 
 pub(crate) struct DisplayUrgencyPlan<'s> {
     urgency_plan: &'s Option<UrgencyPlanWithItemNode<'s>>,
@@ -18,7 +18,7 @@ impl Display for DisplayUrgencyPlan<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.urgency_plan {
             Some(UrgencyPlanWithItemNode::StaysTheSame(urgency)) => {
-                let display_urgency = DisplayUrgency::new(urgency);
+                let display_urgency = DisplayUrgency::new(urgency, DisplayStyle::Full);
                 write!(f, "Always: {}", display_urgency)
             }
             Some(UrgencyPlanWithItemNode::WillEscalate {
@@ -26,8 +26,8 @@ impl Display for DisplayUrgencyPlan<'_> {
                 triggers,
                 later,
             }) => {
-                let display_initial = DisplayUrgency::new(initial);
-                let display_later = DisplayUrgency::new(later);
+                let display_initial = DisplayUrgency::new(initial, DisplayStyle::Full);
+                let display_later = DisplayUrgency::new(later, DisplayStyle::Full);
                 write!(
                     f,
                     "Starts at: {}, then escalates to: {}, Escalation triggers: ",
@@ -157,41 +157,78 @@ impl<'s> DisplayUrgencyPlan<'s> {
     }
 }
 
-struct DisplayUrgency<'s> {
+pub(crate) struct DisplayUrgency<'s> {
     urgency: &'s SurrealUrgency,
+    style: DisplayStyle,
 }
 
 impl Display for DisplayUrgency<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.urgency {
             SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => {
-                write!(f, "🚨 More urgent than anything including scheduled")
+                write!(f, "🚨")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => {
+                        write!(f, " More urgent than anything including scheduled")
+                    }
+                }
             }
-            SurrealUrgency::MoreUrgentThanMode => write!(f, "🔥 More urgent than a mode"),
+            SurrealUrgency::MoreUrgentThanMode => {
+                write!(f, "🔥")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " More urgent than a mode"),
+                }
+            }
             SurrealUrgency::InTheModeByImportance => {
-                write!(f, "🟢 When in the mode, by importance")
+                write!(f, "🟢")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " When in the mode, by importance"),
+                }
             }
             SurrealUrgency::InTheModeDefinitelyUrgent => {
-                write!(f, "🔴 When in the mode, definitely urgent")
+                write!(f, "🔴")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " When in the mode, definitely urgent"),
+                }
             }
             SurrealUrgency::InTheModeMaybeUrgent => {
-                write!(f, "🟡 When in the mode, maybe urgent")
+                write!(f, "🟡")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " When in the mode, maybe urgent"),
+                }
             }
             SurrealUrgency::ScheduledAnyMode(scheduled) => {
-                let display_scheduled = DisplayScheduled::new(scheduled);
-                write!(f, "❗🗓️ Scheduled any mode: {}", display_scheduled)
+                write!(f, "❗🗓️")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => {
+                        let display_scheduled = DisplayScheduled::new(scheduled);
+                        write!(f, " Scheduled any mode: {}", display_scheduled)
+                    }
+                }
             }
             SurrealUrgency::InTheModeScheduled(scheduled) => {
-                let display_scheduled = DisplayScheduled::new(scheduled);
-                write!(f, "🗓️ Scheduled when in the mode: {}", display_scheduled)
+                write!(f, "⭳🗓️")?;
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => {
+                        let display_scheduled = DisplayScheduled::new(scheduled);
+                        write!(f, " Scheduled when in the mode: {}", display_scheduled)
+                    }
+                }
             }
         }
     }
 }
 
 impl<'s> DisplayUrgency<'s> {
-    pub(crate) fn new(urgency: &'s SurrealUrgency) -> Self {
-        Self { urgency }
+    pub(crate) fn new(urgency: &'s SurrealUrgency, style: DisplayStyle) -> Self {
+        Self { urgency, style }
     }
 }
 

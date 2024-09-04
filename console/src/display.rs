@@ -8,3 +8,8 @@ pub(crate) mod display_item_status;
 pub(crate) mod display_item_type;
 pub(crate) mod display_scheduled_item;
 pub(crate) mod display_urgency_plan;
+
+pub(crate) enum DisplayStyle {
+    Abbreviated,
+    Full,
+}

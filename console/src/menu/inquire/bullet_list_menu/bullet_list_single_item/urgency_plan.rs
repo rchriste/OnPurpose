@@ -734,9 +734,11 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
                 .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
                 .await
                 .unwrap();
-
-            Ok(())
         }
-        LogTime::PartOfAnotherTaskDoNotLogTheTime => Ok(()),
+        LogTime::PartOfAnotherTaskDoNotLogTheTime => {
+            //Do nothing
+        }
     }
+
+    Ok(())
 }

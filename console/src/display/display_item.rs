@@ -4,7 +4,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::item::Item,
-    display::display_item_type::{DisplayItemType, DisplayItemTypeStyle},
+    display::{display_item_type::DisplayItemType, DisplayStyle},
 };
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without
@@ -42,7 +42,7 @@ impl From<DisplayItem<'_>> for RecordId {
 impl Display for DisplayItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let display_item_type =
-            DisplayItemType::new(DisplayItemTypeStyle::Abbreviated, self.item.get_item_type());
+            DisplayItemType::new(DisplayStyle::Abbreviated, self.item.get_item_type());
         write!(f, "{} {}", display_item_type, self.item.get_summary())
     }
 }

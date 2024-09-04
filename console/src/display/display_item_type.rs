@@ -2,13 +2,11 @@ use std::fmt::Display;
 
 use crate::surrealdb_layer::surreal_item::{SurrealItemType, SurrealMotivationKind};
 
-pub(crate) enum DisplayItemTypeStyle {
-    Abbreviated,
-    Full,
-}
+use super::DisplayStyle;
+
 pub(crate) struct DisplayItemType<'s> {
     item_type: &'s SurrealItemType,
-    style: DisplayItemTypeStyle,
+    style: DisplayStyle,
 }
 
 impl<'s> Display for DisplayItemType<'s> {
@@ -17,30 +15,30 @@ impl<'s> Display for DisplayItemType<'s> {
             SurrealItemType::Goal(_) => {
                 write!(f, "🪧")?;
                 match self.style {
-                    DisplayItemTypeStyle::Abbreviated => Ok(()),
-                    DisplayItemTypeStyle::Full => write!(f, " Goal"),
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " Goal"),
                 }
             }
             SurrealItemType::Motivation(kind) => {
                 write!(f, "🎯")?;
                 match self.style {
-                    DisplayItemTypeStyle::Abbreviated => {}
-                    DisplayItemTypeStyle::Full => write!(f, " Motivation")?,
+                    DisplayStyle::Abbreviated => {}
+                    DisplayStyle::Full => write!(f, " Motivation")?,
                 }
                 match kind {
                     SurrealMotivationKind::NotSet => Ok(()),
                     SurrealMotivationKind::CoreWork => {
                         write!(f, "🏢")?;
                         match self.style {
-                            DisplayItemTypeStyle::Abbreviated => Ok(()),
-                            DisplayItemTypeStyle::Full => write!(f, " Core Work"),
+                            DisplayStyle::Abbreviated => Ok(()),
+                            DisplayStyle::Full => write!(f, " Core Work"),
                         }
                     }
                     SurrealMotivationKind::NonCoreWork => {
                         write!(f, "🏞")?;
                         match self.style {
-                            DisplayItemTypeStyle::Abbreviated => Ok(()),
-                            DisplayItemTypeStyle::Full => write!(f, " Non-Core Work"),
+                            DisplayStyle::Abbreviated => Ok(()),
+                            DisplayStyle::Full => write!(f, " Non-Core Work"),
                         }
                     }
                 }
@@ -48,26 +46,26 @@ impl<'s> Display for DisplayItemType<'s> {
             SurrealItemType::Action => {
                 write!(f, "🪜")?;
                 match self.style {
-                    DisplayItemTypeStyle::Abbreviated => Ok(()),
-                    DisplayItemTypeStyle::Full => write!(f, " Action"),
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " Action"),
                 }
             }
             SurrealItemType::Undeclared => match self.style {
-                DisplayItemTypeStyle::Abbreviated => Ok(()),
-                DisplayItemTypeStyle::Full => write!(f, "❓ Undeclared"),
+                DisplayStyle::Abbreviated => Ok(()),
+                DisplayStyle::Full => write!(f, "❓ Undeclared"),
             },
             SurrealItemType::PersonOrGroup => {
                 write!(f, "👤")?;
                 match self.style {
-                    DisplayItemTypeStyle::Abbreviated => Ok(()),
-                    DisplayItemTypeStyle::Full => write!(f, " Person or Group"),
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " Person or Group"),
                 }
             }
             SurrealItemType::IdeaOrThought => {
                 write!(f, "💡")?;
                 match self.style {
-                    DisplayItemTypeStyle::Abbreviated => Ok(()),
-                    DisplayItemTypeStyle::Full => write!(f, " Idea or Thought"),
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " Idea or Thought"),
                 }
             }
         }
@@ -75,7 +73,7 @@ impl<'s> Display for DisplayItemType<'s> {
 }
 
 impl<'s> DisplayItemType<'s> {
-    pub(crate) fn new(style: DisplayItemTypeStyle, item_type: &'s SurrealItemType) -> Self {
+    pub(crate) fn new(style: DisplayStyle, item_type: &'s SurrealItemType) -> Self {
         DisplayItemType { item_type, style }
     }
 }

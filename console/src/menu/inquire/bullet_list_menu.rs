@@ -187,7 +187,7 @@ pub(crate) async fn present_bullet_list_menu(
                     } else {
                         Box::pin(present_bullet_list_item_selected(
                             item_status,
-                            chrono::Utc::now(),
+                            Utc::now(),
                             bullet_list,
                             send_to_data_storage_layer,
                         ))

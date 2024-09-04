@@ -1,5 +1,6 @@
 pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
+pub(crate) mod prompt_priority_for_new_item;
 mod something_else_should_be_done_first;
 mod starting_to_work_on_this_now;
 pub(crate) mod state_a_smaller_next_step;
@@ -17,9 +18,8 @@ use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
     display::{
-        display_item::DisplayItem,
-        display_item_node::DisplayItemNode,
-        display_item_type::{DisplayItemType, DisplayItemTypeStyle},
+        display_item::DisplayItem, display_item_node::DisplayItemNode,
+        display_item_type::DisplayItemType, display_urgency_plan::DisplayUrgency, DisplayStyle,
     },
     menu::inquire::{
         bullet_list_menu::{
@@ -37,7 +37,11 @@ use crate::{
         update_item_summary::update_item_summary,
     },
     new_item,
-    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    node::{
+        item_node::{DependencyWithItem, ItemNode},
+        item_status::ItemStatus,
+        Filter,
+    },
     surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
@@ -120,7 +124,7 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Something else should be done first")
             }
             Self::ChangeItemType { current } => {
-                let current_item_type = DisplayItemType::new(DisplayItemTypeStyle::Full, current);
+                let current_item_type = DisplayItemType::new(DisplayStyle::Full, current);
                 write!(f, "Change Item Type (Currently: {})", current_item_type)
             }
             Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
@@ -281,7 +285,7 @@ pub(crate) async fn present_bullet_list_item_selected(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     print_completed_children(menu_for);
-    print_in_progress_children(menu_for);
+    print_in_progress_children(menu_for, bullet_list.get_all_items_status());
     println!();
 
     let all_items_lap_highest_count = bullet_list.get_all_items_status();
@@ -411,6 +415,12 @@ pub(crate) async fn present_bullet_list_item_selected(
                 Utc::now(),
                 send_to_data_storage_layer,
             )
+            .await?;
+            prompt_priority_for_new_item::prompt_priority_for_new_item(
+                menu_for,
+                bullet_list,
+                send_to_data_storage_layer,
+            )
             .await
         }
         Ok(BulletListSingleItemSelection::Finished) => {
@@ -521,19 +531,38 @@ fn print_completed_children(menu_for: &ItemStatus<'_>) {
     }
 }
 
-fn print_in_progress_children(menu_for: &ItemStatus<'_>) {
-    let in_progress_children = menu_for
-        .get_children(Filter::Active)
-        .map(|x| x.get_item())
-        .collect::<Vec<_>>();
+fn print_in_progress_children(menu_for: &ItemStatus<'_>, all_item_status: &[ItemStatus<'_>]) {
+    let in_progress_children = menu_for.get_children(Filter::Active).collect::<Vec<_>>();
     if !in_progress_children.is_empty() {
-        if in_progress_children.len() < 8 {
-            println!("In Progress Children:",);
-            for child in in_progress_children {
-                println!("  🏃‍♂️{}", DisplayItem::new(child));
-            }
+        let most_important = menu_for.recursive_get_most_important_and_ready(all_item_status);
+        let most_important = if let Some(most_important) = most_important {
+            most_important.get_self_and_parents_flattened(Filter::Active)
         } else {
-            println!("{} in progress children 🏃‍♂️", in_progress_children.len());
+            Default::default()
+        };
+        println!("Children:");
+        for child in in_progress_children {
+            print!("  ");
+            if most_important.iter().any(|most_important| {
+                most_important.get_surreal_record_id() == child.get_item().get_surreal_record_id()
+            }) {
+                print!("🔝");
+            }
+            let has_dependencies = child.get_dependencies(Filter::Active).any(|x| match x {
+                //A child item being a dependency doesn't make sense to the user in this context
+                DependencyWithItem::AfterChildItem(_) => false,
+                _ => true,
+            });
+            if has_dependencies {
+                print!("⌛");
+            }
+            let urgency_now = child
+                .get_urgency_now()
+                .map(|x| DisplayUrgency::new(x, DisplayStyle::Abbreviated));
+            if let Some(urgency_now) = urgency_now {
+                print!("{}", urgency_now);
+            }
+            println!("{}", DisplayItem::new(child.get_item()));
         }
     }
 }

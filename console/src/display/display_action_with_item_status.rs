@@ -10,6 +10,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub(crate) struct DisplayActionWithItemStatus<'s> {
     item: &'s ActionWithItemStatus<'s>,
 }
