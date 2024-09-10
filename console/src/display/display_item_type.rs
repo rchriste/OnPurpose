@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::surrealdb_layer::surreal_item::{SurrealItemType, SurrealMotivationKind};
+use crate::data_storage::surrealdb_layer::surreal_item::{SurrealItemType, SurrealMotivationKind};
 
 use super::DisplayStyle;
 

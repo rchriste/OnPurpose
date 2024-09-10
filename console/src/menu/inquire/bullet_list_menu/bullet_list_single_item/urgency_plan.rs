@@ -5,6 +5,13 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands,
+        surreal_in_the_moment_priority::SurrealAction,
+        surreal_item::{SurrealDependency, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan},
+        surreal_tables::SurrealTables,
+        SurrealItemsInScope, SurrealTrigger,
+    },
     display::display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
     menu::inquire::bullet_list_menu::bullet_list_single_item::state_a_smaller_next_step::{
         select_an_item, SelectAnItemSortingOrder,
@@ -13,13 +20,6 @@ use crate::{
     node::{
         item_status::{DependencyWithItemNode, ItemStatus},
         Filter, Urgency,
-    },
-    surrealdb_layer::{
-        data_layer_commands::DataLayerCommands,
-        surreal_in_the_moment_priority::SurrealAction,
-        surreal_item::{SurrealDependency, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan},
-        surreal_tables::SurrealTables,
-        SurrealItemsInScope, SurrealTrigger,
     },
 };
 use inquire::{InquireError, Select, Text};

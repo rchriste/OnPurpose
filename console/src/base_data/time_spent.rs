@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::opt::RecordId;
 
-use crate::surrealdb_layer::surreal_time_spent::SurrealTimeSpent;
+use crate::data_storage::surrealdb_layer::surreal_time_spent::SurrealTimeSpent;
 
 use super::item::Item;
 

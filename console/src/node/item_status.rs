@@ -8,7 +8,9 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::{item::Item, FindRecordId},
-    surrealdb_layer::surreal_item::{EqF32, SurrealDependency, SurrealScheduled, SurrealUrgency},
+    data_storage::surrealdb_layer::surreal_item::{
+        EqF32, SurrealDependency, SurrealScheduled, SurrealUrgency,
+    },
 };
 
 use super::{
@@ -634,13 +636,13 @@ mod tests {
     use crate::{
         base_data::BaseData,
         calculated_data::CalculatedData,
-        new_item::NewItemBuilder,
-        node::Filter,
-        surrealdb_layer::{
+        data_storage::surrealdb_layer::{
             data_layer_commands::{data_storage_start_and_run, DataLayerCommands},
             surreal_item::SurrealDependency,
             surreal_tables::SurrealTables,
         },
+        new_item::NewItemBuilder,
+        node::Filter,
     };
 
     #[tokio::test]

@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
-use crate::surrealdb_layer::{
+use crate::data_storage::surrealdb_layer::{
     surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_tables::SurrealTables,
 };
 

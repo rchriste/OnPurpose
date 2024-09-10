@@ -1,19 +1,19 @@
 pub(crate) mod base_data;
 pub(crate) mod calculated_data;
 mod change_routine;
+pub(crate) mod data_storage;
 pub(crate) mod display;
 pub(crate) mod menu;
 pub(crate) mod new_item;
 pub(crate) mod new_time_spent;
 mod node;
-mod surrealdb_layer;
 pub(crate) mod systems;
 
 use tokio::sync::mpsc;
 
 use crate::{
+    data_storage::surrealdb_layer::data_layer_commands::data_storage_start_and_run,
     menu::inquire::bullet_list_menu::present_normal_bullet_list_menu,
-    surrealdb_layer::data_layer_commands::data_storage_start_and_run,
 };
 
 #[tokio::main]

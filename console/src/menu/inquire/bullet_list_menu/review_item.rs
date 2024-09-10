@@ -9,6 +9,10 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
+        surreal_item::SurrealUrgency, surreal_tables::SurrealTables,
+    },
     display::{
         display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
         display_item::DisplayItem, display_item_status::DisplayItemStatus,
@@ -27,10 +31,6 @@ use crate::{
         item_node::ItemNode,
         item_status::{DependencyWithItemNode, ItemStatus},
         Filter,
-    },
-    surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
-        surreal_item::SurrealUrgency, surreal_tables::SurrealTables,
     },
 };
 

@@ -1,4 +1,4 @@
-use crate::surrealdb_layer::surreal_routine::SurrealRoutine;
+use crate::data_storage::surrealdb_layer::surreal_routine::SurrealRoutine;
 
 pub(crate) struct Routine<'s> {
     pub(crate) surreal_routine: &'s SurrealRoutine,

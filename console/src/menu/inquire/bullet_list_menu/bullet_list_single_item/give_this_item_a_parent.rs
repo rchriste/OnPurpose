@@ -6,13 +6,15 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{item::Item, BaseData},
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+    },
     display::display_item_node::DisplayItemNode,
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::ItemTypeSelection,
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
     node::{item_node::ItemNode, Filter},
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 enum ParentItem<'e> {

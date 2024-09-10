@@ -6,6 +6,9 @@ use rand::Rng;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealPriorityKind,
+    },
     display::display_action_with_item_status::DisplayActionWithItemStatus,
     menu::inquire::bullet_list_menu::{
         bullet_list_single_item::{
@@ -18,9 +21,6 @@ use crate::{
         review_item::present_review_item_menu,
     },
     node::action_with_item_status::ActionWithItemStatus,
-    surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealPriorityKind,
-    },
     systems::bullet_list::BulletList,
 };
 

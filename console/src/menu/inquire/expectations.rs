@@ -6,8 +6,8 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
+    data_storage::surrealdb_layer::data_layer_commands::DataLayerCommands,
     menu::inquire::{expectations::define_facing::define_facing, top_menu::present_top_menu},
-    surrealdb_layer::data_layer_commands::DataLayerCommands,
 };
 
 enum ExpectationsMenuItem {

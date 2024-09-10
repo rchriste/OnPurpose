@@ -650,7 +650,8 @@ mod tests {
     use super::*;
 
     use crate::{
-        new_item::NewItemBuilder, surrealdb_layer::surreal_item::SurrealHowMuchIsInMyControl,
+        data_storage::surrealdb_layer::surreal_item::SurrealHowMuchIsInMyControl,
+        new_item::NewItemBuilder,
     };
 
     #[tokio::test]

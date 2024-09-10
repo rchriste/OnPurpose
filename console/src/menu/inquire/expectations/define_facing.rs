@@ -6,16 +6,16 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::BaseData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands,
+        surreal_item::{SurrealFacing, SurrealHowWellDefined},
+    },
     display::display_item_node::DisplayItemNode,
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::give_this_item_a_parent::give_this_item_a_parent,
         select_person_or_group::select_person_or_group,
     },
     node::{item_node::ItemNode, Filter},
-    surrealdb_layer::{
-        data_layer_commands::DataLayerCommands,
-        surreal_item::{SurrealFacing, SurrealHowWellDefined},
-    },
 };
 
 use super::view_expectations;

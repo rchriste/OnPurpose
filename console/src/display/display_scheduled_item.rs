@@ -4,8 +4,8 @@ use better_term::Style;
 use chrono::{DateTime, Local, Utc};
 
 use crate::{
+    data_storage::surrealdb_layer::surreal_item::SurrealScheduled,
     display::display_duration_one_unit::DisplayDurationOneUnit,
-    surrealdb_layer::surreal_item::SurrealScheduled,
     systems::upcoming::scheduled_item::ScheduledItem,
 };
 

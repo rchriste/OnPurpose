@@ -5,9 +5,11 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::BaseData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_item::SurrealItemType,
+    },
     display::display_item::DisplayItem,
     new_item::NewItemBuilder,
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_item::SurrealItemType},
 };
 
 pub(crate) async fn select_person_or_group(

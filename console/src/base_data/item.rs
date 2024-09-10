@@ -6,7 +6,7 @@ use surrealdb::{
     sql::{Datetime, Thing},
 };
 
-use crate::surrealdb_layer::surreal_item::{
+use crate::data_storage::surrealdb_layer::surreal_item::{
     NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
     SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
@@ -328,7 +328,7 @@ impl Item<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::surrealdb_layer::{
+    use crate::data_storage::surrealdb_layer::{
         surreal_item::SurrealItemBuilder, surreal_tables::SurrealTablesBuilder,
     };
 

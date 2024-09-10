@@ -2,7 +2,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, FindRecordId},
-    surrealdb_layer::{
+    data_storage::surrealdb_layer::{
         surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
         surreal_item::SurrealUrgency,
     },
@@ -289,8 +289,7 @@ mod tests {
     use crate::{
         base_data::BaseData,
         calculated_data,
-        node::action_with_item_status::{ActionWithItemStatus, ApplyInTheMomentPriorities},
-        surrealdb_layer::{
+        data_storage::surrealdb_layer::{
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
@@ -298,6 +297,7 @@ mod tests {
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
+        node::action_with_item_status::{ActionWithItemStatus, ApplyInTheMomentPriorities},
     };
 
     #[test]

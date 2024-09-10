@@ -6,8 +6,8 @@ use chrono::{DateTime, Utc};
 use scheduled_item::{Scheduled, ScheduledItem};
 
 use crate::{
-    base_data::item::Item, calculated_data::CalculatedData, node::item_status::ItemStatus,
-    surrealdb_layer::surreal_item::SurrealScheduled,
+    base_data::item::Item, calculated_data::CalculatedData,
+    data_storage::surrealdb_layer::surreal_item::SurrealScheduled, node::item_status::ItemStatus,
 };
 
 pub(crate) struct Upcoming<'s> {
@@ -185,14 +185,14 @@ mod tests {
 
     use crate::base_data::BaseData;
     use crate::calculated_data::CalculatedData;
-    use crate::new_item::NewItemBuilder;
-    use crate::surrealdb_layer::data_layer_commands::{
+    use crate::data_storage::surrealdb_layer::data_layer_commands::{
         data_storage_start_and_run, DataLayerCommands,
     };
-    use crate::surrealdb_layer::surreal_item::{
+    use crate::data_storage::surrealdb_layer::surreal_item::{
         SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
     };
-    use crate::surrealdb_layer::surreal_tables::SurrealTables;
+    use crate::data_storage::surrealdb_layer::surreal_tables::SurrealTables;
+    use crate::new_item::NewItemBuilder;
     use crate::systems::upcoming::Upcoming;
 
     #[tokio::test]

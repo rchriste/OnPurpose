@@ -6,8 +6,10 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{life_area::LifeArea, routine::Routine, BaseData},
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+    },
     menu::inquire::top_menu::present_top_menu,
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 pub(crate) enum LifeAreaItem<'e> {

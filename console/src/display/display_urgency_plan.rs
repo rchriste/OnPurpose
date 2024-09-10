@@ -3,9 +3,9 @@ use std::fmt::{Display, Formatter};
 use chrono::{DateTime, Local, Utc};
 
 use crate::{
+    data_storage::surrealdb_layer::surreal_item::{SurrealScheduled, SurrealUrgency},
     display::display_duration_one_unit::DisplayDurationOneUnit,
     node::item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
-    surrealdb_layer::surreal_item::{SurrealScheduled, SurrealUrgency},
 };
 
 use super::{display_item_node::DisplayItemNode, DisplayStyle};

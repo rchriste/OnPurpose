@@ -17,6 +17,14 @@ use urgency_plan::present_set_ready_and_urgency_plan_menu;
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands,
+        surreal_item::{
+            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
+            SurrealUrgency,
+        },
+        surreal_tables::SurrealTables,
+    },
     display::{
         display_item::DisplayItem, display_item_node::DisplayItemNode,
         display_item_type::DisplayItemType, display_urgency_plan::DisplayUrgency, DisplayStyle,
@@ -41,14 +49,6 @@ use crate::{
         item_node::{DependencyWithItem, ItemNode},
         item_status::ItemStatus,
         Filter,
-    },
-    surrealdb_layer::{
-        data_layer_commands::DataLayerCommands,
-        surreal_item::{
-            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
-            SurrealUrgency,
-        },
-        surreal_tables::SurrealTables,
     },
     systems::bullet_list::BulletList,
 };

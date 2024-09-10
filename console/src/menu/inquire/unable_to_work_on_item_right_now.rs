@@ -12,9 +12,11 @@ use crate::{
         item::{Item, ItemVecExtensions},
         BaseData,
     },
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+    },
     display::display_item::DisplayItem,
     new_item::NewItem,
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 use super::super::YesOrNo;

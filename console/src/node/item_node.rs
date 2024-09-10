@@ -8,7 +8,7 @@ use surrealdb::{
 
 use crate::{
     base_data::{item::Item, time_spent::TimeSpent, FindRecordId},
-    surrealdb_layer::{
+    data_storage::surrealdb_layer::{
         surreal_item::{
             SurrealDependency, SurrealFacing, SurrealItem, SurrealItemType, SurrealReviewGuidance,
             SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
@@ -848,13 +848,13 @@ mod tests {
 
     use crate::{
         base_data::item::ItemVecExtensions,
-        node::{item_node::ItemNode, Filter},
-        surrealdb_layer::{
+        data_storage::surrealdb_layer::{
             surreal_item::{
                 SurrealDependency, SurrealItemBuilder, SurrealItemType, SurrealOrderedSubItem,
             },
             surreal_tables::SurrealTablesBuilder,
         },
+        node::{item_node::ItemNode, Filter},
     };
 
     #[test]

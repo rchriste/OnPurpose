@@ -4,8 +4,8 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{item::Item, BaseData},
+    data_storage::surrealdb_layer::data_layer_commands::DataLayerCommands,
     display::display_item::DisplayItem,
-    surrealdb_layer::data_layer_commands::DataLayerCommands,
 };
 
 use super::ItemTypeSelection;

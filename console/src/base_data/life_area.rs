@@ -1,4 +1,4 @@
-use crate::surrealdb_layer::surreal_life_area::SurrealLifeArea;
+use crate::data_storage::surrealdb_layer::surreal_life_area::SurrealLifeArea;
 
 pub(crate) struct LifeArea<'s> {
     pub(crate) surreal_life_area: &'s SurrealLifeArea,

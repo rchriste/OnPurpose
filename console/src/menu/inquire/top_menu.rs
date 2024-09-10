@@ -10,6 +10,9 @@ use crate::{
     base_data::{time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
     change_routine::change_routine,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+    },
     display::{
         display_duration::DisplayDuration, display_item_node::DisplayItemNode,
         display_item_status::DisplayItemStatus,
@@ -17,7 +20,6 @@ use crate::{
     menu::{inquire::expectations::view_expectations, ratatui::view_priorities},
     new_item::NewItem,
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 use super::{

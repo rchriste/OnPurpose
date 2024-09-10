@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
-use crate::surrealdb_layer::surreal_item::{
+use crate::data_storage::surrealdb_layer::surreal_item::{
     Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItemType,
     SurrealLap, SurrealReviewGuidance, SurrealUrgencyPlan,
 };

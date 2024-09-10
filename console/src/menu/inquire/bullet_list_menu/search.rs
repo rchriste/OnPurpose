@@ -5,13 +5,15 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
+    },
     display::display_item_status::DisplayItemStatus,
     menu::inquire::bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
     node::{
         item_status::{ItemStatus, UrgencyPlanWithItemNode},
         Filter, IsTriggered,
     },
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency},
     systems::bullet_list::BulletList,
 };
 

@@ -7,10 +7,12 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{item::Item, BaseData},
     calculated_data::CalculatedData,
+    data_storage::surrealdb_layer::{
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+    },
     display::display_item_node::DisplayItemNode,
     menu::inquire::select_higher_importance_than_this::select_higher_importance_than_this,
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
-    surrealdb_layer::{data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables},
 };
 
 use super::{
