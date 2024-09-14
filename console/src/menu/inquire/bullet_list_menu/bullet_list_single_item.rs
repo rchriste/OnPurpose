@@ -41,7 +41,6 @@ use crate::{
         },
         select_higher_importance_than_this::select_higher_importance_than_this,
         top_menu::capture,
-        unable_to_work_on_item_right_now::unable_to_work_on_item_right_now,
         update_item_summary::update_item_summary,
     },
     new_item,
@@ -365,7 +364,13 @@ pub(crate) async fn present_bullet_list_item_selected(
             Ok(())
         }
         Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
-            unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await
+            present_set_ready_and_urgency_plan_menu(
+                menu_for,
+                menu_for.get_urgency_now().cloned(),
+                LogTime::PartOfAnotherTaskDoNotLogTheTime,
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
             todo!("TODO: Implement NotInTheMoodToDoThisRightNow");

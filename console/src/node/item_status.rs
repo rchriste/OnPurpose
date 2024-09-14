@@ -777,24 +777,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
         let now = Utc::now();
-        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-        let child_to_snooze = base_data
-            .get_active_items()
-            .iter()
-            .find(|x| x.get_summary() == "Item that needs to wait until tomorrow")
-            .unwrap();
-
-        sender
-            .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                child_to_snooze.get_surreal_record_id().clone(),
-                Utc::now()
-                    .checked_add_days(Days::new(1))
-                    .expect("Far from overflowing"),
-            ))
-            .await
-            .unwrap();
 
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
         let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
