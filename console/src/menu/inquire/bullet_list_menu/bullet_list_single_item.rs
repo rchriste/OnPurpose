@@ -66,7 +66,6 @@ enum BulletListSingleItemSelection<'e> {
     StartingToWorkOnThisNow,
     GiveThisItemAParent,
     ChangeReadyAndUrgencyPlan,
-    EstimateHowManyFocusPeriodsThisWillTake,
     UnableToDoThisRightNow,
     NotInTheMoodToDoThisRightNow,
     SomethingElseShouldBeDoneFirst,
@@ -128,9 +127,6 @@ impl Display for BulletListSingleItemSelection<'_> {
                 write!(f, "Change Item Type (Currently: {})", current_item_type)
             }
             Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
-            Self::EstimateHowManyFocusPeriodsThisWillTake => {
-                write!(f, "Estimate how many Focus Periods this will take")
-            }
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::NotInTheMoodToDoThisRightNow => {
                 write!(f, "I am not in the mood to do this right now")
@@ -189,7 +185,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         list.push(Self::SomethingElseShouldBeDoneFirst);
 
         if !is_type_motivation {
-            list.push(Self::EstimateHowManyFocusPeriodsThisWillTake);
             list.push(Self::DoWithSomethingElse);
             list.push(Self::SearchForSimilarWork);
         }
@@ -368,9 +363,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .await
                 .unwrap();
             Ok(())
-        }
-        Ok(BulletListSingleItemSelection::EstimateHowManyFocusPeriodsThisWillTake) => {
-            todo!("TODO: Implement EstimateHowManyFocusPeriodsThisWillTake");
         }
         Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
             unable_to_work_on_item_right_now(menu_for.get_item(), send_to_data_storage_layer).await
