@@ -53,7 +53,6 @@ impl<'r> FindRecordId<'r, Item<'r>> for &'r [Item<'r>] {
 pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
-    fn filter_just_persons_or_groups(&'t self) -> Self::ItemIterator;
     fn filter_active_items(&self) -> Vec<&Item>;
 }
 
@@ -66,16 +65,6 @@ impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
     fn filter_active_items(&self) -> Vec<&Item> {
         self.iter().filter(|x| !x.is_finished()).collect()
     }
-
-    fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &SurrealItemType::PersonOrGroup {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
 }
 
 impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
@@ -83,16 +72,6 @@ impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
         std::slice::Iter<'s, &'s Item<'s>>,
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
-
-    fn filter_just_persons_or_groups(&'s self) -> Self::ItemIterator {
-        self.iter().filter_map(Box::new(|x| {
-            if x.get_item_type() == &SurrealItemType::PersonOrGroup {
-                Some(x)
-            } else {
-                None
-            }
-        }))
-    }
 
     fn filter_active_items(&self) -> Vec<&Item> {
         self.iter().filter(|x| !x.is_finished()).copied().collect()

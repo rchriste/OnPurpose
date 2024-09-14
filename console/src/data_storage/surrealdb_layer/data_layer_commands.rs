@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     opt::{PatchOp, RecordId},
@@ -48,7 +48,6 @@ pub(crate) enum DataLayerCommands {
         item_to_be_covered: RecordId,
         item_that_should_do_the_covering: RecordId,
     },
-    CoverItemUntilAnExactDateTime(RecordId, DateTime<Utc>),
     UpdateRelativeImportance {
         parent: RecordId,
         update_this_child: RecordId,
@@ -166,9 +165,6 @@ pub(crate) async fn data_storage_start_and_run(
                     &db,
                 )
                 .await
-            }
-            Some(DataLayerCommands::CoverItemUntilAnExactDateTime(item_to_cover, cover_until)) => {
-                cover_item_until_an_exact_date_time(item_to_cover, cover_until, &db).await
             }
             Some(DataLayerCommands::ParentItemWithExistingItem {
                 child,
@@ -495,15 +491,6 @@ async fn cover_item_with_an_existing_item(
 ) {
     let new_dependency = SurrealDependency::AfterItem(existing_item_that_is_doing_the_covering);
     add_dependency(existing_item_to_be_covered, new_dependency, db).await;
-}
-
-async fn cover_item_until_an_exact_date_time(
-    item_to_cover: RecordId,
-    cover_until: DateTime<Utc>,
-    db: &Surreal<Any>,
-) {
-    let new_dependency = SurrealDependency::AfterDateTime(cover_until.into());
-    add_dependency(item_to_cover, new_dependency, db).await;
 }
 
 async fn parent_item_with_existing_item(
@@ -860,78 +847,6 @@ mod tests {
             _ => panic!("Should be an item"),
         };
         assert_eq!(item_that_should_cover.id.as_ref().unwrap(), id,);
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn cover_item_until_an_exact_date_time() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        let new_action = NewItemBuilder::default()
-            .summary("Item to be covered")
-            .item_type(SurrealItemType::Action)
-            .build()
-            .expect("Filled out required fields");
-        sender
-            .send(DataLayerCommands::NewItem(new_action))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert!(surreal_tables
-            .surreal_items
-            .first()
-            .unwrap()
-            .dependencies
-            .is_empty());
-
-        let cover_until: chrono::DateTime<Utc> = Utc::now();
-        sender
-            .send(DataLayerCommands::CoverItemUntilAnExactDateTime(
-                surreal_tables
-                    .surreal_items
-                    .into_iter()
-                    .next()
-                    .unwrap()
-                    .id
-                    .expect("In DB"),
-                cover_until.clone().into(),
-            ))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        assert_eq!(1, surreal_tables.surreal_items.len());
-        assert_eq!(
-            1,
-            surreal_tables
-                .surreal_items
-                .first()
-                .unwrap()
-                .dependencies
-                .len()
-        );
-        let until = match surreal_tables
-            .surreal_items
-            .first()
-            .unwrap()
-            .dependencies
-            .first()
-            .unwrap()
-        {
-            SurrealDependency::AfterDateTime(until) => until,
-            _ => panic!("Should be an item"),
-        };
-
-        let cover_until: Datetime = cover_until.into();
-        assert_eq!(cover_until, *until);
 
         drop(sender);
         data_storage_join_handle.await.unwrap();
