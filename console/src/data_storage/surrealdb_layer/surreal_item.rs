@@ -587,7 +587,7 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) item_type: SurrealItemType,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) notes_location: NotesLocation,
+    pub(crate) notes_location: NotesLocation, //TODO: I believe this is unused. Also in general I think a better design is to support this inside the general concept of capturing things so rather than having this hardcoded this should go away and be replaced by a capturing concept
 
     #[cfg_attr(test, builder(default))]
     pub(crate) lap: Option<SurrealLap>,

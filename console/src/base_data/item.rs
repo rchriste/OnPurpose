@@ -7,8 +7,8 @@ use surrealdb::{
 };
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
-    NotesLocation, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-    SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+    SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem, SurrealItemType,
+    SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 use super::FindRecordId;
@@ -133,10 +133,6 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_type_motivation(&self) -> bool {
         matches!(self.get_item_type(), &SurrealItemType::Motivation(..))
-    }
-
-    pub(crate) fn is_there_notes(&self) -> bool {
-        self.surreal_item.notes_location != NotesLocation::None
     }
 
     pub(crate) fn is_goal(&self) -> bool {

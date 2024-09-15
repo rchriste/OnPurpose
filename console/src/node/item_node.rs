@@ -394,11 +394,6 @@ impl<'s> ItemNode<'s> {
         has_children(&self.children, filter)
     }
 
-    pub(crate) fn is_there_notes(&self) -> bool {
-        //I should probably change this to search through the parents as well, but going with this for now to maintain backwards compatibility with the code already written before I switched over to this ItemNode type
-        self.item.is_there_notes()
-    }
-
     pub(crate) fn get_summary(&self) -> &str {
         self.item.get_summary()
     }

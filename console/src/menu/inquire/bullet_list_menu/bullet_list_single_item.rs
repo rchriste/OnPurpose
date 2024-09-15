@@ -58,9 +58,7 @@ pub(crate) enum LogTime {
 }
 
 enum BulletListSingleItemSelection<'e> {
-    ChangeItemType {
-        current: &'e SurrealItemType,
-    },
+    ChangeItemType { current: &'e SurrealItemType },
     CaptureNewItem,
     StartingToWorkOnThisNow,
     GiveThisItemAParent,
@@ -71,12 +69,6 @@ enum BulletListSingleItemSelection<'e> {
     StateASmallerNextStep,
     WorkedOnThis,
     Finished,
-    CreateNotesForThisItem,
-    LinkNotesForThisItem,
-    OpenNotesForThisItem,
-    OpenNotesForParentItem {
-        item_in_chain_with_notes: DisplayItem<'e>,
-    },
     DoWithSomethingElse,
     ReturnToBulletList,
     ProcessAndFinish,
@@ -124,12 +116,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
-            Self::CreateNotesForThisItem => write!(f, "Create a OneNote page for this"),
-            Self::LinkNotesForThisItem => write!(f, "Provide a link to the notes for this"),
-            Self::OpenNotesForThisItem => write!(f, "Open notes for this"),
-            Self::OpenNotesForParentItem {
-                item_in_chain_with_notes: parent,
-            } => write!(f, "Open notes for parent item: {}", parent),
             Self::DoWithSomethingElse => {
                 write!(f, "Do with something else")
             }
@@ -170,13 +156,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
             list.push(Self::DoWithSomethingElse);
         }
 
-        if item_node.is_there_notes() {
-            list.push(Self::OpenNotesForThisItem);
-        } else {
-            list.push(Self::CreateNotesForThisItem);
-            list.push(Self::LinkNotesForThisItem);
-        }
-
         list.push(Self::ReviewItem);
 
         let parent_items = item_node
@@ -198,15 +177,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
                 .expect("All items are here");
             Self::RemoveParent(DisplayItem::new(x), item_status)
         }));
-
-        let parent_chain = item_node.create_parent_chain();
-        for parent in parent_chain {
-            if parent.is_there_notes() {
-                list.push(Self::OpenNotesForParentItem {
-                    item_in_chain_with_notes: DisplayItem::new(parent),
-                });
-            }
-        }
 
         let child_items = item_node
             .get_children(Filter::Active)
@@ -399,20 +369,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::CreateNotesForThisItem) => {
-            todo!("TODO: Implement CreateNotes");
-        }
-        Ok(BulletListSingleItemSelection::LinkNotesForThisItem) => {
-            todo!("TODO: Implement LinkNotes");
-        }
-        Ok(BulletListSingleItemSelection::OpenNotesForThisItem) => {
-            todo!("TODO: Implement OpenNotesForThisItem");
-        }
-        Ok(BulletListSingleItemSelection::OpenNotesForParentItem {
-            item_in_chain_with_notes: _,
-        }) => {
-            todo!("TODO: Implement OpenNotesForParentItem");
         }
         Ok(BulletListSingleItemSelection::DoWithSomethingElse) => {
             todo!("TODO: Implement DoWithSomethingElse");
