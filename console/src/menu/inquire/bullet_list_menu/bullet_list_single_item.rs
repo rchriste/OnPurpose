@@ -69,7 +69,6 @@ enum BulletListSingleItemSelection<'e> {
     StateASmallerNextStep,
     WorkedOnThis,
     Finished,
-    DoWithSomethingElse,
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
@@ -116,9 +115,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
-            Self::DoWithSomethingElse => {
-                write!(f, "Do with something else")
-            }
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
             Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
@@ -134,7 +130,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         let has_no_parent = !item_node.has_parents(Filter::Active);
-        let is_type_motivation = item_node.is_type_motivation();
 
         if has_no_parent {
             list.push(Self::GiveThisItemAParent);
@@ -151,10 +146,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         list.push(Self::StateASmallerNextStep);
 
         list.push(Self::SomethingElseShouldBeDoneFirst);
-
-        if !is_type_motivation {
-            list.push(Self::DoWithSomethingElse);
-        }
 
         list.push(Self::ReviewItem);
 
@@ -369,9 +360,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::DoWithSomethingElse) => {
-            todo!("TODO: Implement DoWithSomethingElse");
         }
         Ok(BulletListSingleItemSelection::CaptureAFork) => {
             todo!("TODO: Implement CaptureAFork");
