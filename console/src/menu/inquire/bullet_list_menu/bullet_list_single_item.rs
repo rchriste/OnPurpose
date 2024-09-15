@@ -77,7 +77,6 @@ enum BulletListSingleItemSelection<'e> {
     RemoveParent(DisplayItem<'e>, &'e ItemStatus<'e>),
     SwitchToChildItem(DisplayItem<'e>, &'e ItemStatus<'e>),
     RemoveChild(DisplayItem<'e>, &'e ItemStatus<'e>),
-    CaptureAFork,
     DebugPrintItem,
 }
 
@@ -116,7 +115,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
-            Self::CaptureAFork => write!(f, "Capture a fork"),
             Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
         }
     }
@@ -189,7 +187,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
             Self::RemoveChild(DisplayItem::new(child), child_item_status)
         }));
 
-        list.push(Self::CaptureAFork);
         list.push(Self::ChangeItemType {
             current: item_node.get_type(),
         });
@@ -360,9 +357,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::CaptureAFork) => {
-            todo!("TODO: Implement CaptureAFork");
         }
         Ok(BulletListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
             present_set_ready_and_urgency_plan_menu(
