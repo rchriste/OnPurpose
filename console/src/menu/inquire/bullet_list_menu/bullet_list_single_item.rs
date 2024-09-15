@@ -71,7 +71,6 @@ enum BulletListSingleItemSelection<'e> {
     StateASmallerNextStep,
     WorkedOnThis,
     Finished,
-    ThisIsARepeatingItem,
     CreateNotesForThisItem,
     LinkNotesForThisItem,
     OpenNotesForThisItem,
@@ -126,9 +125,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
-            Self::ThisIsARepeatingItem => {
-                write!(f, "This is a repeating item I need to do periodically")
-            }
             Self::CreateNotesForThisItem => write!(f, "Create a OneNote page for this"),
             Self::LinkNotesForThisItem => write!(f, "Provide a link to the notes for this"),
             Self::OpenNotesForThisItem => write!(f, "Open notes for this"),
@@ -236,7 +232,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }));
 
         list.push(Self::CaptureAFork);
-        list.push(Self::ThisIsARepeatingItem);
         list.push(Self::ChangeItemType {
             current: item_node.get_type(),
         });
@@ -407,9 +402,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::ThisIsARepeatingItem) => {
-            todo!("TODO: Implement ThisIsARepeatingItem");
         }
         Ok(BulletListSingleItemSelection::CreateNotesForThisItem) => {
             todo!("TODO: Implement CreateNotes");
