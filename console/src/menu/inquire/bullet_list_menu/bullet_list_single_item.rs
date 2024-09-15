@@ -69,8 +69,6 @@ enum BulletListSingleItemSelection<'e> {
     SomethingElseShouldBeDoneFirst,
     ReviewItem,
     StateASmallerNextStep,
-    DefineMilestones, //For a hope
-    UpdateMilestones, //For a hope
     WorkedOnThis,
     Finished,
     ThisIsARepeatingItem,
@@ -126,8 +124,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             }
             Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
-            Self::DefineMilestones => write!(f, "Define milestones"),
-            Self::UpdateMilestones => write!(f, "Update milestones"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
             Self::ThisIsARepeatingItem => {
@@ -158,9 +154,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
         let mut list = Vec::default();
 
         let has_no_parent = !item_node.has_parents(Filter::Active);
-        let is_type_goal = item_node.is_type_goal();
         let is_type_motivation = item_node.is_type_motivation();
-        let has_active_children = item_node.has_children(Filter::Active);
 
         if has_no_parent {
             list.push(Self::GiveThisItemAParent);
@@ -191,14 +185,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         list.push(Self::ReviewItem);
-
-        if is_type_goal {
-            if has_active_children {
-                list.push(Self::UpdateMilestones);
-            } else {
-                list.push(Self::DefineMilestones);
-            }
-        }
 
         let parent_items = item_node
             .get_parents(Filter::Active)
@@ -383,12 +369,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::DefineMilestones) => {
-            todo!("TODO: Implement DefineMilestones");
-        }
-        Ok(BulletListSingleItemSelection::UpdateMilestones) => {
-            todo!("TODO: Implement UpdateMilestones");
         }
         Ok(BulletListSingleItemSelection::WorkedOnThis) => {
             present_set_ready_and_urgency_plan_menu(
