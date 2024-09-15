@@ -78,7 +78,6 @@ enum BulletListSingleItemSelection<'e> {
         item_in_chain_with_notes: DisplayItem<'e>,
     },
     DoWithSomethingElse,
-    SearchForSimilarWork,
     ReturnToBulletList,
     ProcessAndFinish,
     UpdateSummary,
@@ -134,7 +133,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::DoWithSomethingElse => {
                 write!(f, "Do with something else")
             }
-            Self::SearchForSimilarWork => write!(f, "Look for similar work to also do"),
             Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
             Self::CaptureAFork => write!(f, "Capture a fork"),
             Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
@@ -170,7 +168,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         if !is_type_motivation {
             list.push(Self::DoWithSomethingElse);
-            list.push(Self::SearchForSimilarWork);
         }
 
         if item_node.is_there_notes() {
@@ -419,9 +416,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Ok(BulletListSingleItemSelection::DoWithSomethingElse) => {
             todo!("TODO: Implement DoWithSomethingElse");
-        }
-        Ok(BulletListSingleItemSelection::SearchForSimilarWork) => {
-            todo!("TODO: Implement SearchForSimilarWork");
         }
         Ok(BulletListSingleItemSelection::CaptureAFork) => {
             todo!("TODO: Implement CaptureAFork");
