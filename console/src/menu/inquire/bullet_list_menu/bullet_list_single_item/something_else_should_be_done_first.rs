@@ -44,9 +44,7 @@ pub(crate) async fn something_else_should_be_done_first(
                 .await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => {
-            todo!("Error: {:?}", err);
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 

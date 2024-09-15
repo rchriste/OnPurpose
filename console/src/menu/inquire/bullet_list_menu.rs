@@ -9,7 +9,7 @@ use std::{fmt::Display, iter::once};
 
 use better_term::Style;
 use bullet_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
-use chrono::{DateTime, Local, TimeDelta, Utc};
+use chrono::{DateTime, Local, Utc};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu;
@@ -44,17 +44,25 @@ pub(crate) enum InquireBulletListItem<'e> {
     CaptureNewItem,
     Search,
     BulletListSingleItem(&'e ActionWithItemStatus<'e>),
+    RefreshList(DateTime<Local>),
+    MainMenu,
 }
 
 impl Display for InquireBulletListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CaptureNewItem => write!(f, "🗬   Capture New Item  🗭"),
-            Self::Search => write!(f, "🔍  Search            🔍"),
+            Self::CaptureNewItem => write!(f, "🗬   Capture New Item       🗭"),
+            Self::Search => write!(f, "🔍  Search                 🔍"),
             Self::BulletListSingleItem(item) => {
                 let display = DisplayActionWithItemStatus::new(item);
                 write!(f, "{}", display)
             }
+            Self::RefreshList(bullet_list_created) => write!(
+                f,
+                "🔄  Refresh List ({}) 🔄",
+                bullet_list_created.format("%I:%M%p")
+            ),
+            Self::MainMenu => write!(f, "🏠  Main Menu              🏠"),
         }
     }
 }
@@ -62,13 +70,18 @@ impl Display for InquireBulletListItem<'_> {
 impl<'a> InquireBulletListItem<'a> {
     pub(crate) fn create_list(
         item_action: &'a [ActionWithItemStatus<'a>],
+        bullet_list_created: DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         chain!(
             once(InquireBulletListItem::CaptureNewItem),
             once(InquireBulletListItem::Search),
+            once(InquireBulletListItem::RefreshList(
+                bullet_list_created.into()
+            )),
             item_action
                 .iter()
-                .map(InquireBulletListItem::BulletListSingleItem)
+                .map(InquireBulletListItem::BulletListSingleItem),
+            once(InquireBulletListItem::MainMenu)
         )
         .collect()
     }
@@ -138,96 +151,89 @@ pub(crate) async fn present_bullet_list_menu(
 ) -> Result<(), ()> {
     let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
 
-    let inquire_bullet_list = InquireBulletListItem::create_list(ordered_bullet_list);
+    let inquire_bullet_list =
+        InquireBulletListItem::create_list(ordered_bullet_list, bullet_list_created);
 
-    if !inquire_bullet_list.is_empty() {
-        let starting_cursor = if ordered_bullet_list.is_empty() { 0 } else { 2 };
-        let selected = Select::new("Select from the below list|", inquire_bullet_list)
-            .with_starting_cursor(starting_cursor)
-            .with_page_size(10)
-            .prompt();
+    let starting_cursor = if ordered_bullet_list.is_empty() { 0 } else { 3 };
+    let selected = Select::new("Select from the below list|", inquire_bullet_list)
+        .with_starting_cursor(starting_cursor)
+        .with_page_size(10)
+        .prompt();
 
-        match selected {
-            Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
-            Ok(InquireBulletListItem::Search) => {
-                present_search_menu(bullet_list, send_to_data_storage_layer).await
+    match selected {
+        Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
+        Ok(InquireBulletListItem::Search) => {
+            present_search_menu(bullet_list, send_to_data_storage_layer).await
+        }
+        Ok(InquireBulletListItem::BulletListSingleItem(selected)) => match selected {
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
+                present_pick_what_should_be_done_first_menu(
+                    choices,
+                    bullet_list,
+                    send_to_data_storage_layer,
+                )
+                .await
             }
-            Ok(InquireBulletListItem::BulletListSingleItem(selected)) => match selected {
-                ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                    present_pick_what_should_be_done_first_menu(
-                        choices,
+            ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
+                present_pick_item_review_frequency_menu(
+                    item_status,
+                    selected.get_urgency_now(),
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+            ActionWithItemStatus::ReviewItem(item_status) => {
+                present_review_item_menu(
+                    item_status,
+                    selected.get_urgency_now(),
+                    bullet_list.get_all_items_status(),
+                    LogTime::SeparateTaskLogTheTime,
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+            ActionWithItemStatus::MakeProgress(item_status) => {
+                if item_status.is_person_or_group() {
+                    present_is_person_or_group_around_menu(
+                        item_status.get_item_node(),
+                        send_to_data_storage_layer,
+                    )
+                    .await
+                } else {
+                    Box::pin(present_bullet_list_item_selected(
+                        item_status,
+                        Utc::now(),
                         bullet_list,
                         send_to_data_storage_layer,
-                    )
+                    ))
                     .await
-                }
-                ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
-                    present_pick_item_review_frequency_menu(
-                        item_status,
-                        selected.get_urgency_now(),
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-                ActionWithItemStatus::ReviewItem(item_status) => {
-                    present_review_item_menu(
-                        item_status,
-                        selected.get_urgency_now(),
-                        bullet_list.get_all_items_status(),
-                        LogTime::SeparateTaskLogTheTime,
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-                ActionWithItemStatus::MakeProgress(item_status) => {
-                    if item_status.is_person_or_group() {
-                        present_is_person_or_group_around_menu(
-                            item_status.get_item_node(),
-                            send_to_data_storage_layer,
-                        )
-                        .await
-                    } else {
-                        Box::pin(present_bullet_list_item_selected(
-                            item_status,
-                            Utc::now(),
-                            bullet_list,
-                            send_to_data_storage_layer,
-                        ))
-                        .await
-                    }
-                }
-                ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
-                    present_set_ready_and_urgency_plan_menu(
-                        item_status,
-                        Some(selected.get_urgency_now()),
-                        LogTime::SeparateTaskLogTheTime,
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-                ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
-                    present_parent_back_to_a_motivation_menu(
-                        item_status,
-                        selected.get_urgency_now(),
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                }
-            },
-            Err(InquireError::OperationCanceled) => {
-                //Pressing Esc is meant to refresh the list unless you press it twice in a row then it will go to the top menu
-                if Utc::now() - bullet_list_created > TimeDelta::seconds(5) {
-                    println!("Refreshing the list");
-                    Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
-                } else {
-                    Box::pin(present_top_menu(send_to_data_storage_layer)).await
                 }
             }
-            Err(InquireError::OperationInterrupted) => Err(()),
-            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+            ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+                present_set_ready_and_urgency_plan_menu(
+                    item_status,
+                    Some(selected.get_urgency_now()),
+                    LogTime::SeparateTaskLogTheTime,
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+            ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
+                present_parent_back_to_a_motivation_menu(
+                    item_status,
+                    selected.get_urgency_now(),
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+        },
+        Ok(InquireBulletListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {
+            Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
         }
-    } else {
-        println!("To Do List is Empty, falling back to main menu");
-        Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        Ok(InquireBulletListItem::MainMenu) => {
+            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        }
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
