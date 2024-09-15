@@ -423,9 +423,6 @@ pub(crate) async fn present_bullet_list_item_selected(
         Ok(BulletListSingleItemSelection::SearchForSimilarWork) => {
             todo!("TODO: Implement SearchForSimilarWork");
         }
-        Ok(BulletListSingleItemSelection::ReturnToBulletList) => {
-            todo!("TODO: Implement ReturnToBulletList");
-        }
         Ok(BulletListSingleItemSelection::CaptureAFork) => {
             todo!("TODO: Implement CaptureAFork");
         }
@@ -469,7 +466,8 @@ pub(crate) async fn present_bullet_list_item_selected(
             println!("{:?}", menu_for);
             Ok(())
         }
-        Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
+        Ok(BulletListSingleItemSelection::ReturnToBulletList)
+        | Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
