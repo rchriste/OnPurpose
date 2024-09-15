@@ -224,7 +224,7 @@ pub(crate) async fn present_bullet_list_menu(
                 }
             }
             Err(InquireError::OperationInterrupted) => Err(()),
-            Err(err) => todo!("Unexpected InquireError of {}", err),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
         }
     } else {
         println!("To Do List is Empty, falling back to main menu");

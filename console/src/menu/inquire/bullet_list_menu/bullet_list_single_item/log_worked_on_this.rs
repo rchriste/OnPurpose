@@ -191,7 +191,7 @@ async fn ask_when_started_and_stopped(
                     },
                     Err(InquireError::OperationCanceled) => continue,
                     Err(InquireError::OperationInterrupted) => return Err(()),
-                    Err(err) => todo!("{:?}", err),
+                    Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 }
             }
             Err(InquireError::OperationCanceled) => {
@@ -200,7 +200,7 @@ async fn ask_when_started_and_stopped(
             Err(InquireError::OperationInterrupted) => {
                 return Err(());
             }
-            Err(err) => todo!("{:?}", err),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
         };
         println!("When started: {:?}", when_started);
         let stopped_when = vec![StoppedWhen::Now, StoppedWhen::ManualTime];
@@ -227,12 +227,12 @@ async fn ask_when_started_and_stopped(
                     },
                     Err(InquireError::OperationCanceled) => continue,
                     Err(InquireError::OperationInterrupted) => return Err(()),
-                    Err(err) => todo!("{:?}", err),
+                    Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 }
             }
             Err(InquireError::OperationCanceled) => continue,
             Err(InquireError::OperationInterrupted) => return Err(()),
-            Err(err) => todo!("{:?}", err),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
         };
 
         if when_started > when_stopped {
@@ -256,7 +256,7 @@ async fn ask_when_started_and_stopped(
                 Ok(YesOrNo::No) => continue,
                 Err(InquireError::OperationCanceled) => continue,
                 Err(InquireError::OperationInterrupted) => return Err(()),
-                Err(err) => todo!("{:?}", err),
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
             }
         }
 
@@ -311,6 +311,6 @@ fn ask_about_dedication() -> Result<Option<SurrealDedication>, ()> {
         Ok(Dedication::Background) => Ok(Some(SurrealDedication::BackgroundTask)),
         Err(InquireError::OperationCanceled) => Ok(None),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("{:?}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

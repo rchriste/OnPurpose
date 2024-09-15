@@ -41,6 +41,6 @@ pub(crate) async fn view_expectations(
             Box::pin(present_top_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("{}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

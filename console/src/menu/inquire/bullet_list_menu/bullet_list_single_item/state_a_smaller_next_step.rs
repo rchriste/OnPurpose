@@ -75,7 +75,7 @@ pub(crate) async fn select_an_item<'a>(
             .into_iter()
             .find(|x| x.get_item() == selected_item.get_item())),
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => Ok(None),
-        Err(err) => todo!("{:?}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 

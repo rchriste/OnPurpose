@@ -788,8 +788,6 @@ pub(crate) async fn present_search_menu(
             println!();
             Ok(())
         }
-        Err(err) => {
-            todo!("Handle error: {:?}", err);
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

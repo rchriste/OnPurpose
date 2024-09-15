@@ -38,7 +38,8 @@ pub(crate) async fn select_person_or_group(
             Err(InquireError::OperationCanceled) => {
                 select_person_or_group_new_person_or_group(send_to_data_storage_layer).await
             }
-            Err(err) => todo!("{:?}", err),
+            Err(InquireError::OperationInterrupted) => todo!(),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
         }
     }
 }

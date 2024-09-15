@@ -75,7 +75,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
             .await
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(err) => todo!("Unknown err {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
     let highest_or_lowest = Select::new(

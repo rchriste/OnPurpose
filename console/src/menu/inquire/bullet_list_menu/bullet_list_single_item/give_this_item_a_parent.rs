@@ -118,9 +118,7 @@ pub(crate) async fn give_this_item_a_parent(
             .await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => {
-            todo!("Error: {:?}", err);
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -162,8 +160,6 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
             todo!("I need to go back to what first called this");
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => {
-            todo!("Error: {:?}", err);
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

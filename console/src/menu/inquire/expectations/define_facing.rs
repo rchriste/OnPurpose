@@ -64,7 +64,8 @@ pub(crate) async fn define_facing(
                 Box::pin(view_expectations(send_to_data_storage_layer)).await?
             }
             Err(InquireError::OperationInterrupted) => return Err(()),
-            Err(err) => todo!("{:?}", err),
+            Err(InquireError::InvalidConfiguration(_)) => todo!(),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
         }
     }
 }
@@ -173,7 +174,8 @@ async fn single_item_define_facing(
                     .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
-                Err(err) => todo!("{:?}", err),
+                Err(InquireError::InvalidConfiguration(_)) => todo!(),
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
             }
         }
         Ok(FacingOptions::ForAnother) => {
@@ -205,7 +207,7 @@ async fn single_item_define_facing(
                     .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
-                Err(err) => todo!("{:?}", err),
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
             }
         }
         Ok(FacingOptions::ForMyselfAndAnother) => {
@@ -238,13 +240,13 @@ async fn single_item_define_facing(
                     .await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
-                Err(err) => todo!("{:?}", err),
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
             }
         }
         Err(InquireError::OperationCanceled) => {
             Box::pin(define_facing(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("{:?}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

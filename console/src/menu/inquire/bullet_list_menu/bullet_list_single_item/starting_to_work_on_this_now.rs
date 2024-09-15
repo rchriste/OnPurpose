@@ -102,8 +102,6 @@ pub(crate) async fn starting_to_work_on_this_now(
             .await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => {
-            todo!("Error: {:?}", err);
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

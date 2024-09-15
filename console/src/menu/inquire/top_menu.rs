@@ -102,7 +102,7 @@ pub(crate) async fn present_top_menu(
         }
         Err(InquireError::OperationCanceled) => Err(()),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -122,7 +122,7 @@ pub(crate) async fn capture(
         }
         Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -189,7 +189,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
             Box::pin(present_top_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -257,7 +257,7 @@ async fn view_priorities_of_item_status(
             }
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -317,7 +317,7 @@ async fn view_priorities_single_item_no_children(
             ))
             .await
         }
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -339,7 +339,7 @@ async fn present_reflection(
         },
         Err(InquireError::OperationCanceled) => return Ok(()),
         Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(err) => todo!("{:?}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
     let end = match Text::new("Enter Ending Time").prompt() {
@@ -357,7 +357,7 @@ async fn present_reflection(
             return Box::pin(present_reflection(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(err) => todo!("{:?}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
     println!("Time spent between {} and {}", start, end);

@@ -471,7 +471,7 @@ pub(crate) async fn present_bullet_list_item_selected(
         }
         Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -646,7 +646,7 @@ async fn finish_bullet_item(
             todo!("This should undo the finish and put the item back to what it was before")
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -725,7 +725,8 @@ async fn parent_to_item(
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
             parent_to_new_item(parent_this, send_to_data_storage_layer).await
         }
-        Err(err) => todo!("Unexpected {}", err),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -926,7 +927,7 @@ pub(crate) async fn parent_to_new_item(
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -1025,7 +1026,7 @@ pub(crate) async fn declare_item_type(
         }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }
 
@@ -1070,6 +1071,6 @@ pub(crate) async fn present_is_person_or_group_around_menu(
         Ok(IsAPersonOrGroupAroundSelection::No) => todo!(),
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

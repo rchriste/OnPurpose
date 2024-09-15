@@ -648,9 +648,7 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
             return Ok(None);
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(e) => {
-            todo!("Error: {:?}", e)
-        }
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
     let time_boxed = Text::new("Time box how much time for this item")
