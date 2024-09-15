@@ -66,7 +66,6 @@ enum BulletListSingleItemSelection<'e> {
     GiveThisItemAParent,
     ChangeReadyAndUrgencyPlan,
     UnableToDoThisRightNow,
-    NotInTheMoodToDoThisRightNow,
     SomethingElseShouldBeDoneFirst,
     ReviewItem,
     StateASmallerNextStep,
@@ -127,9 +126,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             }
             Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
-            Self::NotInTheMoodToDoThisRightNow => {
-                write!(f, "I am not in the mood to do this right now")
-            }
             Self::DefineMilestones => write!(f, "Define milestones"),
             Self::UpdateMilestones => write!(f, "Update milestones"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
@@ -177,7 +173,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         list.push(Self::Finished);
 
         list.push(Self::UnableToDoThisRightNow);
-        list.push(Self::NotInTheMoodToDoThisRightNow);
 
         list.push(Self::StateASmallerNextStep);
 
@@ -371,9 +366,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::NotInTheMoodToDoThisRightNow) => {
-            todo!("TODO: Implement NotInTheMoodToDoThisRightNow");
         }
         Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
