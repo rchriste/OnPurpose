@@ -2,7 +2,6 @@ pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
 pub(crate) mod prompt_priority_for_new_item;
 mod something_else_should_be_done_first;
-mod starting_to_work_on_this_now;
 pub(crate) mod state_a_smaller_next_step;
 pub(crate) mod urgency_plan;
 
@@ -34,7 +33,6 @@ use crate::{
             bullet_list_single_item::{
                 give_this_item_a_parent::give_this_item_a_parent,
                 something_else_should_be_done_first::something_else_should_be_done_first,
-                starting_to_work_on_this_now::starting_to_work_on_this_now,
                 state_a_smaller_next_step::state_a_smaller_next_step,
             },
             review_item,
@@ -60,7 +58,6 @@ pub(crate) enum LogTime {
 enum BulletListSingleItemSelection<'e> {
     ChangeItemType { current: &'e SurrealItemType },
     CaptureNewItem,
-    StartingToWorkOnThisNow,
     GiveThisItemAParent,
     ChangeReadyAndUrgencyPlan,
     UnableToDoThisRightNow,
@@ -89,7 +86,6 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::SwitchToParentItem(parent_item, _) => {
                 write!(f, "⇄ Switch to parent: {}", parent_item)
             }
-            Self::StartingToWorkOnThisNow => write!(f, "I'm starting to work on this now"),
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
@@ -134,7 +130,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         }
 
         list.push(Self::CaptureNewItem);
-        list.push(Self::StartingToWorkOnThisNow);
         list.push(Self::WorkedOnThis);
 
         list.push(Self::Finished);
@@ -226,15 +221,6 @@ pub(crate) async fn present_bullet_list_item_selected(
     match selection {
         Ok(BulletListSingleItemSelection::ChangeItemType { .. }) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
-        }
-        Ok(BulletListSingleItemSelection::StartingToWorkOnThisNow) => {
-            starting_to_work_on_this_now(
-                menu_for,
-                &when_selected,
-                bullet_list,
-                send_to_data_storage_layer,
-            )
-            .await
         }
         Ok(BulletListSingleItemSelection::CaptureNewItem) => {
             capture(send_to_data_storage_layer).await?;

@@ -228,6 +228,7 @@ pub(crate) async fn present_bullet_list_menu(
             }
         },
         Ok(InquireBulletListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {
+            println!("Press Ctrl+C to exit");
             Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
         }
         Ok(InquireBulletListItem::MainMenu) => {
