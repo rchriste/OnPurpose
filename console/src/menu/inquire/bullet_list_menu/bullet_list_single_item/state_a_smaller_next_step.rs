@@ -144,14 +144,6 @@ pub(crate) async fn state_a_child_next_step_new_item(
             ))
             .await
         }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
-            Box::pin(state_a_child_next_step_new_item(
-                selected_item,
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
         Ok(item_type_selection) => {
             let mut new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let higher_importance_than_this = if selected_item.has_children(Filter::Active) {

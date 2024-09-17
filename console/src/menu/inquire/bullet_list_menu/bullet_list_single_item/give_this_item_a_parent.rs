@@ -137,14 +137,6 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
             ))
             .await
         }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
-            Box::pin(parent_to_a_goal_or_motivation_new_goal_or_motivation(
-                parent_this,
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer

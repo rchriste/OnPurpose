@@ -63,14 +63,6 @@ pub(crate) async fn something_else_should_be_done_first_new_item(
             ))
             .await
         }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
-            Box::pin(something_else_should_be_done_first_new_item(
-                unable_to_do,
-                send_to_data_storage_layer,
-            ))
-            .await
-        }
         Ok(selection) => {
             let new_item = selection.create_new_item_prompt_user_for_summary();
             send_to_data_storage_layer

@@ -612,13 +612,9 @@ async fn parent_to_item(
 pub(crate) enum ItemTypeSelection {
     Action,
     Goal,
-    ResponsiveGoal,
     MotivationCore,
     MotivationNonCore,
-    ResponsiveMotivationCore,
-    ResponsiveMotivationNonCore,
     NormalHelp,
-    ResponsiveHelp,
 }
 
 impl Display for ItemTypeSelection {
@@ -626,20 +622,13 @@ impl Display for ItemTypeSelection {
         match self {
             Self::Action => write!(f, "Action 🪜"),
             Self::Goal => write!(f, "Multi-Step Goal 🪧"),
-            Self::ResponsiveGoal => write!(f, "Responsive Multi-Step Goal 🪧"),
             Self::MotivationCore => {
                 write!(f, "Motivational Core Reason 🎯🏢")
             }
             Self::MotivationNonCore => {
                 write!(f, "Motivational Non-Core Reason 🎯🏞")
             }
-            Self::ResponsiveMotivationCore => {
-                write!(f, "Responsive Motivational Core Reason 🎯🏢")
-            }
-            Self::ResponsiveMotivationNonCore => {
-                write!(f, "Responsive Motivational Non-Core Reason 🎯🏞")
-            }
-            Self::NormalHelp | Self::ResponsiveHelp => write!(f, "Help"),
+            Self::NormalHelp => write!(f, "Help"),
         }
     }
 }
@@ -656,15 +645,7 @@ impl ItemTypeSelection {
     }
 
     pub(crate) fn create_list_goals_and_motivations() -> Vec<Self> {
-        vec![
-            Self::Goal,
-            Self::MotivationCore,
-            Self::MotivationNonCore,
-            Self::ResponsiveGoal,
-            Self::ResponsiveMotivationCore,
-            Self::ResponsiveMotivationNonCore,
-            Self::ResponsiveHelp,
-        ]
+        vec![Self::Goal, Self::MotivationCore, Self::MotivationNonCore]
     }
 
     pub(crate) fn create_new_item_prompt_user_for_summary(&self) -> new_item::NewItem {
@@ -682,9 +663,6 @@ impl ItemTypeSelection {
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
-            ItemTypeSelection::ResponsiveGoal => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
             ItemTypeSelection::MotivationCore => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
@@ -693,19 +671,8 @@ impl ItemTypeSelection {
                 .item_type(SurrealItemType::Motivation(
                     SurrealMotivationKind::NonCoreWork,
                 )),
-            ItemTypeSelection::ResponsiveMotivationCore => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
-            ItemTypeSelection::ResponsiveMotivationNonCore => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(
-                    SurrealMotivationKind::NonCoreWork,
-                )),
             ItemTypeSelection::NormalHelp => {
                 panic!("NormalHelp should be handled before this point")
-            }
-            ItemTypeSelection::ResponsiveHelp => {
-                panic!("ResponsiveHelp should be handled before this point")
             }
         };
         new_item_builder
@@ -752,29 +719,6 @@ impl ItemTypeSelection {
         );
         println!();
     }
-
-    pub(crate) fn print_responsive_help() {
-        println!(
-            "The word responsive means do {}not{} prompt for a next step but do be searchable so",
-            Style::default().bold(),
-            Style::default()
-        );
-        println!(
-            "work can be parented to this. {}Responsive{} should be used when the work to do is or",
-            Style::default().bold(),
-            Style::default()
-        );
-        println!(
-            "will be in response to something that has or might come up. A {}Responsive Goal or ",
-            Style::default().bold()
-        );
-        println!("Motivation{} does not need the user to define a next step. Rather this is considered as", Style::default());
-        println!(
-            "a scenario that if it occurs will require your time to address and take care of but"
-        );
-        println!("otherwise there is nothing to do. This is supportive work.");
-        println!();
-    }
 }
 
 pub(crate) async fn parent_to_new_item(
@@ -787,10 +731,6 @@ pub(crate) async fn parent_to_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(parent_to_new_item(parent_this, send_to_data_storage_layer)).await
-        }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
             Box::pin(parent_to_new_item(parent_this, send_to_data_storage_layer)).await
         }
         Ok(item_type_selection) => {
@@ -840,17 +780,6 @@ pub(crate) async fn declare_item_type(
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::ResponsiveGoal) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
         Ok(ItemTypeSelection::MotivationCore) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
@@ -873,34 +802,8 @@ pub(crate) async fn declare_item_type(
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::ResponsiveMotivationCore) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Ok(ItemTypeSelection::ResponsiveMotivationNonCore) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(declare_item_type(item, send_to_data_storage_layer)).await
-        }
-        Ok(ItemTypeSelection::ResponsiveHelp) => {
-            ItemTypeSelection::print_responsive_help();
             Box::pin(declare_item_type(item, send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationCanceled) => todo!(),
