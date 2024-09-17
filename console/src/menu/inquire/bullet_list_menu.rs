@@ -73,11 +73,11 @@ impl<'a> InquireBulletListItem<'a> {
         bullet_list_created: DateTime<Utc>,
     ) -> Vec<InquireBulletListItem<'a>> {
         chain!(
-            once(InquireBulletListItem::CaptureNewItem),
-            once(InquireBulletListItem::Search),
             once(InquireBulletListItem::RefreshList(
                 bullet_list_created.into()
             )),
+            once(InquireBulletListItem::CaptureNewItem),
+            once(InquireBulletListItem::Search),
             item_action
                 .iter()
                 .map(InquireBulletListItem::BulletListSingleItem),
