@@ -21,9 +21,6 @@ use super::{
         SurrealItemOldVersion, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance,
         SurrealUrgencyPlan,
     },
-    surreal_life_area::SurrealLifeArea,
-    surreal_processed_text::SurrealProcessedText,
-    surreal_routine::SurrealRoutine,
     surreal_tables::SurrealTables,
     surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentOldVersion},
     SurrealTrigger,
@@ -31,10 +28,8 @@ use super::{
 
 pub(crate) enum DataLayerCommands {
     SendRawData(oneshot::Sender<SurrealTables>),
-    SendProcessedText(RecordId, oneshot::Sender<Vec<SurrealProcessedText>>),
     SendTimeSpentLog(oneshot::Sender<Vec<SurrealTimeSpent>>),
     RecordTimeSpent(NewTimeSpent),
-    AddProcessedText(String, RecordId),
     FinishItem {
         item: RecordId,
         when_finished: Datetime,
@@ -98,22 +93,6 @@ impl DataLayerCommands {
             .unwrap();
         raw_data_receiver.await
     }
-
-    #[allow(dead_code)] //Remove after this is used beyond the unit tests
-    pub(crate) async fn get_processed_text(
-        sender: &Sender<DataLayerCommands>,
-        for_item: RecordId,
-    ) -> Result<Vec<SurrealProcessedText>, RecvError> {
-        let (processed_text_tx, processed_text_rx) = oneshot::channel();
-        sender
-            .send(DataLayerCommands::SendProcessedText(
-                for_item,
-                processed_text_tx,
-            ))
-            .await
-            .unwrap();
-        processed_text_rx.await
-    }
 }
 
 pub(crate) async fn data_storage_start_and_run(
@@ -133,12 +112,6 @@ pub(crate) async fn data_storage_start_and_run(
             Some(DataLayerCommands::SendRawData(oneshot)) => {
                 let surreal_tables = load_from_surrealdb_upgrade_if_needed(&db).await;
                 oneshot.send(surreal_tables).unwrap();
-            }
-            Some(DataLayerCommands::AddProcessedText(processed_text, for_item)) => {
-                add_processed_text(processed_text, for_item, &db).await
-            }
-            Some(DataLayerCommands::SendProcessedText(for_item, send_response_here)) => {
-                send_processed_text(for_item, send_response_here, &db).await
             }
             Some(DataLayerCommands::SendTimeSpentLog(sender)) => send_time_spent(sender, &db).await,
             Some(DataLayerCommands::RecordTimeSpent(new_time_spent)) => {
@@ -332,8 +305,6 @@ pub(crate) async fn data_storage_start_and_run(
 pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> SurrealTables {
     //TODO: I should do some timings to see if starting all of these get_all requests and then doing awaits on them later really is faster in Rust. Or if they just for sure don't start until the await. For example I could call this function as many times as possible in 10 sec and time that and then see how many times I can call that function written like this and then again with the get_all being right with the await to make sure that code like this is worth it perf wise.
     let all_items = db.select(SurrealItem::TABLE_NAME);
-    let all_life_areas = db.select(SurrealLifeArea::TABLE_NAME);
-    let all_routines = db.select(SurrealRoutine::TABLE_NAME);
     let time_spent_log = db.select(SurrealTimeSpent::TABLE_NAME);
     let surreal_in_the_moment_priorities = db.select(SurrealInTheMomentPriority::TABLE_NAME);
 
@@ -357,8 +328,6 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     SurrealTables {
         surreal_items: all_items,
-        surreal_life_areas: all_life_areas.await.unwrap(),
-        surreal_routines: all_routines.await.unwrap(),
         surreal_time_spent_log: time_spent_log,
         surreal_in_the_moment_priorities: surreal_in_the_moment_priorities.await.unwrap(),
     }
@@ -393,43 +362,6 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
             .unwrap();
         assert_eq!(time_spent, updated);
     }
-}
-
-pub(crate) async fn add_processed_text(
-    processed_text: String,
-    for_item: RecordId,
-    db: &Surreal<Any>,
-) {
-    let for_item: Option<Thing> = for_item.into();
-    let data = SurrealProcessedText {
-        id: None,
-        text: processed_text.clone(),
-        when_written: Utc::now().into(),
-        for_item: for_item.unwrap(),
-    };
-    let saved: Vec<SurrealProcessedText> = db
-        .create(SurrealProcessedText::TABLE_NAME)
-        .content(data)
-        .await
-        .unwrap();
-    assert_eq!(1, saved.len());
-    assert_eq!(processed_text, saved.first().unwrap().text);
-}
-
-pub(crate) async fn send_processed_text(
-    for_item: RecordId,
-    send_response_here: oneshot::Sender<Vec<SurrealProcessedText>>,
-    db: &Surreal<Any>,
-) {
-    let mut query_result = db
-        .query("SELECT * FROM processed_text WHERE for_item = $for_item")
-        .bind(("for_item", for_item))
-        .await
-        .unwrap();
-
-    let processed_text: Vec<SurrealProcessedText> = query_result.take(0).unwrap();
-
-    send_response_here.send(processed_text).unwrap();
 }
 
 async fn send_time_spent(sender: oneshot::Sender<Vec<SurrealTimeSpent>>, db: &Surreal<Any>) {
@@ -650,8 +582,6 @@ mod tests {
         let surreal_tables = SurrealTables::new(&sender).await.unwrap();
 
         assert!(surreal_tables.surreal_items.is_empty());
-        assert!(surreal_tables.surreal_life_areas.is_empty());
-        assert!(surreal_tables.surreal_routines.is_empty());
         assert!(surreal_tables.surreal_time_spent_log.is_empty());
 
         drop(sender);
@@ -676,62 +606,6 @@ mod tests {
         assert_eq!(
             SurrealItemType::Undeclared,
             surreal_tables.surreal_items.first().unwrap().item_type
-        );
-
-        drop(sender);
-        data_storage_join_handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn add_user_processed_text() {
-        let (sender, receiver) = mpsc::channel(1);
-        let data_storage_join_handle =
-            tokio::spawn(async move { data_storage_start_and_run(receiver, "mem://").await });
-
-        let new_action = NewItemBuilder::default()
-            .summary("New next step")
-            .build()
-            .expect("Filled out required fields");
-        sender
-            .send(DataLayerCommands::NewItem(new_action))
-            .await
-            .unwrap();
-
-        let surreal_tables = SurrealTables::new(&sender).await.unwrap();
-
-        let item = surreal_tables.surreal_items.first().unwrap();
-        let processed_text = DataLayerCommands::get_processed_text(
-            &sender,
-            item.id.clone().expect("Item exists in DB"),
-        )
-        .await
-        .unwrap();
-
-        assert!(processed_text.is_empty());
-
-        sender
-            .send(DataLayerCommands::AddProcessedText(
-                "Some user processed text".into(),
-                item.id.clone().expect("Already in DB"),
-            ))
-            .await
-            .unwrap();
-
-        let (processed_text_tx, processed_text_rx) = oneshot::channel();
-        let next_step = surreal_tables.surreal_items.first().unwrap();
-        sender
-            .send(DataLayerCommands::SendProcessedText(
-                next_step.id.clone().expect("Item exists in DB"),
-                processed_text_tx,
-            ))
-            .await
-            .unwrap();
-
-        let processed_text = processed_text_rx.await.unwrap();
-        assert!(!processed_text.is_empty());
-        assert_eq!(
-            "Some user processed text",
-            processed_text.first().unwrap().text
         );
 
         drop(sender);

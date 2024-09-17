@@ -1,6 +1,5 @@
 pub(crate) mod base_data;
 pub(crate) mod calculated_data;
-mod change_routine;
 pub(crate) mod data_storage;
 pub(crate) mod display;
 pub(crate) mod menu;

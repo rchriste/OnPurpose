@@ -9,7 +9,6 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     base_data::{time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
-    change_routine::change_routine,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
@@ -27,11 +26,9 @@ use super::{
 };
 
 enum TopMenuSelection {
-    ChangeRoutine,
     Reflection,
     ViewBulletList,
     ViewExpectations,
-    ViewMotivations,
     ViewPriorities,
     ViewPrioritiesRatatui,
     DebugViewAllItems,
@@ -40,16 +37,12 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::ChangeRoutine => write!(f, "↝ ↝  Change Routine            ↜"),
             TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
             TopMenuSelection::ViewBulletList => {
                 write!(f, "👁 🗒️  View Bullet List          👁")
             }
             TopMenuSelection::ViewExpectations => {
                 write!(f, "👁 🙏 View Expectations          👁")
-            }
-            TopMenuSelection::ViewMotivations => {
-                write!(f, "👁 🎯 View Motivations           👁")
             }
             TopMenuSelection::ViewPriorities => write!(f, "👁 ⚖️  View Priorities           👁"),
             TopMenuSelection::ViewPrioritiesRatatui => {
@@ -67,11 +60,9 @@ impl TopMenuSelection {
         vec![
             Self::ViewPriorities,
             Self::ViewPrioritiesRatatui,
-            Self::ChangeRoutine,
             Self::Reflection,
             Self::ViewBulletList,
             Self::ViewExpectations,
-            Self::ViewMotivations,
             Self::DebugViewAllItems,
         ]
     }
@@ -84,7 +75,6 @@ pub(crate) async fn present_top_menu(
 
     let selection = Select::new("Select from the below list|", top_menu).prompt();
     match selection {
-        Ok(TopMenuSelection::ChangeRoutine) => change_routine(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::Reflection) => present_reflection(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ViewExpectations) => {
             view_expectations(send_to_data_storage_layer).await
@@ -92,7 +82,6 @@ pub(crate) async fn present_top_menu(
         Ok(TopMenuSelection::ViewBulletList) => {
             present_normal_bullet_list_menu(send_to_data_storage_layer).await
         }
-        Ok(TopMenuSelection::ViewMotivations) => view_motivations().await,
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ViewPrioritiesRatatui) => {
             view_priorities::view_priorities().map_err(|_| ())
@@ -124,10 +113,6 @@ pub(crate) async fn capture(
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
-}
-
-async fn view_motivations() -> Result<(), ()> {
-    todo!()
 }
 
 async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>) -> Result<(), ()> {
@@ -495,6 +480,6 @@ async fn debug_view_all_items(
             Box::pin(present_top_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
-        Err(err) => todo!("Unexpected InquireError of {}", err),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

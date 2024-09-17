@@ -1,7 +1,5 @@
 pub(crate) mod in_the_moment_priority;
 pub(crate) mod item;
-pub(crate) mod life_area;
-pub(crate) mod routine;
 pub(crate) mod time_spent;
 
 use chrono::{DateTime, Utc};
@@ -14,8 +12,6 @@ use crate::data_storage::surrealdb_layer::{
 
 use self::{
     item::{Item, ItemVecExtensions},
-    life_area::LifeArea,
-    routine::Routine,
     time_spent::TimeSpent,
 };
 
@@ -34,14 +30,6 @@ pub(crate) struct BaseData {
 
     #[borrows(surreal_tables)]
     #[covariant]
-    life_areas: Vec<LifeArea<'this>>,
-
-    #[borrows(surreal_tables)]
-    #[covariant]
-    routines: Vec<Routine<'this>>,
-
-    #[borrows(surreal_tables)]
-    #[covariant]
     time_spent_log: Vec<TimeSpent<'this>>,
 }
 
@@ -55,8 +43,6 @@ impl BaseData {
             items_builder: |surreal_tables, now| surreal_tables.make_items(now),
             active_items_builder: |items| items.filter_active_items(),
             now,
-            life_areas_builder: |surreal_tables| surreal_tables.make_life_areas(),
-            routines_builder: |surreal_tables| surreal_tables.make_routines(),
             time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log().collect(),
         }
         .build()
@@ -72,14 +58,6 @@ impl BaseData {
 
     pub(crate) fn get_active_items(&self) -> &[&Item] {
         self.borrow_active_items()
-    }
-
-    pub(crate) fn get_life_areas(&self) -> &[LifeArea] {
-        self.borrow_life_areas()
-    }
-
-    pub(crate) fn get_routines(&self) -> &[Routine] {
-        self.borrow_routines()
     }
 
     pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {

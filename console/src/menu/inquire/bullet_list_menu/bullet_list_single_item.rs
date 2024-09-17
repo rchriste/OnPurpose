@@ -9,7 +9,7 @@ use std::fmt::Display;
 
 use better_term::Style;
 use chrono::{DateTime, Utc};
-use inquire::{Editor, InquireError, Select, Text};
+use inquire::{InquireError, Select, Text};
 use tokio::sync::mpsc::Sender;
 use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
@@ -67,7 +67,6 @@ enum BulletListSingleItemSelection<'e> {
     WorkedOnThis,
     Finished,
     ReturnToBulletList,
-    ProcessAndFinish,
     UpdateSummary,
     SwitchToParentItem(DisplayItem<'e>, &'e ItemStatus<'e>),
     ParentToItem,
@@ -80,7 +79,6 @@ enum BulletListSingleItemSelection<'e> {
 impl Display for BulletListSingleItemSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ProcessAndFinish => write!(f, "Process & Finish 📕"),
             Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => {
@@ -188,7 +186,6 @@ impl<'e> BulletListSingleItemSelection<'e> {
         list.push(Self::ChangeReadyAndUrgencyPlan);
 
         list.extend(vec![
-            Self::ProcessAndFinish,
             Self::UpdateSummary,
             Self::DebugPrintItem,
             Self::ReturnToBulletList,
@@ -352,9 +349,6 @@ pub(crate) async fn present_bullet_list_item_selected(
                 send_to_data_storage_layer,
             )
             .await
-        }
-        Ok(BulletListSingleItemSelection::ProcessAndFinish) => {
-            process_and_finish_bullet_item(menu_for.get_item(), send_to_data_storage_layer).await
         }
         Ok(BulletListSingleItemSelection::UpdateSummary) => {
             update_item_summary(menu_for.get_item(), send_to_data_storage_layer).await?;
@@ -564,37 +558,6 @@ async fn finish_bullet_item(
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
-}
-
-async fn process_and_finish_bullet_item(
-    item: &Item<'_>,
-    send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<(), ()> {
-    //I should probably be processing and finishing all of the children next steps but this requires some thought
-    //because sometimes or if there are multiple children next steps that that shouldn't happen rather the user
-    //should be prompted to pick which children to also process and finish.
-    let user_processed_text = Editor::new("Process text").prompt().unwrap();
-
-    let surreal_item = item.get_surreal_record_id();
-    if !user_processed_text.is_empty() {
-        send_to_data_storage_layer
-            .send(DataLayerCommands::AddProcessedText(
-                user_processed_text,
-                surreal_item.clone(),
-            ))
-            .await
-            .unwrap();
-    }
-
-    send_to_data_storage_layer
-        .send(DataLayerCommands::FinishItem {
-            item: surreal_item.clone(),
-            when_finished: Utc::now().into(),
-        })
-        .await
-        .unwrap();
-
-    Ok(())
 }
 
 async fn parent_to_item(

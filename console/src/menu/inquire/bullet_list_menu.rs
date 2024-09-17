@@ -45,7 +45,7 @@ pub(crate) enum InquireBulletListItem<'e> {
     Search,
     BulletListSingleItem(&'e ActionWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
-    MainMenu,
+    TopMenu,
 }
 
 impl Display for InquireBulletListItem<'_> {
@@ -62,7 +62,7 @@ impl Display for InquireBulletListItem<'_> {
                 "🔄  Refresh List ({}) 🔄",
                 bullet_list_created.format("%I:%M%p")
             ),
-            Self::MainMenu => write!(f, "🏠  Main Menu              🏠"),
+            Self::TopMenu => write!(f, "🏠  Top Menu               🏠"),
         }
     }
 }
@@ -81,7 +81,7 @@ impl<'a> InquireBulletListItem<'a> {
             item_action
                 .iter()
                 .map(InquireBulletListItem::BulletListSingleItem),
-            once(InquireBulletListItem::MainMenu)
+            once(InquireBulletListItem::TopMenu)
         )
         .collect()
     }
@@ -231,7 +231,7 @@ pub(crate) async fn present_bullet_list_menu(
             println!("Press Ctrl+C to exit");
             Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
         }
-        Ok(InquireBulletListItem::MainMenu) => {
+        Ok(InquireBulletListItem::TopMenu) => {
             Box::pin(present_top_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
