@@ -66,7 +66,11 @@ impl Display for SearchMenuUrgencyItem<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             SearchMenuUrgencyItem::AllMotivations { motivations } => {
-                write!(f, "All motivations ({} items)", motivations.len())
+                write!(
+                    f,
+                    "All motivations (i.e. purpose) {} items",
+                    motivations.len()
+                )
             }
             SearchMenuUrgencyItem::MoreUrgentThanAnythingIncludingScheduled {
                 ready,

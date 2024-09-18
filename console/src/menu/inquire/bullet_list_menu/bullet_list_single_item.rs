@@ -623,10 +623,10 @@ impl Display for ItemTypeSelection {
             Self::Action => write!(f, "Action 🪜"),
             Self::Goal => write!(f, "Multi-Step Goal 🪧"),
             Self::MotivationCore => {
-                write!(f, "Motivational Core Reason 🎯🏢")
+                write!(f, "Purpose Core Reason 🎯🏢")
             }
             Self::MotivationNonCore => {
-                write!(f, "Motivational Non-Core Reason 🎯🏞")
+                write!(f, "Purpose Non-Core Reason 🎯🏞")
             }
             Self::NormalHelp => write!(f, "Help"),
         }
@@ -702,16 +702,11 @@ impl ItemTypeSelection {
         );
         println!();
         println!(
-            "{}Motivational Reason{}",
+            "{}Purpose or Reason{}",
             Style::default().bold(),
             Style::default()
         );
-        println!(
-            "For stating that the item captured is a reason for doing something. Because there is"
-        );
-        println!("almost always a diverse number of benefits to doing something the word motivational is");
-        println!("also used. The test to know if a reason is motivational is to ask the question if this");
-        println!("was not true would that significantly change the priority or cancel the work.");
+        println!("For stating that the item captured is a reason for doing something.");
         println!(
             "{}Emoji is a target 🎯 that provides something to aim for.{}",
             Style::default().italic(),

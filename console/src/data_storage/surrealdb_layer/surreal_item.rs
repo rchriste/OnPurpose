@@ -134,6 +134,7 @@ pub(crate) enum SurrealItemType {
     Action,
     Goal(SurrealHowMuchIsInMyControl),
     IdeaOrThought,
+    /// Purpose behind the work
     Motivation(SurrealMotivationKind),
     PersonOrGroup,
 }

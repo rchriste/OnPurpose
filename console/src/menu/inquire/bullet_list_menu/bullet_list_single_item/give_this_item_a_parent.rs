@@ -20,6 +20,7 @@ use crate::{
 enum ParentItem<'e> {
     ItemNode(DisplayItemNode<'e>),
     FinishItem,
+    CreateNewItem,
 }
 
 impl fmt::Display for ParentItem<'_> {
@@ -27,6 +28,7 @@ impl fmt::Display for ParentItem<'_> {
         match self {
             ParentItem::ItemNode(node) => write!(f, "{}", node),
             ParentItem::FinishItem => write!(f, "🚪Finish Item"),
+            ParentItem::CreateNewItem => write!(f, "🗰 Create New Item"),
         }
     }
 }
@@ -69,6 +71,7 @@ pub(crate) async fn give_this_item_a_parent(
 
     let mut list = Vec::new();
     if show_finish_option {
+        list.push(ParentItem::CreateNewItem);
         list.push(ParentItem::FinishItem);
     }
     for node in nodes.iter() {
@@ -110,7 +113,9 @@ pub(crate) async fn give_this_item_a_parent(
                 .unwrap();
             Ok(())
         }
-        Err(InquireError::OperationCanceled) | Err(InquireError::InvalidConfiguration(_)) => {
+        Ok(ParentItem::CreateNewItem)
+        | Err(InquireError::OperationCanceled)
+        | Err(InquireError::InvalidConfiguration(_)) => {
             parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,

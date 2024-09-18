@@ -23,7 +23,7 @@ impl<'s> Display for DisplayItemType<'s> {
                 write!(f, "🎯")?;
                 match self.style {
                     DisplayStyle::Abbreviated => {}
-                    DisplayStyle::Full => write!(f, " Motivation")?,
+                    DisplayStyle::Full => write!(f, " Purpose")?,
                 }
                 match kind {
                     SurrealMotivationKind::NotSet => Ok(()),
