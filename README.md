@@ -1,4 +1,4 @@
-# On Purpose: Intuitive Time Management
+# _On Purpose: Neurodiverse Time Mastery_
 ## Why does this project exist?
 
 I believe that software can assist with mental health by being designed to better help us with time management. To better make my point I want to bring up being blind, because when software is designed to work well for the blind, all depending on how well it is implemented the software can change from being a barrier to an indispensable tool. I bring this up because I believe we have an opportunity to assist the neurodiverse with time management by making changes to software, but similar to software features for the blind doing this properly requires changes across the full software ecosystem. **The key is to make improvements in areas that have clinical impact and it is my understanding and experience that in a clinical setting, interactions with others and time management are the two big topics and how software is designed is very tied into the time management side of the problem. A certain thing about software might be a slight annoyance for many but for someone who is neurodiverse it is more than annoying rather it inhibits their ability to function and get things done. I believe a focus on making software work better for personal time management can help the neurodiverse and have a positive impact on society.**
@@ -52,11 +52,11 @@ I am also paying attention to GUI app development in Rust. I am doing this for t
 
 The data storage layer is implemented as an embedded [SurrealDB](https://github.com/surrealdb/surrealdb) database. You can think of this like [SQLLite](https://www.sqlite.org/index.html) except I am using [SurrealDB](https://github.com/surrealdb/surrealdb). Currently I only save data locally. Sync'ing the data between machines is planned, however I want to avoid having a service for multiple reasons. Ideally I would sync the data between machines using the [Microsoft Graph To Do REST APIs](https://lib.rs/crates/graph-rs-sdk), but I doubt I can make my to do items compatible with the Microsoft To Do schema. I plan on trying to extend the To Do API with a json blob in the To Do Notes section, but I'm not sure how much I should be doing this. Also there are things to sync beyond to do items, like time spent logs so beyond the To Do REST API I plan on also syncing data between machines by placing files in [OneDrive](https://lib.rs/crates/onedrive).
 
-## Installing On Purpose
+## Installing _On Purpose_
 
 If you want to try it now you will need to compile it and use the Rust tool `Cargo install` to install it. As of today I expect _On Purpose_ to work on both Windows and Linux but I expect the Windows side to eventually be more fully featured as I do have plans to integrate with various Windows API in time. I will mention that setting up the Surreal DB build dependency is more of a pain in Windows proper than the convenient steps you can follow inside Windows' Linux WSL layer. But Windows is what I am currently using.
 
-### Compiling On Purpose
+### Compiling _On Purpose_
 
 Compiling On Purpose requires the Rust toolchain and it requires installing various things as well so the Surreal DB dependencies can compile. These other things are things like LLVM and some GNU tools. This is required because I use [Surreal DB](https://github.com/surrealdb/surrealdb) as an embedded database that persists data to disk.
 
