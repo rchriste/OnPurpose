@@ -8,7 +8,7 @@ This plan was put together after getting feedback on version 0.1 of _On Purpose_
 ## Summary & Vision of Plan
 
 ### Support for Reactive Work (i.e. Interruptions)
-An interruption is something that you do in support of work that you are not currently driving. However reactive work is a better term because this term does not imply judgement and  something that someone else is driving or it is something that you are doing .
+Reactive work is something that you do because of an event or trigger. An interruption is something that you do in support of work that you are not currently driving. However reactive work is a better term because this term does not imply judgement and  something that someone else is driving or it is something that you are doing .
 Expected interruptions & support & reactive
 Unexpected interruptions
 Log interruption time to unexpected or to an expected interruption
@@ -23,6 +23,11 @@ The user should state how often they want to review their budget for interruptio
 
 ### Planning & Reviewing a Project
 The current point of asking where the review points are in the program goes away and is replaced by just reviewing everything that is marked as a project with a review and planning frequency.
+
+Time it takes to transition into a task
+How much time debt are you taking on by starting this task
+After working on how long until this task is no longer mentally resident
+What is the minimum amount of time required to make progress 
 
 
 
