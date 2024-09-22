@@ -82,20 +82,20 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => {
-                write!(f, "⇄ Switch to parent: {}", parent_item)
+                write!(f, "⇄ Switch to purpose: {}", parent_item)
             }
             Self::StateASmallerNextStep => {
                 write!(f, "State a smaller next step")
             }
-            Self::ReviewItem => write!(f, "Review Item: Update or Reorder Children or Parents"),
+            Self::ReviewItem => write!(f, "Review Item"),
             Self::ParentToItem => {
-                write!(f, "⭱ Parent to a new or existing Item")
+                write!(f, "⭱ Pick another Larger Purpose")
             }
             Self::SwitchToChildItem(child_item, _) => {
-                write!(f, "⇄ Switch to child: {}", child_item)
+                write!(f, "⇄ Switch to smaller item: {}", child_item)
             }
-            Self::RemoveChild(child_item, _) => write!(f, "🚫 Remove Child: {}", child_item),
-            Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove Parent: {}", parent_item),
+            Self::RemoveChild(child_item, _) => write!(f, "🚫 Remove smaller: {}", child_item),
+            Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove purpose: {}", parent_item),
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
             Self::SomethingElseShouldBeDoneFirst => {
                 write!(f, "Something else should be done first")
@@ -104,7 +104,7 @@ impl Display for BulletListSingleItemSelection<'_> {
                 let current_item_type = DisplayItemType::new(DisplayStyle::Full, current);
                 write!(f, "Change Item Type (Currently: {})", current_item_type)
             }
-            Self::GiveThisItemAParent => write!(f, "Give this item a Parent"),
+            Self::GiveThisItemAParent => write!(f, "Pick a Larger Purpose"),
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
@@ -144,7 +144,9 @@ impl<'e> BulletListSingleItemSelection<'e> {
             .get_parents(Filter::Active)
             .map(|x| x.get_item())
             .collect::<Vec<_>>();
-        list.push(Self::ParentToItem);
+        if !has_no_parent {
+            list.push(Self::ParentToItem);
+        }
         list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
             let item_status = all_items_status
                 .iter()
@@ -620,13 +622,13 @@ pub(crate) enum ItemTypeSelection {
 impl Display for ItemTypeSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Action => write!(f, "Action 🪜"),
-            Self::Goal => write!(f, "Multi-Step Goal 🪧"),
+            Self::Action => write!(f, "Step 🪜"),
+            Self::Goal => write!(f, "Project 🪧"),
             Self::MotivationCore => {
-                write!(f, "Purpose Core Reason 🎯🏢")
+                write!(f, "Core Motivational Purpose 🎯🏢")
             }
             Self::MotivationNonCore => {
-                write!(f, "Purpose Non-Core Reason 🎯🏞")
+                write!(f, "Non-Core Motivational Purpose 🎯🏞")
             }
             Self::NormalHelp => write!(f, "Help"),
         }
@@ -681,7 +683,7 @@ impl ItemTypeSelection {
     }
 
     pub(crate) fn print_normal_help() {
-        println!("{}Action{}", Style::default().bold(), Style::default());
+        println!("{}Step{}", Style::default().bold(), Style::default());
         println!("A thing to do and an action or step to take.");
         println!(
             "{}The emoji is a ladder 🪜 with steps.{}",
@@ -690,7 +692,7 @@ impl ItemTypeSelection {
         );
         println!();
         println!(
-            "{}Multi-Step Goal{}",
+            "{}Multi-Step Project{}",
             Style::default().bold(),
             Style::default()
         );
@@ -702,7 +704,7 @@ impl ItemTypeSelection {
         );
         println!();
         println!(
-            "{}Purpose or Reason{}",
+            "{}Motivational Purpose or Reason{}",
             Style::default().bold(),
             Style::default()
         );

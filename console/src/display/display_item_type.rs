@@ -16,38 +16,38 @@ impl<'s> Display for DisplayItemType<'s> {
                 write!(f, "🪧")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
-                    DisplayStyle::Full => write!(f, " Goal"),
+                    DisplayStyle::Full => write!(f, " Project"),
                 }
             }
             SurrealItemType::Motivation(kind) => {
                 write!(f, "🎯")?;
-                match self.style {
-                    DisplayStyle::Abbreviated => {}
-                    DisplayStyle::Full => write!(f, " Purpose")?,
-                }
                 match kind {
-                    SurrealMotivationKind::NotSet => Ok(()),
+                    SurrealMotivationKind::NotSet => {}
                     SurrealMotivationKind::CoreWork => {
                         write!(f, "🏢")?;
                         match self.style {
-                            DisplayStyle::Abbreviated => Ok(()),
-                            DisplayStyle::Full => write!(f, " Core Work"),
+                            DisplayStyle::Abbreviated => {}
+                            DisplayStyle::Full => write!(f, " Core")?,
                         }
                     }
                     SurrealMotivationKind::NonCoreWork => {
                         write!(f, "🏞")?;
                         match self.style {
-                            DisplayStyle::Abbreviated => Ok(()),
-                            DisplayStyle::Full => write!(f, " Non-Core Work"),
+                            DisplayStyle::Abbreviated => {}
+                            DisplayStyle::Full => write!(f, " Non-Core")?,
                         }
                     }
+                }
+                match self.style {
+                    DisplayStyle::Abbreviated => Ok(()),
+                    DisplayStyle::Full => write!(f, " Motivational Purpose"),
                 }
             }
             SurrealItemType::Action => {
                 write!(f, "🪜")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
-                    DisplayStyle::Full => write!(f, " Action"),
+                    DisplayStyle::Full => write!(f, " Step"),
                 }
             }
             SurrealItemType::Undeclared => match self.style {
