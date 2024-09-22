@@ -1,4 +1,4 @@
-name: Rust
+name: Checkin
 
 on:
   push:
