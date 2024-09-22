@@ -35,6 +35,7 @@ jobs:
           Changes in this Release
           - Initial Release
           - Rename Item types to: Step, Project, and Motivational Purpose
+          - Improve terminology in the UI: Things are done for a larger reason, and broken down into smaller actions
           - Save's data to c:\.on_purpose.db\
 
         draft: true
