@@ -79,7 +79,7 @@ pub(crate) async fn select_an_item<'a>(
     }
 }
 
-pub(crate) async fn state_a_smaller_next_step(
+pub(crate) async fn state_a_smaller_action(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -121,14 +121,12 @@ pub(crate) async fn state_a_smaller_next_step(
 
             Ok(())
         }
-        Ok(None) => {
-            state_a_child_next_step_new_item(selected_item, send_to_data_storage_layer).await
-        }
+        Ok(None) => state_a_child_action_new_item(selected_item, send_to_data_storage_layer).await,
         Err(()) => Err(()),
     }
 }
 
-pub(crate) async fn state_a_child_next_step_new_item(
+pub(crate) async fn state_a_child_action_new_item(
     selected_item: &ItemNode<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -138,7 +136,7 @@ pub(crate) async fn state_a_child_next_step_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(state_a_child_next_step_new_item(
+            Box::pin(state_a_child_action_new_item(
                 selected_item,
                 send_to_data_storage_layer,
             ))

@@ -35,7 +35,7 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
             }
             ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
-                write!(f, "[👨‍👦 Needs a purpose] {}", display)
+                write!(f, "[👨‍👦 Needs a reason] {}", display)
             }
             ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                 let display = DisplayItemStatus::new(item_status);

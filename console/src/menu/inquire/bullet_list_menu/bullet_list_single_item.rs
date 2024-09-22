@@ -2,7 +2,7 @@ pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
 pub(crate) mod prompt_priority_for_new_item;
 mod something_else_should_be_done_first;
-pub(crate) mod state_a_smaller_next_step;
+pub(crate) mod state_a_smaller_action;
 pub(crate) mod urgency_plan;
 
 use std::fmt::Display;
@@ -33,7 +33,7 @@ use crate::{
             bullet_list_single_item::{
                 give_this_item_a_parent::give_this_item_a_parent,
                 something_else_should_be_done_first::something_else_should_be_done_first,
-                state_a_smaller_next_step::state_a_smaller_next_step,
+                state_a_smaller_action::state_a_smaller_action,
             },
             review_item,
         },
@@ -63,7 +63,7 @@ enum BulletListSingleItemSelection<'e> {
     UnableToDoThisRightNow,
     SomethingElseShouldBeDoneFirst,
     ReviewItem,
-    StateASmallerNextStep,
+    StateASmallerAction,
     WorkedOnThis,
     Finished,
     ReturnToBulletList,
@@ -82,20 +82,20 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::CaptureNewItem => write!(f, "Capture New Item"),
             Self::UpdateSummary => write!(f, "Update Summary"),
             Self::SwitchToParentItem(parent_item, _) => {
-                write!(f, "⇄ Switch to purpose: {}", parent_item)
+                write!(f, "⇄ Select larger Reason: {}", parent_item)
             }
-            Self::StateASmallerNextStep => {
-                write!(f, "State a smaller next step")
+            Self::StateASmallerAction => {
+                write!(f, "State a smaller Action")
             }
             Self::ReviewItem => write!(f, "Review Item"),
             Self::ParentToItem => {
-                write!(f, "⭱ Pick another Larger Purpose")
+                write!(f, "⭱ Pick another larger Reason")
             }
             Self::SwitchToChildItem(child_item, _) => {
-                write!(f, "⇄ Switch to smaller item: {}", child_item)
+                write!(f, "⇄ Select smaller Action: {}", child_item)
             }
-            Self::RemoveChild(child_item, _) => write!(f, "🚫 Remove smaller: {}", child_item),
-            Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove purpose: {}", parent_item),
+            Self::RemoveChild(child_item, _) => write!(f, "🚫 Remove action: {}", child_item),
+            Self::RemoveParent(parent_item, _) => write!(f, "🚫 Remove reason: {}", parent_item),
             Self::DebugPrintItem => write!(f, "Debug Print Item"),
             Self::SomethingElseShouldBeDoneFirst => {
                 write!(f, "Something else should be done first")
@@ -104,7 +104,7 @@ impl Display for BulletListSingleItemSelection<'_> {
                 let current_item_type = DisplayItemType::new(DisplayStyle::Full, current);
                 write!(f, "Change Item Type (Currently: {})", current_item_type)
             }
-            Self::GiveThisItemAParent => write!(f, "Pick a Larger Purpose"),
+            Self::GiveThisItemAParent => write!(f, "Pick a larger reason"),
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
@@ -134,7 +134,7 @@ impl<'e> BulletListSingleItemSelection<'e> {
 
         list.push(Self::UnableToDoThisRightNow);
 
-        list.push(Self::StateASmallerNextStep);
+        list.push(Self::StateASmallerAction);
 
         list.push(Self::SomethingElseShouldBeDoneFirst);
 
@@ -231,8 +231,8 @@ pub(crate) async fn present_bullet_list_item_selected(
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::StateASmallerNextStep) => {
-            state_a_smaller_next_step(menu_for.get_item_node(), send_to_data_storage_layer).await?;
+        Ok(BulletListSingleItemSelection::StateASmallerAction) => {
+            state_a_smaller_action(menu_for.get_item_node(), send_to_data_storage_layer).await?;
             //TODO: Refresh menu_for and bullet_list
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
                 .await
@@ -520,7 +520,7 @@ async fn finish_bullet_item(
                 .next()
                 .expect("We will find this existing item once");
 
-            state_a_smaller_next_step(&updated_parent, send_to_data_storage_layer).await?;
+            state_a_smaller_action(&updated_parent, send_to_data_storage_layer).await?;
 
             //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
             Box::pin(finish_bullet_item(

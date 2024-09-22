@@ -21,7 +21,7 @@ use crate::{
     menu::inquire::{
         bullet_list_menu::bullet_list_single_item::{
             give_this_item_a_parent::give_this_item_a_parent,
-            state_a_smaller_next_step::state_a_smaller_next_step,
+            state_a_smaller_action::state_a_smaller_action,
             urgency_plan::{prompt_for_dependencies, prompt_for_urgency_plan, AddOrRemove},
         },
         select_higher_importance_than_this::select_higher_importance_than_this,
@@ -387,7 +387,7 @@ async fn present_review_item_menu_internal(
             .await
         }
         ReviewItemMenuChoices::AddNewChild => {
-            state_a_smaller_next_step(selected_item.get_item_node(), send_to_data_storage_layer)
+            state_a_smaller_action(selected_item.get_item_node(), send_to_data_storage_layer)
                 .await
                 .unwrap();
 
