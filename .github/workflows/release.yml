@@ -21,7 +21,7 @@ jobs:
     - name: Compress Executable
       run: |
         $exe = Get-ChildItem -Path .\target\release\ -Filter *.exe
-        Compress-Archive -Path $exe -DestinationPath .\target\debug\OnPurpose.zip
+        Compress-Archive -Path $exe -DestinationPath .\target\release\OnPurpose.zip
 
     - name: Create GitHub Release
       id: create_release
