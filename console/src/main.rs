@@ -8,6 +8,11 @@ pub(crate) mod new_time_spent;
 mod node;
 pub(crate) mod systems;
 
+use std::{
+    env,
+    time::{Duration, SystemTime},
+};
+
 use tokio::sync::mpsc;
 
 use crate::{
@@ -33,6 +38,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .await
     });
+
+    //If the current executable is more than 3 months old print a message that there is probably a newer version available
+    let exe_path = env::current_exe().unwrap();
+    let exe_metadata = exe_path.metadata().unwrap();
+    let exe_modified = exe_metadata.modified().unwrap();
+    let now = SystemTime::now();
+    let three_months = Duration::from_secs(60 * 60 * 24 * 30 * 3);
+    if now.duration_since(exe_modified).unwrap() > three_months {
+        println!("This version of On-Purpose is more than 3 months old. You may want to check for a newer version at https://github.com/rchriste/OnPurpose/releases");
+    }
 
     loop {
         match present_normal_bullet_list_menu(&send_to_data_storage_layer_tx).await {
