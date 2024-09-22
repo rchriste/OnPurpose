@@ -36,3 +36,5 @@ jobs:
           - Initial Release
         draft: true
         prerelease: false
+        assets: |
+          .\target\release\OnPurpose.zip
