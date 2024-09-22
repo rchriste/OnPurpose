@@ -203,6 +203,9 @@ pub(crate) async fn present_bullet_list_item_selected(
     bullet_list: &BulletList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
+    println!();
+    println!("Selected Item:");
+    println!("\t{}", DisplayItem::new(menu_for.get_item()));
     print_completed_children(menu_for);
     print_in_progress_children(menu_for, bullet_list.get_all_items_status());
     println!();
@@ -388,18 +391,18 @@ pub(crate) async fn present_bullet_list_item_selected(
 }
 
 fn print_completed_children(menu_for: &ItemStatus<'_>) {
-    let completed_children = menu_for
+    let mut completed_children = menu_for
         .get_children(Filter::Finished)
         .map(|x| x.get_item())
         .collect::<Vec<_>>();
+    completed_children.sort_by(|a, b| a.get_finished_at().cmp(b.get_finished_at()));
     if !completed_children.is_empty() {
-        if completed_children.len() < 8 {
-            println!("Completed Children:",);
-            for child in completed_children {
-                println!("  ✅{}", DisplayItem::new(child));
-            }
-        } else {
-            println!("{} completed children ✅", completed_children.len());
+        println!("Completed Actions:",);
+        for child in completed_children.iter().take(8) {
+            println!("  ✅{}", DisplayItem::new(child));
+        }
+        if completed_children.len() > 8 {
+            println!("  {} more ✅", completed_children.len() - 8);
         }
     }
 }
@@ -413,7 +416,7 @@ fn print_in_progress_children(menu_for: &ItemStatus<'_>, all_item_status: &[Item
         } else {
             Default::default()
         };
-        println!("Children:");
+        println!("Smaller Actions:");
         for child in in_progress_children {
             print!("  ");
             if most_important.iter().any(|most_important| {

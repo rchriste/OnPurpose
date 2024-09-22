@@ -2135,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.65"
+version = "0.1.67"
 dependencies = [
  "better_term",
  "chrono",

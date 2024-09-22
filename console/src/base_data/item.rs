@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use surrealdb::{
     opt::RecordId,
-    sql::{Datetime, Thing},
+    sql::{self, Datetime, Thing},
 };
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
@@ -105,6 +105,10 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_finished(&self) -> bool {
         self.surreal_item.finished.is_some()
+    }
+
+    pub(crate) fn get_finished_at(&self) -> &Option<sql::Datetime> {
+        &self.surreal_item.finished
     }
 
     pub(crate) fn is_active(&self) -> bool {
