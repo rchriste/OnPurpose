@@ -23,7 +23,7 @@ impl Display for DisplayItemNode<'_> {
         } else {
             write!(f, "{} ", display_item)?;
         }
-        let parents = self.item_node.create_parent_chain();
+        let parents = self.item_node.create_parent_chain(Filter::Active);
         for item in parents.iter() {
             let display_item = DisplayItem::new(item);
             write!(f, " ⬅ {}", display_item)?;

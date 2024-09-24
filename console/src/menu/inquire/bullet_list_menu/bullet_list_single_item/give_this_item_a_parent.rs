@@ -131,7 +131,7 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
     parent_this: &Item<'_>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let list = ItemTypeSelection::create_list_goals_and_motivations();
+    let list = ItemTypeSelection::create_list();
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {

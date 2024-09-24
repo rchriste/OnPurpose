@@ -519,7 +519,7 @@ impl Display for Urgency {
                 write!(f, "❗🗓️ Schedule, to do, no matter your mode")
             }
             Urgency::MoreUrgentThanMode => {
-                write!(f, "🔥 More urgent than anything in a mode")
+                write!(f, "🔥 More urgent than your mode")
             }
             Urgency::InTheModeScheduled => write!(f, "⭳🗓️ When in the mode, scheduled"),
             Urgency::InTheModeDefinitelyUrgent => {

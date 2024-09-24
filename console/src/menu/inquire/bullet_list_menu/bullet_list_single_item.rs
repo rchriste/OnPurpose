@@ -205,7 +205,7 @@ pub(crate) async fn present_bullet_list_item_selected(
 ) -> Result<(), ()> {
     println!();
     println!("Selected Item:");
-    println!("\t{}", DisplayItem::new(menu_for.get_item()));
+    println!("  {}", DisplayItem::new(menu_for.get_item()));
     print_completed_children(menu_for);
     print_in_progress_children(menu_for, bullet_list.get_all_items_status());
     println!();
@@ -647,10 +647,6 @@ impl ItemTypeSelection {
             Self::MotivationNonCore,
             Self::NormalHelp,
         ]
-    }
-
-    pub(crate) fn create_list_goals_and_motivations() -> Vec<Self> {
-        vec![Self::Goal, Self::MotivationCore, Self::MotivationNonCore]
     }
 
     pub(crate) fn create_new_item_prompt_user_for_summary(&self) -> new_item::NewItem {

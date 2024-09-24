@@ -316,9 +316,14 @@ impl<'s> ItemNode<'s> {
         self.item.is_finished()
     }
 
-    pub(crate) fn create_parent_chain(&'s self) -> Vec<&'s Item<'s>> {
+    pub(crate) fn create_parent_chain(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         let mut result = Vec::default();
-        for i in self.parents.iter() {
+        let iter: Box<dyn Iterator<Item = &GrowingItemNode>> = match filter {
+            Filter::All => Box::new(self.parents.iter()),
+            Filter::Active => Box::new(self.parents.iter().filter(|x| !x.item.is_finished())),
+            Filter::Finished => Box::new(self.parents.iter().filter(|x| x.item.is_finished())),
+        };
+        for i in iter {
             result.push(i.item);
             let parents = i.create_growing_parents();
             result.extend(parents.iter());
@@ -907,7 +912,7 @@ mod tests {
                 .iter()
                 .next()
                 .unwrap()
-                .create_parent_chain()
+                .create_parent_chain(Filter::Active)
                 .len(),
             2
         );
