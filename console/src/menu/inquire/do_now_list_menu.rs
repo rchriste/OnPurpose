@@ -1,3 +1,4 @@
+pub(crate) mod change_mode;
 pub(crate) mod classify_item;
 pub(crate) mod do_now_list_single_item;
 pub(crate) mod parent_back_to_a_motivation;
@@ -9,6 +10,7 @@ pub(crate) mod search;
 use std::{fmt::Display, iter::once};
 
 use better_term::Style;
+use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
 use classify_item::present_item_needs_a_classification_menu;
 use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
@@ -33,7 +35,10 @@ use crate::{
     },
     menu::inquire::top_menu::present_top_menu,
     node::action_with_item_status::ActionWithItemStatus,
-    systems::do_now_list::DoNowList,
+    systems::do_now_list::{
+        current_mode::{CurrentMode, SelectedSingleMode},
+        DoNowList,
+    },
 };
 
 use self::do_now_list_single_item::{
@@ -45,6 +50,7 @@ use super::top_menu::capture;
 pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
+    ChangeMode(&'e CurrentMode),
     DoNowListSingleItem(&'e ActionWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     TopMenu,
@@ -53,26 +59,57 @@ pub(crate) enum InquireDoNowListItem<'e> {
 impl Display for InquireDoNowListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CaptureNewItem => write!(f, "🗬   Capture New Item       🗭"),
-            Self::Search => write!(f, "🔍  Search                 🔍"),
+            Self::CaptureNewItem => write!(f, "🗬   Capture New Item                        🗭"),
+            Self::Search => write!(f, "🔍  Search                                  🔍"),
             Self::DoNowListSingleItem(item) => {
                 let display = DisplayActionWithItemStatus::new(item);
                 write!(f, "{}", display)
+            }
+            Self::ChangeMode(current_mode) => {
+                let mut mode_icons = turn_to_icons(current_mode.get_importance_in_scope());
+                mode_icons.push_str("  & ");
+
+                let urgency_mode_icons = turn_to_icons(current_mode.get_urgency_in_scope());
+                mode_icons.push_str(&urgency_mode_icons);
+                write!(f, "🧭  Change Mode - Currently: {}     🧭", mode_icons)
             }
             Self::RefreshList(bullet_list_created) => write!(
                 f,
                 "🔄  Reload List ({})                   🔄",
                 bullet_list_created.format("%I:%M%p")
             ),
-            Self::TopMenu => write!(f, "🏠  Top Menu               🏠"),
+            Self::TopMenu => write!(f, "🏠  Top Menu                                🏠"),
         }
     }
+}
+
+fn turn_to_icons(in_scope: &[SelectedSingleMode]) -> String {
+    let mut mode_icons = String::default();
+    if in_scope
+        .iter()
+        .any(|x| x == &SelectedSingleMode::AllCoreMotivationalPurposes)
+    {
+        mode_icons.push('🏢');
+    } else {
+        mode_icons.push_str("  ");
+    }
+    if in_scope
+        .iter()
+        .any(|x| x == &SelectedSingleMode::AllNonCoreMotivationalPurposes)
+    {
+        mode_icons.push('🏞')
+    } else {
+        mode_icons.push(' ')
+    }
+
+    mode_icons
 }
 
 impl<'a> InquireDoNowListItem<'a> {
     pub(crate) fn create_list(
         item_action: &'a [ActionWithItemStatus<'a>],
         do_now_list_created: DateTime<Utc>,
+        current_mode: &'a CurrentMode,
     ) -> Vec<InquireDoNowListItem<'a>> {
         chain!(
             once(InquireDoNowListItem::RefreshList(
@@ -80,6 +117,7 @@ impl<'a> InquireDoNowListItem<'a> {
             )),
             once(InquireDoNowListItem::Search),
             once(InquireDoNowListItem::CaptureNewItem),
+            once(InquireDoNowListItem::ChangeMode(current_mode)),
             item_action
                 .iter()
                 .map(InquireDoNowListItem::DoNowListSingleItem),
@@ -153,10 +191,13 @@ pub(crate) async fn present_do_now_list_menu(
 ) -> Result<(), ()> {
     let ordered_do_now_list = do_now_list.get_ordered_do_now_list();
 
-    let inquire_do_now_list =
-        InquireDoNowListItem::create_list(ordered_do_now_list, do_now_list_created);
+    let inquire_do_now_list = InquireDoNowListItem::create_list(
+        ordered_do_now_list,
+        do_now_list_created,
+        do_now_list.get_current_mode(),
+    );
 
-    let starting_cursor = if ordered_do_now_list.is_empty() { 0 } else { 3 };
+    let starting_cursor = if ordered_do_now_list.is_empty() { 1 } else { 4 };
     let selected = Select::new("Select from the below list|", inquire_do_now_list)
         .with_starting_cursor(starting_cursor)
         .with_page_size(10)
@@ -167,6 +208,9 @@ pub(crate) async fn present_do_now_list_menu(
         Ok(InquireDoNowListItem::Search) => {
             present_search_menu(do_now_list, send_to_data_storage_layer).await
         }
+        Ok(InquireDoNowListItem::ChangeMode(current_mode)) => {
+            present_change_mode_menu(current_mode, send_to_data_storage_layer).await
+        }
         Ok(InquireDoNowListItem::DoNowListSingleItem(selected)) => match selected {
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
                 present_pick_what_should_be_done_first_menu(
@@ -176,23 +220,25 @@ pub(crate) async fn present_do_now_list_menu(
                 )
                 .await
             }
-            ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
+            ActionWithItemStatus::PickItemReviewFrequency(why_in_scope, item_status) => {
                 present_pick_item_review_frequency_menu(
                     item_status,
                     selected.get_urgency_now(),
+                    why_in_scope,
                     send_to_data_storage_layer,
                 )
                 .await
             }
-            ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+            ActionWithItemStatus::ItemNeedsAClassification(why_in_scope, item_status) => {
                 present_item_needs_a_classification_menu(
                     item_status,
                     selected.get_urgency_now(),
+                    why_in_scope,
                     send_to_data_storage_layer,
                 )
                 .await
             }
-            ActionWithItemStatus::ReviewItem(item_status) => {
+            ActionWithItemStatus::ReviewItem(why_in_scope, item_status) => {
                 present_review_item_menu(
                     item_status,
                     selected.get_urgency_now(),
@@ -202,7 +248,7 @@ pub(crate) async fn present_do_now_list_menu(
                 )
                 .await
             }
-            ActionWithItemStatus::MakeProgress(item_status) => {
+            ActionWithItemStatus::MakeProgress(why_in_scope, item_status) => {
                 if item_status.is_person_or_group() {
                     present_is_person_or_group_around_menu(
                         item_status.get_item_node(),
@@ -219,7 +265,7 @@ pub(crate) async fn present_do_now_list_menu(
                     .await
                 }
             }
-            ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+            ActionWithItemStatus::SetReadyAndUrgency(why_in_scope, item_status) => {
                 present_set_ready_and_urgency_plan_menu(
                     item_status,
                     Some(selected.get_urgency_now()),
@@ -228,7 +274,7 @@ pub(crate) async fn present_do_now_list_menu(
                 )
                 .await
             }
-            ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
+            ActionWithItemStatus::ParentBackToAMotivation(why_in_scope, item_status) => {
                 present_parent_back_to_a_motivation_menu(
                     item_status,
                     selected.get_urgency_now(),

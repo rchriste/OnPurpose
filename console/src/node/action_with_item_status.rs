@@ -3,62 +3,122 @@ use surrealdb::opt::RecordId;
 use crate::{
     base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, FindRecordId},
     data_storage::surrealdb_layer::{
-        surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
+        surreal_in_the_moment_priority::{
+            SurrealAction, SurrealModeWhyInScope, SurrealPriorityKind,
+        },
         surreal_item::SurrealUrgency,
     },
+    systems::do_now_list::current_mode::CurrentMode,
 };
 
-use super::item_status::{ActionWithItemNode, ItemStatus};
+use super::{
+    item_node::ItemNode,
+    item_status::{ActionWithItemNode, ItemStatus},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ActionWithItemStatus<'e> {
-    SetReadyAndUrgency(&'e ItemStatus<'e>),
-    ParentBackToAMotivation(&'e ItemStatus<'e>),
-    ItemNeedsAClassification(&'e ItemStatus<'e>),
-    ReviewItem(&'e ItemStatus<'e>),
-    PickItemReviewFrequency(&'e ItemStatus<'e>),
+    SetReadyAndUrgency(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
+    ParentBackToAMotivation(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
+    ItemNeedsAClassification(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
+    ReviewItem(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
+    PickItemReviewFrequency(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
     PickWhatShouldBeDoneFirst(Vec<ActionWithItemStatus<'e>>),
-    MakeProgress(&'e ItemStatus<'e>),
+    MakeProgress(Vec<ModeWhyInScope>, &'e ItemStatus<'e>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum ModeWhyInScope {
+    Importance,
+    Urgency,
+}
+
+pub(crate) trait ToSurreal<T> {
+    fn to_surreal(&self) -> T;
+}
+
+impl ToSurreal<SurrealModeWhyInScope> for ModeWhyInScope {
+    fn to_surreal(&self) -> SurrealModeWhyInScope {
+        match self {
+            ModeWhyInScope::Importance => SurrealModeWhyInScope::Importance,
+            ModeWhyInScope::Urgency => SurrealModeWhyInScope::Urgency,
+        }
+    }
+}
+
+impl ToSurreal<Vec<SurrealModeWhyInScope>> for [ModeWhyInScope] {
+    fn to_surreal(&self) -> Vec<SurrealModeWhyInScope> {
+        self.iter().map(|x| x.to_surreal()).collect()
+    }
+}
+
+impl ToSurreal<Vec<SurrealModeWhyInScope>> for &[ModeWhyInScope] {
+    fn to_surreal(&self) -> Vec<SurrealModeWhyInScope> {
+        self.iter().map(|x| x.to_surreal()).collect()
+    }
+}
+
+impl From<SurrealModeWhyInScope> for ModeWhyInScope {
+    fn from(surreal: SurrealModeWhyInScope) -> Self {
+        match surreal {
+            SurrealModeWhyInScope::Importance => ModeWhyInScope::Importance,
+            SurrealModeWhyInScope::Urgency => ModeWhyInScope::Urgency,
+        }
+    }
+}
+
+trait ToDataLayer<T> {
+    fn to_data_layer(&self) -> T;
+}
+
+impl ToDataLayer<Vec<ModeWhyInScope>> for Vec<SurrealModeWhyInScope> {
+    fn to_data_layer(&self) -> Vec<ModeWhyInScope> {
+        self.iter().map(|x| x.clone().into()).collect()
+    }
 }
 
 impl<'e> ActionWithItemStatus<'e> {
-    pub(crate) fn new(action: &ActionWithItemNode<'_>, items_status: &'e [ItemStatus<'e>]) -> Self {
+    pub(crate) fn new(
+        action: &ActionWithItemNode<'_>,
+        mode_why_in_scope: Vec<ModeWhyInScope>,
+        items_status: &'e [ItemStatus<'e>],
+    ) -> Self {
         match action {
             ActionWithItemNode::SetReadyAndUrgency(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::SetReadyAndUrgency(item_status)
+                ActionWithItemStatus::SetReadyAndUrgency(mode_why_in_scope, item_status)
             }
             ActionWithItemNode::ParentBackToAMotivation(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::ParentBackToAMotivation(item_status)
+                ActionWithItemStatus::ParentBackToAMotivation(mode_why_in_scope, item_status)
             }
             ActionWithItemNode::ReviewItem(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::ReviewItem(item_status)
+                ActionWithItemStatus::ReviewItem(mode_why_in_scope, item_status)
             }
             ActionWithItemNode::PickItemReviewFrequency(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::PickItemReviewFrequency(item_status)
+                ActionWithItemStatus::PickItemReviewFrequency(mode_why_in_scope, item_status)
             }
             ActionWithItemNode::ItemNeedsAClassification(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::ItemNeedsAClassification(item_status)
+                ActionWithItemStatus::ItemNeedsAClassification(mode_why_in_scope, item_status)
             }
             ActionWithItemNode::MakeProgress(action) => {
                 let item_status = items_status
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
-                ActionWithItemStatus::MakeProgress(item_status)
+                ActionWithItemStatus::MakeProgress(mode_why_in_scope, item_status)
             }
         }
     }
@@ -68,65 +128,74 @@ impl<'e> ActionWithItemStatus<'e> {
         items_status: &'e [ItemStatus<'e>],
     ) -> Self {
         match action {
-            SurrealAction::SetReadyAndUrgency(record_id) => {
+            SurrealAction::SetReadyAndUrgency(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::SetReadyAndUrgency(item_status)
+                ActionWithItemStatus::SetReadyAndUrgency(why_in_scope.to_data_layer(), item_status)
             }
-            SurrealAction::ParentBackToAMotivation(record_id) => {
+            SurrealAction::ParentBackToAMotivation(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::ParentBackToAMotivation(item_status)
+                ActionWithItemStatus::ParentBackToAMotivation(
+                    why_in_scope.to_data_layer(),
+                    item_status,
+                )
             }
-            SurrealAction::ReviewItem(record_id) => {
+            SurrealAction::ReviewItem(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::ReviewItem(item_status)
+                ActionWithItemStatus::ReviewItem(why_in_scope.to_data_layer(), item_status)
             }
-            SurrealAction::PickItemReviewFrequency(record_id) => {
+            SurrealAction::PickItemReviewFrequency(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::PickItemReviewFrequency(item_status)
+                ActionWithItemStatus::PickItemReviewFrequency(
+                    why_in_scope.to_data_layer(),
+                    item_status,
+                )
             }
-            SurrealAction::MakeProgress(record_id) => {
+            SurrealAction::MakeProgress(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::MakeProgress(item_status)
+                ActionWithItemStatus::MakeProgress(why_in_scope.to_data_layer(), item_status)
             }
-            SurrealAction::ItemNeedsAClassification(record_id) => {
+            SurrealAction::ItemNeedsAClassification(why_in_scope, record_id) => {
                 let item_status = items_status
                     .find_record_id(record_id)
                     .expect("All items are there");
-                ActionWithItemStatus::ItemNeedsAClassification(item_status)
+                ActionWithItemStatus::ItemNeedsAClassification(
+                    why_in_scope.to_data_layer(),
+                    item_status,
+                )
             }
         }
     }
 
     pub(crate) fn clone_to_surreal_action(&self) -> SurrealAction {
         match self {
-            ActionWithItemStatus::MakeProgress(item) => SurrealAction::MakeProgress(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::ParentBackToAMotivation(item) => SurrealAction::ParentBackToAMotivation(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::PickItemReviewFrequency(item) => SurrealAction::PickItemReviewFrequency(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::ItemNeedsAClassification(item) => SurrealAction::ItemNeedsAClassification(item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::MakeProgress(why_in_scope, item) => SurrealAction::MakeProgress(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::ParentBackToAMotivation(why_in_scope, item) => SurrealAction::ParentBackToAMotivation(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::PickItemReviewFrequency(why_in_scope, item) => SurrealAction::PickItemReviewFrequency(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::ItemNeedsAClassification(why_in_scope, item) => SurrealAction::ItemNeedsAClassification(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => todo!("It is not valid to call get_surreal_action in this scenario. If that is desired then we need to work out what to do."),
-            ActionWithItemStatus::ReviewItem(item) => SurrealAction::ReviewItem(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::SetReadyAndUrgency(item) => SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::ReviewItem(why_in_scope, item) => SurrealAction::ReviewItem(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::SetReadyAndUrgency(why_in_scope, item) => SurrealAction::SetReadyAndUrgency(why_in_scope.to_surreal(), item.get_surreal_record_id().clone()),
         }
     }
 
     pub(crate) fn get_surreal_record_id(&self) -> &RecordId {
         match self {
-            ActionWithItemStatus::SetReadyAndUrgency(item)
-            | ActionWithItemStatus::ParentBackToAMotivation(item)
-            | ActionWithItemStatus::ReviewItem(item)
-            | ActionWithItemStatus::PickItemReviewFrequency(item)
-            | ActionWithItemStatus::ItemNeedsAClassification(item)
-            | ActionWithItemStatus::MakeProgress(item) => item.get_surreal_record_id(),
+            ActionWithItemStatus::SetReadyAndUrgency(_, item)
+            | ActionWithItemStatus::ParentBackToAMotivation(_, item)
+            | ActionWithItemStatus::ReviewItem(_, item)
+            | ActionWithItemStatus::PickItemReviewFrequency(_, item)
+            | ActionWithItemStatus::ItemNeedsAClassification(_, item)
+            | ActionWithItemStatus::MakeProgress(_, item) => item.get_surreal_record_id(),
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
                 todo!("It is not valid to call this function on this item")
             }
@@ -135,10 +204,16 @@ impl<'e> ActionWithItemStatus<'e> {
 
     pub(crate) fn get_urgency_now(&self) -> SurrealUrgency {
         match self {
-            ActionWithItemStatus::MakeProgress(item_status, ..) => item_status
-                .get_urgency_now()
-                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                .clone(),
+            ActionWithItemStatus::MakeProgress(why_in_scope, item_status, ..) => {
+                if why_in_scope.iter().any(|x| x == &ModeWhyInScope::Urgency) {
+                    item_status
+                        .get_urgency_now()
+                        .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                        .clone()
+                } else {
+                    SurrealUrgency::InTheModeByImportance
+                }
+            }
             ActionWithItemStatus::ParentBackToAMotivation(..)
             | ActionWithItemStatus::ItemNeedsAClassification(..) => {
                 SurrealUrgency::MoreUrgentThanMode
@@ -160,6 +235,52 @@ impl<'e> ActionWithItemStatus<'e> {
             }
         }
     }
+
+    pub(crate) fn get_item_node(&self) -> &ItemNode {
+        match self {
+            ActionWithItemStatus::SetReadyAndUrgency(_, item)
+            | ActionWithItemStatus::ParentBackToAMotivation(_, item)
+            | ActionWithItemStatus::ReviewItem(_, item)
+            | ActionWithItemStatus::PickItemReviewFrequency(_, item)
+            | ActionWithItemStatus::ItemNeedsAClassification(_, item)
+            | ActionWithItemStatus::MakeProgress(_, item) => item.get_item_node(),
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
+                todo!("It is not valid to call this function on this item")
+            }
+        }
+    }
+
+    pub(crate) fn is_in_scope_for_importance(&self) -> bool {
+        match self {
+            ActionWithItemStatus::SetReadyAndUrgency(why_in_scope, _)
+            | ActionWithItemStatus::ParentBackToAMotivation(why_in_scope, _)
+            | ActionWithItemStatus::ReviewItem(why_in_scope, _)
+            | ActionWithItemStatus::PickItemReviewFrequency(why_in_scope, _)
+            | ActionWithItemStatus::ItemNeedsAClassification(why_in_scope, _)
+            | ActionWithItemStatus::MakeProgress(why_in_scope, _) => why_in_scope
+                .iter()
+                .any(|x| x == &ModeWhyInScope::Importance),
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
+                todo!("It is not valid to call this function on this item")
+            }
+        }
+    }
+
+    pub(crate) fn is_in_scope_for_urgency(&self) -> bool {
+        match self {
+            ActionWithItemStatus::SetReadyAndUrgency(why_in_scope, _)
+            | ActionWithItemStatus::ParentBackToAMotivation(why_in_scope, _)
+            | ActionWithItemStatus::ReviewItem(why_in_scope, _)
+            | ActionWithItemStatus::PickItemReviewFrequency(why_in_scope, _)
+            | ActionWithItemStatus::ItemNeedsAClassification(why_in_scope, _)
+            | ActionWithItemStatus::MakeProgress(why_in_scope, _) => {
+                why_in_scope.iter().any(|x| x == &ModeWhyInScope::Urgency)
+            }
+            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
+                todo!("It is not valid to call this function on this item")
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -175,48 +296,49 @@ pub(crate) struct ActionListsByUrgency<'s> {
 impl<'s> ActionListsByUrgency<'s> {
     pub(crate) fn apply_in_the_moment_priorities(
         self,
+        current_mode: &CurrentMode,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
     ) -> Vec<ActionWithItemStatus<'s>> {
         let mut ordered_bullet_list = Vec::new();
 
         if let Some(more_urgent_than_anything_including_scheduled) = self
             .more_urgent_than_anything_including_scheduled
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(more_urgent_than_anything_including_scheduled);
         }
 
         if let Some(scheduled_any_mode) = self
             .scheduled_any_mode
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(scheduled_any_mode);
         }
 
         if let Some(more_urgent_than_mode) = self
             .more_urgent_than_mode
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(more_urgent_than_mode);
         }
 
         if let Some(in_the_mode_scheduled) = self
             .in_the_mode_scheduled
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(in_the_mode_scheduled);
         }
 
         if let Some(in_the_mode_definitely_urgent) = self
             .in_the_mode_definitely_urgent
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(in_the_mode_definitely_urgent);
         }
 
         if let Some(in_the_mode_maybe_urgent_and_by_importance) = self
             .in_the_mode_maybe_urgent_and_by_importance
-            .apply_in_the_moment_priorities(all_priorities)
+            .apply_in_the_moment_priorities(&current_mode, all_priorities)
         {
             ordered_bullet_list.push(in_the_mode_maybe_urgent_and_by_importance);
         }
@@ -228,6 +350,7 @@ impl<'s> ActionListsByUrgency<'s> {
 trait ApplyInTheMomentPriorities<'s> {
     fn apply_in_the_moment_priorities(
         self,
+        current_mode: &CurrentMode,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
     ) -> Option<ActionWithItemStatus<'s>>;
 }
@@ -235,6 +358,7 @@ trait ApplyInTheMomentPriorities<'s> {
 impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
     fn apply_in_the_moment_priorities(
         self,
+        current_mode: &CurrentMode,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
     ) -> Option<ActionWithItemStatus<'s>> {
         //Go through all ItemActions and look for that item in all_priorities and if found then if it is the highest priority then remove from the list all other items found and if it is the lowest priority then remove it if there are any higher priorities in the list.
@@ -246,6 +370,7 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
                 .iter()
                 .filter(|x| {
                     x.is_active()
+                        && current_mode.is_priority_in_scope(x)
                         && x.get_kind() == &SurrealPriorityKind::LowestPriority
                         && x.get_choice() == *item_action
                 })
@@ -262,6 +387,7 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
 
         let highest_priority_removed = lowest_priority_removed.filter(|item_action| {
             let mut checked_something = false;
+            println!("TODO: I need to know if the item is here because of urgency or because of importance and filter it out if it is out of mode. For all_priorities");
             let result = all_priorities
                 .iter()
                 .filter(|x| {
@@ -309,14 +435,29 @@ mod tests {
         calculated_data,
         data_storage::surrealdb_layer::{
             surreal_in_the_moment_priority::{
-                SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
+                SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealModeWhyInScope,
+                SurrealPriorityKind,
             },
             surreal_item::SurrealItemBuilder,
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
-        node::action_with_item_status::{ActionWithItemStatus, ApplyInTheMomentPriorities},
+        node::action_with_item_status::{
+            ActionWithItemStatus, ApplyInTheMomentPriorities, ModeWhyInScope,
+        },
+        systems::do_now_list::current_mode::CurrentMode,
     };
+
+    fn test_default_mode_why_in_scope() -> Vec<ModeWhyInScope> {
+        vec![ModeWhyInScope::Importance, ModeWhyInScope::Urgency]
+    }
+
+    fn test_default_surreal_mode_why_in_scope() -> Vec<SurrealModeWhyInScope> {
+        vec![
+            SurrealModeWhyInScope::Importance,
+            SurrealModeWhyInScope::Urgency,
+        ]
+    }
 
     #[test]
     fn apply_in_the_moment_priorities_when_only_one_item_is_given_with_no_in_the_moment_priorities_then_that_one_item_is_returned(
@@ -337,12 +478,15 @@ mod tests {
         let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
 
         let item_status = calculated_data.get_items_status().first().unwrap();
-        let item_action = ActionWithItemStatus::MakeProgress(item_status);
+        let why_in_scope = test_default_mode_why_in_scope();
+        let item_action = ActionWithItemStatus::MakeProgress(why_in_scope, item_status);
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![item_action];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result =
+            dut.apply_in_the_moment_priorities(&current_mode, blank_in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -350,7 +494,10 @@ mod tests {
             result.clone_to_surreal_action().get_record_id(),
             &only_item.id.unwrap()
         );
-        assert_eq!(result, ActionWithItemStatus::MakeProgress(item_status));
+        assert_eq!(
+            result,
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), item_status)
+        );
     }
 
     #[test]
@@ -386,13 +533,19 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![first_item_action.clone(), second_item_action.clone()];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result =
+            dut.apply_in_the_moment_priorities(&current_mode, blank_in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -424,9 +577,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "1").into()))
             .kind(SurrealPriorityKind::HighestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 second_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -453,13 +608,19 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![first_item_action.clone(), second_item_action.clone()];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result =
+            dut.apply_in_the_moment_priorities(&current_mode, blank_in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -485,9 +646,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "1").into()))
             .kind(SurrealPriorityKind::LowestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 second_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -514,13 +677,19 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![first_item_action.clone(), second_item_action.clone()];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result =
+            dut.apply_in_the_moment_priorities(&current_mode, blank_in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -551,9 +720,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "1").into()))
             .kind(SurrealPriorityKind::HighestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 second_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -588,9 +759,14 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
-        let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
+        let third_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), third_item_status);
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -599,7 +775,8 @@ mod tests {
             second_item_action.clone(),
             third_item_action.clone(),
         ];
-        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result = dut.apply_in_the_moment_priorities(&current_mode, in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -636,9 +813,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "1").into()))
             .kind(SurrealPriorityKind::LowestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 second_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -673,9 +852,14 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
-        let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
+        let third_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), third_item_status);
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -684,7 +868,8 @@ mod tests {
             second_item_action.clone(),
             third_item_action.clone(),
         ];
-        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result = dut.apply_in_the_moment_priorities(&current_mode, in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
@@ -721,9 +906,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "1").into()))
             .kind(SurrealPriorityKind::HighestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 second_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -733,9 +920,11 @@ mod tests {
             .id(Some(("surreal_in_the_moment_priority", "3").into()))
             .kind(SurrealPriorityKind::LowestPriority)
             .choice(SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 third_item.id.clone().expect("hard coded to a value"),
             ))
             .not_chosen(vec![SurrealAction::MakeProgress(
+                test_default_surreal_mode_why_in_scope(),
                 first_item.id.clone().expect("hard coded to a value"),
             )])
             .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
@@ -773,9 +962,14 @@ mod tests {
             .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
-        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
-        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
-        let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let first_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), first_item_status);
+        let second_item_action = ActionWithItemStatus::MakeProgress(
+            test_default_mode_why_in_scope(),
+            second_item_status,
+        );
+        let third_item_action =
+            ActionWithItemStatus::MakeProgress(test_default_mode_why_in_scope(), third_item_status);
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -784,7 +978,8 @@ mod tests {
             second_item_action.clone(),
             third_item_action.clone(),
         ];
-        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+        let current_mode = CurrentMode::default();
+        let result = dut.apply_in_the_moment_priorities(&current_mode, in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");

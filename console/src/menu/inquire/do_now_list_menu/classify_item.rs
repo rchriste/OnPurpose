@@ -3,11 +3,15 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
+        data_layer_commands::DataLayerCommands,
+        surreal_in_the_moment_priority::{SurrealAction, SurrealModeWhyInScope},
         surreal_item::SurrealUrgency,
     },
     new_time_spent::NewTimeSpent,
-    node::item_status::ItemStatus,
+    node::{
+        action_with_item_status::{ModeWhyInScope, ToSurreal},
+        item_status::ItemStatus,
+    },
 };
 
 use super::do_now_list_single_item::declare_item_type;
@@ -15,6 +19,7 @@ use super::do_now_list_single_item::declare_item_type;
 pub(crate) async fn present_item_needs_a_classification_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
+    why_in_scope: &[ModeWhyInScope],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_present_item_needs_a_classification_menu = Utc::now();
@@ -23,6 +28,7 @@ pub(crate) async fn present_item_needs_a_classification_menu(
 
     let new_time_spent = NewTimeSpent {
         working_on: vec![SurrealAction::ItemNeedsAClassification(
+            why_in_scope.to_surreal(),
             item_status.get_surreal_record_id().clone(),
         )], //TODO: I should also add all the parent items that this is making progress towards the goal, I mean I guess there is no parent because that the goal of the exercise but still for maintainability sake I should add it
         when_started: start_present_item_needs_a_classification_menu,

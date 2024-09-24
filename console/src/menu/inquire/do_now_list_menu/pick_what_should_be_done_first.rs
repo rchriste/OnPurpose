@@ -152,10 +152,11 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                         .await;
                     }
                 }
-                ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+                ActionWithItemStatus::ItemNeedsAClassification(why_in_scope, item_status) => {
                     return present_item_needs_a_classification_menu(
                         item_status,
                         item_action.get_urgency_now(),
+                        why_in_scope,
                         send_to_data_storage_layer,
                     )
                     .await;

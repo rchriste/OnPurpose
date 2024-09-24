@@ -146,6 +146,20 @@ impl<'b> Item<'b> {
         )
     }
 
+    pub(crate) fn is_type_motivation_core(&self) -> bool {
+        matches!(
+            self.get_item_type(),
+            &SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)
+        )
+    }
+
+    pub(crate) fn is_type_motivation_non_core(&self) -> bool {
+        matches!(
+            self.get_item_type(),
+            &SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork)
+        )
+    }
+
     pub(crate) fn is_goal(&self) -> bool {
         matches!(self.get_item_type(), &SurrealItemType::Goal(..))
     }

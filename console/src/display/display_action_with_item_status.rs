@@ -32,30 +32,30 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
         }
 
         match self.item {
-            ActionWithItemStatus::MakeProgress(item_status) => {
+            ActionWithItemStatus::MakeProgress(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🏗️] {}", display)
             }
-            ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
+            ActionWithItemStatus::ParentBackToAMotivation(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🌟 Needs a reason] {}", display)
             }
-            ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
+            ActionWithItemStatus::PickItemReviewFrequency(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🔁 State review frequency] {}", display)
             }
-            ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+            ActionWithItemStatus::ItemNeedsAClassification(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🗂️ Needs classification] {}", display)
             }
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
                 write!(f, "[🗳️  Pick highest priority] {} choices", choices.len())
             }
-            ActionWithItemStatus::ReviewItem(item_status) => {
+            ActionWithItemStatus::ReviewItem(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🔍 Review] {}", display)
             }
-            ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+            ActionWithItemStatus::SetReadyAndUrgency(_, item_status) => {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🚦 Set readiness and urgency] {}", display)
             }
@@ -81,16 +81,7 @@ impl<'s> DisplayActionWithItemStatus<'s> {
     }
 
     pub(crate) fn is_in_scope_for_importance(&self) -> bool {
-        let urgency = self.get_urgency_now();
-        match urgency {
-            SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled
-            | SurrealUrgency::InTheModeDefinitelyUrgent
-            | SurrealUrgency::InTheModeMaybeUrgent
-            | SurrealUrgency::ScheduledAnyMode(..)
-            | SurrealUrgency::InTheModeScheduled(..)
-            | SurrealUrgency::MoreUrgentThanMode => false,
-            SurrealUrgency::InTheModeByImportance => true,
-        }
+        self.item.is_in_scope_for_importance()
     }
 
     pub(crate) fn get_action(&self) -> &ActionWithItemStatus<'s> {

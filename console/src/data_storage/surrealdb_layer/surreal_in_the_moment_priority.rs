@@ -13,6 +13,7 @@ use super::SurrealTrigger;
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Builder)]
 pub(crate) struct SurrealInTheMomentPriority {
     pub(crate) id: Option<Thing>,
+    pub(crate) version: u32,
     pub(crate) choice: SurrealAction,
     pub(crate) kind: SurrealPriorityKind,
     pub(crate) not_chosen: Vec<SurrealAction>,
@@ -24,6 +25,17 @@ pub(crate) struct SurrealInTheMomentPriority {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealAction {
+    SetReadyAndUrgency(Vec<SurrealModeWhyInScope>, RecordId),
+    ParentBackToAMotivation(Vec<SurrealModeWhyInScope>, RecordId),
+    ReviewItem(Vec<SurrealModeWhyInScope>, RecordId),
+    ItemNeedsAClassification(Vec<SurrealModeWhyInScope>, RecordId),
+    PickItemReviewFrequency(Vec<SurrealModeWhyInScope>, RecordId),
+    //PickWhatShouldBeDoneFirst is not on this list, because that would be recursive, and for logging Time Spent is probably not something that we want logged in case the user just selects one to do right now
+    MakeProgress(Vec<SurrealModeWhyInScope>, RecordId),
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealActionVersion0 {
     SetReadyAndUrgency(RecordId),
     ParentBackToAMotivation(RecordId),
     ReviewItem(RecordId),
@@ -33,15 +45,21 @@ pub(crate) enum SurrealAction {
     MakeProgress(RecordId),
 }
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+pub(crate) enum SurrealModeWhyInScope {
+    Importance,
+    Urgency,
+}
+
 impl SurrealAction {
     pub(crate) fn get_record_id(&self) -> &RecordId {
         match self {
-            SurrealAction::SetReadyAndUrgency(record_id) => record_id,
-            SurrealAction::ParentBackToAMotivation(record_id) => record_id,
-            SurrealAction::ReviewItem(record_id) => record_id,
-            SurrealAction::ItemNeedsAClassification(record_id) => record_id,
-            SurrealAction::PickItemReviewFrequency(record_id) => record_id,
-            SurrealAction::MakeProgress(record_id) => record_id,
+            SurrealAction::SetReadyAndUrgency(_, record_id) => record_id,
+            SurrealAction::ParentBackToAMotivation(_, record_id) => record_id,
+            SurrealAction::ReviewItem(_, record_id) => record_id,
+            SurrealAction::ItemNeedsAClassification(_, record_id) => record_id,
+            SurrealAction::PickItemReviewFrequency(_, record_id) => record_id,
+            SurrealAction::MakeProgress(_, record_id) => record_id,
         }
     }
 }

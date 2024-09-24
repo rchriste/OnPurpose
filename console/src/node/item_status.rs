@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    action_with_item_status::ActionWithItemStatus,
+    action_with_item_status::{ActionWithItemStatus, ModeWhyInScope},
     item_node::{
         ActionWithItem, DependencyWithItem, ItemNode, ItemsInScopeWithItem, TriggerWithItem,
         UrgencyPlanWithItem,
@@ -492,7 +492,9 @@ impl<'s> ItemStatus<'s> {
         Box::new(
             self.get_urgent_item_actions()
                 .iter()
-                .map(|x| ActionWithItemStatus::new(x, all_item_status))
+                .map(|x| {
+                    ActionWithItemStatus::new(x, vec![ModeWhyInScope::Urgency], all_item_status)
+                })
                 .chain(self.get_children(Filter::Active).flat_map(move |child| {
                     let child = all_item_status
                         .iter()

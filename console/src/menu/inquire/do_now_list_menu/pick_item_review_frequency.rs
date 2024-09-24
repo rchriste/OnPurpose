@@ -11,7 +11,10 @@ use crate::{
         surreal_item::{SurrealFrequency, SurrealReviewGuidance, SurrealUrgency},
     },
     new_time_spent::NewTimeSpent,
-    node::item_status::ItemStatus,
+    node::{
+        action_with_item_status::{ModeWhyInScope, ToSurreal},
+        item_status::ItemStatus,
+    },
 };
 
 pub(crate) enum Frequency {
@@ -103,6 +106,7 @@ impl ReviewGuidance {
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
+    why_in_scope: &[ModeWhyInScope],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let started_present_pick_item_review_frequency = Utc::now();
@@ -148,6 +152,7 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
 
     let new_time_spent = NewTimeSpent {
         working_on: vec![SurrealAction::ReviewItem(
+            why_in_scope.to_surreal(),
             item_status.get_surreal_record_id().clone(),
         )], //TODO: Should I also add all the parent items that this is making progress towards the goal
         when_started: started_present_pick_item_review_frequency,

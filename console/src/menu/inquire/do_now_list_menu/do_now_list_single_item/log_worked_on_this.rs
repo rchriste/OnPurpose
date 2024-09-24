@@ -8,16 +8,17 @@ use tokio::sync::{mpsc::Sender, oneshot};
 
 use crate::{
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
+        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::{SurrealAction, SurrealModeWhyInScope},
         surreal_time_spent::SurrealDedication,
     },
     display::display_duration::DisplayDuration,
     new_time_spent::NewTimeSpent,
-    node::{item_status::ItemStatus, Filter},
+    node::{action_with_item_status::ModeWhyInScope, item_status::ItemStatus, Filter},
 };
 
 pub(crate) async fn log_worked_on_this(
     selected: &ItemStatus<'_>,
+    why_in_scope: &[ModeWhyInScope],
     when_selected: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -29,7 +30,7 @@ pub(crate) async fn log_worked_on_this(
     // -urgency in list
     let urgency = selected.get_urgency_now().cloned();
 
-    let working_on = create_working_on_list(selected);
+    let working_on = create_working_on_list(why_in_scope, selected);
     // -When started
     loop {
         let (when_started, when_stopped) = ask_when_started_and_stopped(
@@ -61,11 +62,16 @@ pub(crate) async fn log_worked_on_this(
     Ok(())
 }
 
-fn create_working_on_list(selected: &ItemStatus<'_>) -> Vec<SurrealAction> {
+fn create_working_on_list(
+    why_in_scope: &[SurrealModeWhyInScope],
+    selected: &ItemStatus<'_>,
+) -> Vec<SurrealAction> {
     selected
         .get_self_and_parents_flattened(Filter::Active)
         .iter()
-        .map(|x| SurrealAction::MakeProgress(x.get_surreal_record_id().clone()))
+        .map(|x| {
+            SurrealAction::MakeProgress(why_in_scope.to_vec(), x.get_surreal_record_id().clone())
+        })
         .collect()
 }
 
