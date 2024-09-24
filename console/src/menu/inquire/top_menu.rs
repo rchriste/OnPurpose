@@ -22,12 +22,12 @@ use crate::{
 };
 
 use super::{
-    bullet_list_menu::present_normal_bullet_list_menu, update_item_summary::update_item_summary,
+    do_now_list_menu::present_normal_do_now_list_menu, update_item_summary::update_item_summary,
 };
 
 enum TopMenuSelection {
     Reflection,
-    ViewBulletList,
+    ViewDoNowList,
     ViewExpectations,
     ViewPriorities,
     ViewPrioritiesRatatui,
@@ -38,8 +38,8 @@ impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
-            TopMenuSelection::ViewBulletList => {
-                write!(f, "👁 🗒️  View Bullet List          👁")
+            TopMenuSelection::ViewDoNowList => {
+                write!(f, "👁 🗒️  View Do Now List          👁")
             }
             TopMenuSelection::ViewExpectations => {
                 write!(f, "👁 🙏 View Expectations          👁")
@@ -61,7 +61,7 @@ impl TopMenuSelection {
             Self::ViewPriorities,
             Self::ViewPrioritiesRatatui,
             Self::Reflection,
-            Self::ViewBulletList,
+            Self::ViewDoNowList,
             Self::ViewExpectations,
             Self::DebugViewAllItems,
         ]
@@ -79,8 +79,8 @@ pub(crate) async fn present_top_menu(
         Ok(TopMenuSelection::ViewExpectations) => {
             view_expectations(send_to_data_storage_layer).await
         }
-        Ok(TopMenuSelection::ViewBulletList) => {
-            present_normal_bullet_list_menu(send_to_data_storage_layer).await
+        Ok(TopMenuSelection::ViewDoNowList) => {
+            present_normal_do_now_list_menu(send_to_data_storage_layer).await
         }
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ViewPrioritiesRatatui) => {

@@ -13,26 +13,26 @@ use crate::{
 };
 
 #[self_referencing]
-pub(crate) struct BulletList {
+pub(crate) struct DoNowList {
     calculated_data: CalculatedData,
 
     #[borrows(calculated_data)]
     #[covariant]
-    ordered_bullet_list: Vec<ActionWithItemStatus<'this>>,
+    ordered_do_now_list: Vec<ActionWithItemStatus<'this>>,
 
     #[borrows(calculated_data)]
     #[covariant]
     upcoming: Upcoming<'this>,
 }
 
-impl BulletList {
-    pub(crate) fn new_bullet_list(
+impl DoNowList {
+    pub(crate) fn new_do_now_list(
         calculated_data: CalculatedData,
         current_time: &DateTime<Utc>,
     ) -> Self {
-        BulletListBuilder {
+        DoNowListBuilder {
             calculated_data,
-            ordered_bullet_list_builder: |calculated_data| {
+            ordered_do_now_list_builder: |calculated_data| {
                 //Get all top level items
                 let everything_that_has_no_parent = calculated_data
                     .get_items_status()
@@ -109,8 +109,8 @@ impl BulletList {
         .build()
     }
 
-    pub(crate) fn get_ordered_bullet_list(&self) -> &[ActionWithItemStatus<'_>] {
-        self.borrow_ordered_bullet_list()
+    pub(crate) fn get_ordered_do_now_list(&self) -> &[ActionWithItemStatus<'_>] {
+        self.borrow_ordered_do_now_list()
     }
 
     pub(crate) fn get_all_items_status(&self) -> &[ItemStatus<'_>] {

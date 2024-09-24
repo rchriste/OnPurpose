@@ -6,5 +6,5 @@
 //! * Reflection
 //! * Recall
 
-pub(crate) mod bullet_list;
+pub(crate) mod do_now_list;
 pub(crate) mod upcoming;

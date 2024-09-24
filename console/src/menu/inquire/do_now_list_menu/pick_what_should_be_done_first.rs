@@ -10,21 +10,21 @@ use crate::{
         data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealPriorityKind,
     },
     display::display_action_with_item_status::DisplayActionWithItemStatus,
-    menu::inquire::bullet_list_menu::{
-        bullet_list_single_item::{
-            present_bullet_list_item_selected, present_is_person_or_group_around_menu,
+    menu::inquire::do_now_list_menu::{
+        do_now_list_single_item::{
+            present_do_now_list_item_selected, present_is_person_or_group_around_menu,
             urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime,
         },
         parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu,
         pick_item_review_frequency::present_pick_item_review_frequency_menu,
-        present_bullet_list_menu,
+        present_do_now_list_menu,
         review_item::present_review_item_menu,
     },
     node::action_with_item_status::ActionWithItemStatus,
-    systems::bullet_list::BulletList,
+    systems::do_now_list::DoNowList,
 };
 
-use super::bullet_list_single_item::urgency_plan::prompt_for_triggers;
+use super::do_now_list_single_item::urgency_plan::prompt_for_triggers;
 
 enum HighestOrLowest {
     PickThisTime,
@@ -52,7 +52,7 @@ impl Display for HighestOrLowest {
 
 pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
     choices: &'a [ActionWithItemStatus<'a>],
-    bullet_list: &BulletList,
+    do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let display_choices = choices
@@ -67,9 +67,9 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
     let choice = match choice {
         Ok(choice) => choice,
         Err(InquireError::OperationCanceled) => {
-            return Box::pin(present_bullet_list_menu(
-                bullet_list,
-                *bullet_list.get_now(),
+            return Box::pin(present_do_now_list_menu(
+                do_now_list,
+                *do_now_list.get_now(),
                 send_to_data_storage_layer,
             ))
             .await
@@ -111,7 +111,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
                     return Box::pin(present_pick_what_should_be_done_first_menu(
                         choices,
-                        bullet_list,
+                        do_now_list,
                         send_to_data_storage_layer,
                     ))
                     .await;
@@ -128,7 +128,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     return present_review_item_menu(
                         item_status,
                         item_action.get_urgency_now(),
-                        bullet_list.get_all_items_status(),
+                        do_now_list.get_all_items_status(),
                         LogTime::SeparateTaskLogTheTime,
                         send_to_data_storage_layer,
                     )
@@ -142,10 +142,10 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                         )
                         .await;
                     } else {
-                        return Box::pin(present_bullet_list_item_selected(
+                        return Box::pin(present_do_now_list_item_selected(
                             item_status,
                             chrono::Utc::now(),
-                            bullet_list,
+                            do_now_list,
                             send_to_data_storage_layer,
                         ))
                         .await;

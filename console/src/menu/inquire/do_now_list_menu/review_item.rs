@@ -19,7 +19,7 @@ use crate::{
         display_urgency_plan::DisplayUrgencyPlan,
     },
     menu::inquire::{
-        bullet_list_menu::bullet_list_single_item::{
+        do_now_list_menu::do_now_list_single_item::{
             give_this_item_a_parent::give_this_item_a_parent,
             state_a_smaller_action::state_a_smaller_action,
             urgency_plan::{prompt_for_dependencies, prompt_for_urgency_plan, AddOrRemove},
@@ -34,7 +34,7 @@ use crate::{
     },
 };
 
-use super::bullet_list_single_item::LogTime;
+use super::do_now_list_single_item::LogTime;
 
 enum ReviewItemMenuChoices<'e> {
     DoneWithReview,

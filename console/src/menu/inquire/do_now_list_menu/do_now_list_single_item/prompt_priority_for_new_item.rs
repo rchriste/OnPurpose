@@ -16,21 +16,21 @@ use crate::{
         display_action_with_item_status::DisplayActionWithItemStatus,
         display_item_status::DisplayItemStatus,
     },
-    menu::inquire::bullet_list_menu::bullet_list_single_item::urgency_plan::prompt_for_triggers,
+    menu::inquire::do_now_list_menu::do_now_list_single_item::urgency_plan::prompt_for_triggers,
     node::{action_with_item_status::ActionWithItemStatus, item_status::ItemStatus, Filter},
-    systems::bullet_list::BulletList,
+    systems::do_now_list::DoNowList,
 };
 
 pub(crate) async fn prompt_priority_for_new_item(
     selected: &ItemStatus<'_>,
-    old_bullet_list: &BulletList,
+    old_do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     if !selected.has_dependencies(Filter::Active) {
         let old_selected_root_parents = selected
-            .get_root_parents(Filter::Active, old_bullet_list.get_all_items_status())
+            .get_root_parents(Filter::Active, old_do_now_list.get_all_items_status())
             .map(|x| {
-                old_bullet_list
+                old_do_now_list
                     .get_all_items_status()
                     .iter()
                     .find(|y| y.get_surreal_record_id() == x.get_surreal_record_id())
@@ -40,7 +40,7 @@ pub(crate) async fn prompt_priority_for_new_item(
         let old_roots_with_selected_as_most_important = old_selected_root_parents
             .filter(|root| {
                 let most_important = root
-                    .recursive_get_most_important_and_ready(old_bullet_list.get_all_items_status());
+                    .recursive_get_most_important_and_ready(old_do_now_list.get_all_items_status());
                 most_important.map_or(false, |most_important: &ItemStatus| {
                     most_important.get_surreal_record_id() == selected.get_surreal_record_id()
                 })
@@ -55,17 +55,17 @@ pub(crate) async fn prompt_priority_for_new_item(
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
             let calculated_data = CalculatedData::new_from_base_data(base_data);
-            let new_bullet_list = BulletList::new_bullet_list(calculated_data, &now);
-            let updated_selected = new_bullet_list
+            let new_do_now_list = DoNowList::new_do_now_list(calculated_data, &now);
+            let updated_selected = new_do_now_list
                 .get_all_items_status()
                 .iter()
                 .find(|x| *x == selected)
                 .expect("Item exists in full list");
 
             let updated_selected_root_parents = updated_selected
-                .get_root_parents(Filter::Active, new_bullet_list.get_all_items_status())
+                .get_root_parents(Filter::Active, new_do_now_list.get_all_items_status())
                 .map(|x| {
-                    new_bullet_list
+                    new_do_now_list
                         .get_all_items_status()
                         .iter()
                         .find(|y| y.get_surreal_record_id() == x.get_surreal_record_id())
@@ -75,7 +75,7 @@ pub(crate) async fn prompt_priority_for_new_item(
             let updated_roots_with_selected_as_most_important = updated_selected_root_parents
                 .filter(|root| {
                     let most_important = root.recursive_get_most_important_and_ready(
-                        new_bullet_list.get_all_items_status(),
+                        new_do_now_list.get_all_items_status(),
                     );
                     most_important.map_or(false, |most_important: &ItemStatus| {
                         most_important.get_surreal_record_id()
@@ -93,8 +93,8 @@ pub(crate) async fn prompt_priority_for_new_item(
 
             println!("Previous item: {}", DisplayItemStatus::new(selected));
             for new_item in new_items {
-                let other_items = new_bullet_list
-                    .get_ordered_bullet_list()
+                let other_items = new_do_now_list
+                    .get_ordered_do_now_list()
                     .iter()
                     .filter(|x| {
                         let same_urgency = new_item.get_urgency_now() == Some(&x.get_urgency_now());

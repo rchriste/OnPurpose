@@ -9,12 +9,12 @@ use crate::{
         data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
     },
     display::display_item_status::DisplayItemStatus,
-    menu::inquire::bullet_list_menu::bullet_list_single_item::present_bullet_list_item_selected,
+    menu::inquire::do_now_list_menu::do_now_list_single_item::present_do_now_list_item_selected,
     node::{
         item_status::{ItemStatus, UrgencyPlanWithItemNode},
         Filter, IsTriggered,
     },
-    systems::bullet_list::BulletList,
+    systems::do_now_list::DoNowList,
 };
 
 #[derive(Debug)]
@@ -363,10 +363,10 @@ enum UrgencyChanges<'e> {
 }
 
 pub(crate) async fn present_search_menu(
-    bullet_list: &BulletList,
+    do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let items = bullet_list.get_all_items_status();
+    let items = do_now_list.get_all_items_status();
 
     let mut more_urgent_than_anything_including_scheduled =
         SearchMenuUrgencyItem::MoreUrgentThanAnythingIncludingScheduled {
@@ -560,7 +560,7 @@ pub(crate) async fn present_search_menu(
         }
     }
 
-    let everything_that_has_no_parent = bullet_list
+    let everything_that_has_no_parent = do_now_list
         .get_all_items_status()
         .iter()
         .filter(|x| !x.has_parents(Filter::Active) && x.is_active())
@@ -684,10 +684,10 @@ pub(crate) async fn present_search_menu(
                 .unwrap();
             match selection {
                 SearchMenuUrgencyItem::Item { item } => {
-                    present_bullet_list_item_selected(
+                    present_do_now_list_item_selected(
                         item,
                         Utc::now(),
-                        bullet_list,
+                        do_now_list,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -741,10 +741,10 @@ pub(crate) async fn present_search_menu(
 
             match selection {
                 SearchMenuUrgencyItem::Item { item } => {
-                    present_bullet_list_item_selected(
+                    present_do_now_list_item_selected(
                         item,
                         Utc::now(),
-                        bullet_list,
+                        do_now_list,
                         send_to_data_storage_layer,
                     )
                     .await
@@ -753,10 +753,10 @@ pub(crate) async fn present_search_menu(
             }
         }
         Ok(SearchMenuUrgencyItem::Item { item }) => {
-            present_bullet_list_item_selected(
+            present_do_now_list_item_selected(
                 item,
                 Utc::now(),
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             )
             .await
@@ -773,10 +773,10 @@ pub(crate) async fn present_search_menu(
 
             match selection {
                 SearchMenuUrgencyItem::Item { item } => {
-                    present_bullet_list_item_selected(
+                    present_do_now_list_item_selected(
                         item,
                         Utc::now(),
-                        bullet_list,
+                        do_now_list,
                         send_to_data_storage_layer,
                     )
                     .await

@@ -1,4 +1,4 @@
-pub(crate) mod bullet_list_single_item;
+pub(crate) mod do_now_list_single_item;
 pub(crate) mod parent_back_to_a_motivation;
 pub(crate) mod pick_item_review_frequency;
 pub(crate) mod pick_what_should_be_done_first;
@@ -8,8 +8,8 @@ pub(crate) mod search;
 use std::{fmt::Display, iter::once};
 
 use better_term::Style;
-use bullet_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
 use chrono::{DateTime, Local, Utc};
+use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu;
@@ -31,29 +31,29 @@ use crate::{
     },
     menu::inquire::top_menu::present_top_menu,
     node::action_with_item_status::ActionWithItemStatus,
-    systems::bullet_list::BulletList,
+    systems::do_now_list::DoNowList,
 };
 
-use self::bullet_list_single_item::{
-    present_bullet_list_item_selected, present_is_person_or_group_around_menu,
+use self::do_now_list_single_item::{
+    present_do_now_list_item_selected, present_is_person_or_group_around_menu,
 };
 
 use super::top_menu::capture;
 
-pub(crate) enum InquireBulletListItem<'e> {
+pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
-    BulletListSingleItem(&'e ActionWithItemStatus<'e>),
+    DoNowListSingleItem(&'e ActionWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     TopMenu,
 }
 
-impl Display for InquireBulletListItem<'_> {
+impl Display for InquireDoNowListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item       🗭"),
             Self::Search => write!(f, "🔍  Search                 🔍"),
-            Self::BulletListSingleItem(item) => {
+            Self::DoNowListSingleItem(item) => {
                 let display = DisplayActionWithItemStatus::new(item);
                 write!(f, "{}", display)
             }
@@ -67,27 +67,27 @@ impl Display for InquireBulletListItem<'_> {
     }
 }
 
-impl<'a> InquireBulletListItem<'a> {
+impl<'a> InquireDoNowListItem<'a> {
     pub(crate) fn create_list(
         item_action: &'a [ActionWithItemStatus<'a>],
-        bullet_list_created: DateTime<Utc>,
-    ) -> Vec<InquireBulletListItem<'a>> {
+        do_now_list_created: DateTime<Utc>,
+    ) -> Vec<InquireDoNowListItem<'a>> {
         chain!(
-            once(InquireBulletListItem::RefreshList(
-                bullet_list_created.into()
+            once(InquireDoNowListItem::RefreshList(
+                do_now_list_created.into()
             )),
-            once(InquireBulletListItem::CaptureNewItem),
-            once(InquireBulletListItem::Search),
+            once(InquireDoNowListItem::CaptureNewItem),
+            once(InquireDoNowListItem::Search),
             item_action
                 .iter()
-                .map(InquireBulletListItem::BulletListSingleItem),
-            once(InquireBulletListItem::TopMenu)
+                .map(InquireDoNowListItem::DoNowListSingleItem),
+            once(InquireDoNowListItem::TopMenu)
         )
         .collect()
     }
 }
 
-pub(crate) async fn present_normal_bullet_list_menu(
+pub(crate) async fn present_normal_do_now_list_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let before_db_query = Local::now();
@@ -103,24 +103,24 @@ pub(crate) async fn present_normal_bullet_list_menu(
     let base_data_checkpoint = Utc::now();
     let calculated_data = CalculatedData::new_from_base_data(base_data);
     let calculated_data_checkpoint = Utc::now();
-    let bullet_list = BulletList::new_bullet_list(calculated_data, &now);
+    let do_now_list = DoNowList::new_do_now_list(calculated_data, &now);
     let finish_checkpoint = Utc::now();
     let elapsed = finish_checkpoint - now;
     if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
-        println!("Slow to create bullet list. Time taken: {}", elapsed);
+        println!("Slow to create do now list. Time taken: {}", elapsed);
         println!(
-            "Base data took: {}, calculated data took: {}, bullet list took: {}",
+            "Base data took: {}, calculated data took: {}, do now list took: {}",
             base_data_checkpoint - now,
             calculated_data_checkpoint - base_data_checkpoint,
             finish_checkpoint - calculated_data_checkpoint
         );
     }
-    present_upcoming(&bullet_list);
-    present_bullet_list_menu(&bullet_list, now, send_to_data_storage_layer).await
+    present_upcoming(&do_now_list);
+    present_do_now_list_menu(&do_now_list, now, send_to_data_storage_layer).await
 }
 
-pub(crate) fn present_upcoming(bullet_list: &BulletList) {
-    let upcoming = bullet_list.get_upcoming();
+pub(crate) fn present_upcoming(do_now_list: &DoNowList) {
+    let upcoming = do_now_list.get_upcoming();
     if !upcoming.is_empty() {
         println!("Upcoming:");
         for scheduled_item in upcoming
@@ -144,32 +144,32 @@ pub(crate) fn present_upcoming(bullet_list: &BulletList) {
     }
 }
 
-pub(crate) async fn present_bullet_list_menu(
-    bullet_list: &BulletList,
-    bullet_list_created: DateTime<Utc>,
+pub(crate) async fn present_do_now_list_menu(
+    do_now_list: &DoNowList,
+    do_now_list_created: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let ordered_bullet_list = bullet_list.get_ordered_bullet_list();
+    let ordered_do_now_list = do_now_list.get_ordered_do_now_list();
 
-    let inquire_bullet_list =
-        InquireBulletListItem::create_list(ordered_bullet_list, bullet_list_created);
+    let inquire_do_now_list =
+        InquireDoNowListItem::create_list(ordered_do_now_list, do_now_list_created);
 
-    let starting_cursor = if ordered_bullet_list.is_empty() { 0 } else { 3 };
-    let selected = Select::new("Select from the below list|", inquire_bullet_list)
+    let starting_cursor = if ordered_do_now_list.is_empty() { 0 } else { 3 };
+    let selected = Select::new("Select from the below list|", inquire_do_now_list)
         .with_starting_cursor(starting_cursor)
         .with_page_size(10)
         .prompt();
 
     match selected {
-        Ok(InquireBulletListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
-        Ok(InquireBulletListItem::Search) => {
-            present_search_menu(bullet_list, send_to_data_storage_layer).await
+        Ok(InquireDoNowListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
+        Ok(InquireDoNowListItem::Search) => {
+            present_search_menu(do_now_list, send_to_data_storage_layer).await
         }
-        Ok(InquireBulletListItem::BulletListSingleItem(selected)) => match selected {
+        Ok(InquireDoNowListItem::DoNowListSingleItem(selected)) => match selected {
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
                 present_pick_what_should_be_done_first_menu(
                     choices,
-                    bullet_list,
+                    do_now_list,
                     send_to_data_storage_layer,
                 )
                 .await
@@ -186,7 +186,7 @@ pub(crate) async fn present_bullet_list_menu(
                 present_review_item_menu(
                     item_status,
                     selected.get_urgency_now(),
-                    bullet_list.get_all_items_status(),
+                    do_now_list.get_all_items_status(),
                     LogTime::SeparateTaskLogTheTime,
                     send_to_data_storage_layer,
                 )
@@ -200,10 +200,10 @@ pub(crate) async fn present_bullet_list_menu(
                     )
                     .await
                 } else {
-                    Box::pin(present_bullet_list_item_selected(
+                    Box::pin(present_do_now_list_item_selected(
                         item_status,
                         Utc::now(),
-                        bullet_list,
+                        do_now_list,
                         send_to_data_storage_layer,
                     ))
                     .await
@@ -227,11 +227,11 @@ pub(crate) async fn present_bullet_list_menu(
                 .await
             }
         },
-        Ok(InquireBulletListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {
+        Ok(InquireDoNowListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {
             println!("Press Ctrl+C to exit");
-            Box::pin(present_normal_bullet_list_menu(send_to_data_storage_layer)).await
+            Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await
         }
-        Ok(InquireBulletListItem::TopMenu) => {
+        Ok(InquireDoNowListItem::TopMenu) => {
             Box::pin(present_top_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),

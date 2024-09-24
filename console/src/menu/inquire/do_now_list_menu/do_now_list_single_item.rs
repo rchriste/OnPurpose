@@ -29,8 +29,8 @@ use crate::{
         display_item_type::DisplayItemType, display_urgency_plan::DisplayUrgency, DisplayStyle,
     },
     menu::inquire::{
-        bullet_list_menu::{
-            bullet_list_single_item::{
+        do_now_list_menu::{
+            do_now_list_single_item::{
                 give_this_item_a_parent::give_this_item_a_parent,
                 something_else_should_be_done_first::something_else_should_be_done_first,
                 state_a_smaller_action::state_a_smaller_action,
@@ -47,7 +47,7 @@ use crate::{
         item_status::ItemStatus,
         Filter,
     },
-    systems::bullet_list::BulletList,
+    systems::do_now_list::DoNowList,
 };
 
 pub(crate) enum LogTime {
@@ -55,7 +55,7 @@ pub(crate) enum LogTime {
     PartOfAnotherTaskDoNotLogTheTime,
 }
 
-enum BulletListSingleItemSelection<'e> {
+enum DoNowListSingleItemSelection<'e> {
     ChangeItemType { current: &'e SurrealItemType },
     CaptureNewItem,
     GiveThisItemAParent,
@@ -66,7 +66,7 @@ enum BulletListSingleItemSelection<'e> {
     StateASmallerAction,
     WorkedOnThis,
     Finished,
-    ReturnToBulletList,
+    ReturnToDoNowList,
     UpdateSummary,
     SwitchToParentItem(DisplayItem<'e>, &'e ItemStatus<'e>),
     ParentToItem,
@@ -76,7 +76,7 @@ enum BulletListSingleItemSelection<'e> {
     DebugPrintItem,
 }
 
-impl Display for BulletListSingleItemSelection<'_> {
+impl Display for DoNowListSingleItemSelection<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CaptureNewItem => write!(f, "Capture New Item"),
@@ -108,13 +108,13 @@ impl Display for BulletListSingleItemSelection<'_> {
             Self::UnableToDoThisRightNow => write!(f, "I am unable to do this right now"),
             Self::WorkedOnThis => write!(f, "I worked on this"),
             Self::Finished => write!(f, "I finished"),
-            Self::ReturnToBulletList => write!(f, "Return to the Bullet List Menu"),
+            Self::ReturnToDoNowList => write!(f, "Return to the Do Now Menu"),
             Self::ChangeReadyAndUrgencyPlan => write!(f, "Change Ready & Urgency Plan"),
         }
     }
 }
 
-impl<'e> BulletListSingleItemSelection<'e> {
+impl<'e> DoNowListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
         all_items_status: &'e [ItemStatus<'e>],
@@ -190,28 +190,28 @@ impl<'e> BulletListSingleItemSelection<'e> {
         list.extend(vec![
             Self::UpdateSummary,
             Self::DebugPrintItem,
-            Self::ReturnToBulletList,
+            Self::ReturnToDoNowList,
         ]);
 
         list
     }
 }
 
-pub(crate) async fn present_bullet_list_item_selected(
+pub(crate) async fn present_do_now_list_item_selected(
     menu_for: &ItemStatus<'_>,
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
-    bullet_list: &BulletList,
+    do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     println!();
     println!("Selected Item:");
     println!("  {}", DisplayItem::new(menu_for.get_item()));
     print_completed_children(menu_for);
-    print_in_progress_children(menu_for, bullet_list.get_all_items_status());
+    print_in_progress_children(menu_for, do_now_list.get_all_items_status());
     println!();
 
-    let all_items_lap_highest_count = bullet_list.get_all_items_status();
-    let list = BulletListSingleItemSelection::create_list(
+    let all_items_lap_highest_count = do_now_list.get_all_items_status();
+    let list = DoNowListSingleItemSelection::create_list(
         menu_for.get_item_node(),
         all_items_lap_highest_count,
     );
@@ -221,20 +221,20 @@ pub(crate) async fn present_bullet_list_item_selected(
         .prompt();
 
     match selection {
-        Ok(BulletListSingleItemSelection::ChangeItemType { .. }) => {
+        Ok(DoNowListSingleItemSelection::ChangeItemType { .. }) => {
             declare_item_type(menu_for.get_item(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::CaptureNewItem) => {
+        Ok(DoNowListSingleItemSelection::CaptureNewItem) => {
             capture(send_to_data_storage_layer).await?;
-            Box::pin(present_bullet_list_item_selected(
+            Box::pin(present_do_now_list_item_selected(
                 menu_for,
                 when_selected,
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::StateASmallerAction) => {
+        Ok(DoNowListSingleItemSelection::StateASmallerAction) => {
             state_a_smaller_action(menu_for.get_item_node(), send_to_data_storage_layer).await?;
             //TODO: Refresh menu_for and bullet_list
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
@@ -243,26 +243,26 @@ pub(crate) async fn present_bullet_list_item_selected(
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
             let calculated_data = CalculatedData::new_from_base_data(base_data);
-            let bullet_list = BulletList::new_bullet_list(calculated_data, &now);
+            let do_now_list = DoNowList::new_do_now_list(calculated_data, &now);
 
-            let menu_for = bullet_list
+            let menu_for = do_now_list
                 .get_all_items_status()
                 .iter()
                 .find(|x| x.get_item() == menu_for.get_item())
                 .expect("We will find this existing item once");
 
-            Box::pin(present_bullet_list_item_selected(
+            Box::pin(present_do_now_list_item_selected(
                 menu_for,
                 when_selected,
-                &bullet_list,
+                &do_now_list,
                 send_to_data_storage_layer,
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::GiveThisItemAParent) => {
+        Ok(DoNowListSingleItemSelection::GiveThisItemAParent) => {
             give_this_item_a_parent(menu_for.get_item(), false, send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::RemoveParent(_, selected)) => {
+        Ok(DoNowListSingleItemSelection::RemoveParent(_, selected)) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemRemoveParent {
                     child: menu_for.get_item().get_surreal_record_id().clone(),
@@ -272,7 +272,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .unwrap();
             Ok(())
         }
-        Ok(BulletListSingleItemSelection::RemoveChild(_, selected)) => {
+        Ok(DoNowListSingleItemSelection::RemoveChild(_, selected)) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentItemRemoveParent {
                     child: selected.get_item().get_surreal_record_id().clone(),
@@ -282,7 +282,7 @@ pub(crate) async fn present_bullet_list_item_selected(
                 .unwrap();
             Ok(())
         }
-        Ok(BulletListSingleItemSelection::UnableToDoThisRightNow) => {
+        Ok(DoNowListSingleItemSelection::UnableToDoThisRightNow) => {
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 menu_for.get_urgency_now().cloned(),
@@ -291,24 +291,24 @@ pub(crate) async fn present_bullet_list_item_selected(
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
+        Ok(DoNowListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
                 .await
         }
-        Ok(BulletListSingleItemSelection::ReviewItem) => {
+        Ok(DoNowListSingleItemSelection::ReviewItem) => {
             review_item::present_review_item_menu(
                 menu_for,
                 menu_for
                     .get_urgency_now()
                     .unwrap_or(&SurrealUrgency::InTheModeByImportance)
                     .clone(),
-                bullet_list.get_all_items_status(),
+                do_now_list.get_all_items_status(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 send_to_data_storage_layer,
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::WorkedOnThis) => {
+        Ok(DoNowListSingleItemSelection::WorkedOnThis) => {
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 menu_for.get_urgency_now().cloned(),
@@ -325,15 +325,15 @@ pub(crate) async fn present_bullet_list_item_selected(
             .await?;
             prompt_priority_for_new_item::prompt_priority_for_new_item(
                 menu_for,
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::Finished) => {
-            finish_bullet_item(
+        Ok(DoNowListSingleItemSelection::Finished) => {
+            finish_do_now_item(
                 menu_for,
-                bullet_list,
+                do_now_list,
                 Utc::now(),
                 send_to_data_storage_layer,
             )
@@ -346,7 +346,7 @@ pub(crate) async fn present_bullet_list_item_selected(
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
+        Ok(DoNowListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 menu_for.get_urgency_now().cloned(),
@@ -355,35 +355,35 @@ pub(crate) async fn present_bullet_list_item_selected(
             )
             .await
         }
-        Ok(BulletListSingleItemSelection::UpdateSummary) => {
+        Ok(DoNowListSingleItemSelection::UpdateSummary) => {
             update_item_summary(menu_for.get_item(), send_to_data_storage_layer).await?;
             //After updating the summary we want to stay on the same item with the same times
-            Box::pin(present_bullet_list_item_selected(
+            Box::pin(present_do_now_list_item_selected(
                 menu_for,
                 when_selected,
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::SwitchToParentItem(_, selected))
-        | Ok(BulletListSingleItemSelection::SwitchToChildItem(_, selected)) => {
-            Box::pin(present_bullet_list_item_selected(
+        Ok(DoNowListSingleItemSelection::SwitchToParentItem(_, selected))
+        | Ok(DoNowListSingleItemSelection::SwitchToChildItem(_, selected)) => {
+            Box::pin(present_do_now_list_item_selected(
                 selected,
                 chrono::Utc::now(),
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             ))
             .await
         }
-        Ok(BulletListSingleItemSelection::ParentToItem) => {
+        Ok(DoNowListSingleItemSelection::ParentToItem) => {
             parent_to_item(menu_for.get_item(), send_to_data_storage_layer).await
         }
-        Ok(BulletListSingleItemSelection::DebugPrintItem) => {
+        Ok(DoNowListSingleItemSelection::DebugPrintItem) => {
             println!("{:?}", menu_for);
             Ok(())
         }
-        Ok(BulletListSingleItemSelection::ReturnToBulletList)
+        Ok(DoNowListSingleItemSelection::ReturnToDoNowList)
         | Err(InquireError::OperationCanceled) => Ok(()), //Nothing to do we just want to return to the bullet list
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
@@ -447,7 +447,7 @@ enum FinishSelection<'e> {
     CreateNextStepWithParent(&'e Item<'e>),
     GoToParent(&'e Item<'e>),
     CaptureNewItem,
-    ReturnToBulletList,
+    ReturnToDoNowList,
 }
 
 impl Display for FinishSelection<'_> {
@@ -462,7 +462,7 @@ impl Display for FinishSelection<'_> {
                 write!(f, "Go to Parent: {}", DisplayItem::new(parent))
             }
             FinishSelection::CaptureNewItem => write!(f, "Capture New Item"),
-            FinishSelection::ReturnToBulletList => write!(f, "Return to Bullet List"),
+            FinishSelection::ReturnToDoNowList => write!(f, "Return to Do Now List"),
         }
     }
 }
@@ -470,7 +470,7 @@ impl Display for FinishSelection<'_> {
 impl<'e> FinishSelection<'e> {
     fn make_list(parents: &[&'e Item<'e>]) -> Vec<Self> {
         let mut list = Vec::default();
-        list.push(Self::ReturnToBulletList);
+        list.push(Self::ReturnToDoNowList);
         list.push(Self::CaptureNewItem);
         list.extend(
             parents
@@ -481,9 +481,9 @@ impl<'e> FinishSelection<'e> {
     }
 }
 
-async fn finish_bullet_item(
+async fn finish_do_now_item(
     finish_this: &ItemStatus<'_>,
-    bullet_list: &BulletList,
+    do_now_list: &DoNowList,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -525,10 +525,10 @@ async fn finish_bullet_item(
 
             state_a_smaller_action(&updated_parent, send_to_data_storage_layer).await?;
 
-            //Recursively call as a way of creating a loop, we don't want to return to the main bullet list
-            Box::pin(finish_bullet_item(
+            //Recursively call as a way of creating a loop, we don't want to return to the main do now list
+            Box::pin(finish_do_now_item(
                 finish_this,
-                bullet_list,
+                do_now_list,
                 Utc::now(),
                 send_to_data_storage_layer,
             ))
@@ -548,15 +548,15 @@ async fn finish_bullet_item(
                 .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
-            Box::pin(present_bullet_list_item_selected(
+            Box::pin(present_do_now_list_item_selected(
                 updated_parent,
                 when_this_function_was_called,
-                bullet_list,
+                do_now_list,
                 send_to_data_storage_layer,
             ))
             .await
         }
-        Ok(FinishSelection::ReturnToBulletList) => Ok(()),
+        Ok(FinishSelection::ReturnToDoNowList) => Ok(()),
         Err(InquireError::OperationCanceled) => {
             todo!("This should undo the finish and put the item back to what it was before")
         }
