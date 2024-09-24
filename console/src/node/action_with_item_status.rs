@@ -12,6 +12,7 @@ use crate::{
 };
 
 use super::{
+    item_node::ItemNode,
     item_status::{ActionWithItemNode, ItemStatus},
     urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
     why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus,
@@ -164,6 +165,17 @@ impl<'e> ActionWithItemStatus<'e> {
             }
         }
     }
+
+    pub(crate) fn get_item_node(&self) -> &ItemNode {
+        match self {
+            ActionWithItemStatus::SetReadyAndUrgency(item)
+            | ActionWithItemStatus::ParentBackToAMotivation(item)
+            | ActionWithItemStatus::ReviewItem(item)
+            | ActionWithItemStatus::PickItemReviewFrequency(item)
+            | ActionWithItemStatus::ItemNeedsAClassification(item)
+            | ActionWithItemStatus::MakeProgress(item) => item.get_item_node(),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -242,7 +254,7 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<WhyInScopeAndActionWithItemStatu
     fn apply_in_the_moment_priorities(
         self,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
-    ) -> Option<UrgencyLevelItemWithItemStatus> {
+    ) -> Option<UrgencyLevelItemWithItemStatus<'s>> {
         //Go through all ItemActions and look for that item in all_priorities and if found then if it is the highest priority then remove from the list all other items found and if it is the lowest priority then remove it if there are any higher priorities in the list.
         let all = self.iter().map(|x| x.get_action()).collect::<Vec<_>>();
         let lowest_priority_removed = self.iter().filter(|item_action| {
@@ -321,7 +333,9 @@ mod tests {
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
-            surreal_item::SurrealItemBuilder,
+            surreal_item::{
+                SurrealItemBuilder, SurrealItemType, SurrealMotivationKind, SurrealOrderedSubItem,
+            },
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
@@ -908,6 +922,240 @@ mod tests {
                 assert_eq!(result.get_action(), first_item_action.get_action());
             }
             UrgencyLevelItemWithItemStatus::MultipleItems(..) => panic!("Test Failure"),
+        }
+    }
+
+    #[test]
+    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_lowest_priority_the_priority_should_not_apply(
+    ) {
+        let first_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("First item")
+            .build()
+            .unwrap();
+        let second_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Second item")
+            .build()
+            .unwrap();
+        let third_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "3").into()))
+            .summary("Third item")
+            .build()
+            .unwrap();
+
+        let core_motivation = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "core").into()))
+            .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
+            .smaller_items_in_priority_order(vec![
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "1").into(),
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "2").into(),
+                },
+            ])
+            .summary("Core motivation")
+            .build()
+            .unwrap();
+
+        let non_core_motivation = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "noncore").into()))
+            .item_type(SurrealItemType::Motivation(
+                SurrealMotivationKind::NonCoreWork,
+            ))
+            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
+                surreal_item_id: ("surreal_item", "3").into(),
+            }])
+            .summary("Core motivation")
+            .build()
+            .unwrap();
+
+        let in_an_hour = Utc::now() + chrono::Duration::hours(1);
+        let lowest_in_the_moment_priority = SurrealInTheMomentPriorityBuilder::default()
+            .id(Some(("surreal_in_the_moment_priority", "1").into()))
+            .kind(SurrealPriorityKind::LowestPriority)
+            .choice(SurrealAction::MakeProgress(
+                third_item.id.clone().expect("hard coded to a value"),
+            ))
+            .not_chosen(vec![
+                SurrealAction::MakeProgress(first_item.id.clone().expect("hard coded to a value")),
+                SurrealAction::MakeProgress(second_item.id.clone().expect("hard coded to a value")),
+            ])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
+            .build()
+            .unwrap();
+
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![
+                first_item.clone(),
+                second_item.clone(),
+                third_item.clone(),
+                core_motivation.clone(),
+                non_core_motivation.clone(),
+            ])
+            .surreal_in_the_moment_priorities(vec![lowest_in_the_moment_priority])
+            .build()
+            .unwrap();
+
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
+        let items_status = calculated_data.get_items_status();
+
+        let first_item_status = items_status
+            .get(first_item.id.as_ref().unwrap())
+            .expect("First item status not found");
+        let second_item_status = items_status
+            .get(second_item.id.as_ref().unwrap())
+            .expect("Second item status not found");
+
+        //We are just doing core motivation is in mode which is limited to the first and second item
+
+        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
+        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
+
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+
+        let dut = vec![first_item_action.clone(), second_item_action.clone()];
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+
+        assert!(result.is_some(), "Result should not be blank");
+        let result = result.expect("assert.is_some() should have passed");
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(..) => {
+                panic!("Both items should still be there");
+            }
+            UrgencyLevelItemWithItemStatus::MultipleItems(results) => {
+                assert_eq!(results.len(), 2);
+                assert_eq!(results[0].get_action(), first_item_action.get_action());
+                assert_eq!(results[1].get_action(), second_item_action.get_action());
+            }
+        }
+    }
+
+    #[test]
+    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_highest_priority_the_priority_should_not_apply(
+    ) {
+        let first_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "1").into()))
+            .summary("First item")
+            .build()
+            .unwrap();
+        let second_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "2").into()))
+            .summary("Second item")
+            .build()
+            .unwrap();
+        let third_item = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "3").into()))
+            .summary("Third item")
+            .build()
+            .unwrap();
+
+        let core_motivation = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "core").into()))
+            .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
+            .smaller_items_in_priority_order(vec![
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "1").into(),
+                },
+                SurrealOrderedSubItem::SubItem {
+                    surreal_item_id: ("surreal_item", "2").into(),
+                },
+            ])
+            .summary("Core motivation")
+            .build()
+            .unwrap();
+
+        let non_core_motivation = SurrealItemBuilder::default()
+            .id(Some(("surreal_item", "noncore").into()))
+            .item_type(SurrealItemType::Motivation(
+                SurrealMotivationKind::NonCoreWork,
+            ))
+            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
+                surreal_item_id: ("surreal_item", "3").into(),
+            }])
+            .summary("Core motivation")
+            .build()
+            .unwrap();
+
+        let in_an_hour = Utc::now() + chrono::Duration::hours(1);
+        let highest_in_the_moment_priority = SurrealInTheMomentPriorityBuilder::default()
+            .id(Some(("surreal_in_the_moment_priority", "1").into()))
+            .kind(SurrealPriorityKind::HighestPriority)
+            .choice(SurrealAction::MakeProgress(
+                third_item.id.clone().expect("hard coded to a value"),
+            ))
+            .not_chosen(vec![
+                SurrealAction::MakeProgress(first_item.id.clone().expect("hard coded to a value")),
+                SurrealAction::MakeProgress(second_item.id.clone().expect("hard coded to a value")),
+            ])
+            .in_effect_until(vec![SurrealTrigger::WallClockDateTime(in_an_hour.into())])
+            .build()
+            .unwrap();
+
+        let surreal_tables = SurrealTablesBuilder::default()
+            .surreal_items(vec![
+                first_item.clone(),
+                second_item.clone(),
+                third_item.clone(),
+                core_motivation.clone(),
+                non_core_motivation.clone(),
+            ])
+            .surreal_in_the_moment_priorities(vec![highest_in_the_moment_priority])
+            .build()
+            .unwrap();
+
+        let now = Utc::now();
+        let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
+        let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
+        let items_status = calculated_data.get_items_status();
+
+        let first_item_status = items_status
+            .get(first_item.id.as_ref().unwrap())
+            .expect("First item status not found");
+        let second_item_status = items_status
+            .get(second_item.id.as_ref().unwrap())
+            .expect("Second item status not found");
+
+        //We are just doing core motivation is in mode which is limited to the first and second item
+
+        let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
+        let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
+
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+
+        let dut = vec![first_item_action.clone(), second_item_action.clone()];
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
+
+        assert!(result.is_some(), "Result should not be blank");
+        let result = result.expect("assert.is_some() should have passed");
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(..) => {
+                panic!("Both items should still be there");
+            }
+            UrgencyLevelItemWithItemStatus::MultipleItems(results) => {
+                assert_eq!(results.len(), 2);
+                assert_eq!(results[0].get_action(), first_item_action.get_action());
+                assert_eq!(results[1].get_action(), second_item_action.get_action());
+            }
         }
     }
 }

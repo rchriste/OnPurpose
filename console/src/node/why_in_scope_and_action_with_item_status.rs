@@ -7,7 +7,7 @@ use crate::data_storage::surrealdb_layer::{
     surreal_in_the_moment_priority::SurrealAction, surreal_time_spent::SurrealWhyInScope,
 };
 
-use super::{action_with_item_status::ActionWithItemStatus, SurrealUrgency};
+use super::{action_with_item_status::ActionWithItemStatus, item_node::ItemNode, SurrealUrgency};
 
 #[derive(Debug, Clone)]
 pub(crate) struct WhyInScopeAndActionWithItemStatus<'s> {
@@ -126,5 +126,9 @@ impl<'e> WhyInScopeAndActionWithItemStatus<'e> {
 
     pub(crate) fn clone_to_surreal_action(&self) -> SurrealAction {
         self.action.clone_to_surreal_action()
+    }
+
+    pub(crate) fn get_item_node(&self) -> &ItemNode {
+        self.action.get_item_node()
     }
 }

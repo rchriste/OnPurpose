@@ -3,6 +3,7 @@ use crate::{
         in_the_moment_priority::InTheMomentPriorityWithItemAction, time_spent::TimeSpent, BaseData,
     },
     node::{item_node::ItemNode, item_status::ItemStatus},
+    systems::do_now_list::current_mode::CurrentMode,
 };
 use ahash::HashMap;
 use chrono::{DateTime, Utc};
@@ -24,6 +25,9 @@ pub(crate) struct CalculatedData {
     #[borrows(items_status, base_data, items_nodes)]
     #[covariant]
     in_the_moment_priorities: Vec<InTheMomentPriorityWithItemAction<'this>>,
+
+    #[borrows(base_data)]
+    current_mode: CurrentMode,
 }
 
 impl CalculatedData {
@@ -67,6 +71,16 @@ impl CalculatedData {
                     })
                     .collect::<Vec<_>>()
             },
+            current_mode_builder: |base_data| {
+                let surreal_current_modes = base_data.get_surreal_current_modes();
+                assert!(surreal_current_modes.len() <= 1, "There should not be more than one current mode. In the future it would be great for this to be a silent error that just deletes the current mode and logs an error into an error log (that currently doesn't exist) clears it but for now this is an assert. Length is: {}", surreal_current_modes.len());
+                let surreal_current_mode = surreal_current_modes.first();
+                match surreal_current_mode {
+                    None => CurrentMode::default(),
+                    Some(surreal_current_mode) =>
+                        CurrentMode::new(surreal_current_mode)
+                }
+            },
         }
         .build()
     }
@@ -85,5 +99,9 @@ impl CalculatedData {
 
     pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {
         self.borrow_base_data().get_time_spent_log()
+    }
+
+    pub(crate) fn get_current_mode(&self) -> &CurrentMode {
+        self.borrow_current_mode()
     }
 }

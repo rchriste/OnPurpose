@@ -14,6 +14,7 @@ use tokio::sync::{
 use crate::{new_item::NewItem, new_time_spent::NewTimeSpent};
 
 use super::{
+    surreal_current_mode::{NewCurrentMode, SurrealCurrentMode},
     surreal_in_the_moment_priority::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
@@ -79,6 +80,7 @@ pub(crate) enum DataLayerCommands {
         not_chosen: Vec<SurrealAction>,
         in_effect_until: Vec<SurrealTrigger>,
     },
+    SetCurrentMode(NewCurrentMode),
 }
 
 impl DataLayerCommands {
@@ -287,6 +289,25 @@ pub(crate) async fn data_storage_start_and_run(
                 priority.id = updated.id.clone();
                 assert_eq!(priority, updated);
             }
+            Some(DataLayerCommands::SetCurrentMode(new_current_mode)) => {
+                let current_mode: SurrealCurrentMode = new_current_mode.into();
+                let mut updated = db
+                    .upsert(SurrealCurrentMode::TABLE_NAME)
+                    .content(current_mode.clone())
+                    .await
+                    .unwrap();
+                if updated.is_empty() {
+                    //Annoyingly SurrealDB's upsert seems to just not work sometimes without giving an explicit error so I have to do this
+                    updated = db
+                        .insert(SurrealCurrentMode::TABLE_NAME)
+                        .content(current_mode.clone())
+                        .await
+                        .unwrap();
+                }
+                assert_eq!(1, updated.len());
+                let updated = updated.into_iter().next().unwrap();
+                assert_eq!(current_mode, updated);
+            }
             None => return, //Channel closed, time to shutdown down, exit
         }
     }
@@ -297,6 +318,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let all_items = db.select(SurrealItem::TABLE_NAME);
     let time_spent_log = db.select(SurrealTimeSpent::TABLE_NAME);
     let surreal_in_the_moment_priorities = db.select(SurrealInTheMomentPriority::TABLE_NAME);
+    let surreal_current_modes = db.select(SurrealCurrentMode::TABLE_NAME);
 
     let all_items: Vec<SurrealItem> = match all_items.await {
         Ok(all_items) => all_items,
@@ -322,6 +344,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         surreal_items: all_items,
         surreal_time_spent_log: time_spent_log,
         surreal_in_the_moment_priorities,
+        surreal_current_modes: surreal_current_modes.await.unwrap(),
     }
 }
 
