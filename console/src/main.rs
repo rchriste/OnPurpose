@@ -24,7 +24,7 @@ use crate::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     const CARGO_PKG_VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
-    println!("Welcome to On-Purpose: Time Management Rethought");
+    println!("Welcome to On-Purpose: Neurodiverse Time Mastery");
     println!("Version {}", CARGO_PKG_VERSION.unwrap_or("UNKNOWN"));
 
     let commands_in_flight_limit = 20;

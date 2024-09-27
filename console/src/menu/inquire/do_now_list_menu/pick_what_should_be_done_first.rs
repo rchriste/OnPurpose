@@ -11,6 +11,7 @@ use crate::{
     },
     display::display_action_with_item_status::DisplayActionWithItemStatus,
     menu::inquire::do_now_list_menu::{
+        classify_item::present_item_needs_a_classification_menu,
         do_now_list_single_item::{
             present_do_now_list_item_selected, present_is_person_or_group_around_menu,
             urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime,
@@ -150,6 +151,14 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                         ))
                         .await;
                     }
+                }
+                ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+                    return present_item_needs_a_classification_menu(
+                        item_status,
+                        item_action.get_urgency_now(),
+                        send_to_data_storage_layer,
+                    )
+                    .await;
                 }
                 ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
                     return present_set_ready_and_urgency_plan_menu(

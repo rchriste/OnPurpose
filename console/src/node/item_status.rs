@@ -210,6 +210,7 @@ pub(crate) enum ActionWithItemNode<'e> {
     SetReadyAndUrgency(&'e ItemNode<'e>),
     ParentBackToAMotivation(&'e ItemNode<'e>),
     ReviewItem(&'e ItemNode<'e>),
+    ItemNeedsAClassification(&'e ItemNode<'e>),
     PickItemReviewFrequency(&'e ItemNode<'e>),
     MakeProgress(&'e ItemNode<'e>),
 }
@@ -239,6 +240,13 @@ impl<'e> ActionWithItemNode<'e> {
             ),
             ActionWithItem::PickItemReviewFrequency(item) => {
                 ActionWithItemNode::PickItemReviewFrequency(
+                    all_nodes
+                        .find_record_id(item.get_surreal_record_id())
+                        .expect("Item came from here and should be here"),
+                )
+            }
+            ActionWithItem::ItemNeedsAClassification(item) => {
+                ActionWithItemNode::ItemNeedsAClassification(
                     all_nodes
                         .find_record_id(item.get_surreal_record_id())
                         .expect("Item came from here and should be here"),

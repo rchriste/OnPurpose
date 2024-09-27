@@ -14,6 +14,7 @@ use super::item_status::{ActionWithItemNode, ItemStatus};
 pub(crate) enum ActionWithItemStatus<'e> {
     SetReadyAndUrgency(&'e ItemStatus<'e>),
     ParentBackToAMotivation(&'e ItemStatus<'e>),
+    ItemNeedsAClassification(&'e ItemStatus<'e>),
     ReviewItem(&'e ItemStatus<'e>),
     PickItemReviewFrequency(&'e ItemStatus<'e>),
     PickWhatShouldBeDoneFirst(Vec<ActionWithItemStatus<'e>>),
@@ -46,6 +47,12 @@ impl<'e> ActionWithItemStatus<'e> {
                     .find_record_id(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::PickItemReviewFrequency(item_status)
+            }
+            ActionWithItemNode::ItemNeedsAClassification(action) => {
+                let item_status = items_status
+                    .find_record_id(action.get_surreal_record_id())
+                    .expect("All items are there");
+                ActionWithItemStatus::ItemNeedsAClassification(item_status)
             }
             ActionWithItemNode::MakeProgress(action) => {
                 let item_status = items_status
@@ -91,6 +98,12 @@ impl<'e> ActionWithItemStatus<'e> {
                     .expect("All items are there");
                 ActionWithItemStatus::MakeProgress(item_status)
             }
+            SurrealAction::ItemNeedsAClassification(record_id) => {
+                let item_status = items_status
+                    .find_record_id(record_id)
+                    .expect("All items are there");
+                ActionWithItemStatus::ItemNeedsAClassification(item_status)
+            }
         }
     }
 
@@ -99,6 +112,7 @@ impl<'e> ActionWithItemStatus<'e> {
             ActionWithItemStatus::MakeProgress(item) => SurrealAction::MakeProgress(item.get_surreal_record_id().clone()),
             ActionWithItemStatus::ParentBackToAMotivation(item) => SurrealAction::ParentBackToAMotivation(item.get_surreal_record_id().clone()),
             ActionWithItemStatus::PickItemReviewFrequency(item) => SurrealAction::PickItemReviewFrequency(item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::ItemNeedsAClassification(item) => SurrealAction::ItemNeedsAClassification(item.get_surreal_record_id().clone()),
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => todo!("It is not valid to call get_surreal_action in this scenario. If that is desired then we need to work out what to do."),
             ActionWithItemStatus::ReviewItem(item) => SurrealAction::ReviewItem(item.get_surreal_record_id().clone()),
             ActionWithItemStatus::SetReadyAndUrgency(item) => SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone()),
@@ -111,6 +125,7 @@ impl<'e> ActionWithItemStatus<'e> {
             | ActionWithItemStatus::ParentBackToAMotivation(item)
             | ActionWithItemStatus::ReviewItem(item)
             | ActionWithItemStatus::PickItemReviewFrequency(item)
+            | ActionWithItemStatus::ItemNeedsAClassification(item)
             | ActionWithItemStatus::MakeProgress(item) => item.get_surreal_record_id(),
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
                 todo!("It is not valid to call this function on this item")
@@ -124,7 +139,10 @@ impl<'e> ActionWithItemStatus<'e> {
                 .get_urgency_now()
                 .unwrap_or(&SurrealUrgency::InTheModeByImportance)
                 .clone(),
-            ActionWithItemStatus::ParentBackToAMotivation(..) => SurrealUrgency::MoreUrgentThanMode,
+            ActionWithItemStatus::ParentBackToAMotivation(..)
+            | ActionWithItemStatus::ItemNeedsAClassification(..) => {
+                SurrealUrgency::MoreUrgentThanMode
+            }
             ActionWithItemStatus::PickItemReviewFrequency(..) => {
                 SurrealUrgency::InTheModeMaybeUrgent
             }

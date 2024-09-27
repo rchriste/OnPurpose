@@ -27,6 +27,7 @@ pub(crate) enum SurrealAction {
     SetReadyAndUrgency(RecordId),
     ParentBackToAMotivation(RecordId),
     ReviewItem(RecordId),
+    ItemNeedsAClassification(RecordId),
     PickItemReviewFrequency(RecordId),
     //PickWhatShouldBeDoneFirst is not on this list, because that would be recursive, and for logging Time Spent is probably not something that we want logged in case the user just selects one to do right now
     MakeProgress(RecordId),
@@ -38,6 +39,7 @@ impl SurrealAction {
             SurrealAction::SetReadyAndUrgency(record_id) => record_id,
             SurrealAction::ParentBackToAMotivation(record_id) => record_id,
             SurrealAction::ReviewItem(record_id) => record_id,
+            SurrealAction::ItemNeedsAClassification(record_id) => record_id,
             SurrealAction::PickItemReviewFrequency(record_id) => record_id,
             SurrealAction::MakeProgress(record_id) => record_id,
         }

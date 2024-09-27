@@ -234,6 +234,7 @@ impl<'e> ItemsInScopeWithItem<'e> {
 pub(crate) enum ActionWithItem<'e> {
     SetReadyAndUrgency(&'e Item<'e>),
     ParentBackToAMotivation(&'e Item<'e>),
+    ItemNeedsAClassification(&'e Item<'e>),
     ReviewItem(&'e Item<'e>),
     PickItemReviewFrequency(&'e Item<'e>),
     MakeProgress(&'e Item<'e>),
@@ -788,6 +789,10 @@ fn calculate_urgent_action_items<'a>(
     //Does it need a parent?
     if !has_parents(parents, Filter::Active) && !item.is_type_motivation() {
         result.push(ActionWithItem::ParentBackToAMotivation(item));
+    }
+
+    if item.is_type_motivation_kind_not_set() {
+        result.push(ActionWithItem::ItemNeedsAClassification(item));
     }
 
     //Does it need to pick a review frequency?

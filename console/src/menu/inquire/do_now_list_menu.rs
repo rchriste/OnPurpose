@@ -1,3 +1,4 @@
+pub(crate) mod classify_item;
 pub(crate) mod do_now_list_single_item;
 pub(crate) mod parent_back_to_a_motivation;
 pub(crate) mod pick_item_review_frequency;
@@ -9,6 +10,7 @@ use std::{fmt::Display, iter::once};
 
 use better_term::Style;
 use chrono::{DateTime, Local, Utc};
+use classify_item::present_item_needs_a_classification_menu;
 use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
 use inquire::{InquireError, Select};
 use itertools::chain;
@@ -59,7 +61,7 @@ impl Display for InquireDoNowListItem<'_> {
             }
             Self::RefreshList(bullet_list_created) => write!(
                 f,
-                "🔄  Refresh List ({}) 🔄",
+                "🔄  Reload List ({})                   🔄",
                 bullet_list_created.format("%I:%M%p")
             ),
             Self::TopMenu => write!(f, "🏠  Top Menu               🏠"),
@@ -76,8 +78,8 @@ impl<'a> InquireDoNowListItem<'a> {
             once(InquireDoNowListItem::RefreshList(
                 do_now_list_created.into()
             )),
-            once(InquireDoNowListItem::CaptureNewItem),
             once(InquireDoNowListItem::Search),
+            once(InquireDoNowListItem::CaptureNewItem),
             item_action
                 .iter()
                 .map(InquireDoNowListItem::DoNowListSingleItem),
@@ -176,6 +178,14 @@ pub(crate) async fn present_do_now_list_menu(
             }
             ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                 present_pick_item_review_frequency_menu(
+                    item_status,
+                    selected.get_urgency_now(),
+                    send_to_data_storage_layer,
+                )
+                .await
+            }
+            ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+                present_item_needs_a_classification_menu(
                     item_status,
                     selected.get_urgency_now(),
                     send_to_data_storage_layer,

@@ -41,12 +41,12 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
                 let display = DisplayItemStatus::new(item_status);
                 write!(f, "[🔁 State review frequency] {}", display)
             }
+            ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+                let display = DisplayItemStatus::new(item_status);
+                write!(f, "[🗂️ Needs classification] {}", display)
+            }
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                write!(
-                    f,
-                    "[🔝 Pick what is highest priority] {} choices",
-                    choices.len()
-                )
+                write!(f, "[🔝 Pick highest priority] {} choices", choices.len())
             }
             ActionWithItemStatus::ReviewItem(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
