@@ -34,7 +34,7 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
         match self.item {
             ActionWithItemStatus::MakeProgress(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
-                write!(f, "[🏗️] {}", display)
+                write!(f, "[🏃] {}", display)
             }
             ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
