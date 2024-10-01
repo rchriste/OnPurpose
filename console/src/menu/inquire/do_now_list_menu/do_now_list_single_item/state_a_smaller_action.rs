@@ -158,10 +158,10 @@ pub(crate) async fn state_a_child_action_new_item(
             let (dependencies, urgency_plan) =
                 prompt_for_dependencies_and_urgency_plan(None, send_to_data_storage_layer).await;
             let dependencies = dependencies.into_iter().map(|(a, b)|
-        match a {
-            AddOrRemove::Add => b,
-            AddOrRemove::Remove => panic!("You are adding a new item there is nothing to remove so this case will never be hit"),
-        }).collect::<Vec<_>>();
+                match a {
+                    AddOrRemove::Add => b,
+                    AddOrRemove::Remove => panic!("You are adding a new item there is nothing to remove so this case will never be hit"),
+                }).collect::<Vec<_>>();
             new_item.dependencies = dependencies;
             new_item.urgency_plan = Some(urgency_plan);
 

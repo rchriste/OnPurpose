@@ -17,11 +17,14 @@ pub(crate) struct DisplayActionWithItemStatus<'s> {
 
 impl<'s> Display for DisplayActionWithItemStatus<'s> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_in_scope_for_importance() {
+            write!(f, "🔝 ")?;
+        }
         let urgency = self.get_urgency_now();
         match urgency {
             SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => write!(f, "🚨 ")?,
             SurrealUrgency::MoreUrgentThanMode => write!(f, "🔥 ")?,
-            SurrealUrgency::InTheModeByImportance => write!(f, "🟢 ")?,
+            SurrealUrgency::InTheModeByImportance => {}
             SurrealUrgency::InTheModeDefinitelyUrgent => write!(f, "🔴 ")?,
             SurrealUrgency::InTheModeMaybeUrgent => write!(f, "🟡 ")?,
             SurrealUrgency::ScheduledAnyMode(..) => write!(f, "❗🗓️ ")?,
@@ -31,7 +34,7 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
         match self.item {
             ActionWithItemStatus::MakeProgress(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
-                write!(f, "[🚶🏻] {}", display)
+                write!(f, "[🏗️] {}", display)
             }
             ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
@@ -46,7 +49,7 @@ impl<'s> Display for DisplayActionWithItemStatus<'s> {
                 write!(f, "[🗂️ Needs classification] {}", display)
             }
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                write!(f, "[🔝 Pick highest priority] {} choices", choices.len())
+                write!(f, "[🗳️  Pick highest priority] {} choices", choices.len())
             }
             ActionWithItemStatus::ReviewItem(item_status) => {
                 let display = DisplayItemStatus::new(item_status);
@@ -75,6 +78,19 @@ impl<'s> DisplayActionWithItemStatus<'s> {
 
     pub(crate) fn clone_to_surreal_action(&self) -> SurrealAction {
         self.item.clone_to_surreal_action()
+    }
+
+    pub(crate) fn is_in_scope_for_importance(&self) -> bool {
+        let urgency = self.get_urgency_now();
+        match urgency {
+            SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled
+            | SurrealUrgency::InTheModeDefinitelyUrgent
+            | SurrealUrgency::InTheModeMaybeUrgent
+            | SurrealUrgency::ScheduledAnyMode(..)
+            | SurrealUrgency::InTheModeScheduled(..)
+            | SurrealUrgency::MoreUrgentThanMode => false,
+            SurrealUrgency::InTheModeByImportance => true,
+        }
     }
 
     pub(crate) fn get_action(&self) -> &ActionWithItemStatus<'s> {

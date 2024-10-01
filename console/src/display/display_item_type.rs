@@ -31,7 +31,7 @@ impl<'s> Display for DisplayItemType<'s> {
                         }
                     }
                     SurrealMotivationKind::NonCoreWork => {
-                        write!(f, "🏞")?;
+                        write!(f, "🧹")?;
                         match self.style {
                             DisplayStyle::Abbreviated => {}
                             DisplayStyle::Full => write!(f, " Non-Core")?,
