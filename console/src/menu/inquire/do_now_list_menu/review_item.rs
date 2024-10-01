@@ -28,9 +28,7 @@ use crate::{
     },
     new_time_spent::NewTimeSpent,
     node::{
-        item_node::ItemNode,
-        item_status::{DependencyWithItemNode, ItemStatus},
-        Filter,
+        action_with_item_status::{ModeWhyInScope, ToSurreal}, item_node::ItemNode, item_status::{DependencyWithItemNode, ItemStatus}, Filter
     },
 };
 
@@ -171,6 +169,7 @@ impl ReviewItemMenuChoices<'_> {
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
+    why_in_scope: &[ModeWhyInScope],
     all_items: &[ItemStatus<'_>],
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -189,6 +188,7 @@ pub(crate) async fn present_review_item_menu(
         LogTime::SeparateTaskLogTheTime => {
             let new_time_spent = NewTimeSpent {
                 working_on: vec![SurrealAction::ReviewItem(
+                    why_in_scope.to_surreal(),
                     item_status.get_surreal_record_id().clone(),
                 )], //TODO: I should also add all the parent items that this is making progress towards the goal
                 when_started: start_review_item_menu,

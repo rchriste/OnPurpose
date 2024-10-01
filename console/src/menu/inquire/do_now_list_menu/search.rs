@@ -686,6 +686,7 @@ pub(crate) async fn present_search_menu(
                 SearchMenuUrgencyItem::Item { item } => {
                     present_do_now_list_item_selected(
                         item,
+                        why_in_scope,
                         Utc::now(),
                         do_now_list,
                         send_to_data_storage_layer,

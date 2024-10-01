@@ -3,6 +3,7 @@ use crate::data_storage::surrealdb_layer::surreal_item::{SurrealScheduled, Surre
 pub(crate) mod action_with_item_status;
 pub(crate) mod item_node;
 pub(crate) mod item_status;
+pub(crate) mod item_status_why_in_mode;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Filter {

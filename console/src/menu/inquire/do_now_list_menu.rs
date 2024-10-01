@@ -242,6 +242,7 @@ pub(crate) async fn present_do_now_list_menu(
                 present_review_item_menu(
                     item_status,
                     selected.get_urgency_now(),
+                    why_in_scope,
                     do_now_list.get_all_items_status(),
                     LogTime::SeparateTaskLogTheTime,
                     send_to_data_storage_layer,
@@ -258,6 +259,7 @@ pub(crate) async fn present_do_now_list_menu(
                 } else {
                     Box::pin(present_do_now_list_item_selected(
                         item_status,
+                        why_in_scope,
                         Utc::now(),
                         do_now_list,
                         send_to_data_storage_layer,

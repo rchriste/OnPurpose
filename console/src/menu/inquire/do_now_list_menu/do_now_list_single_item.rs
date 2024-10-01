@@ -42,9 +42,7 @@ use crate::{
     },
     new_item,
     node::{
-        item_node::{DependencyWithItem, ItemNode},
-        item_status::ItemStatus,
-        Filter,
+        action_with_item_status::ModeWhyInScope, item_node::{DependencyWithItem, ItemNode}, item_status::ItemStatus, Filter
     },
     systems::do_now_list::DoNowList,
 };
@@ -198,6 +196,7 @@ impl<'e> DoNowListSingleItemSelection<'e> {
 
 pub(crate) async fn present_do_now_list_item_selected(
     menu_for: &ItemStatus<'_>,
+    why_in_scope: &[ModeWhyInScope],
     when_selected: DateTime<Utc>, //Owns the value because you are meant to give the current time
     do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -227,6 +226,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             capture(send_to_data_storage_layer).await?;
             Box::pin(present_do_now_list_item_selected(
                 menu_for,
+                why_in_scope,
                 when_selected,
                 do_now_list,
                 send_to_data_storage_layer,
@@ -251,6 +251,7 @@ pub(crate) async fn present_do_now_list_item_selected(
 
             Box::pin(present_do_now_list_item_selected(
                 menu_for,
+                why_in_scope,
                 when_selected,
                 &do_now_list,
                 send_to_data_storage_layer,
@@ -316,6 +317,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             .await?;
             log_worked_on_this::log_worked_on_this(
                 menu_for,
+                why_in_scope,
                 &when_selected,
                 Utc::now(),
                 send_to_data_storage_layer,
@@ -325,6 +327,7 @@ pub(crate) async fn present_do_now_list_item_selected(
         Ok(DoNowListSingleItemSelection::Finished) => {
             finish_do_now_item(
                 menu_for,
+                why_in_scope,
                 do_now_list,
                 Utc::now(),
                 send_to_data_storage_layer,
@@ -332,6 +335,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             .await?;
             log_worked_on_this::log_worked_on_this(
                 menu_for,
+                why_in_scope,
                 &when_selected,
                 Utc::now(),
                 send_to_data_storage_layer,
@@ -352,6 +356,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             //After updating the summary we want to stay on the same item with the same times
             Box::pin(present_do_now_list_item_selected(
                 menu_for,
+                why_in_scope,
                 when_selected,
                 do_now_list,
                 send_to_data_storage_layer,
@@ -362,6 +367,7 @@ pub(crate) async fn present_do_now_list_item_selected(
         | Ok(DoNowListSingleItemSelection::SwitchToChildItem(_, selected)) => {
             Box::pin(present_do_now_list_item_selected(
                 selected,
+                why_in_scope,
                 chrono::Utc::now(),
                 do_now_list,
                 send_to_data_storage_layer,
@@ -475,6 +481,7 @@ impl<'e> FinishSelection<'e> {
 
 async fn finish_do_now_item(
     finish_this: &ItemStatus<'_>,
+    why_in_scope: &[ModeWhyInScope],
     do_now_list: &DoNowList,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -520,6 +527,7 @@ async fn finish_do_now_item(
             //Recursively call as a way of creating a loop, we don't want to return to the main do now list
             Box::pin(finish_do_now_item(
                 finish_this,
+                why_in_scope,
                 do_now_list,
                 Utc::now(),
                 send_to_data_storage_layer,
@@ -542,6 +550,7 @@ async fn finish_do_now_item(
 
             Box::pin(present_do_now_list_item_selected(
                 updated_parent,
+                why_in_scope,
                 when_this_function_was_called,
                 do_now_list,
                 send_to_data_storage_layer,

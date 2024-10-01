@@ -18,8 +18,7 @@ use crate::{
     },
     new_time_spent::NewTimeSpent,
     node::{
-        item_status::{DependencyWithItemNode, ItemStatus},
-        Filter, Urgency,
+        action_with_item_status::{ModeWhyInScope, ToSurreal}, item_status::{DependencyWithItemNode, ItemStatus}, Filter, Urgency
     },
 };
 use inquire::{InquireError, Select, Text};
@@ -677,6 +676,7 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
 
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     selected: &ItemStatus<'_>,
+    why_in_scope: &[ModeWhyInScope],
     current_urgency: Option<SurrealUrgency>,
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -720,6 +720,7 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
         LogTime::SeparateTaskLogTheTime => {
             let new_time_spent = NewTimeSpent {
                 working_on: vec![SurrealAction::SetReadyAndUrgency(
+                    why_in_scope.to_surreal(),
                     selected.get_surreal_record_id().clone(),
                 )], //TODO: Should this also be logging onto all the parent items that this is making progress towards the goal?
                 when_started: start_present_set_ready_and_urgency_plan_menu,

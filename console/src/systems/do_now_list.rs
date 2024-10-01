@@ -8,7 +8,7 @@ use crate::{
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     node::{
-        action_with_item_status::{ActionListsByUrgency, ActionWithItemStatus},
+        action_with_item_status::{ActionListsByUrgency, ActionWithItemStatus, ModeWhyInScope},
         item_status::ItemStatus,
         Filter,
     },
@@ -60,7 +60,7 @@ impl DoNowList {
                 let mut bullet_lists_by_urgency = ActionListsByUrgency::default();
 
                 for item in most_important_items.into_iter() {
-                    let item = ActionWithItemStatus::MakeProgress(item);
+                    let item = ActionWithItemStatus::MakeProgress(vec![ModeWhyInScope::Importance], item);
                     bullet_lists_by_urgency
                         .in_the_mode_maybe_urgent_and_by_importance
                         .push_if_new(item);
@@ -156,6 +156,7 @@ impl<'t> PushIfNew<'t> for Vec<ActionWithItemStatus<'t>> {
             }
             Some(_) => {
                 //Do nothing, Item is already there
+                todo!("Need to update the item to also include that it is there for importance")
             }
         }
     }

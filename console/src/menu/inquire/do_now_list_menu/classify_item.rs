@@ -4,7 +4,7 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
-        surreal_in_the_moment_priority::{SurrealAction, SurrealModeWhyInScope},
+        surreal_in_the_moment_priority::SurrealAction,
         surreal_item::SurrealUrgency,
     },
     new_time_spent::NewTimeSpent,
