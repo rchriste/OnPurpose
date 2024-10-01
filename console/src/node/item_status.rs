@@ -1,7 +1,4 @@
-use std::{
-    iter::{self, once},
-    time::Duration,
-};
+use std::{iter, time::Duration};
 
 use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::opt::RecordId;
@@ -373,24 +370,6 @@ impl<'s> ItemStatus<'s> {
     pub(crate) fn get_self_and_parents_flattened(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         //TODO This should be updated to return ItemNode from itself rather than calling into the next layer down
         self.item_node.get_self_and_parents(filter)
-    }
-
-    pub(crate) fn get_root_parents(
-        &'s self,
-        filter: Filter,
-        all_status: &'s [ItemStatus<'s>],
-    ) -> Box<dyn Iterator<Item = &'s ItemNode<'s>> + 's> {
-        Box::new(self.get_parents(filter).flat_map(move |x| {
-            if x.has_parents(filter) {
-                let status = all_status
-                    .iter()
-                    .find(|y| y.get_surreal_record_id() == x.get_surreal_record_id())
-                    .expect("Item exists");
-                status.get_parents(filter)
-            } else {
-                Box::new(once(x))
-            }
-        }))
     }
 
     pub(crate) fn is_active(&self) -> bool {

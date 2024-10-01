@@ -1,6 +1,5 @@
 pub(crate) mod give_this_item_a_parent;
 pub(crate) mod log_worked_on_this;
-pub(crate) mod prompt_priority_for_new_item;
 mod something_else_should_be_done_first;
 pub(crate) mod state_a_smaller_action;
 pub(crate) mod urgency_plan;
@@ -319,12 +318,6 @@ pub(crate) async fn present_do_now_list_item_selected(
                 menu_for,
                 &when_selected,
                 Utc::now(),
-                send_to_data_storage_layer,
-            )
-            .await?;
-            prompt_priority_for_new_item::prompt_priority_for_new_item(
-                menu_for,
-                do_now_list,
                 send_to_data_storage_layer,
             )
             .await
