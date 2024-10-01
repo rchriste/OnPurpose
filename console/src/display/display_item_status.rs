@@ -13,10 +13,7 @@ impl Display for DisplayItemStatus<'_> {
         write!(f, "|")?;
         if self.has_dependencies(Filter::Active) {
             //write a red circle emoji
-            write!(f, "🔴 ")?;
-        } else {
-            //write a green circle emoji
-            write!(f, "🟢 ")?;
+            write!(f, "⌛ ")?;
         }
 
         let display_node = DisplayItemNode::new(self.item_status.get_item_node());

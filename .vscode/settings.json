@@ -22,6 +22,7 @@
         "neurodiversity",
         "neurotypical",
         "newtype",
+        "noncore",
         "oneshoot",
         "oneshot",
         "powf",
@@ -42,8 +43,5 @@
         "upstreamed",
         "Visio",
         "Ｗｏｒｋ"
-    ],
-    "rust-analyzer.cargo.extraEnv": {
-        "CARGO_TARGET_DIR": "target\\ra"
-    }
+    ]
 }

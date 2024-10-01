@@ -89,7 +89,7 @@ impl Display for DoNowListSingleItemSelection<'_> {
             }
             Self::ReviewItem => write!(f, "Review Item"),
             Self::ParentToItem => {
-                write!(f, "⭱ Pick another larger Reason")
+                write!(f, "⭱ State another larger Reason")
             }
             Self::SwitchToChildItem(child_item, _) => {
                 write!(f, "⇄ Select smaller Action: {}", child_item)
@@ -236,7 +236,6 @@ pub(crate) async fn present_do_now_list_item_selected(
         }
         Ok(DoNowListSingleItemSelection::StateASmallerAction) => {
             state_a_smaller_action(menu_for.get_item_node(), send_to_data_storage_layer).await?;
-            //TODO: Refresh menu_for and bullet_list
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
                 .await
                 .unwrap();
@@ -631,7 +630,7 @@ impl Display for ItemTypeSelection {
                 write!(f, "Core Motivational Purpose 🎯🏢")
             }
             Self::MotivationNonCore => {
-                write!(f, "Non-Core Motivational Purpose 🎯🏞")
+                write!(f, "Non-Core Motivational Purpose 🎯🧹")
             }
             Self::NormalHelp => write!(f, "Help"),
         }
