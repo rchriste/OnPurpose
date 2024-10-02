@@ -16,7 +16,6 @@ use crate::{
         display_duration::DisplayDuration, display_item_node::DisplayItemNode,
         display_item_status::DisplayItemStatus,
     },
-    menu::{inquire::expectations::view_expectations, ratatui::view_priorities},
     new_item::NewItem,
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
 };
@@ -28,26 +27,18 @@ use super::{
 enum TopMenuSelection {
     Reflection,
     ViewDoNowList,
-    ViewExpectations,
     ViewPriorities,
-    ViewPrioritiesRatatui,
     DebugViewAllItems,
 }
 
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::Reflection => write!(f, "      Reflection                 "),
+            TopMenuSelection::Reflection => write!(f, "👁 🧾 Reflection, what I did    👁"),
             TopMenuSelection::ViewDoNowList => {
                 write!(f, "👁 🗒️  View Do Now List          👁")
             }
-            TopMenuSelection::ViewExpectations => {
-                write!(f, "👁 🙏 View Expectations          👁")
-            }
             TopMenuSelection::ViewPriorities => write!(f, "👁 ⚖️  View Priorities           👁"),
-            TopMenuSelection::ViewPrioritiesRatatui => {
-                write!(f, "👁 ⚖️  View Priorities (Ratatui) 👁")
-            }
             TopMenuSelection::DebugViewAllItems => {
                 write!(f, "👁 🗒️  Debug View All Items      👁")
             }
@@ -59,10 +50,8 @@ impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
             Self::ViewPriorities,
-            Self::ViewPrioritiesRatatui,
             Self::Reflection,
             Self::ViewDoNowList,
-            Self::ViewExpectations,
             Self::DebugViewAllItems,
         ]
     }
@@ -76,16 +65,10 @@ pub(crate) async fn present_top_menu(
     let selection = Select::new("Select from the below list|", top_menu).prompt();
     match selection {
         Ok(TopMenuSelection::Reflection) => present_reflection(send_to_data_storage_layer).await,
-        Ok(TopMenuSelection::ViewExpectations) => {
-            view_expectations(send_to_data_storage_layer).await
-        }
         Ok(TopMenuSelection::ViewDoNowList) => {
             present_normal_do_now_list_menu(send_to_data_storage_layer).await
         }
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
-        Ok(TopMenuSelection::ViewPrioritiesRatatui) => {
-            view_priorities::view_priorities().map_err(|_| ())
-        }
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }

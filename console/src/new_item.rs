@@ -3,8 +3,8 @@ use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
-    Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItemType,
-    SurrealLap, SurrealReviewGuidance, SurrealUrgencyPlan,
+    Responsibility, SurrealDependency, SurrealFrequency, SurrealItemType, SurrealLap,
+    SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 #[derive(Builder)]
@@ -17,9 +17,6 @@ pub(crate) struct NewItem {
 
     #[builder(default)]
     pub(crate) responsibility: Responsibility,
-
-    #[builder(default)]
-    pub(crate) facing: Vec<SurrealFacing>,
 
     #[builder(default)]
     pub(crate) item_type: SurrealItemType,
@@ -52,7 +49,6 @@ impl NewItem {
             summary,
             finished: None,
             responsibility: Responsibility::default(),
-            facing: Default::default(),
             item_type: SurrealItemType::Undeclared,
             created: now,
             urgency_plan: None,

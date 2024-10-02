@@ -10,7 +10,7 @@ use crate::{
     base_data::{item::Item, time_spent::TimeSpent, FindRecordId},
     data_storage::surrealdb_layer::{
         surreal_item::{
-            SurrealDependency, SurrealFacing, SurrealItem, SurrealItemType, SurrealReviewGuidance,
+            SurrealDependency, SurrealItem, SurrealItemType, SurrealReviewGuidance,
             SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
         },
         SurrealItemsInScope, SurrealTrigger,
@@ -24,7 +24,6 @@ pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
     parents: Vec<GrowingItemNode<'s>>,
     children: Vec<ShrinkingItemNode<'s>>,
-    facing: Vec<SurrealFacing>,
     dependencies: Vec<DependencyWithItem<'s>>,
     urgency_plan: Option<UrgencyPlanWithItem<'s>>,
     urgent_action_items: Vec<ActionWithItem<'s>>,
@@ -284,20 +283,6 @@ impl<'s> ItemNode<'s> {
             .collect();
         let children = item.find_children(all_items, &visited);
         let children = create_shrinking_nodes(&children, all_items, visited);
-        let item_facing = item.get_surreal_facing();
-        let facing = if item_facing.is_empty() {
-            //Look to parents for a setting
-            parents
-                .iter()
-                .map(|x| x.get_surreal_facing())
-                .filter(|x| !x.is_empty())
-                .flatten()
-                .cloned()
-                .collect::<Vec<_>>()
-        } else {
-            //Value is set so use it
-            item_facing.to_vec()
-        };
         let urgency_plan = calculate_urgency_plan(item, all_items, time_spent_log);
         let dependencies = calculate_dependencies(item, &urgency_plan, all_items, &children);
         let urgent_action_items =
@@ -307,7 +292,6 @@ impl<'s> ItemNode<'s> {
             parents,
             children,
             dependencies,
-            facing,
             urgency_plan,
             urgent_action_items,
         }
@@ -404,14 +388,6 @@ impl<'s> ItemNode<'s> {
         self.item.get_summary()
     }
 
-    pub(crate) fn get_facing(&'s self) -> &'s Vec<SurrealFacing> {
-        &self.facing
-    }
-
-    pub(crate) fn is_facing_undefined(&self) -> bool {
-        self.get_facing().is_empty()
-    }
-
     pub(crate) fn get_created(&self) -> &DateTime<Utc> {
         self.item.get_created()
     }
@@ -464,8 +440,6 @@ impl<'s> ItemNode<'s> {
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
     pub(crate) larger: Vec<GrowingItemNode<'s>>,
-    //surreal_facing is either for this item or if not set then the parents are checked, the value is precomputed and stored here
-    surreal_facing: Vec<SurrealFacing>,
 }
 
 impl<'s> GrowingItemNode<'s> {
@@ -481,10 +455,6 @@ impl<'s> GrowingItemNode<'s> {
 
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
-    }
-
-    pub(crate) fn get_surreal_facing(&'s self) -> &'s Vec<SurrealFacing> {
-        &self.surreal_facing
     }
 
     pub(crate) fn get_self_and_parents(&self, mut items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
@@ -581,25 +551,7 @@ pub(crate) fn create_growing_node<'a>(
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(all_items, &visited);
     let larger = create_growing_nodes(parents, all_items, visited);
-    let item_facing = item.get_surreal_facing();
-    let surreal_facing = if item_facing.is_empty() {
-        //Look to parents for a setting
-        larger
-            .iter()
-            .map(|x| x.get_surreal_facing())
-            .filter(|x| !x.is_empty())
-            .flatten()
-            .cloned()
-            .collect::<Vec<_>>()
-    } else {
-        //Value is set so use it
-        item_facing.to_vec()
-    };
-    GrowingItemNode {
-        item,
-        larger,
-        surreal_facing,
-    }
+    GrowingItemNode { item, larger }
 }
 
 fn calculate_dependencies<'a>(

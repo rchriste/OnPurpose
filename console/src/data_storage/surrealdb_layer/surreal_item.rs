@@ -35,9 +35,6 @@ pub(crate) struct SurrealItem {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: Vec<SurrealFacing>,
-
-    #[cfg_attr(test, builder(default))]
     pub(crate) item_type: SurrealItemType,
 
     #[cfg_attr(test, builder(default))]
@@ -89,7 +86,6 @@ impl SurrealItem {
             summary: new_item.summary,
             finished: new_item.finished,
             responsibility: new_item.responsibility,
-            facing: new_item.facing,
             item_type: new_item.item_type,
             smaller_items_in_priority_order,
             notes_location: NotesLocation::default(),
@@ -106,25 +102,6 @@ impl SurrealItem {
     pub(crate) fn make_item<'a>(&'a self, now: &'a DateTime<Utc>) -> Item<'a> {
         Item::new(self, now)
     }
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
-pub(crate) enum SurrealFacing {
-    Others {
-        how_well_defined: SurrealHowWellDefined,
-        who: RecordId,
-    },
-    Myself(SurrealHowWellDefined),
-    InternalOrSmaller,
-}
-
-#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum SurrealHowWellDefined {
-    #[default]
-    NotSet,
-    WellDefined,
-    RoughlyDefined,
-    LooselyDefined,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
@@ -206,7 +183,7 @@ pub(crate) enum Permanence {
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealDependency {
     AfterDateTime(Datetime),
-    DuringItem(RecordId),
+    DuringItem(RecordId), //TODO: This should be removed as it is no longer used
     AfterItem(RecordId),
 }
 
@@ -582,9 +559,6 @@ pub(crate) struct SurrealItemOldVersion {
     pub(crate) responsibility: Responsibility,
 
     #[cfg_attr(test, builder(default))]
-    pub(crate) facing: Vec<SurrealFacing>,
-
-    #[cfg_attr(test, builder(default))]
     pub(crate) item_type: SurrealItemType,
 
     #[cfg_attr(test, builder(default))]
@@ -644,7 +618,6 @@ impl From<SurrealItemOldVersion> for SurrealItem {
             summary: value.summary,
             finished: value.finished,
             responsibility: value.responsibility,
-            facing: value.facing,
             item_type: value.item_type,
             notes_location: value.notes_location,
             lap: value.lap,

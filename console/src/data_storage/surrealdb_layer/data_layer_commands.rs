@@ -17,9 +17,8 @@ use super::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
     surreal_item::{
-        Responsibility, SurrealDependency, SurrealFacing, SurrealFrequency, SurrealItem,
-        SurrealItemOldVersion, SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance,
-        SurrealUrgencyPlan,
+        Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemOldVersion,
+        SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
     },
     surreal_tables::SurrealTables,
     surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentOldVersion},
@@ -70,7 +69,6 @@ pub(crate) enum DataLayerCommands {
     AddItemDependency(RecordId, SurrealDependency),
     RemoveItemDependency(RecordId, SurrealDependency),
     UpdateSummary(RecordId, String),
-    UpdateFacing(RecordId, Vec<SurrealFacing>),
     UpdateUrgencyPlan(RecordId, Option<SurrealUrgencyPlan>),
     UpdateItemReviewFrequency(RecordId, SurrealFrequency, SurrealReviewGuidance),
     UpdateItemLastReviewedDate(RecordId, Datetime),
@@ -253,15 +251,6 @@ pub(crate) async fn data_storage_start_and_run(
                     .unwrap();
                 assert_eq!(updated.responsibility, new_responsibility);
                 assert_eq!(updated.item_type, new_item_type);
-            }
-            Some(DataLayerCommands::UpdateFacing(record_id, new_facing)) => {
-                let updated: SurrealItem = db
-                    .update(record_id)
-                    .patch(PatchOp::replace("/facing", new_facing.clone()))
-                    .await
-                    .unwrap()
-                    .unwrap();
-                assert_eq!(updated.facing, new_facing);
             }
             Some(DataLayerCommands::UpdateUrgencyPlan(record_id, new_urgency_plan)) => {
                 let updated: SurrealItem = db

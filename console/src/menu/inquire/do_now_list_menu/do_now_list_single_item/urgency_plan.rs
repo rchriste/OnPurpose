@@ -45,7 +45,6 @@ enum ReadySelection {
     Now,
     NothingElse,
     AfterDateTime,
-    DuringItem,
     AfterItem,
 }
 
@@ -55,7 +54,6 @@ impl Display for ReadySelection {
             ReadySelection::Now => write!(f, "Ready, now"),
             ReadySelection::NothingElse => write!(f, "Nothing else"),
             ReadySelection::AfterDateTime => write!(f, "After a certain amount of time"),
-            ReadySelection::DuringItem => write!(f, "Do during another item"),
             ReadySelection::AfterItem => write!(f, "Wait until another item finishes"),
         }
     }
@@ -139,7 +137,6 @@ pub(crate) async fn prompt_for_dependencies(
     }
 
     list.push(ReadySelection::AfterDateTime);
-    list.push(ReadySelection::DuringItem);
     list.push(ReadySelection::AfterItem);
 
     let ready = Select::new("When is this item ready?", list)
@@ -167,38 +164,6 @@ pub(crate) async fn prompt_for_dependencies(
                 AddOrRemove::Add,
                 SurrealDependency::AfterDateTime(exact_start.into()),
             ));
-        }
-        ReadySelection::DuringItem => {
-            let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
-                .await
-                .unwrap();
-            let now = Utc::now();
-            let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
-            let calculated_data = CalculatedData::new_from_base_data(base_data);
-            let exclude = if currently_selected.is_some() {
-                vec![currently_selected.unwrap().get_item()]
-            } else {
-                vec![]
-            };
-            let selected = select_an_item(
-                exclude,
-                SelectAnItemSortingOrder::NewestFirst,
-                &calculated_data,
-            )
-            .await;
-            match selected {
-                Ok(Some(during_item)) => result.push((
-                    AddOrRemove::Add,
-                    SurrealDependency::DuringItem(during_item.get_surreal_record_id().clone()),
-                )),
-                Ok(None) => {
-                    println!("Canceled");
-                    todo!()
-                }
-                Err(()) => {
-                    return Err(());
-                }
-            }
         }
         ReadySelection::AfterItem => {
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
