@@ -53,18 +53,18 @@ pub(crate) enum InquireDoNowListItem<'e> {
 impl Display for InquireDoNowListItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CaptureNewItem => write!(f, "🗬   Capture New Item       🗭"),
-            Self::Search => write!(f, "🔍  Search                 🔍"),
+            Self::CaptureNewItem => write!(f, "🗬   Capture New Item"),
+            Self::Search => write!(f, "🔍  Search"),
             Self::DoNowListSingleItem(item) => {
                 let display = DisplayActionWithItemStatus::new(item);
                 write!(f, "{}", display)
             }
             Self::RefreshList(bullet_list_created) => write!(
                 f,
-                "🔄  Reload List ({})                   🔄",
+                "🔄  Reload List ({})",
                 bullet_list_created.format("%I:%M%p")
             ),
-            Self::TopMenu => write!(f, "🏠  Top Menu               🏠"),
+            Self::TopMenu => write!(f, "🏠  Top Menu"),
         }
     }
 }
