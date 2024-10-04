@@ -156,7 +156,7 @@ pub(crate) async fn present_do_now_list_menu(
     let inquire_do_now_list =
         InquireDoNowListItem::create_list(ordered_do_now_list, do_now_list_created);
 
-    let starting_cursor = if ordered_do_now_list.is_empty() { 0 } else { 3 };
+    let starting_cursor = if ordered_do_now_list.is_empty() { 2 } else { 3 };
     let selected = Select::new("Select from the below list|", inquire_do_now_list)
         .with_starting_cursor(starting_cursor)
         .with_page_size(10)
