@@ -31,13 +31,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (send_to_data_storage_layer_tx, have_data_storage_layer_use_to_receive_rx) =
         mpsc::channel(commands_in_flight_limit);
 
-    let data_storage_join_handle = tokio::spawn(async move {
-        data_storage_start_and_run(
-            have_data_storage_layer_use_to_receive_rx,
-            "file://c:/.on_purpose.db", //TODO: Get a default file location that works for both Linux and Windows
-        )
-        .await
-    });
+    let args: Vec<String> = env::args().collect();
+
+    let data_storage_join_handle = if args.len() > 1 && args[1] == "inmemorydb" {
+        tokio::spawn(async move {
+            data_storage_start_and_run(have_data_storage_layer_use_to_receive_rx, "mem://").await
+        })
+    } else {
+        tokio::spawn(async move {
+            data_storage_start_and_run(
+                have_data_storage_layer_use_to_receive_rx,
+                "file://c:/.on_purpose.db", //TODO: Get a default file location that works for both Linux and Windows
+            )
+            .await
+        })
+    };
 
     //If the current executable is more than 3 months old print a message that there is probably a newer version available
     let exe_path = env::current_exe().unwrap();
