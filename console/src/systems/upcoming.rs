@@ -22,6 +22,7 @@ impl<'s> Upcoming<'s> {
         let items = calculated_data
             .get_items_status()
             .iter()
+            .map(|(_, v)| v)
             .filter(|x| x.is_scheduled_now() && x.is_active())
             .collect::<Vec<_>>();
         let order = find_a_valid_order(&items, earliest_starting_time, Vec::default());

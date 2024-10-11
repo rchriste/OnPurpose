@@ -622,13 +622,13 @@ mod tests {
         let items = surreal_tables.make_items(&now);
 
         assert_eq!(items.len(), 1);
-        let next_step_item = items.first().unwrap();
+        let next_step_item = items.iter().next().map(|(_, v)| v).unwrap();
         assert_eq!(next_step_item.is_finished(), false);
 
         let when_finished = Utc::now();
         sender
             .send(DataLayerCommands::FinishItem {
-                item: next_step_item.get_id().clone().into(),
+                item: next_step_item.get_surreal_record_id().clone().into(),
                 when_finished: when_finished.into(),
             })
             .await
@@ -639,7 +639,7 @@ mod tests {
         let items = surreal_tables.make_items(&now);
 
         assert_eq!(items.len(), 1);
-        let next_step_item = items.first().unwrap();
+        let next_step_item = items.iter().next().map(|(_, v)| v).unwrap();
         assert_eq!(next_step_item.is_finished(), true);
 
         drop(sender);

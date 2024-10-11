@@ -2,8 +2,10 @@ use crate::{
     base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, BaseData},
     node::{item_node::ItemNode, item_status::ItemStatus},
 };
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
+use surrealdb::opt::RecordId;
 
 #[self_referencing]
 pub(crate) struct CalculatedData {
@@ -11,11 +13,11 @@ pub(crate) struct CalculatedData {
 
     #[borrows(base_data)]
     #[covariant]
-    items_nodes: Vec<ItemNode<'this>>,
+    items_nodes: HashMap<&'this RecordId, ItemNode<'this>>,
 
     #[borrows(items_nodes)]
     #[covariant]
-    items_status: Vec<ItemStatus<'this>>,
+    items_status: HashMap<&'this RecordId, ItemStatus<'this>>,
 
     #[borrows(items_status, base_data, items_nodes)]
     #[covariant]
@@ -30,16 +32,19 @@ impl CalculatedData {
                 base_data
                     .get_items()
                     .iter()
-                    .map(|x| {
-                        ItemNode::new(x, base_data.get_items(), base_data.get_time_spent_log())
+                    .map(|(k, x)| {
+                        (
+                            *k,
+                            ItemNode::new(x, base_data.get_items(), base_data.get_time_spent_log()),
+                        )
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<HashMap<_, _>>()
             },
             items_status_builder: |item_nodes| {
                 item_nodes
                     .iter()
-                    .map(|x| ItemStatus::new(x, item_nodes))
-                    .collect::<Vec<_>>()
+                    .map(|(k, x)| (*k, ItemStatus::new(x, item_nodes)))
+                    .collect::<HashMap<_, _>>()
             },
             in_the_moment_priorities_builder: |items_status, base_data, all_nodes| {
                 let now_sql = (*base_data.get_now()).into();
@@ -64,7 +69,7 @@ impl CalculatedData {
         .build()
     }
 
-    pub(crate) fn get_items_status(&self) -> &[ItemStatus] {
+    pub(crate) fn get_items_status(&self) -> &HashMap<&RecordId, ItemStatus> {
         self.borrow_items_status()
     }
 

@@ -1,9 +1,10 @@
 use std::fmt::{self, Display, Formatter};
 
+use ahash::HashMap;
 use chrono::Utc;
 use inquire::Select;
 use itertools::Itertools;
-use surrealdb::sql::Datetime;
+use surrealdb::{opt::RecordId, sql::Datetime};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -171,7 +172,7 @@ impl ReviewItemMenuChoices<'_> {
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
-    all_items: &[ItemStatus<'_>],
+    all_items: &HashMap<&RecordId, ItemStatus<'_>>,
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -224,17 +225,10 @@ async fn refresh_items_present_review_item_menu_internal(
 
     let updated_all_items = updated_calculated_data.get_items_status();
     let updated_item_under_review = updated_all_items
-        .iter()
-        .find(|x| {
-            x.get_item().get_surreal_record_id()
-                == item_under_review.get_item().get_surreal_record_id()
-        })
+        .get(item_under_review.get_item().get_surreal_record_id())
         .expect("Item under review must be in the list of all items");
     let updated_selected_item = updated_all_items
-        .iter()
-        .find(|x| {
-            x.get_item().get_surreal_record_id() == selected_item.get_item().get_surreal_record_id()
-        })
+        .get(selected_item.get_item().get_surreal_record_id())
         .expect("Selected item must be in the list of all items");
 
     Box::pin(present_review_item_menu_internal(
@@ -246,10 +240,10 @@ async fn refresh_items_present_review_item_menu_internal(
     .await
 }
 
-async fn present_review_item_menu_internal(
-    item_under_review: &ItemStatus<'_>,
-    selected_item: &ItemStatus<'_>,
-    all_items: &[ItemStatus<'_>],
+async fn present_review_item_menu_internal<'a>(
+    item_under_review: &ItemStatus<'a>,
+    selected_item: &ItemStatus<'a>,
+    all_items: &'a HashMap<&'a RecordId, ItemStatus<'a>>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let choices = ReviewItemMenuChoices::make_list(selected_item);
@@ -273,8 +267,7 @@ async fn present_review_item_menu_internal(
         ReviewItemMenuChoices::UpdateRelativeImportanceDontShowSingleParent { parent }
         | ReviewItemMenuChoices::UpdateRelativeImportanceShowParent { parent } => {
             let parent = all_items
-                .iter()
-                .find(|x| x.get_item() == parent)
+                .get(parent.get_surreal_record_id())
                 .expect("Parent must be in the list of all items")
                 .get_item_node();
             update_relative_importance(
@@ -400,8 +393,7 @@ async fn present_review_item_menu_internal(
         }
         ReviewItemMenuChoices::GoToParent(item) => {
             let parent = all_items
-                .iter()
-                .find(|x| x.get_item() == item)
+                .get(item.get_surreal_record_id())
                 .expect("Parent must be in the list of all items");
             Box::pin(present_review_item_menu_internal(
                 item_under_review,
@@ -429,8 +421,7 @@ async fn present_review_item_menu_internal(
         }
         ReviewItemMenuChoices::GoToChild(item) => {
             let child = all_items
-                .iter()
-                .find(|x| x.get_item() == item)
+                .get(item.get_surreal_record_id())
                 .expect("Child must be in the list of all items");
             Box::pin(present_review_item_menu_internal(
                 item_under_review,

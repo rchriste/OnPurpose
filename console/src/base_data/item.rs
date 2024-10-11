@@ -1,17 +1,16 @@
 use std::time::Duration;
 
+use ahash::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
 use surrealdb::{
     opt::RecordId,
-    sql::{self, Datetime, Thing},
+    sql::{self, Datetime},
 };
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
     SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType, SurrealMotivationKind,
     SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
-
-use super::FindRecordId;
 
 #[derive(Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
@@ -44,37 +43,37 @@ impl From<Item<'_>> for RecordId {
     }
 }
 
-impl<'r> FindRecordId<'r, Item<'r>> for &'r [Item<'r>] {
-    fn find_record_id(&self, record_id: &RecordId) -> Option<&'r Item<'r>> {
-        self.iter().find(|x| x.get_surreal_record_id() == record_id)
-    }
-}
-
 pub(crate) trait ItemVecExtensions<'t> {
     type ItemIterator: Iterator<Item = &'t Item<'t>>;
 
     fn filter_active_items(&self) -> Vec<&Item>;
 }
 
-impl<'s> ItemVecExtensions<'s> for [Item<'s>] {
+impl<'s> ItemVecExtensions<'s> for HashMap<&RecordId, Item<'s>> {
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, Item<'s>>,
         Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
 
     fn filter_active_items(&self) -> Vec<&Item> {
-        self.iter().filter(|x| !x.is_finished()).collect()
+        self.iter()
+            .filter(|(_, x)| !x.is_finished())
+            .map(|(_, v)| v)
+            .collect()
     }
 }
 
-impl<'s> ItemVecExtensions<'s> for [&Item<'s>] {
+impl<'s> ItemVecExtensions<'s> for HashMap<&RecordId, &Item<'s>> {
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, &'s Item<'s>>,
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
     >;
 
     fn filter_active_items(&self) -> Vec<&Item> {
-        self.iter().filter(|x| !x.is_finished()).copied().collect()
+        self.iter()
+            .filter(|(_, x)| !x.is_finished())
+            .map(|(_, v)| *v)
+            .collect()
     }
 }
 
@@ -113,10 +112,6 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_active(&self) -> bool {
         !self.is_finished()
-    }
-
-    pub(crate) fn get_id(&self) -> &'b Thing {
-        self.id
     }
 
     pub(crate) fn get_surreal_record_id(&self) -> &'b RecordId {
@@ -174,29 +169,35 @@ impl<'b> Item<'b> {
 impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
-        other_items: &'a [Item<'a>],
-        visited: &[&Item<'_>],
+        other_items: &'a HashMap<&'a RecordId, Item<'a>>,
+        visited: &HashSet<&RecordId>,
     ) -> Vec<&'a Item<'a>> {
         other_items
             .iter()
-            .filter(|other_item| {
-                other_item.is_this_a_smaller_item(self) && !visited.contains(other_item)
+            .filter(|(_, other_item)| {
+                other_item.is_this_a_smaller_item(self)
+                    && !visited.contains(other_item.get_surreal_record_id())
             })
+            .map(|(_, x)| x)
             .collect()
     }
 
     pub(crate) fn find_children<'a>(
         &self,
-        other_items: &'a [Item<'a>],
-        visited: &[&Item<'_>],
+        other_items: &'a HashMap<&'a RecordId, Item<'a>>,
+        visited: &HashSet<&RecordId>,
     ) -> Vec<&'a Item<'a>> {
         self.surreal_item
             .smaller_items_in_priority_order
             .iter()
             .filter_map(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => other_items
-                    .iter()
-                    .find(|x| x.id == surreal_item_id && !visited.contains(x)),
+                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
+                    if !visited.contains(surreal_item_id) {
+                        other_items.get(surreal_item_id)
+                    } else {
+                        None
+                    }
+                }
             })
             .collect()
     }
@@ -207,12 +208,7 @@ impl Item<'_> {
             .iter()
             .any(|x| match x {
                 SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    other_item
-                        .surreal_item
-                        .id
-                        .as_ref()
-                        .expect("Should always be in DB")
-                        == surreal_item_id
+                    other_item.id == surreal_item_id
                 }
             })
     }
@@ -317,14 +313,13 @@ mod tests {
     use super::*;
 
     impl Item<'_> {
-        pub(crate) fn has_active_children(&self, all_items: &[&Item<'_>]) -> bool {
+        pub(crate) fn has_active_children(&self, all_items: &HashMap<&RecordId, Item<'_>>) -> bool {
             self.surreal_item
                 .smaller_items_in_priority_order
                 .iter()
                 .any(|x| match x {
                     SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
-                        .iter()
-                        .find(|x| x.id == surreal_item_id)
+                        .get(surreal_item_id)
                         .is_some_and(|x| !x.is_finished()),
                 })
         }
@@ -353,13 +348,12 @@ mod tests {
             .build()
             .unwrap();
         let now = Utc::now();
-        let items: Vec<Item> = surreal_tables.make_items(&now);
+        let items = surreal_tables.make_items(&now);
 
         let smaller_item = items
-            .iter()
-            .find(|x| smaller_item.id.as_ref().unwrap() == x.id)
-            .unwrap();
-        let visited = vec![];
+            .get(smaller_item.id.as_ref().expect("Set above"))
+            .expect("smaller item should be there");
+        let visited = HashSet::default();
         let find_results = smaller_item.find_parents(&items, &visited);
 
         assert_eq!(find_results.len(), 1);
@@ -391,14 +385,12 @@ mod tests {
             .build()
             .unwrap();
         let now = Utc::now();
-        let items: Vec<Item> = surreal_tables.make_items(&now);
-        let active_items = items.filter_active_items();
+        let items = surreal_tables.make_items(&now);
 
         let under_test_parent_item = items
-            .iter()
-            .find(|x| parent_item.id.as_ref().unwrap() == x.id)
-            .unwrap();
+            .get(parent_item.id.as_ref().expect("Parent item has id"))
+            .expect("Will find parent item in items");
 
-        assert!(under_test_parent_item.has_active_children(&active_items));
+        assert!(under_test_parent_item.has_active_children(&items));
     }
 }

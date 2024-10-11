@@ -403,7 +403,7 @@ pub(crate) async fn present_search_menu(
         motivations: Vec::default(),
     };
 
-    for item in items.iter().filter(|x| x.is_active()) {
+    for (_, item) in items.iter().filter(|(_, x)| x.is_active()) {
         if item.is_type_motivation() {
             all_motivations.push_motivation(item);
         }
@@ -563,6 +563,7 @@ pub(crate) async fn present_search_menu(
     let everything_that_has_no_parent = do_now_list
         .get_all_items_status()
         .iter()
+        .map(|(_, x)| x)
         .filter(|x| !x.has_parents(Filter::Active) && x.is_active())
         .collect::<Vec<_>>();
 
@@ -615,7 +616,7 @@ pub(crate) async fn present_search_menu(
         list.push(highest_importance);
     }
 
-    for item in items.iter().filter(|x| x.is_active()) {
+    for (_, item) in items.iter().filter(|(_, x)| x.is_active()) {
         list.push(SearchMenuUrgencyItem::Item { item });
     }
 

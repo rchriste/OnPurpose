@@ -114,6 +114,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
     let mut all_top_nodes = calculated_data
         .get_items_status()
         .iter()
+        .map(|(_, v)| v)
         .filter(|x| !x.is_finished())
         //Person or group items without a parent, meaning a reason for being on the list,
         // should be filtered out.
@@ -176,8 +177,7 @@ async fn view_priorities_of_item_status(
         .map(|x| {
             let item_status = calculated_data
                 .get_items_status()
-                .iter()
-                .find(|y| y.get_item() == x.get_item())
+                .get(x.get_surreal_record_id())
                 .expect("Comes from this list so will be found");
             DisplayItemStatus::new(item_status)
         })
@@ -263,7 +263,7 @@ async fn view_priorities_single_item_no_children(
             let now = Utc::now();
             send_to_data_storage_layer
                 .send(DataLayerCommands::FinishItem {
-                    item: item_status.get_item().get_id().clone(),
+                    item: item_status.get_surreal_record_id().clone(),
                     when_finished: now.into(),
                 })
                 .await
@@ -358,8 +358,7 @@ async fn present_reflection(
         .into_iter()
         .map(|(k, v)| {
             let item_status = items_status
-                .iter()
-                .find(|x| x.get_item().get_id() == &k)
+                .get(&k)
                 .expect("All items in the log should be in the item status");
             ItemTimeSpent {
                 item_status,

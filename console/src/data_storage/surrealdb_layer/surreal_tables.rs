@@ -1,4 +1,6 @@
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
+use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 #[cfg(test)]
@@ -32,10 +34,13 @@ impl SurrealTables {
         DataLayerCommands::get_raw_data(sender).await
     }
 
-    pub(crate) fn make_items<'a>(&'a self, now: &'a DateTime<Utc>) -> Vec<Item<'a>> {
+    pub(crate) fn make_items<'a>(
+        &'a self,
+        now: &'a DateTime<Utc>,
+    ) -> HashMap<&'a RecordId, Item<'a>> {
         self.surreal_items
             .iter()
-            .map(|x| x.make_item(now))
+            .map(|x| (x.id.as_ref().expect("In DB"), x.make_item(now)))
             .collect()
     }
 

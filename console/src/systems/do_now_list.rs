@@ -1,5 +1,7 @@
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
+use surrealdb::opt::RecordId;
 
 use crate::{
     calculated_data::CalculatedData,
@@ -37,6 +39,7 @@ impl DoNowList {
                 let everything_that_has_no_parent = calculated_data
                     .get_items_status()
                     .iter()
+                    .map(|(_, v)| v)
                     .filter(|x| !x.has_parents(Filter::Active) && x.is_active())
                     .collect::<Vec<_>>();
 
@@ -113,7 +116,7 @@ impl DoNowList {
         self.borrow_ordered_do_now_list()
     }
 
-    pub(crate) fn get_all_items_status(&self) -> &[ItemStatus<'_>] {
+    pub(crate) fn get_all_items_status(&self) -> &HashMap<&RecordId, ItemStatus<'_>> {
         self.borrow_calculated_data().get_items_status()
     }
 

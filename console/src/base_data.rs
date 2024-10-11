@@ -2,6 +2,7 @@ pub(crate) mod in_the_moment_priority;
 pub(crate) mod item;
 pub(crate) mod time_spent;
 
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
@@ -22,7 +23,7 @@ pub(crate) struct BaseData {
 
     #[borrows(surreal_tables, now)]
     #[covariant]
-    items: Vec<Item<'this>>,
+    items: HashMap<&'this RecordId, Item<'this>>,
 
     #[borrows(items)]
     #[covariant]
@@ -52,7 +53,7 @@ impl BaseData {
         self.borrow_now()
     }
 
-    pub(crate) fn get_items(&self) -> &[Item] {
+    pub(crate) fn get_items(&self) -> &HashMap<&RecordId, Item> {
         self.borrow_items()
     }
 
@@ -68,8 +69,4 @@ impl BaseData {
         self.borrow_surreal_tables()
             .get_surreal_in_the_moment_priorities()
     }
-}
-
-pub(crate) trait FindRecordId<'t, T> {
-    fn find_record_id(&self, record_id: &RecordId) -> Option<&'t T>;
 }

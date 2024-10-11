@@ -1,5 +1,6 @@
 use std::{iter, time::Duration};
 
+use ahash::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
 use surrealdb::{
     opt::RecordId,
@@ -7,7 +8,7 @@ use surrealdb::{
 };
 
 use crate::{
-    base_data::{item::Item, time_spent::TimeSpent, FindRecordId},
+    base_data::{item::Item, time_spent::TimeSpent},
     data_storage::surrealdb_layer::{
         surreal_item::{
             SurrealDependency, SurrealItem, SurrealItemType, SurrealReviewGuidance,
@@ -143,7 +144,7 @@ impl<'e> TriggerWithItem<'e> {
     pub(crate) fn new(
         surreal_trigger: &'e SurrealTrigger,
         now_sql: &Datetime,
-        all_items: &'e [Item<'e>],
+        all_items: &'e HashMap<&'e RecordId, Item<'e>>,
         time_spent_log: &[TimeSpent<'_>],
     ) -> Self {
         match surreal_trigger {
@@ -197,31 +198,21 @@ pub(crate) enum ItemsInScopeWithItem<'e> {
 impl<'e> ItemsInScopeWithItem<'e> {
     pub(crate) fn new(
         surreal_items_in_scope: &'e SurrealItemsInScope,
-        all_items: &'e [Item<'e>],
+        all_items: &'e HashMap<&'e RecordId, Item<'e>>,
     ) -> Self {
         match surreal_items_in_scope {
             SurrealItemsInScope::All => ItemsInScopeWithItem::All,
             SurrealItemsInScope::Include(include) => {
                 let include = include
                     .iter()
-                    .map(|x| {
-                        all_items
-                            .iter()
-                            .find(|y| y.get_surreal_record_id() == x)
-                            .expect("All items should contain this")
-                    })
+                    .map(|x| all_items.get(x).expect("All items should contain this"))
                     .collect::<Vec<_>>();
                 ItemsInScopeWithItem::Include(include)
             }
             SurrealItemsInScope::Exclude(exclude) => {
                 let exclude = exclude
                     .iter()
-                    .map(|x| {
-                        all_items
-                            .iter()
-                            .find(|y| y.get_surreal_record_id() == x)
-                            .expect("All items should contain this")
-                    })
+                    .map(|x| all_items.get(x).expect("All items should contain this"))
                     .collect();
                 ItemsInScopeWithItem::Exclude(exclude)
             }
@@ -253,12 +244,6 @@ impl<'a> From<&'a ItemNode<'a>> for &'a SurrealItem {
     }
 }
 
-impl<'r> FindRecordId<'r, ItemNode<'r>> for &'r [ItemNode<'r>] {
-    fn find_record_id(&self, record_id: &RecordId) -> Option<&'r ItemNode<'r>> {
-        self.iter().find(|x| x.get_surreal_record_id() == record_id)
-    }
-}
-
 impl PartialEq for ItemNode<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item
@@ -268,18 +253,19 @@ impl PartialEq for ItemNode<'_> {
 impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
-        all_items: &'s [Item<'s>],
+        all_items: &'s HashMap<&'s RecordId, Item<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
-        let visited = vec![item];
+        let mut visited = HashSet::default();
+        visited.insert(item.get_surreal_record_id());
         let parents = item.find_parents(all_items, &visited);
         let parents = create_growing_nodes(parents, all_items, visited.clone());
-        let visited: Vec<&Item<'s>> = iter::once(item)
-            .chain(
-                parents
-                    .iter()
-                    .flat_map(|x| x.get_self_and_parents(Vec::default())),
-            )
+        let visited: HashSet<&RecordId> = iter::once(item.get_surreal_record_id())
+            .chain(parents.iter().flat_map(|x| {
+                x.get_self_and_parents(Vec::default())
+                    .into_iter()
+                    .map(|x| x.get_surreal_record_id())
+            }))
             .collect();
         let children = item.find_children(all_items, &visited);
         let children = create_shrinking_nodes(&children, all_items, visited);
@@ -457,6 +443,10 @@ impl<'s> GrowingItemNode<'s> {
         self.item
     }
 
+    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
+        self.item.get_surreal_record_id()
+    }
+
     pub(crate) fn get_self_and_parents(&self, mut items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
         for item in &self.larger {
             items = item.get_self_and_parents(items);
@@ -526,16 +516,16 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
 
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
-    possible_parents: &'a [Item<'a>],
-    visited: Vec<&'a Item<'a>>,
+    possible_parents: &'a HashMap<&'a RecordId, Item<'a>>,
+    visited: HashSet<&'a RecordId>,
 ) -> Vec<GrowingItemNode<'a>> {
     items
         .iter()
         .filter_map(|x| {
-            if !visited.contains(x) {
+            if !visited.contains(x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
-                visited.push(x);
+                visited.insert(x.get_surreal_record_id());
                 Some(create_growing_node(x, possible_parents, visited))
             } else {
                 None
@@ -546,8 +536,8 @@ pub(crate) fn create_growing_nodes<'a>(
 
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
-    all_items: &'a [Item<'a>],
-    visited: Vec<&'a Item<'a>>,
+    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    visited: HashSet<&'a RecordId>,
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(all_items, &visited);
     let larger = create_growing_nodes(parents, all_items, visited);
@@ -557,7 +547,7 @@ pub(crate) fn create_growing_node<'a>(
 fn calculate_dependencies<'a>(
     item: &'a Item,
     urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
-    all_items: &'a [Item<'a>],
+    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
     smaller: &[ShrinkingItemNode<'a>],
 ) -> Vec<DependencyWithItem<'a>> {
     //Making smaller of type ShrinkingItemNode gets rid of the circular reference as that is checked when creating the ShrinkingItemNode
@@ -573,16 +563,12 @@ fn calculate_dependencies<'a>(
                 }
             }
             SurrealDependency::AfterItem(after) => {
-                let item = all_items
-                    .iter()
-                    .find(|x| x.get_surreal_record_id() == after)
-                    .expect("All items should contain this");
+                let item = all_items.get(after).expect("All items should contain this");
                 DependencyWithItem::AfterItem(item)
             }
             SurrealDependency::DuringItem(during) => {
                 let item = all_items
-                    .iter()
-                    .find(|x| x.get_surreal_record_id() == during)
+                    .get(during)
                     .expect("All items should contain this");
                 DependencyWithItem::DuringItem(item)
             }
@@ -611,7 +597,7 @@ fn calculate_dependencies<'a>(
 
 fn calculate_urgency_plan<'a>(
     item: &'a Item,
-    all_items: &'a [Item],
+    all_items: &'a HashMap<&'a RecordId, Item>,
     time_spent_log: &[TimeSpent],
 ) -> Option<UrgencyPlanWithItem<'a>> {
     item.get_surreal_urgency_plan().as_ref().map(|x| match x {
@@ -667,20 +653,24 @@ impl<'s> ShrinkingItemNode<'s> {
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
         self.item
     }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
+        self.item.get_surreal_record_id()
+    }
 }
 
 pub(crate) fn create_shrinking_nodes<'a>(
     items: &[&'a Item<'a>],
-    possible_children: &'a [Item<'a>],
-    visited: Vec<&'a Item<'a>>,
+    possible_children: &'a HashMap<&'a RecordId, Item<'a>>,
+    visited: HashSet<&'a RecordId>,
 ) -> Vec<ShrinkingItemNode<'a>> {
     items
         .iter()
         .filter_map(|x| {
-            if !visited.contains(x) {
+            if !visited.contains(x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
-                visited.push(x);
+                visited.insert(x.get_surreal_record_id());
                 Some(create_shrinking_node(x, possible_children, visited))
             } else {
                 None
@@ -691,8 +681,8 @@ pub(crate) fn create_shrinking_nodes<'a>(
 
 pub(crate) fn create_shrinking_node<'a>(
     item: &'a Item<'a>,
-    all_items: &'a [Item<'a>],
-    visited: Vec<&'a Item<'a>>,
+    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    visited: HashSet<&'a RecordId>,
 ) -> ShrinkingItemNode<'a> {
     let children = item.find_children(all_items, &visited);
     let smaller = create_shrinking_nodes(&children, all_items, visited);

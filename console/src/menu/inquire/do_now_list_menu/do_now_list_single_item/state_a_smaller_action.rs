@@ -30,13 +30,14 @@ pub(crate) async fn select_an_item<'a>(
     sorting_order: SelectAnItemSortingOrder,
     calculated_data: &'a CalculatedData,
 ) -> Result<Option<&'a ItemStatus<'a>>, ()> {
-    let active_items = calculated_data
-        .get_items_status()
+    let items_status = calculated_data.get_items_status();
+    let active_items = items_status
         .iter()
-        .filter(|x| !dont_show_these_items.iter().any(|y| x.get_item() == *y) && !x.is_finished())
-        .collect::<Vec<_>>();
+        .filter(|(_, x)| {
+            !dont_show_these_items.iter().any(|y| x.get_item() == *y) && !x.is_finished()
+        })
+        .map(|(_, v)| v);
     let mut list = active_items
-        .iter()
         .map(|x| DisplayItemNode::new(x.get_item_node()))
         .collect::<Vec<_>>();
     match sorting_order {
@@ -71,9 +72,7 @@ pub(crate) async fn select_an_item<'a>(
 
     let selection = Select::new("Select from the below list|", list).prompt();
     match selection {
-        Ok(selected_item) => Ok(active_items
-            .into_iter()
-            .find(|x| x.get_item() == selected_item.get_item())),
+        Ok(selected_item) => Ok(items_status.get(selected_item.get_item().get_surreal_record_id())),
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => Ok(None),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }

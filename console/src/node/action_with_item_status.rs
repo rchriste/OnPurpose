@@ -1,7 +1,8 @@
+use ahash::HashMap;
 use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, FindRecordId},
+    base_data::in_the_moment_priority::InTheMomentPriorityWithItemAction,
     data_storage::surrealdb_layer::{
         surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
         surreal_item::SurrealUrgency,
@@ -22,41 +23,44 @@ pub(crate) enum ActionWithItemStatus<'e> {
 }
 
 impl<'e> ActionWithItemStatus<'e> {
-    pub(crate) fn new(action: &ActionWithItemNode<'_>, items_status: &'e [ItemStatus<'e>]) -> Self {
+    pub(crate) fn new(
+        action: &ActionWithItemNode<'_>,
+        items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
+    ) -> Self {
         match action {
             ActionWithItemNode::SetReadyAndUrgency(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::SetReadyAndUrgency(item_status)
             }
             ActionWithItemNode::ParentBackToAMotivation(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::ParentBackToAMotivation(item_status)
             }
             ActionWithItemNode::ReviewItem(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::ReviewItem(item_status)
             }
             ActionWithItemNode::PickItemReviewFrequency(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::PickItemReviewFrequency(item_status)
             }
             ActionWithItemNode::ItemNeedsAClassification(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::ItemNeedsAClassification(item_status)
             }
             ActionWithItemNode::MakeProgress(action) => {
                 let item_status = items_status
-                    .find_record_id(action.get_surreal_record_id())
+                    .get(action.get_surreal_record_id())
                     .expect("All items are there");
                 ActionWithItemStatus::MakeProgress(item_status)
             }
@@ -65,43 +69,31 @@ impl<'e> ActionWithItemStatus<'e> {
 
     pub(crate) fn from_surreal_action(
         action: &SurrealAction,
-        items_status: &'e [ItemStatus<'e>],
+        items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
     ) -> Self {
         match action {
             SurrealAction::SetReadyAndUrgency(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::SetReadyAndUrgency(item_status)
             }
             SurrealAction::ParentBackToAMotivation(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::ParentBackToAMotivation(item_status)
             }
             SurrealAction::ReviewItem(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::ReviewItem(item_status)
             }
             SurrealAction::PickItemReviewFrequency(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::PickItemReviewFrequency(item_status)
             }
             SurrealAction::MakeProgress(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::MakeProgress(item_status)
             }
             SurrealAction::ItemNeedsAClassification(record_id) => {
-                let item_status = items_status
-                    .find_record_id(record_id)
-                    .expect("All items are there");
+                let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::ItemNeedsAClassification(item_status)
             }
         }
@@ -336,7 +328,7 @@ mod tests {
         let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
         let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
 
-        let item_status = calculated_data.get_items_status().first().unwrap();
+        let (_, item_status) = calculated_data.get_items_status().iter().next().unwrap();
         let item_action = ActionWithItemStatus::MakeProgress(item_status);
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
@@ -378,12 +370,10 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
@@ -445,12 +435,10 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
@@ -506,12 +494,10 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
@@ -576,16 +562,13 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
         let third_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
+            .get(third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
@@ -661,16 +644,13 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
         let third_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
+            .get(third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
@@ -761,16 +741,13 @@ mod tests {
         let items_status = calculated_data.get_items_status();
 
         let first_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == first_item.id.as_ref().unwrap())
+            .get(first_item.id.as_ref().unwrap())
             .expect("First item status not found");
         let second_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == second_item.id.as_ref().unwrap())
+            .get(second_item.id.as_ref().unwrap())
             .expect("Second item status not found");
         let third_item_status = items_status
-            .iter()
-            .find(|x| x.get_item().get_surreal_record_id() == third_item.id.as_ref().unwrap())
+            .get(third_item.id.as_ref().unwrap())
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);

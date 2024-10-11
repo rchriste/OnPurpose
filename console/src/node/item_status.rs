@@ -1,10 +1,11 @@
 use std::{iter, time::Duration};
 
+use ahash::HashMap;
 use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::{item::Item, FindRecordId},
+    base_data::item::Item,
     data_storage::surrealdb_layer::surreal_item::{
         EqF32, SurrealDependency, SurrealScheduled, SurrealUrgency,
     },
@@ -115,7 +116,10 @@ impl IsTriggered for TriggerWithItemNode<'_> {
 }
 
 impl<'e> TriggerWithItemNode<'e> {
-    pub(crate) fn new(trigger: &TriggerWithItem<'_>, all_nodes: &'e [ItemNode<'e>]) -> Self {
+    pub(crate) fn new(
+        trigger: &TriggerWithItem<'_>,
+        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
+    ) -> Self {
         match trigger {
             TriggerWithItem::WallClockDateTime {
                 after,
@@ -172,7 +176,7 @@ impl From<DependencyWithItemNode<'_>> for SurrealDependency {
 impl<'e> ItemsInScopeWithItemNode<'e> {
     pub(crate) fn new(
         items_in_scope_with_item: &ItemsInScopeWithItem<'_>,
-        all_nodes: &'e [ItemNode<'e>],
+        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
     ) -> Self {
         match items_in_scope_with_item {
             ItemsInScopeWithItem::All => ItemsInScopeWithItemNode::All,
@@ -181,8 +185,7 @@ impl<'e> ItemsInScopeWithItemNode<'e> {
                     .iter()
                     .map(|item| {
                         all_nodes
-                            .iter()
-                            .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
+                            .get(item.get_surreal_record_id())
                             .expect("Item came from here and should be here")
                     })
                     .collect(),
@@ -192,8 +195,7 @@ impl<'e> ItemsInScopeWithItemNode<'e> {
                     .iter()
                     .map(|item| {
                         all_nodes
-                            .iter()
-                            .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
+                            .get(item.get_surreal_record_id())
                             .expect("Item came from here and should be here")
                     })
                     .collect(),
@@ -215,43 +217,43 @@ pub(crate) enum ActionWithItemNode<'e> {
 impl<'e> ActionWithItemNode<'e> {
     pub(crate) fn new(
         action_with_item: &ActionWithItem<'_>,
-        all_nodes: &'e [ItemNode<'e>],
+        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
     ) -> Self {
         match action_with_item {
             ActionWithItem::SetReadyAndUrgency(item) => ActionWithItemNode::SetReadyAndUrgency(
                 all_nodes
-                    .find_record_id(item.get_surreal_record_id())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
             ActionWithItem::ParentBackToAMotivation(item) => {
                 ActionWithItemNode::ParentBackToAMotivation(
                     all_nodes
-                        .find_record_id(item.get_surreal_record_id())
+                        .get(item.get_surreal_record_id())
                         .expect("Item came from here and should be here"),
                 )
             }
             ActionWithItem::ReviewItem(item) => ActionWithItemNode::ReviewItem(
                 all_nodes
-                    .find_record_id(item.get_surreal_record_id())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
             ActionWithItem::PickItemReviewFrequency(item) => {
                 ActionWithItemNode::PickItemReviewFrequency(
                     all_nodes
-                        .find_record_id(item.get_surreal_record_id())
+                        .get(item.get_surreal_record_id())
                         .expect("Item came from here and should be here"),
                 )
             }
             ActionWithItem::ItemNeedsAClassification(item) => {
                 ActionWithItemNode::ItemNeedsAClassification(
                     all_nodes
-                        .find_record_id(item.get_surreal_record_id())
+                        .get(item.get_surreal_record_id())
                         .expect("Item came from here and should be here"),
                 )
             }
             ActionWithItem::MakeProgress(item) => ActionWithItemNode::MakeProgress(
                 all_nodes
-                    .find_record_id(item.get_surreal_record_id())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
         }
@@ -264,19 +266,16 @@ impl PartialEq for ItemStatus<'_> {
     }
 }
 
-impl<'r> FindRecordId<'r, ItemStatus<'r>> for &'r [ItemStatus<'r>] {
-    fn find_record_id(&self, record_id: &RecordId) -> Option<&'r ItemStatus<'r>> {
-        self.iter().find(|x| x.get_surreal_record_id() == record_id)
-    }
-}
-
 pub(crate) struct MostImportantReadyAndBlocked<'s> {
     pub(crate) ready: Option<&'s ItemStatus<'s>>,
     pub(crate) blocked: Vec<&'s ItemStatus<'s>>,
 }
 
 impl<'s> ItemStatus<'s> {
-    pub(crate) fn new(item_node: &'s ItemNode<'s>, all_nodes: &'s [ItemNode<'s>]) -> Self {
+    pub(crate) fn new(
+        item_node: &'s ItemNode<'s>,
+        all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
+    ) -> Self {
         let dependencies = calculate_dependencies(item_node, all_nodes);
         let children = calculate_children(item_node, all_nodes);
         let parents = calculate_parents(item_node, all_nodes);
@@ -421,7 +420,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_most_important_and_ready(
         &'s self,
-        all_item_status: &'s [ItemStatus<'s>],
+        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
     ) -> Option<&'s ItemStatus<'s>> {
         let a = self
             .recursive_get_most_important_both_ready_and_blocked(all_item_status, Vec::default());
@@ -430,7 +429,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_most_important_both_ready_and_blocked(
         &'s self,
-        all_item_status: &'s [ItemStatus<'s>],
+        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
         mut visited: Vec<&'s ItemStatus<'s>>,
     ) -> MostImportantReadyAndBlocked<'s> {
         let mut would_be_most_important_but_not_ready = Vec::default();
@@ -438,8 +437,7 @@ impl<'s> ItemStatus<'s> {
             visited.push(self);
             for child in self.get_children(Filter::Active) {
                 let child = all_item_status
-                    .iter()
-                    .find(|x| x.get_item() == child.get_item())
+                    .get(child.get_surreal_record_id())
                     .expect("All items should be in the list");
                 if visited.contains(&child) {
                     if self.is_ready_to_be_worked_on() {
@@ -485,7 +483,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_urgent_bullet_list(
         &'s self,
-        all_item_status: &'s [ItemStatus<'s>],
+        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
         mut visited: Vec<&'s ItemStatus<'s>>,
     ) -> Box<dyn Iterator<Item = ActionWithItemStatus<'s>> + 's> {
         visited.push(self);
@@ -495,8 +493,7 @@ impl<'s> ItemStatus<'s> {
                 .map(|x| ActionWithItemStatus::new(x, all_item_status))
                 .chain(self.get_children(Filter::Active).flat_map(move |child| {
                     let child = all_item_status
-                        .iter()
-                        .find(|x| x.get_item() == child.get_item())
+                        .get(child.get_surreal_record_id())
                         .expect("All items should be in the list");
                     if !visited.contains(&child) {
                         child.recursive_get_urgent_bullet_list(all_item_status, visited.clone())
@@ -536,7 +533,7 @@ impl From<EqF32> for LapCountGreaterOrLess {
 
 fn calculate_dependencies<'s>(
     item_node: &ItemNode<'s>,
-    all_nodes: &'s [ItemNode<'s>],
+    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
 ) -> Vec<DependencyWithItemNode<'s>> {
     item_node
         .get_dependencies(Filter::All)
@@ -549,20 +546,17 @@ fn calculate_dependencies<'s>(
             }
             DependencyWithItem::AfterItem(item) => DependencyWithItemNode::AfterItem(
                 all_nodes
-                    .iter()
-                    .find(|x| *item == x.get_item())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
             DependencyWithItem::AfterChildItem(item) => DependencyWithItemNode::AfterChildItem(
                 all_nodes
-                    .iter()
-                    .find(|x| *item == x.get_item())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
             DependencyWithItem::DuringItem(item) => DependencyWithItemNode::DuringItem(
                 all_nodes
-                    .iter()
-                    .find(|x| *item == x.get_item())
+                    .get(item.get_surreal_record_id())
                     .expect("Item came from here and should be here"),
             ),
             DependencyWithItem::UntilScheduled { after, is_active } => {
@@ -577,14 +571,13 @@ fn calculate_dependencies<'s>(
 
 fn calculate_parents<'s>(
     item_node: &'s ItemNode<'s>,
-    all_nodes: &'s [ItemNode<'s>],
+    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
 ) -> Vec<&'s ItemNode<'s>> {
     item_node
         .get_parents(Filter::All)
         .map(|x| {
             all_nodes
-                .iter()
-                .find(|y| x.get_item() == y.get_item())
+                .get(x.get_surreal_record_id())
                 .expect("Item came from here and should be here")
         })
         .collect()
@@ -592,14 +585,13 @@ fn calculate_parents<'s>(
 
 fn calculate_children<'s>(
     item_node: &'s ItemNode<'s>,
-    all_nodes: &'s [ItemNode<'s>],
+    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
 ) -> Vec<&'s ItemNode<'s>> {
     item_node
         .get_children(Filter::All)
         .map(|x| {
             all_nodes
-                .iter()
-                .find(|y| x.get_item() == y.get_item())
+                .get(x.get_surreal_record_id())
                 .expect("Item came from here and should be here")
         })
         .collect()
@@ -607,7 +599,7 @@ fn calculate_children<'s>(
 
 fn calculate_urgent_action_items<'a>(
     actions: &[ActionWithItem<'_>],
-    all_nodes: &'a [ItemNode<'a>],
+    all_nodes: &'a HashMap<&'a RecordId, ItemNode<'a>>,
 ) -> Vec<ActionWithItemNode<'a>> {
     actions
         .iter()
@@ -675,9 +667,9 @@ mod tests {
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data);
         let items_highest_lap_count = calculated_data.get_items_status();
-        let item = items_highest_lap_count
+        let (_, item) = items_highest_lap_count
             .iter()
-            .find(|x| x.get_summary() == "Parent Item with a child")
+            .find(|(_, x)| x.get_summary() == "Parent Item with a child")
             .expect("Just added this very item");
 
         //Assert
@@ -729,9 +721,9 @@ mod tests {
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data);
         let items_highest_lap_count = calculated_data.get_items_status();
-        let item = items_highest_lap_count
+        let (_, item) = items_highest_lap_count
             .iter()
-            .find(|x| x.get_summary() == "Item to be covered")
+            .find(|(_, x)| x.get_summary() == "Item to be covered")
             .expect("Just added this very item");
 
         //Assert
@@ -772,7 +764,7 @@ mod tests {
         //Act
         let calculated_data = CalculatedData::new_from_base_data(base_data);
         let items_highest_lap_count = calculated_data.get_items_status();
-        let item = items_highest_lap_count.iter().next().unwrap();
+        let (_, item) = items_highest_lap_count.iter().next().unwrap();
 
         //Assert
         assert_eq!(item.has_dependencies(Filter::Active), true);

@@ -6,9 +6,11 @@ pub(crate) mod urgency_plan;
 
 use std::fmt::Display;
 
+use ahash::HashMap;
 use better_term::Style;
 use chrono::{DateTime, Utc};
 use inquire::{InquireError, Select, Text};
+use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
@@ -116,7 +118,7 @@ impl Display for DoNowListSingleItemSelection<'_> {
 impl<'e> DoNowListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
-        all_items_status: &'e [ItemStatus<'e>],
+        all_items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
@@ -148,15 +150,13 @@ impl<'e> DoNowListSingleItemSelection<'e> {
         }
         list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
             let item_status = all_items_status
-                .iter()
-                .find(|y| y.get_item() == *x)
+                .get(x.get_surreal_record_id())
                 .expect("All items are here");
             Self::SwitchToParentItem(DisplayItem::new(x), item_status)
         }));
         list.extend(parent_items.iter().map(|x: &&'e Item<'e>| {
             let item_status = all_items_status
-                .iter()
-                .find(|y| y.get_item() == *x)
+                .get(x.get_surreal_record_id())
                 .expect("All items are here");
             Self::RemoveParent(DisplayItem::new(x), item_status)
         }));
@@ -167,16 +167,14 @@ impl<'e> DoNowListSingleItemSelection<'e> {
             .collect::<Vec<_>>();
         list.extend(child_items.iter().map(|child: &&'e Item<'e>| {
             let child_item_status = all_items_status
-                .iter()
-                .find(|y| y.get_item() == *child)
+                .get(child.get_surreal_record_id())
                 .expect("All items are here");
             Self::SwitchToChildItem(DisplayItem::new(child), child_item_status)
         }));
 
         list.extend(child_items.iter().map(|child: &&'e Item<'e>| {
             let child_item_status = all_items_status
-                .iter()
-                .find(|y| y.get_item() == *child)
+                .get(child.get_surreal_record_id())
                 .expect("All items are here");
             Self::RemoveChild(DisplayItem::new(child), child_item_status)
         }));
@@ -245,8 +243,7 @@ pub(crate) async fn present_do_now_list_item_selected(
 
             let menu_for = do_now_list
                 .get_all_items_status()
-                .iter()
-                .find(|x| x.get_item() == menu_for.get_item())
+                .get(menu_for.get_surreal_record_id())
                 .expect("We will find this existing item once");
 
             Box::pin(present_do_now_list_item_selected(
@@ -399,7 +396,10 @@ fn print_completed_children(menu_for: &ItemStatus<'_>) {
     }
 }
 
-fn print_in_progress_children(menu_for: &ItemStatus<'_>, all_item_status: &[ItemStatus<'_>]) {
+fn print_in_progress_children(
+    menu_for: &ItemStatus<'_>,
+    all_item_status: &HashMap<&RecordId, ItemStatus<'_>>,
+) {
     let in_progress_children = menu_for.get_children(Filter::Active).collect::<Vec<_>>();
     if !in_progress_children.is_empty() {
         let most_important = menu_for.recursive_get_most_important_and_ready(all_item_status);
@@ -505,15 +505,15 @@ async fn finish_do_now_item(
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
             let items = base_data.get_items();
-            let active_items = base_data.get_active_items();
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let time_spent_log = base_data.get_time_spent_log();
-            let updated_parent = active_items
-                .iter()
-                .filter(|x| x.get_surreal_record_id() == parent_surreal_record_id)
-                .map(|x| ItemNode::new(x, items, time_spent_log))
-                .next()
-                .expect("We will find this existing item once");
+            let updated_parent = ItemNode::new(
+                items
+                    .get(parent_surreal_record_id)
+                    .expect("Should be there"),
+                items,
+                time_spent_log,
+            );
 
             state_a_smaller_action(&updated_parent, send_to_data_storage_layer).await?;
 
@@ -536,8 +536,7 @@ async fn finish_do_now_item(
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let updated_parent = calculated_data
                 .get_items_status()
-                .iter()
-                .find(|x| x.get_surreal_record_id() == parent_surreal_record_id)
+                .get(parent_surreal_record_id)
                 .expect("We will find this existing item once");
 
             Box::pin(present_do_now_list_item_selected(
