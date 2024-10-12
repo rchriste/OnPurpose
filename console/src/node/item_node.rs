@@ -1,6 +1,6 @@
 use std::{iter, time::Duration};
 
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
 use surrealdb::{
     opt::RecordId,
@@ -256,11 +256,11 @@ impl<'s> ItemNode<'s> {
         all_items: &'s HashMap<&'s RecordId, Item<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
-        let mut visited = HashSet::default();
-        visited.insert(item.get_surreal_record_id());
+        let mut visited = Vec::default();
+        visited.push(item.get_surreal_record_id());
         let parents = item.find_parents(all_items, &visited);
         let parents = create_growing_nodes(parents, all_items, visited.clone());
-        let visited: HashSet<&RecordId> = iter::once(item.get_surreal_record_id())
+        let visited: Vec<&RecordId> = iter::once(item.get_surreal_record_id())
             .chain(parents.iter().flat_map(|x| {
                 x.get_self_and_parents(Vec::default())
                     .into_iter()
@@ -271,8 +271,12 @@ impl<'s> ItemNode<'s> {
         let children = create_shrinking_nodes(&children, all_items, visited);
         let urgency_plan = calculate_urgency_plan(item, all_items, time_spent_log);
         let dependencies = calculate_dependencies(item, &urgency_plan, all_items, &children);
-        let urgent_action_items =
-            calculate_urgent_action_items(item, &parents, &children, &urgency_plan, &dependencies);
+        let urgent_action_items = if item.is_active() {
+            calculate_urgent_action_items(item, &parents, &children, &urgency_plan, &dependencies)
+        } else {
+            //Perf Improvement: Finished items should not have any urgent action items
+            Vec::default()
+        };
         ItemNode {
             item,
             parents,
@@ -521,15 +525,15 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     possible_parents: &'a HashMap<&'a RecordId, Item<'a>>,
-    visited: HashSet<&'a RecordId>,
+    visited: Vec<&'a RecordId>,
 ) -> Vec<GrowingItemNode<'a>> {
     items
         .iter()
         .filter_map(|x| {
-            if !visited.contains(x.get_surreal_record_id()) {
+            if !visited.contains(&x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
-                visited.insert(x.get_surreal_record_id());
+                visited.push(x.get_surreal_record_id());
                 Some(create_growing_node(x, possible_parents, visited))
             } else {
                 None
@@ -541,7 +545,7 @@ pub(crate) fn create_growing_nodes<'a>(
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
     all_items: &'a HashMap<&'a RecordId, Item<'a>>,
-    visited: HashSet<&'a RecordId>,
+    visited: Vec<&'a RecordId>,
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(all_items, &visited);
     let larger = create_growing_nodes(parents, all_items, visited);
@@ -666,15 +670,15 @@ impl<'s> ShrinkingItemNode<'s> {
 pub(crate) fn create_shrinking_nodes<'a>(
     items: &[&'a Item<'a>],
     possible_children: &'a HashMap<&'a RecordId, Item<'a>>,
-    visited: HashSet<&'a RecordId>,
+    visited: Vec<&'a RecordId>,
 ) -> Vec<ShrinkingItemNode<'a>> {
     items
         .iter()
         .filter_map(|x| {
-            if !visited.contains(x.get_surreal_record_id()) {
+            if !visited.contains(&x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let mut visited = visited.clone();
-                visited.insert(x.get_surreal_record_id());
+                visited.push(x.get_surreal_record_id());
                 Some(create_shrinking_node(x, possible_children, visited))
             } else {
                 None
@@ -686,7 +690,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
 pub(crate) fn create_shrinking_node<'a>(
     item: &'a Item<'a>,
     all_items: &'a HashMap<&'a RecordId, Item<'a>>,
-    visited: HashSet<&'a RecordId>,
+    visited: Vec<&'a RecordId>,
 ) -> ShrinkingItemNode<'a> {
     let children = item.find_children(all_items, &visited);
     let smaller = create_shrinking_nodes(&children, all_items, visited);
@@ -742,8 +746,8 @@ fn calculate_urgent_action_items<'a>(
     }
 
     //Does it need to pick a review frequency?
-    if parents.should_children_have_review_frequency_set(Default::default())
-        && !(item.has_review_frequency() && item.has_review_guidance())
+    if !(item.has_review_frequency() && item.has_review_guidance())
+        && parents.should_children_have_review_frequency_set(Default::default())
     {
         result.push(ActionWithItem::PickItemReviewFrequency(item));
     }

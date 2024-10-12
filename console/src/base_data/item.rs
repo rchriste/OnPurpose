@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 use chrono::{DateTime, Utc};
 use surrealdb::{
     opt::RecordId,
@@ -170,13 +170,13 @@ impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
-        visited: &HashSet<&RecordId>,
+        visited: &Vec<&RecordId>,
     ) -> Vec<&'a Item<'a>> {
         other_items
             .iter()
             .filter(|(_, other_item)| {
                 other_item.is_this_a_smaller_item(self)
-                    && !visited.contains(other_item.get_surreal_record_id())
+                    && !visited.contains(&other_item.get_surreal_record_id())
             })
             .map(|(_, x)| x)
             .collect()
@@ -185,14 +185,14 @@ impl Item<'_> {
     pub(crate) fn find_children<'a>(
         &self,
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
-        visited: &HashSet<&RecordId>,
+        visited: &Vec<&RecordId>,
     ) -> Vec<&'a Item<'a>> {
         self.surreal_item
             .smaller_items_in_priority_order
             .iter()
             .filter_map(|x| match x {
                 SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    if !visited.contains(surreal_item_id) {
+                    if !visited.contains(&surreal_item_id) {
                         other_items.get(surreal_item_id)
                     } else {
                         None
@@ -353,7 +353,7 @@ mod tests {
         let smaller_item = items
             .get(smaller_item.id.as_ref().expect("Set above"))
             .expect("smaller item should be there");
-        let visited = HashSet::default();
+        let visited = Vec::default();
         let find_results = smaller_item.find_parents(&items, &visited);
 
         assert_eq!(find_results.len(), 1);
