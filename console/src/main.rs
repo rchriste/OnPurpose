@@ -13,12 +13,17 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use mimalloc::MiMalloc;
+
 use tokio::sync::mpsc;
 
 use crate::{
     data_storage::surrealdb_layer::data_layer_commands::data_storage_start_and_run,
     menu::inquire::do_now_list_menu::present_normal_do_now_list_menu,
 };
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

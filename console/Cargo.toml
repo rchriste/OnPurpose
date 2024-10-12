@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.1.80"
+version = "0.1.81"
 edition = "2021"
 
 [dependencies]
@@ -24,6 +24,7 @@ better_term = "1.4.61" #Added so I can use bold and other styles, initially just
 crossterm = "0.28.1" #Added so I can use RATATUI
 rand = "0.8.5" #So I can pick a random priority
 ahash = "0.8.11" #Because it is 10x faster than Rust's built in hasher
+mimalloc = "0.1.43" #Because allocation performance shows up in performance measurements, this seems to give about a %15 perf improvement when running calculated data
 
 # Possible libraries intended to use to make querying SurrealDB easier, but I also looked at these some and I am not
 # sure as it seems to require that you come up with your own RecordId without the ability to specify NONE to get 

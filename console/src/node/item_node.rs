@@ -256,8 +256,7 @@ impl<'s> ItemNode<'s> {
         all_items: &'s HashMap<&'s RecordId, Item<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
-        let mut visited = Vec::default();
-        visited.push(item.get_surreal_record_id());
+        let visited = vec![item.get_surreal_record_id()];
         let parents = item.find_parents(all_items, &visited);
         let parents = create_growing_nodes(parents, all_items, visited.clone());
         let visited: Vec<&RecordId> = iter::once(item.get_surreal_record_id())

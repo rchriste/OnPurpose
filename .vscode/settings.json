@@ -16,6 +16,7 @@
         "itertools",
         "Journalling",
         "meds",
+        "mimalloc",
         "mkemqn",
         "neuro",
         "neurodiverse",
