@@ -458,6 +458,10 @@ impl<'s> GrowingItemNode<'s> {
     pub(crate) fn get_surreal_review_guidance(&self) -> &Option<SurrealReviewGuidance> {
         self.item.get_surreal_review_guidance()
     }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.item.is_finished()
+    }
 }
 
 pub(crate) trait ShouldChildrenHaveReviewFrequencySet {
@@ -498,8 +502,8 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
         &'a self,
         mut visited: Vec<&'a GrowingItemNode<'a>>,
     ) -> bool {
-        if visited.contains(self) {
-            //Circular reference
+        if self.is_finished() || visited.contains(self) {
+            //Skip Finished Items & Circular reference
             false
         } else {
             visited.push(self);
