@@ -369,6 +369,14 @@ impl<'s> ItemNode<'s> {
         self.item.is_type_motivation()
     }
 
+    pub(crate) fn is_type_motivation_kind_core(&self) -> bool {
+        self.item.is_type_motivation_kind_core()
+    }
+
+    pub(crate) fn is_type_motivation_kind_non_core(&self) -> bool {
+        self.item.is_type_motivation_kind_non_core()
+    }
+
     pub(crate) fn has_children(&self, filter: Filter) -> bool {
         has_children(&self.children, filter)
     }

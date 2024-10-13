@@ -320,6 +320,14 @@ impl<'s> ItemStatus<'s> {
         self.item_node.is_type_motivation()
     }
 
+    pub(crate) fn is_type_motivation_kind_core(&self) -> bool {
+        self.item_node.is_type_motivation_kind_core()
+    }
+
+    pub(crate) fn is_type_motivation_kind_non_core(&self) -> bool {
+        self.item_node.is_type_motivation_kind_non_core()
+    }
+
     pub(crate) fn is_person_or_group(&self) -> bool {
         self.item_node.is_person_or_group()
     }

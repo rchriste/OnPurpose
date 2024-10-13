@@ -377,6 +377,45 @@ async fn present_reflection(
         println!("\t{} - {}", iteration_count, display_duration);
     }
 
+    println!();
+
+    println!("Core Work");
+    let core_work = items_in_range
+        .iter()
+        .filter(|x| x.is_type_motivation_kind_core())
+        .map(|x| &x.time_spent)
+        .flatten()
+        .fold(
+            (chrono::Duration::default(), 0),
+            |(sum_duration, count), time_spent| {
+                (sum_duration + time_spent.get_time_delta(), count + 1)
+            },
+        );
+    println!(
+        "\t{} - {}",
+        core_work.1,
+        DisplayDuration::new(&core_work.0.to_std().expect("valid"))
+    );
+
+    println!("Non-Core Work");
+    let non_core_work = items_in_range
+        .iter()
+        .filter(|x| !x.is_type_motivation_kind_non_core())
+        .map(|x| &x.time_spent)
+        .flatten()
+        .fold(
+            (chrono::Duration::default(), 0),
+            |(sum_duration, count), time_spent| {
+                (sum_duration + time_spent.get_time_delta(), count + 1)
+            },
+        );
+    println!(
+        "\t{} - {}",
+        non_core_work.1,
+        DisplayDuration::new(&non_core_work.0.to_std().expect("valid"))
+    );
+
+    let _ = Text::new("Press Enter to continue...").prompt();
     Ok(())
 }
 
@@ -404,6 +443,16 @@ impl Ord for ItemTimeSpent<'_> {
         self.item_status
             .get_summary()
             .cmp(other.item_status.get_summary())
+    }
+}
+
+impl ItemTimeSpent<'_> {
+    fn is_type_motivation_kind_core(&self) -> bool {
+        self.item_status.is_type_motivation_kind_core()
+    }
+
+    fn is_type_motivation_kind_non_core(&self) -> bool {
+        self.item_status.is_type_motivation_kind_non_core()
     }
 }
 
