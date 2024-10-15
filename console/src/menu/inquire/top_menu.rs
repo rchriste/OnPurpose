@@ -34,7 +34,7 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::Reflection => write!(f, "👁 🧾 Reflection, what I did    👁"),
+            TopMenuSelection::Reflection => write!(f, "👁 🧾 Reflection, what I did     👁"),
             TopMenuSelection::ViewDoNowList => {
                 write!(f, "👁 🗒️  View Do Now List          👁")
             }
@@ -399,7 +399,7 @@ async fn present_reflection(
     println!("Non-Core Work");
     let non_core_work = items_in_range
         .iter()
-        .filter(|x| !x.is_type_motivation_kind_non_core())
+        .filter(|x| x.is_type_motivation_kind_non_core())
         .flat_map(|x| &x.time_spent)
         .fold(
             (chrono::Duration::default(), 0),
