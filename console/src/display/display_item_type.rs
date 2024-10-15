@@ -9,7 +9,7 @@ pub(crate) struct DisplayItemType<'s> {
     style: DisplayStyle,
 }
 
-impl<'s> Display for DisplayItemType<'s> {
+impl Display for DisplayItemType<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.item_type {
             SurrealItemType::Goal(_) => {

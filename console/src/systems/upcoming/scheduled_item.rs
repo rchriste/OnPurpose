@@ -20,7 +20,7 @@ pub(crate) trait Scheduled {
     fn calculate_big_to_little_count(&self) -> u32;
 }
 
-impl<'s> Scheduled for Vec<ScheduledItem<'s>> {
+impl Scheduled for Vec<ScheduledItem<'_>> {
     fn contains(&self, item: &ItemStatus) -> bool {
         self.iter().any(|x| x.item == item)
     }

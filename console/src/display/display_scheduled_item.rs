@@ -14,7 +14,7 @@ pub(crate) struct DisplayScheduledItem<'s> {
     now_local: DateTime<Local>,
 }
 
-impl<'s> Display for DisplayScheduledItem<'s> {
+impl Display for DisplayScheduledItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         //scheduled_start in bold then +duration also in bold then start range
         //tab then name in italics

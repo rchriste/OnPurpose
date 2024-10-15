@@ -15,7 +15,7 @@ pub(crate) struct DisplayActionWithItemStatus<'s> {
     item: &'s ActionWithItemStatus<'s>,
 }
 
-impl<'s> Display for DisplayActionWithItemStatus<'s> {
+impl Display for DisplayActionWithItemStatus<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.is_in_scope_for_importance() {
             write!(f, "🔝 ")?;
