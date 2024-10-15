@@ -4,6 +4,7 @@ use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
 use crate::{
+    base_data::time_spent::TimeSpent,
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     node::{
@@ -126,6 +127,10 @@ impl DoNowList {
 
     pub(crate) fn get_now(&self) -> &DateTime<Utc> {
         self.borrow_calculated_data().get_now()
+    }
+
+    pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {
+        self.borrow_calculated_data().get_time_spent_log()
     }
 }
 

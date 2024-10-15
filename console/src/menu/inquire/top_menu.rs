@@ -383,8 +383,7 @@ async fn present_reflection(
     let core_work = items_in_range
         .iter()
         .filter(|x| x.is_type_motivation_kind_core())
-        .map(|x| &x.time_spent)
-        .flatten()
+        .flat_map(|x| &x.time_spent)
         .fold(
             (chrono::Duration::default(), 0),
             |(sum_duration, count), time_spent| {
@@ -401,8 +400,7 @@ async fn present_reflection(
     let non_core_work = items_in_range
         .iter()
         .filter(|x| !x.is_type_motivation_kind_non_core())
-        .map(|x| &x.time_spent)
-        .flatten()
+        .flat_map(|x| &x.time_spent)
         .fold(
             (chrono::Duration::default(), 0),
             |(sum_duration, count), time_spent| {
@@ -440,15 +438,21 @@ impl PartialOrd for ItemTimeSpent<'_> {
 
 impl Ord for ItemTimeSpent<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_parent_count = self.item_status.get_self_and_parents_flattened(Filter::All).len();
-        let other_parent_count = other.item_status.get_self_and_parents_flattened(Filter::All).len();
+        let self_parent_count = self
+            .item_status
+            .get_self_and_parents_flattened(Filter::All)
+            .len();
+        let other_parent_count = other
+            .item_status
+            .get_self_and_parents_flattened(Filter::All)
+            .len();
         if self_parent_count != other_parent_count {
             //Reverse order so that the item with the most parents is first
             other_parent_count.cmp(&self_parent_count)
         } else {
             self.item_status
-            .get_summary()
-            .cmp(other.item_status.get_summary())
+                .get_summary()
+                .cmp(other.item_status.get_summary())
         }
     }
 }

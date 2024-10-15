@@ -184,7 +184,7 @@ impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
-        visited: &Vec<&RecordId>,
+        visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
         other_items
             .iter()
@@ -199,7 +199,7 @@ impl Item<'_> {
     pub(crate) fn find_children<'a>(
         &self,
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
-        visited: &Vec<&RecordId>,
+        visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
         self.surreal_item
             .smaller_items_in_priority_order

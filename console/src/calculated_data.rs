@@ -1,5 +1,7 @@
 use crate::{
-    base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, BaseData},
+    base_data::{
+        in_the_moment_priority::InTheMomentPriorityWithItemAction, time_spent::TimeSpent, BaseData,
+    },
     node::{item_node::ItemNode, item_status::ItemStatus},
 };
 use ahash::HashMap;
@@ -79,5 +81,9 @@ impl CalculatedData {
 
     pub(crate) fn get_now(&self) -> &DateTime<Utc> {
         self.borrow_base_data().get_now()
+    }
+
+    pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {
+        self.borrow_base_data().get_time_spent_log()
     }
 }
