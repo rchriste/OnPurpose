@@ -72,13 +72,15 @@ impl Display for DisplayDuration<'_> {
             }
             result.push_str(&format!("{} minutes", minutes));
         }
-        if seconds > 0 {
+        if seconds > 0 && (hours == 0 || days == 0) {
             if !first {
                 result.push(' ');
+            } else {
+                first = false;
             }
             result.push_str(&format!("{} seconds", seconds));
         }
-        if millis > 0 {
+        if millis > 0 && (minutes == 0 || hours == 0) {
             if !first {
                 result.push(' ');
             }

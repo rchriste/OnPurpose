@@ -374,7 +374,7 @@ async fn present_reflection(
         let total_time: chrono::Duration = item.time_spent.iter().map(|x| x.get_time_delta()).sum();
         let total_time: std::time::Duration = total_time.to_std().expect("valid");
         let display_duration = DisplayDuration::new(&total_time);
-        println!("\t{} - {}", iteration_count, display_duration);
+        println!("\t{} times for {}", iteration_count, display_duration);
     }
 
     println!();
@@ -410,7 +410,7 @@ async fn present_reflection(
             },
         );
     println!(
-        "\t{} - {}",
+        "\t{} times for {}",
         non_core_work.1,
         DisplayDuration::new(&non_core_work.0.to_std().expect("valid"))
     );
@@ -440,9 +440,16 @@ impl PartialOrd for ItemTimeSpent<'_> {
 
 impl Ord for ItemTimeSpent<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.item_status
+        let self_parent_count = self.item_status.get_self_and_parents_flattened(Filter::All).len();
+        let other_parent_count = other.item_status.get_self_and_parents_flattened(Filter::All).len();
+        if self_parent_count != other_parent_count {
+            //Reverse order so that the item with the most parents is first
+            other_parent_count.cmp(&self_parent_count)
+        } else {
+            self.item_status
             .get_summary()
             .cmp(other.item_status.get_summary())
+        }
     }
 }
 
