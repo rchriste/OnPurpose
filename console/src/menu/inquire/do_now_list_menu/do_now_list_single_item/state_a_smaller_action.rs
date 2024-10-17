@@ -1,7 +1,8 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display, iter::once};
 
 use chrono::Utc;
 use inquire::{InquireError, Select};
+use itertools::chain;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -25,6 +26,20 @@ pub(crate) enum SelectAnItemSortingOrder {
     NewestFirst,
 }
 
+enum ChildItem<'e> {
+    CreateNewItem,
+    ItemNode(DisplayItemNode<'e>),
+}
+
+impl Display for ChildItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChildItem::CreateNewItem => write!(f, "🗬   Create New Item"),
+            ChildItem::ItemNode(item) => write!(f, "{}", item),
+        }
+    }
+}
+
 pub(crate) async fn select_an_item<'a>(
     dont_show_these_items: Vec<&Item<'_>>,
     sorting_order: SelectAnItemSortingOrder,
@@ -37,11 +52,11 @@ pub(crate) async fn select_an_item<'a>(
             !dont_show_these_items.iter().any(|y| x.get_item() == *y) && !x.is_finished()
         })
         .map(|(_, v)| v);
-    let mut list = active_items
+    let mut existing_items = active_items
         .map(|x| DisplayItemNode::new(x.get_item_node()))
         .collect::<Vec<_>>();
     match sorting_order {
-        SelectAnItemSortingOrder::MotivationsFirst => list.sort_by(|a, b| {
+        SelectAnItemSortingOrder::MotivationsFirst => existing_items.sort_by(|a, b| {
             if a.is_type_motivation() {
                 if b.is_type_motivation() {
                     Ordering::Equal
@@ -66,14 +81,26 @@ pub(crate) async fn select_an_item<'a>(
             .then_with(|| a.get_created().cmp(b.get_created()).reverse())
         }),
         SelectAnItemSortingOrder::NewestFirst => {
-            list.sort_by(|a, b| a.get_created().cmp(b.get_created()).reverse())
+            existing_items.sort_by(|a, b| a.get_created().cmp(b.get_created()).reverse())
         }
     }
-
-    let selection = Select::new("Select from the below list|", list).prompt();
+    let list = chain!(
+        once(ChildItem::CreateNewItem),
+        existing_items.into_iter().map(ChildItem::ItemNode)
+    )
+    .collect::<Vec<_>>();
+    let selection = Select::new(
+        "Select an existing item from this list of all items or create a new item, type to search|",
+        list,
+    )
+    .prompt();
     match selection {
-        Ok(selected_item) => Ok(items_status.get(selected_item.get_item().get_surreal_record_id())),
+        Ok(ChildItem::CreateNewItem) => Ok(None),
+        Ok(ChildItem::ItemNode(selected_item)) => {
+            Ok(items_status.get(selected_item.get_item().get_surreal_record_id()))
+        }
         Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => Ok(None),
+        Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
 }

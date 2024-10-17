@@ -34,7 +34,7 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::Reflection => write!(f, "👁 🧾 Reflection, what I did     👁"),
+            TopMenuSelection::Reflection => write!(f, "👁 🧾  Reflection, what I did    👁"),
             TopMenuSelection::ViewDoNowList => {
                 write!(f, "👁 🗒️  View Do Now List          👁")
             }
