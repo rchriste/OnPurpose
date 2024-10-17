@@ -44,4 +44,3 @@ mimalloc = "0.1.43" #Because allocation performance shows up in performance meas
 #I should look into the anyhow crate (suggested for application code like the console app) or thiserror crate (suggested for library code) for errors
 
 # Maybe use this to make things bold and different colors - https://crates.io/crates/nu-ansi-term
-
