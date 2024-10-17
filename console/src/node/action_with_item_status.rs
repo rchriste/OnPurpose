@@ -25,7 +25,7 @@ pub(crate) enum ActionWithItemStatus<'e> {
 impl<'e> ActionWithItemStatus<'e> {
     pub(crate) fn new(
         action: &ActionWithItemNode<'_>,
-        items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
+        items_status: &'e HashMap<RecordId, ItemStatus<'e>>,
     ) -> Self {
         match action {
             ActionWithItemNode::SetReadyAndUrgency(action) => {
@@ -69,7 +69,7 @@ impl<'e> ActionWithItemStatus<'e> {
 
     pub(crate) fn from_surreal_action(
         action: &SurrealAction,
-        items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
+        items_status: &'e HashMap<RecordId, ItemStatus<'e>>,
     ) -> Self {
         match action {
             SurrealAction::SetReadyAndUrgency(record_id) => {

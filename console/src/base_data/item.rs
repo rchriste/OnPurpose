@@ -49,7 +49,7 @@ pub(crate) trait ItemVecExtensions<'t> {
     fn filter_active_items(&self) -> Vec<&Item>;
 }
 
-impl<'s> ItemVecExtensions<'s> for HashMap<&RecordId, Item<'s>> {
+impl<'s> ItemVecExtensions<'s> for HashMap<RecordId, Item<'s>> {
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, Item<'s>>,
         Box<dyn FnMut(&'s Item<'s>) -> Option<&'s Item<'s>>>,
@@ -63,7 +63,7 @@ impl<'s> ItemVecExtensions<'s> for HashMap<&RecordId, Item<'s>> {
     }
 }
 
-impl<'s> ItemVecExtensions<'s> for HashMap<&RecordId, &Item<'s>> {
+impl<'s> ItemVecExtensions<'s> for HashMap<RecordId, &Item<'s>> {
     type ItemIterator = std::iter::FilterMap<
         std::slice::Iter<'s, &'s Item<'s>>,
         Box<dyn FnMut(&'s &'s Item<'s>) -> Option<&'s Item<'s>>>,
@@ -183,7 +183,7 @@ impl<'b> Item<'b> {
 impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
-        other_items: &'a HashMap<&'a RecordId, Item<'a>>,
+        other_items: &'a HashMap<RecordId, Item<'a>>,
         visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
         other_items
@@ -198,7 +198,7 @@ impl Item<'_> {
 
     pub(crate) fn find_children<'a>(
         &self,
-        other_items: &'a HashMap<&'a RecordId, Item<'a>>,
+        other_items: &'a HashMap<RecordId, Item<'a>>,
         visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
         self.surreal_item
@@ -327,7 +327,7 @@ mod tests {
     use super::*;
 
     impl Item<'_> {
-        pub(crate) fn has_active_children(&self, all_items: &HashMap<&RecordId, Item<'_>>) -> bool {
+        pub(crate) fn has_active_children(&self, all_items: &HashMap<RecordId, Item<'_>>) -> bool {
             self.surreal_item
                 .smaller_items_in_priority_order
                 .iter()

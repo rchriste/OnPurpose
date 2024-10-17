@@ -15,11 +15,11 @@ pub(crate) struct CalculatedData {
 
     #[borrows(base_data)]
     #[covariant]
-    items_nodes: HashMap<&'this RecordId, ItemNode<'this>>,
+    items_nodes: HashMap<RecordId, ItemNode<'this>>,
 
     #[borrows(items_nodes)]
     #[covariant]
-    items_status: HashMap<&'this RecordId, ItemStatus<'this>>,
+    items_status: HashMap<RecordId, ItemStatus<'this>>,
 
     #[borrows(items_status, base_data, items_nodes)]
     #[covariant]
@@ -36,7 +36,7 @@ impl CalculatedData {
                     .iter()
                     .map(|(k, x)| {
                         (
-                            *k,
+                            k.clone(),
                             ItemNode::new(x, base_data.get_items(), base_data.get_time_spent_log()),
                         )
                     })
@@ -45,7 +45,7 @@ impl CalculatedData {
             items_status_builder: |item_nodes| {
                 item_nodes
                     .iter()
-                    .map(|(k, x)| (*k, ItemStatus::new(x, item_nodes)))
+                    .map(|(k, x)| (k.clone(), ItemStatus::new(x, item_nodes)))
                     .collect::<HashMap<_, _>>()
             },
             in_the_moment_priorities_builder: |items_status, base_data, all_nodes| {
@@ -71,7 +71,7 @@ impl CalculatedData {
         .build()
     }
 
-    pub(crate) fn get_items_status(&self) -> &HashMap<&RecordId, ItemStatus> {
+    pub(crate) fn get_items_status(&self) -> &HashMap<RecordId, ItemStatus> {
         self.borrow_items_status()
     }
 

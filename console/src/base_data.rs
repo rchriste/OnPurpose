@@ -23,7 +23,7 @@ pub(crate) struct BaseData {
 
     #[borrows(surreal_tables, now)]
     #[covariant]
-    items: HashMap<&'this RecordId, Item<'this>>,
+    items: HashMap<RecordId, Item<'this>>,
 
     #[borrows(items)]
     #[covariant]
@@ -53,7 +53,7 @@ impl BaseData {
         self.borrow_now()
     }
 
-    pub(crate) fn get_items(&self) -> &HashMap<&RecordId, Item> {
+    pub(crate) fn get_items(&self) -> &HashMap<RecordId, Item> {
         self.borrow_items()
     }
 

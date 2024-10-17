@@ -118,7 +118,7 @@ impl IsTriggered for TriggerWithItemNode<'_> {
 impl<'e> TriggerWithItemNode<'e> {
     pub(crate) fn new(
         trigger: &TriggerWithItem<'_>,
-        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
+        all_nodes: &'e HashMap<RecordId, ItemNode<'e>>,
     ) -> Self {
         match trigger {
             TriggerWithItem::WallClockDateTime {
@@ -176,7 +176,7 @@ impl From<DependencyWithItemNode<'_>> for SurrealDependency {
 impl<'e> ItemsInScopeWithItemNode<'e> {
     pub(crate) fn new(
         items_in_scope_with_item: &ItemsInScopeWithItem<'_>,
-        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
+        all_nodes: &'e HashMap<RecordId, ItemNode<'e>>,
     ) -> Self {
         match items_in_scope_with_item {
             ItemsInScopeWithItem::All => ItemsInScopeWithItemNode::All,
@@ -217,7 +217,7 @@ pub(crate) enum ActionWithItemNode<'e> {
 impl<'e> ActionWithItemNode<'e> {
     pub(crate) fn new(
         action_with_item: &ActionWithItem<'_>,
-        all_nodes: &'e HashMap<&'e RecordId, ItemNode<'e>>,
+        all_nodes: &'e HashMap<RecordId, ItemNode<'e>>,
     ) -> Self {
         match action_with_item {
             ActionWithItem::SetReadyAndUrgency(item) => ActionWithItemNode::SetReadyAndUrgency(
@@ -274,7 +274,7 @@ pub(crate) struct MostImportantReadyAndBlocked<'s> {
 impl<'s> ItemStatus<'s> {
     pub(crate) fn new(
         item_node: &'s ItemNode<'s>,
-        all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
+        all_nodes: &'s HashMap<RecordId, ItemNode<'s>>,
     ) -> Self {
         let dependencies = calculate_dependencies(item_node, all_nodes);
         let children = calculate_children(item_node, all_nodes);
@@ -428,7 +428,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_most_important_and_ready(
         &'s self,
-        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
+        all_item_status: &'s HashMap<RecordId, ItemStatus<'s>>,
     ) -> Option<&'s ItemStatus<'s>> {
         let a = self
             .recursive_get_most_important_both_ready_and_blocked(all_item_status, Vec::default());
@@ -437,7 +437,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_most_important_both_ready_and_blocked(
         &'s self,
-        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
+        all_item_status: &'s HashMap<RecordId, ItemStatus<'s>>,
         mut visited: Vec<&'s ItemStatus<'s>>,
     ) -> MostImportantReadyAndBlocked<'s> {
         let mut would_be_most_important_but_not_ready = Vec::default();
@@ -491,7 +491,7 @@ impl<'s> ItemStatus<'s> {
 
     pub(crate) fn recursive_get_urgent_bullet_list(
         &'s self,
-        all_item_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
+        all_item_status: &'s HashMap<RecordId, ItemStatus<'s>>,
         mut visited: Vec<&'s ItemStatus<'s>>,
     ) -> Box<dyn Iterator<Item = ActionWithItemStatus<'s>> + 's> {
         visited.push(self);
@@ -541,7 +541,7 @@ impl From<EqF32> for LapCountGreaterOrLess {
 
 fn calculate_dependencies<'s>(
     item_node: &ItemNode<'s>,
-    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
+    all_nodes: &'s HashMap<RecordId, ItemNode<'s>>,
 ) -> Vec<DependencyWithItemNode<'s>> {
     item_node
         .get_dependencies(Filter::All)
@@ -579,7 +579,7 @@ fn calculate_dependencies<'s>(
 
 fn calculate_parents<'s>(
     item_node: &'s ItemNode<'s>,
-    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
+    all_nodes: &'s HashMap<RecordId, ItemNode<'s>>,
 ) -> Vec<&'s ItemNode<'s>> {
     item_node
         .get_parents(Filter::All)
@@ -593,7 +593,7 @@ fn calculate_parents<'s>(
 
 fn calculate_children<'s>(
     item_node: &'s ItemNode<'s>,
-    all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
+    all_nodes: &'s HashMap<RecordId, ItemNode<'s>>,
 ) -> Vec<&'s ItemNode<'s>> {
     item_node
         .get_children(Filter::All)
@@ -607,7 +607,7 @@ fn calculate_children<'s>(
 
 fn calculate_urgent_action_items<'a>(
     actions: &[ActionWithItem<'_>],
-    all_nodes: &'a HashMap<&'a RecordId, ItemNode<'a>>,
+    all_nodes: &'a HashMap<RecordId, ItemNode<'a>>,
 ) -> Vec<ActionWithItemNode<'a>> {
     actions
         .iter()

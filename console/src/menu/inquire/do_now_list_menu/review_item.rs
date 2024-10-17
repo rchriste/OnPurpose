@@ -172,7 +172,7 @@ impl ReviewItemMenuChoices<'_> {
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
-    all_items: &HashMap<&RecordId, ItemStatus<'_>>,
+    all_items: &HashMap<RecordId, ItemStatus<'_>>,
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -243,7 +243,7 @@ async fn refresh_items_present_review_item_menu_internal(
 async fn present_review_item_menu_internal<'a>(
     item_under_review: &ItemStatus<'a>,
     selected_item: &ItemStatus<'a>,
-    all_items: &'a HashMap<&'a RecordId, ItemStatus<'a>>,
+    all_items: &'a HashMap<RecordId, ItemStatus<'a>>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let choices = ReviewItemMenuChoices::make_list(selected_item);

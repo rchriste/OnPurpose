@@ -144,7 +144,7 @@ impl<'e> TriggerWithItem<'e> {
     pub(crate) fn new(
         surreal_trigger: &'e SurrealTrigger,
         now_sql: &Datetime,
-        all_items: &'e HashMap<&'e RecordId, Item<'e>>,
+        all_items: &'e HashMap<RecordId, Item<'e>>,
         time_spent_log: &[TimeSpent<'_>],
     ) -> Self {
         match surreal_trigger {
@@ -198,7 +198,7 @@ pub(crate) enum ItemsInScopeWithItem<'e> {
 impl<'e> ItemsInScopeWithItem<'e> {
     pub(crate) fn new(
         surreal_items_in_scope: &'e SurrealItemsInScope,
-        all_items: &'e HashMap<&'e RecordId, Item<'e>>,
+        all_items: &'e HashMap<RecordId, Item<'e>>,
     ) -> Self {
         match surreal_items_in_scope {
             SurrealItemsInScope::All => ItemsInScopeWithItem::All,
@@ -253,7 +253,7 @@ impl PartialEq for ItemNode<'_> {
 impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
-        all_items: &'s HashMap<&'s RecordId, Item<'s>>,
+        all_items: &'s HashMap<RecordId, Item<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
         let visited = vec![item.get_surreal_record_id()];
@@ -531,7 +531,7 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
 
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
-    possible_parents: &'a HashMap<&'a RecordId, Item<'a>>,
+    possible_parents: &'a HashMap<RecordId, Item<'a>>,
     visited: Vec<&'a RecordId>,
 ) -> Vec<GrowingItemNode<'a>> {
     items
@@ -551,7 +551,7 @@ pub(crate) fn create_growing_nodes<'a>(
 
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
-    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    all_items: &'a HashMap<RecordId, Item<'a>>,
     visited: Vec<&'a RecordId>,
 ) -> GrowingItemNode<'a> {
     let parents = item.find_parents(all_items, &visited);
@@ -562,7 +562,7 @@ pub(crate) fn create_growing_node<'a>(
 fn calculate_dependencies<'a>(
     item: &'a Item,
     urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
-    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    all_items: &'a HashMap<RecordId, Item<'a>>,
     smaller: &[ShrinkingItemNode<'a>],
 ) -> Vec<DependencyWithItem<'a>> {
     //Making smaller of type ShrinkingItemNode gets rid of the circular reference as that is checked when creating the ShrinkingItemNode
@@ -612,7 +612,7 @@ fn calculate_dependencies<'a>(
 
 fn calculate_urgency_plan<'a>(
     item: &'a Item,
-    all_items: &'a HashMap<&'a RecordId, Item>,
+    all_items: &'a HashMap<RecordId, Item>,
     time_spent_log: &[TimeSpent],
 ) -> Option<UrgencyPlanWithItem<'a>> {
     item.get_surreal_urgency_plan().as_ref().map(|x| match x {
@@ -676,7 +676,7 @@ impl<'s> ShrinkingItemNode<'s> {
 
 pub(crate) fn create_shrinking_nodes<'a>(
     items: &[&'a Item<'a>],
-    possible_children: &'a HashMap<&'a RecordId, Item<'a>>,
+    possible_children: &'a HashMap<RecordId, Item<'a>>,
     visited: Vec<&'a RecordId>,
 ) -> Vec<ShrinkingItemNode<'a>> {
     items
@@ -696,7 +696,7 @@ pub(crate) fn create_shrinking_nodes<'a>(
 
 pub(crate) fn create_shrinking_node<'a>(
     item: &'a Item<'a>,
-    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    all_items: &'a HashMap<RecordId, Item<'a>>,
     visited: Vec<&'a RecordId>,
 ) -> ShrinkingItemNode<'a> {
     let children = item.find_children(all_items, &visited);

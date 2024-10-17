@@ -117,7 +117,7 @@ impl DoNowList {
         self.borrow_ordered_do_now_list()
     }
 
-    pub(crate) fn get_all_items_status(&self) -> &HashMap<&RecordId, ItemStatus<'_>> {
+    pub(crate) fn get_all_items_status(&self) -> &HashMap<RecordId, ItemStatus<'_>> {
         self.borrow_calculated_data().get_items_status()
     }
 

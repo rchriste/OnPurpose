@@ -119,7 +119,7 @@ impl Display for DoNowListSingleItemSelection<'_> {
 impl<'e> DoNowListSingleItemSelection<'e> {
     fn create_list(
         item_node: &'e ItemNode<'e>,
-        all_items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
+        all_items_status: &'e HashMap<RecordId, ItemStatus<'e>>,
     ) -> Vec<Self> {
         let mut list = Vec::default();
 
@@ -488,7 +488,7 @@ fn print_completed_children(menu_for: &ItemStatus<'_>) {
 
 fn print_in_progress_children(
     menu_for: &ItemStatus<'_>,
-    all_item_status: &HashMap<&RecordId, ItemStatus<'_>>,
+    all_item_status: &HashMap<RecordId, ItemStatus<'_>>,
 ) {
     let in_progress_children = menu_for.get_children(Filter::Active).collect::<Vec<_>>();
     if !in_progress_children.is_empty() {

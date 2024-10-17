@@ -34,13 +34,10 @@ impl SurrealTables {
         DataLayerCommands::get_raw_data(sender).await
     }
 
-    pub(crate) fn make_items<'a>(
-        &'a self,
-        now: &'a DateTime<Utc>,
-    ) -> HashMap<&'a RecordId, Item<'a>> {
+    pub(crate) fn make_items<'a>(&'a self, now: &'a DateTime<Utc>) -> HashMap<RecordId, Item<'a>> {
         self.surreal_items
             .iter()
-            .map(|x| (x.id.as_ref().expect("In DB"), x.make_item(now)))
+            .map(|x| (x.id.as_ref().expect("In DB").clone(), x.make_item(now)))
             .collect()
     }
 

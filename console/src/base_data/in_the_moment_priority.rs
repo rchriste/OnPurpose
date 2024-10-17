@@ -26,9 +26,9 @@ impl<'s> InTheMomentPriorityWithItemAction<'s> {
     pub(crate) fn new(
         surreal_in_the_moment_priority: &'s SurrealInTheMomentPriority,
         now_sql: &Datetime,
-        all_items: &'s HashMap<&'s RecordId, Item<'s>>,
-        all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
-        items_status: &'s HashMap<&'s RecordId, ItemStatus<'s>>,
+        all_items: &'s HashMap<RecordId, Item<'s>>,
+        all_nodes: &'s HashMap<RecordId, ItemNode<'s>>,
+        items_status: &'s HashMap<RecordId, ItemStatus<'s>>,
         time_spent_log: &[TimeSpent<'_>],
     ) -> InTheMomentPriorityWithItemAction<'s> {
         let in_effect_until = surreal_in_the_moment_priority
