@@ -63,7 +63,7 @@ jobs:
       
       - name: Compress Executable
         run: |
-          zip -r OnPurpose.zip ./target/release/OnPurpose
+          tar -cJf OnPurpose.tar.xz -C ./target/release on_purpose
   
       - name: Create GitHub Release
         id: create_release
@@ -90,9 +90,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./OnPurpose.zip
-          asset_name: OnPurpose_Console_Linux.zip
-          asset_content_type: application/zip
+          asset_path: ./OnPurpose.tar.xz
+          asset_name: OnPurpose_Console_Linux.tar.xz
+          asset_content_type: application/x-xz
 
   build-macos:
         
@@ -105,7 +105,7 @@ jobs:
         
         - name: Compress Executable
           run: |
-            zip -r OnPurpose.zip ./target/release/OnPurpose
+            zip OnPurpose.zip ./target/release/on_purpose
     
         - name: Create GitHub Release
           id: create_release
