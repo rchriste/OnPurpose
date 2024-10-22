@@ -48,6 +48,7 @@ pub(crate) enum InquireDoNowListItem<'e> {
     DoNowListSingleItem(&'e ActionWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     TopMenu,
+    Help,
 }
 
 impl Display for InquireDoNowListItem<'_> {
@@ -65,6 +66,7 @@ impl Display for InquireDoNowListItem<'_> {
                 bullet_list_created.format("%I:%M%p")
             ),
             Self::TopMenu => write!(f, "🏠  Top Menu"),
+            Self::Help => write!(f, "❓  Help"),
         }
     }
 }
@@ -83,7 +85,8 @@ impl<'a> InquireDoNowListItem<'a> {
             item_action
                 .iter()
                 .map(InquireDoNowListItem::DoNowListSingleItem),
-            once(InquireDoNowListItem::TopMenu)
+            once(InquireDoNowListItem::TopMenu),
+            once(InquireDoNowListItem::Help)
         )
         .collect()
     }
@@ -156,13 +159,14 @@ pub(crate) async fn present_do_now_list_menu(
     let inquire_do_now_list =
         InquireDoNowListItem::create_list(ordered_do_now_list, do_now_list_created);
 
-    let starting_cursor = if ordered_do_now_list.is_empty() { 2 } else { 3 };
+    let starting_cursor = if ordered_do_now_list.is_empty() { 4 } else { 3 };
     let selected = Select::new("Select from the below list|", inquire_do_now_list)
         .with_starting_cursor(starting_cursor)
         .with_page_size(10)
         .prompt();
 
     match selected {
+        Ok(InquireDoNowListItem::Help) => present_do_now_help(),
         Ok(InquireDoNowListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
         Ok(InquireDoNowListItem::Search) => {
             present_search_menu(do_now_list, send_to_data_storage_layer).await
@@ -247,4 +251,59 @@ pub(crate) async fn present_do_now_list_menu(
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
+}
+
+enum DoNowHelpChoices {
+    GettingStarted,
+    Workarounds,
+    ReturnToDoNowList,
+}
+
+impl Display for DoNowHelpChoices {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DoNowHelpChoices::GettingStarted => write!(f, "How to Get Started"),
+            DoNowHelpChoices::Workarounds => {
+                write!(f, "Workarounds for features not yet implemented")
+            }
+            DoNowHelpChoices::ReturnToDoNowList => write!(f, "Return to Do Now List"),
+        }
+    }
+}
+
+pub(crate) fn present_do_now_help() -> Result<(), ()> {
+    let choices = vec![
+        DoNowHelpChoices::GettingStarted,
+        DoNowHelpChoices::Workarounds,
+        DoNowHelpChoices::ReturnToDoNowList,
+    ];
+    let selected = Select::new("Select from the below list|", choices).prompt();
+
+    match selected {
+        Ok(DoNowHelpChoices::GettingStarted) => {
+            present_do_now_help_getting_started()?;
+            present_do_now_help()
+        }
+        Ok(DoNowHelpChoices::Workarounds) => {
+            present_do_now_help_workarounds()?;
+            present_do_now_help()
+        }
+        Ok(DoNowHelpChoices::ReturnToDoNowList) | Err(InquireError::OperationCanceled) => Ok(()),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+    }
+}
+
+pub(crate) fn present_do_now_help_getting_started() -> Result<(), ()> {
+    println!();
+    println!("Getting Started Help Coming Soon!");
+    println!();
+    Ok(())
+}
+
+pub(crate) fn present_do_now_help_workarounds() -> Result<(), ()> {
+    println!();
+    println!("Workarounds Help Coming Soon!");
+    println!();
+    Ok(())
 }
