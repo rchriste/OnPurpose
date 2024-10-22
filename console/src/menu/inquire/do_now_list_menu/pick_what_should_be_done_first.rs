@@ -172,7 +172,6 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
                     return present_parent_back_to_a_motivation_menu(
                         item_status,
-                        item_action.get_urgency_now(),
                         send_to_data_storage_layer,
                     )
                     .await;

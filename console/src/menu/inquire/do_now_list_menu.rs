@@ -233,12 +233,8 @@ pub(crate) async fn present_do_now_list_menu(
                 .await
             }
             ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
-                present_parent_back_to_a_motivation_menu(
-                    item_status,
-                    selected.get_urgency_now(),
-                    send_to_data_storage_layer,
-                )
-                .await
+                present_parent_back_to_a_motivation_menu(item_status, send_to_data_storage_layer)
+                    .await
             }
         },
         Ok(InquireDoNowListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {
