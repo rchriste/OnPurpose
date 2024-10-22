@@ -80,7 +80,7 @@ jobs:
           asset_content_type: application/x-xz
 
   build-macos:
-        
+        needs: create-release
         runs-on: macos-latest
     
         steps:
