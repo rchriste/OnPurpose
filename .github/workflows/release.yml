@@ -9,20 +9,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-windows:
-
-    runs-on: windows-latest
-
+  create-release:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose --release
-    
-    - name: Compress Executable
-      run: |
-        $exe = Get-ChildItem -Path .\target\release\ -Filter *.exe
-        Compress-Archive -Path $exe -DestinationPath .\target\release\OnPurpose.zip
-
     - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
@@ -37,9 +27,22 @@ jobs:
           - Rename Item types to: Step, Project, and Motivational Purpose
           - Improve terminology in the UI: Things are done for a larger reason, and broken down into smaller actions
           - Save's data to c:\.on_purpose.db\
-
         draft: true
         prerelease: false
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose --release
+    
+    - name: Compress Executable
+      run: |
+        $exe = Get-ChildItem -Path .\target\release\ -Filter *.exe
+        Compress-Archive -Path $exe -DestinationPath .\target\release\OnPurpose.zip
 
     - name: Upload Release Asset
       id: upload-release-asset
@@ -47,13 +50,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
         asset_path: .\target\release\OnPurpose.zip
         asset_name: OnPurpose_Console_Windows.zip
         asset_content_type: application/zip
   
   build-linux:
-      
+      needs: create-release
       runs-on: ubuntu-latest
   
       steps:
@@ -65,31 +68,13 @@ jobs:
         run: |
           tar -cJf OnPurpose.tar.xz -C ./target/release on_purpose
   
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Changes in this Release
-            - Initial Release
-            - Rename Item types to: Step, Project, and Motivational Purpose
-            - Improve terminology in the UI: Things are done for a larger reason, and broken down into smaller actions
-            - Save's data to c:\.on_purpose.db\
-  
-          draft: true
-          prerelease: false
-  
       - name: Upload Release Asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./OnPurpose.tar.xz
           asset_name: OnPurpose_Console_Linux.tar.xz
           asset_content_type: application/x-xz
@@ -107,31 +92,13 @@ jobs:
           run: |
             zip OnPurpose.zip ./target/release/on_purpose
     
-        - name: Create GitHub Release
-          id: create_release
-          uses: actions/create-release@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            tag_name: ${{ github.ref }}
-            release_name: Release ${{ github.ref }}
-            body: |
-              Changes in this Release
-              - Initial Release
-              - Rename Item types to: Step, Project, and Motivational Purpose
-              - Improve terminology in the UI: Things are done for a larger reason, and broken down into smaller actions
-              - Save's data to c:\.on_purpose.db\
-    
-            draft: true
-            prerelease: false
-    
         - name: Upload Release Asset
           id: upload-release-asset
           uses: actions/upload-release-asset@v1
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            upload_url: ${{ needs.create-release.outputs.upload_url }}
             asset_path: ./OnPurpose.zip
             asset_name: OnPurpose_Console_MacOS.zip
             asset_content_type: application/zip
