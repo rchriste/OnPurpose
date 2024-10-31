@@ -379,7 +379,6 @@ async fn present_reflection(
 
     println!();
 
-    println!("Core Work");
     let core_work = items_in_range
         .iter()
         .filter(|x| x.is_type_motivation_kind_core())
@@ -390,13 +389,7 @@ async fn present_reflection(
                 (sum_duration + time_spent.get_time_delta(), count + 1)
             },
         );
-    println!(
-        "\t{} - {}",
-        core_work.1,
-        DisplayDuration::new(&core_work.0.to_std().expect("valid"))
-    );
 
-    println!("Non-Core Work");
     let non_core_work = items_in_range
         .iter()
         .filter(|x| x.is_type_motivation_kind_non_core())
@@ -407,14 +400,29 @@ async fn present_reflection(
                 (sum_duration + time_spent.get_time_delta(), count + 1)
             },
         );
+    let total = core_work.0 + non_core_work.0;
+
+    println!("Core Work");
     println!(
-        "\t{} times for {}",
-        non_core_work.1,
-        DisplayDuration::new(&non_core_work.0.to_std().expect("valid"))
+        "\t{} times for {} ({}%)",
+        core_work.1,
+        DisplayDuration::new(&core_work.0.to_std().expect("valid")),
+        core_work.0.num_seconds() * 100 / total.num_seconds()
     );
 
-    let _ = Text::new("Press Enter to continue...").prompt();
-    Ok(())
+    println!("Non-Core Work");
+    println!(
+        "\t{} times for {} ({}%)",
+        non_core_work.1,
+        DisplayDuration::new(&non_core_work.0.to_std().expect("valid")),
+        non_core_work.0.num_seconds() * 100 / total.num_seconds()
+    );
+
+    match Text::new("Press Enter to continue...").prompt() {
+        Ok(_) | Err(InquireError::OperationCanceled) => Ok(()),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+    }
 }
 
 struct ItemTimeSpent<'s> {

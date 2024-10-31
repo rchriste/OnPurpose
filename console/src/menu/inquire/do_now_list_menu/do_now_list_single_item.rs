@@ -544,7 +544,7 @@ impl Display for FinishSelection<'_> {
                 write!(f, "Go to Parent: {}", DisplayItem::new(parent))
             }
             FinishSelection::CaptureNewItem => write!(f, "Capture New Item"),
-            FinishSelection::ReturnToDoNowList => write!(f, "Return to Do Now List"),
+            FinishSelection::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
         }
     }
 }
@@ -687,9 +687,10 @@ async fn parent_to_item(
                 .unwrap();
             Ok(())
         }
-        Err(InquireError::OperationCanceled | InquireError::InvalidConfiguration(_)) => {
+        Err(InquireError::InvalidConfiguration(_)) => {
             parent_to_new_item(parent_this, send_to_data_storage_layer).await
         }
+        Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
@@ -714,7 +715,7 @@ impl Display for ItemTypeSelection {
             Self::MotivationNonCore => {
                 write!(f, "Non-Core Motivational Purpose 🎯🧹")
             }
-            Self::NormalHelp => write!(f, "Help"),
+            Self::NormalHelp => write!(f, "❓ Help"),
         }
     }
 }
@@ -764,7 +765,7 @@ impl ItemTypeSelection {
 
     pub(crate) fn print_normal_help() {
         println!("{}Step{}", Style::default().bold(), Style::default());
-        println!("A thing to do and an action or step to take.");
+        println!("A task to do and an action or step to take.");
         println!(
             "{}The emoji is a ladder 🪜 with steps.{}",
             Style::default().italic(),
@@ -788,12 +789,14 @@ impl ItemTypeSelection {
             Style::default().bold(),
             Style::default()
         );
-        println!("For stating that the item captured is a reason for doing something.");
+        println!("For stating that the item captured is a long standing value or reason for doing something.");
         println!(
             "{}Emoji is a target 🎯 that provides something to aim for.{}",
             Style::default().italic(),
             Style::default()
         );
+        println!("\t🏢Core🏢 is for your work that makes you productive. In your business life this is for work that is a core reason you were hired. When you consider or report on what was accomplished you are generally mentioning things in this category.");
+        println!("\t🧹Non-Core🧹 is for work that might still be essential to do but is considered more of a background thing. Maybe not doing these items is a problem but doing them is not enough to consider that you had a productive day.");
         println!();
     }
 }

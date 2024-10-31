@@ -251,6 +251,7 @@ pub(crate) async fn present_do_now_list_menu(
 
 enum DoNowHelpChoices {
     GettingStarted,
+    HowWorkIsScheduled,
     Workarounds,
     ReturnToDoNowList,
 }
@@ -259,10 +260,11 @@ impl Display for DoNowHelpChoices {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DoNowHelpChoices::GettingStarted => write!(f, "How to Get Started"),
+            DoNowHelpChoices::HowWorkIsScheduled => write!(f, "How Work is Scheduled"),
             DoNowHelpChoices::Workarounds => {
                 write!(f, "Workarounds for features not yet implemented")
             }
-            DoNowHelpChoices::ReturnToDoNowList => write!(f, "Return to Do Now List"),
+            DoNowHelpChoices::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
         }
     }
 }
@@ -270,6 +272,7 @@ impl Display for DoNowHelpChoices {
 pub(crate) fn present_do_now_help() -> Result<(), ()> {
     let choices = vec![
         DoNowHelpChoices::GettingStarted,
+        DoNowHelpChoices::HowWorkIsScheduled,
         DoNowHelpChoices::Workarounds,
         DoNowHelpChoices::ReturnToDoNowList,
     ];
@@ -278,6 +281,10 @@ pub(crate) fn present_do_now_help() -> Result<(), ()> {
     match selected {
         Ok(DoNowHelpChoices::GettingStarted) => {
             present_do_now_help_getting_started()?;
+            present_do_now_help()
+        }
+        Ok(DoNowHelpChoices::HowWorkIsScheduled) => {
+            present_do_now_how_work_is_scheduled()?;
             present_do_now_help()
         }
         Ok(DoNowHelpChoices::Workarounds) => {
@@ -293,6 +300,13 @@ pub(crate) fn present_do_now_help() -> Result<(), ()> {
 pub(crate) fn present_do_now_help_getting_started() -> Result<(), ()> {
     println!();
     println!("Getting Started Help Coming Soon!");
+    println!();
+    Ok(())
+}
+
+pub(crate) fn present_do_now_how_work_is_scheduled() -> Result<(), ()> {
+    println!();
+    println!("How Work is Scheduled Help Coming Soon!");
     println!();
     Ok(())
 }

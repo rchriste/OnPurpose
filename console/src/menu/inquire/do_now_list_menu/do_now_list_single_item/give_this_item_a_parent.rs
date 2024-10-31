@@ -78,7 +78,11 @@ pub(crate) async fn give_this_item_a_parent(
         list.push(ParentItem::ItemNode(DisplayItemNode::new(node)));
     }
 
-    let selection = Select::new("Select from the below list|", list).prompt();
+    let selection = Select::new(
+        "Type to search, select an existing reason, or create a new item|",
+        list,
+    )
+    .prompt();
     match selection {
         Ok(ParentItem::FinishItem) => {
             send_to_data_storage_layer
@@ -113,15 +117,14 @@ pub(crate) async fn give_this_item_a_parent(
                 .unwrap();
             Ok(())
         }
-        Ok(ParentItem::CreateNewItem)
-        | Err(InquireError::OperationCanceled)
-        | Err(InquireError::InvalidConfiguration(_)) => {
+        Ok(ParentItem::CreateNewItem) | Err(InquireError::InvalidConfiguration(_)) => {
             parent_to_a_goal_or_motivation_new_goal_or_motivation(
                 parent_this,
                 send_to_data_storage_layer,
             )
             .await
         }
+        Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }

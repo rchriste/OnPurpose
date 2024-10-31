@@ -53,8 +53,10 @@ impl Display for ReadySelection {
         match self {
             ReadySelection::Now => write!(f, "Ready, now"),
             ReadySelection::NothingElse => write!(f, "Nothing else"),
-            ReadySelection::AfterDateTime => write!(f, "After a certain amount of time"),
-            ReadySelection::AfterItem => write!(f, "Wait until another item finishes"),
+            ReadySelection::AfterDateTime => {
+                write!(f, "Cannot do, wait an amount of wall clock time")
+            }
+            ReadySelection::AfterItem => write!(f, "Cannot do, wait until another item finishes"),
         }
     }
 }
