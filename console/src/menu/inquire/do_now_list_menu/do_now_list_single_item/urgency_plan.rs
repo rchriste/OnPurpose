@@ -54,9 +54,11 @@ impl Display for ReadySelection {
             ReadySelection::Now => write!(f, "Ready, now"),
             ReadySelection::NothingElse => write!(f, "Nothing else"),
             ReadySelection::AfterDateTime => {
-                write!(f, "Cannot do, wait an amount of wall clock time")
+                write!(f, "Cannot do, yet, wait an amount of wall clock time")
             }
-            ReadySelection::AfterItem => write!(f, "Cannot do, wait until another item finishes"),
+            ReadySelection::AfterItem => {
+                write!(f, "Cannot do, yet, wait until another item finishes")
+            }
         }
     }
 }

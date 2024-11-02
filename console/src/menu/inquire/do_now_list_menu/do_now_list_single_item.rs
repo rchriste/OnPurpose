@@ -31,6 +31,7 @@ use crate::{
         display_urgency_plan::DisplayUrgency, DisplayStyle,
     },
     menu::inquire::{
+        back_menu::capture,
         do_now_list_menu::{
             do_now_list_single_item::{
                 give_this_item_a_parent::give_this_item_a_parent,
@@ -40,7 +41,6 @@ use crate::{
             review_item,
         },
         select_higher_importance_than_this::select_higher_importance_than_this,
-        top_menu::capture,
         update_item_summary::update_item_summary,
     },
     new_item,

@@ -31,7 +31,7 @@ use crate::{
         display_action_with_item_status::DisplayActionWithItemStatus, display_item::DisplayItem,
         display_scheduled_item::DisplayScheduledItem,
     },
-    menu::inquire::top_menu::present_top_menu,
+    menu::inquire::back_menu::present_back_menu,
     node::action_with_item_status::ActionWithItemStatus,
     systems::do_now_list::DoNowList,
 };
@@ -40,14 +40,14 @@ use self::do_now_list_single_item::{
     present_do_now_list_item_selected, present_is_person_or_group_around_menu,
 };
 
-use super::top_menu::capture;
+use super::back_menu::capture;
 
 pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
     DoNowListSingleItem(&'e ActionWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
-    TopMenu,
+    BackMenu,
     Help,
 }
 
@@ -65,7 +65,7 @@ impl Display for InquireDoNowListItem<'_> {
                 "🔄  Reload List ({})",
                 bullet_list_created.format("%I:%M%p")
             ),
-            Self::TopMenu => write!(f, "🏠  Top Menu"),
+            Self::BackMenu => write!(f, "🏠  Back Menu"),
             Self::Help => write!(f, "❓  Help"),
         }
     }
@@ -85,7 +85,7 @@ impl<'a> InquireDoNowListItem<'a> {
             item_action
                 .iter()
                 .map(InquireDoNowListItem::DoNowListSingleItem),
-            once(InquireDoNowListItem::TopMenu),
+            once(InquireDoNowListItem::BackMenu),
             once(InquireDoNowListItem::Help)
         )
         .collect()
@@ -241,8 +241,8 @@ pub(crate) async fn present_do_now_list_menu(
             println!("Press Ctrl+C to exit");
             Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await
         }
-        Ok(InquireDoNowListItem::TopMenu) => {
-            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+        Ok(InquireDoNowListItem::BackMenu) => {
+            Box::pin(present_back_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),

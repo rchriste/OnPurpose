@@ -34,13 +34,13 @@ enum TopMenuSelection {
 impl Display for TopMenuSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TopMenuSelection::Reflection => write!(f, "👁 🧾  Reflection, what I did    👁"),
+            TopMenuSelection::Reflection => write!(f, "🤔  Reflection, what I did"),
             TopMenuSelection::ViewDoNowList => {
-                write!(f, "👁 🗒️  View Do Now List          👁")
+                write!(f, "🔙  Return to Do Now List")
             }
-            TopMenuSelection::ViewPriorities => write!(f, "👁 ⚖️  View Priorities           👁"),
+            TopMenuSelection::ViewPriorities => write!(f, "⚖️  View Priorities"),
             TopMenuSelection::DebugViewAllItems => {
-                write!(f, "👁 🗒️  Debug View All Items      👁")
+                write!(f, "🔍  Debug View All Items")
             }
         }
     }
@@ -57,12 +57,12 @@ impl TopMenuSelection {
     }
 }
 
-pub(crate) async fn present_top_menu(
+pub(crate) async fn present_back_menu(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let top_menu = TopMenuSelection::make_list();
+    let back_menu = TopMenuSelection::make_list();
 
-    let selection = Select::new("Select from the below list|", top_menu).prompt();
+    let selection = Select::new("Select from the below list|", back_menu).prompt();
     match selection {
         Ok(TopMenuSelection::Reflection) => present_reflection(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ViewDoNowList) => {
@@ -72,7 +72,7 @@ pub(crate) async fn present_top_menu(
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
-        Err(InquireError::OperationCanceled) => Err(()),
+        Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
@@ -155,7 +155,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
             .await
         }
         Err(InquireError::OperationCanceled) => {
-            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+            Box::pin(present_back_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
@@ -527,7 +527,7 @@ async fn debug_view_all_items(
             Ok(())
         }
         Err(InquireError::OperationCanceled) => {
-            Box::pin(present_top_menu(send_to_data_storage_layer)).await
+            Box::pin(present_back_menu(send_to_data_storage_layer)).await
         }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
