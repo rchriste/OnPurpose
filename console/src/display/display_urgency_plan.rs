@@ -182,7 +182,7 @@ impl Display for DisplayUrgency<'_> {
                 }
             }
             SurrealUrgency::InTheModeByImportance => {
-                write!(f, "🟢")?;
+                write!(f, "🔝")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
                     DisplayStyle::Full => write!(f, " When in the mode, by importance"),

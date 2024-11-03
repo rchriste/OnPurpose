@@ -1,3 +1,5 @@
+pub(crate) mod configure;
+
 use std::{cmp::Ordering, collections::HashMap, fmt::Display};
 
 use chrono::{DateTime, Local, Utc};
@@ -16,6 +18,7 @@ use crate::{
         display_duration::DisplayDuration, display_item_node::DisplayItemNode,
         display_item_status::DisplayItemStatus,
     },
+    menu::inquire::back_menu::configure::configure,
     new_item::NewItem,
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
 };
@@ -28,6 +31,7 @@ enum TopMenuSelection {
     Reflection,
     ViewDoNowList,
     ViewPriorities,
+    Configure,
     DebugViewAllItems,
 }
 
@@ -42,6 +46,7 @@ impl Display for TopMenuSelection {
             TopMenuSelection::DebugViewAllItems => {
                 write!(f, "🔍  Debug View All Items")
             }
+            TopMenuSelection::Configure => write!(f, "⚙️  Configure"),
         }
     }
 }
@@ -51,6 +56,7 @@ impl TopMenuSelection {
         vec![
             Self::ViewPriorities,
             Self::Reflection,
+            Self::Configure,
             Self::ViewDoNowList,
             Self::DebugViewAllItems,
         ]
@@ -69,6 +75,7 @@ pub(crate) async fn present_back_menu(
             present_normal_do_now_list_menu(send_to_data_storage_layer).await
         }
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::Configure) => configure().await,
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
