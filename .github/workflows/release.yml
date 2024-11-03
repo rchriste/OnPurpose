@@ -9,29 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          Changes in this Release
-          - Initial Release
-          - Rename Item types to: Step, Project, and Motivational Purpose
-          - Improve terminology in the UI: Things are done for a larger reason, and broken down into smaller actions
-          - Save's data to c:\.on_purpose.db\
-        draft: true
-        prerelease: false
-
   build-windows:
-    needs: create-release
     runs-on: windows-latest
 
     steps:
@@ -42,21 +20,15 @@ jobs:
     - name: Compress Executable
       run: |
         $exe = Get-ChildItem -Path .\target\release\ -Filter *.exe
-        Compress-Archive -Path $exe -DestinationPath .\target\release\OnPurpose.zip
+        Compress-Archive -Path $exe -DestinationPath .\target\release\OnPurpose_Console_Windows.zip
 
     - name: Upload Release Asset
       id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: .\target\release\OnPurpose.zip
-        asset_name: OnPurpose_Console_Windows.zip
-        asset_content_type: application/zip
+        files: ./target/release/OnPurpose_Console_Windows.zip
   
   build-linux:
-      needs: create-release
       runs-on: ubuntu-latest
   
       steps:
@@ -66,21 +38,15 @@ jobs:
       
       - name: Compress Executable
         run: |
-          tar -cJf OnPurpose.tar.xz -C ./target/release on_purpose
+          tar -cJf OnPurpose_Console_Linux.tar.xz -C ./target/release on_purpose
   
       - name: Upload Release Asset
         id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./OnPurpose.tar.xz
-          asset_name: OnPurpose_Console_Linux.tar.xz
-          asset_content_type: application/x-xz
+          files: ./OnPurpose_Console_Linux.tar.xz
 
   build-macos:
-        needs: create-release
         runs-on: macos-latest
     
         steps:
@@ -90,15 +56,10 @@ jobs:
         
         - name: Compress Executable
           run: |
-            zip OnPurpose.zip ./target/release/on_purpose
+            zip OnPurpose_Console_MacOS.zip ./target/release/on_purpose
     
         - name: Upload Release Asset
           id: upload-release-asset
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          uses: softprops/action-gh-release@v2
           with:
-            upload_url: ${{ needs.create_release.outputs.upload_url }}
-            asset_path: ./OnPurpose.zip
-            asset_name: OnPurpose_Console_MacOS.zip
-            asset_content_type: application/zip
+            files: ./OnPurpose_Console_MacOS.zip
