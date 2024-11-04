@@ -203,7 +203,7 @@ impl Display for DisplayUrgency<'_> {
                 }
             }
             SurrealUrgency::ScheduledAnyMode(scheduled) => {
-                write!(f, "❗🗓️")?;
+                write!(f, "🗓️❗")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
                     DisplayStyle::Full => {
@@ -213,7 +213,7 @@ impl Display for DisplayUrgency<'_> {
                 }
             }
             SurrealUrgency::InTheModeScheduled(scheduled) => {
-                write!(f, "⭳🗓️")?;
+                write!(f, "🗓️⭳")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
                     DisplayStyle::Full => {

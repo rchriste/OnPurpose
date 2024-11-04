@@ -27,8 +27,8 @@ impl Display for DisplayActionWithItemStatus<'_> {
             SurrealUrgency::InTheModeByImportance => {}
             SurrealUrgency::InTheModeDefinitelyUrgent => write!(f, "🔴 ")?,
             SurrealUrgency::InTheModeMaybeUrgent => write!(f, "🟡 ")?,
-            SurrealUrgency::ScheduledAnyMode(..) => write!(f, "❗🗓️ ")?,
-            SurrealUrgency::InTheModeScheduled(..) => write!(f, "⭳🗓️ ")?,
+            SurrealUrgency::ScheduledAnyMode(..) => write!(f, "🗓️❗ ")?,
+            SurrealUrgency::InTheModeScheduled(..) => write!(f, "🗓️⭳ ")?,
         }
 
         match self.item {

@@ -151,7 +151,7 @@ pub(crate) async fn prompt_for_dependencies(
             //do nothing
         }
         ReadySelection::AfterDateTime => {
-            let exact_start = Text::new("When will this item be ready?").prompt().unwrap();
+            let exact_start = Text::new("Enter a date or an amount of time to wait, for example \"1/4/2025 3:00pm\", \"30m\", \"1h\", or \"1d\"\n|").prompt().unwrap();
             let exact_start = match parse(&exact_start) {
                 Ok(exact_start) => {
                     let now = Utc::now();
@@ -209,8 +209,9 @@ pub(crate) async fn prompt_for_urgency_plan(
     now: &DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> SurrealUrgencyPlan {
-    //prompt for a surreal urgency
-    //ask to keep this always or if it will escalate, if it will escalate prompt for what it will escalate to and then prompt for when it will escalate
+    println!("Initial Urgency");
+    let initial_urgency = prompt_for_urgency();
+
     let urgency_plan = Select::new(
         "Does the urgency escalate?|",
         vec![
@@ -223,11 +224,9 @@ pub(crate) async fn prompt_for_urgency_plan(
 
     match urgency_plan {
         UrgencyPlanSelection::StaysTheSame => {
-            SurrealUrgencyPlan::StaysTheSame(prompt_for_urgency())
+            SurrealUrgencyPlan::StaysTheSame(initial_urgency)
         }
         UrgencyPlanSelection::WillEscalate => {
-            println!("Initial Urgency");
-            let initial_urgency = prompt_for_urgency();
             let triggers = prompt_for_triggers(now, send_to_data_storage_layer).await;
 
             println!("Later Urgency");
@@ -482,27 +481,27 @@ impl Display for Urgency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Urgency::MoreUrgentThanAnythingIncludingScheduled => {
-                write!(f, "🚨 More urgent than anything including scheduled")
+                write!(f, "🚨  More urgent than anything including scheduled")
             }
             Urgency::ScheduledAnyMode => {
-                write!(f, "❗🗓️ Schedule, to do, no matter your mode")
+                write!(f, "🗓️❗Schedule, to do, no matter your mode")
             }
             Urgency::MoreUrgentThanMode => {
-                write!(f, "🔥 More urgent than your mode")
+                write!(f, "🔥  More urgent than your mode")
             }
-            Urgency::InTheModeScheduled => write!(f, "⭳🗓️ When in the mode, scheduled"),
+            Urgency::InTheModeScheduled => write!(f, "🗓️⭳ When in the mode, scheduled"),
             Urgency::InTheModeDefinitelyUrgent => {
-                write!(f, "🔴 When in the mode, definitely urgent")
+                write!(f, "🔴  When in the mode, definitely urgent")
             }
-            Urgency::InTheModeMaybeUrgent => write!(f, "🟡 When in the mode, maybe urgent"),
-            Urgency::InTheModeByImportance => write!(f, "🟢 When in the mode, by Importance"),
+            Urgency::InTheModeMaybeUrgent => write!(f, "🟡  When in the mode, maybe urgent"),
+            Urgency::InTheModeByImportance => write!(f, "🔝  Not immediately urgent"),
         }
     }
 }
 
 fn prompt_for_urgency() -> SurrealUrgency {
     let urgency = Select::new(
-        "Select urgency|",
+        "Select immediate urgency|",
         vec![
             Urgency::MoreUrgentThanAnythingIncludingScheduled,
             Urgency::ScheduledAnyMode,
