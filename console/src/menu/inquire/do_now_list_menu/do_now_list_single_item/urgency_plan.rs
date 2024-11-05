@@ -223,9 +223,7 @@ pub(crate) async fn prompt_for_urgency_plan(
     .unwrap();
 
     match urgency_plan {
-        UrgencyPlanSelection::StaysTheSame => {
-            SurrealUrgencyPlan::StaysTheSame(initial_urgency)
-        }
+        UrgencyPlanSelection::StaysTheSame => SurrealUrgencyPlan::StaysTheSame(initial_urgency),
         UrgencyPlanSelection::WillEscalate => {
             let triggers = prompt_for_triggers(now, send_to_data_storage_layer).await;
 
@@ -267,7 +265,7 @@ enum AddAnotherTrigger {
 impl Display for AddAnotherTrigger {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AddAnotherTrigger::AllDone => write!(f, "Done, Move on to stating final urgency"),
+            AddAnotherTrigger::AllDone => write!(f, "Done adding triggers (recommended)"),
             AddAnotherTrigger::AddAnother => {
                 write!(f, "Add another trigger, (only one trigger needs to happen)")
             }

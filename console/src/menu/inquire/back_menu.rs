@@ -409,21 +409,23 @@ async fn present_reflection(
         );
     let total = core_work.0 + non_core_work.0;
 
-    println!("Core Work");
-    println!(
-        "\t{} times for {} ({}%)",
-        core_work.1,
-        DisplayDuration::new(&core_work.0.to_std().expect("valid")),
-        core_work.0.num_seconds() * 100 / total.num_seconds()
-    );
+    if total.num_seconds() != 0 {
+        println!("Core Work");
+        println!(
+            "\t{} times for {} ({}%)",
+            core_work.1,
+            DisplayDuration::new(&core_work.0.to_std().expect("valid")),
+            core_work.0.num_seconds() * 100 / total.num_seconds()
+        );
 
-    println!("Non-Core Work");
-    println!(
-        "\t{} times for {} ({}%)",
-        non_core_work.1,
-        DisplayDuration::new(&non_core_work.0.to_std().expect("valid")),
-        non_core_work.0.num_seconds() * 100 / total.num_seconds()
-    );
+        println!("Non-Core Work");
+        println!(
+            "\t{} times for {} ({}%)",
+            non_core_work.1,
+            DisplayDuration::new(&non_core_work.0.to_std().expect("valid")),
+            non_core_work.0.num_seconds() * 100 / total.num_seconds()
+        );
+    }
 
     match Text::new("Press Enter to continue...").prompt() {
         Ok(_) | Err(InquireError::OperationCanceled) => Ok(()),
