@@ -662,7 +662,7 @@ async fn parent_to_item(
         .iter()
         .map(|x| ItemNode::new(x, items, time_spent_log))
         .collect::<Vec<_>>();
-    let list = DisplayItemNode::make_list(&item_nodes);
+    let list = DisplayItemNode::make_list(&item_nodes, Filter::Active);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {

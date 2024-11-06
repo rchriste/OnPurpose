@@ -7,12 +7,13 @@ use crate::{
         surreal_in_the_moment_priority::SurrealAction, surreal_item::SurrealUrgency,
     },
     display::display_item_status::DisplayItemStatus,
-    node::action_with_item_status::ActionWithItemStatus,
+    node::{action_with_item_status::ActionWithItemStatus, Filter},
 };
 
 #[derive(Clone)]
 pub(crate) struct DisplayActionWithItemStatus<'s> {
     item: &'s ActionWithItemStatus<'s>,
+    filter: Filter,
 }
 
 impl Display for DisplayActionWithItemStatus<'_> {
@@ -33,30 +34,30 @@ impl Display for DisplayActionWithItemStatus<'_> {
 
         match self.item {
             ActionWithItemStatus::MakeProgress(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🏃] {}", display)
             }
             ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🌟 Needs a reason] {}", display)
             }
             ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🔁 State review frequency] {}", display)
             }
             ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🗂️ Needs classification] {}", display)
             }
             ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
                 write!(f, "[🗳️  Pick highest priority] {} choices", choices.len())
             }
             ActionWithItemStatus::ReviewItem(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🔍 Review] {}", display)
             }
             ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
-                let display = DisplayItemStatus::new(item_status);
+                let display = DisplayItemStatus::new(item_status, self.filter);
                 write!(f, "[🚦 Set readiness and urgency] {}", display)
             }
         }
@@ -64,8 +65,8 @@ impl Display for DisplayActionWithItemStatus<'_> {
 }
 
 impl<'s> DisplayActionWithItemStatus<'s> {
-    pub(crate) fn new(item: &'s ActionWithItemStatus<'s>) -> Self {
-        Self { item }
+    pub(crate) fn new(item: &'s ActionWithItemStatus<'s>, filter: Filter) -> Self {
+        Self { item, filter }
     }
 
     pub(crate) fn get_surreal_record_id(&self) -> &RecordId {

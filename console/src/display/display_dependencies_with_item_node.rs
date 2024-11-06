@@ -2,12 +2,13 @@ use std::fmt::{self, Display};
 
 use chrono::{DateTime, Local};
 
-use crate::node::item_status::DependencyWithItemNode;
+use crate::node::{item_status::DependencyWithItemNode, Filter};
 
 use super::display_item_node::DisplayItemNode;
 
 pub(crate) struct DisplayDependenciesWithItemNode<'s> {
     dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>,
+    filter: Filter,
 }
 
 impl Display for DisplayDependenciesWithItemNode<'_> {
@@ -36,15 +37,15 @@ impl Display for DisplayDependenciesWithItemNode<'_> {
                         )?
                     }
                     DependencyWithItemNode::AfterItem(dependency) => {
-                        let display_item_node = DisplayItemNode::new(dependency);
+                        let display_item_node = DisplayItemNode::new(dependency, self.filter);
                         write!(f, "After dependency {}", display_item_node)?
                     }
                     DependencyWithItemNode::AfterChildItem(smaller_item) => {
-                        let display_item_node = DisplayItemNode::new(smaller_item);
+                        let display_item_node = DisplayItemNode::new(smaller_item, self.filter);
                         write!(f, "After child item {}", display_item_node)?
                     }
                     DependencyWithItemNode::DuringItem(item_node) => {
-                        let display_item_node = DisplayItemNode::new(item_node);
+                        let display_item_node = DisplayItemNode::new(item_node, self.filter);
                         write!(f, "During item {}", display_item_node)?
                     }
                 }
@@ -55,7 +56,13 @@ impl Display for DisplayDependenciesWithItemNode<'_> {
 }
 
 impl<'s> DisplayDependenciesWithItemNode<'s> {
-    pub(crate) fn new(dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>) -> Self {
-        DisplayDependenciesWithItemNode { dependencies }
+    pub(crate) fn new(
+        dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>,
+        filter: Filter,
+    ) -> Self {
+        DisplayDependenciesWithItemNode {
+            dependencies,
+            filter,
+        }
     }
 }

@@ -146,7 +146,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
 
     let list = all_top_nodes
         .iter()
-        .map(DisplayItemStatus::new)
+        .map(|x| DisplayItemStatus::new(x, Filter::Active))
         .collect::<Vec<_>>();
 
     let selection = Select::new("Select a priority to view...", list).prompt();
@@ -186,7 +186,7 @@ async fn view_priorities_of_item_status(
                 .get_items_status()
                 .get(x.get_surreal_record_id())
                 .expect("Comes from this list so will be found");
-            DisplayItemStatus::new(item_status)
+            DisplayItemStatus::new(item_status, Filter::Active)
         })
         .collect();
     let selection = Select::new("Select a child to view...", list).prompt();
@@ -196,7 +196,7 @@ async fn view_priorities_of_item_status(
             parent.push(display_item_status);
             if display_priority.has_children(Filter::Active) {
                 let display_item_status =
-                    DisplayItemStatus::new(display_priority.get_item_status());
+                    DisplayItemStatus::new(display_priority.get_item_status(), Filter::Active);
                 Box::pin(view_priorities_of_item_status(
                     display_item_status,
                     parent,
@@ -376,7 +376,10 @@ async fn present_reflection(
 
     items_in_range.sort();
     for item in items_in_range.iter() {
-        println!("{}", DisplayItemNode::new(item.item_status.get_item_node()));
+        println!(
+            "{}",
+            DisplayItemNode::new(item.item_status.get_item_node(), Filter::All)
+        );
         let iteration_count = item.time_spent.len();
         let total_time: chrono::Duration = item.time_spent.iter().map(|x| x.get_time_delta()).sum();
         let total_time: std::time::Duration = total_time.to_std().expect("valid");
@@ -502,7 +505,7 @@ impl<'e> DebugViewItem<'e> {
     }
 
     fn new(item: &'e ItemNode<'e>) -> Self {
-        Self::Item(DisplayItemNode::new(item))
+        Self::Item(DisplayItemNode::new(item, Filter::All))
     }
 }
 

@@ -78,7 +78,8 @@ impl Display for ReviewItemMenuChoices<'_> {
                         DependencyWithItemNode::AfterChildItem(_) => false,
                     })
                     .collect::<Vec<_>>();
-                let display_ready = DisplayDependenciesWithItemNode::new(&dependencies);
+                let display_ready =
+                    DisplayDependenciesWithItemNode::new(&dependencies, Filter::Active);
                 write!(
                     f,
                     "Update dependencies this item is waiting on, current setting is children plus: {}",
@@ -86,7 +87,8 @@ impl Display for ReviewItemMenuChoices<'_> {
                 )
             }
             ReviewItemMenuChoices::UpdateUrgencyPlan { current_item } => {
-                let display_urgency = DisplayUrgencyPlan::new(current_item.get_urgency_plan());
+                let display_urgency =
+                    DisplayUrgencyPlan::new(current_item.get_urgency_plan(), Filter::Active);
                 write!(f, "Update urgency, current setting: {}", display_urgency)
             }
             ReviewItemMenuChoices::FinishThisItem => write!(f, "Finish this item"),
@@ -357,7 +359,7 @@ async fn present_review_item_menu_internal<'a>(
                 Ok(())
             } else {
                 println!("Item finished, going back to the item under review");
-                let display_item = DisplayItemStatus::new(item_under_review);
+                let display_item = DisplayItemStatus::new(item_under_review, Filter::Active);
                 println!("{}", display_item);
                 refresh_items_present_review_item_menu_internal(
                     item_under_review,

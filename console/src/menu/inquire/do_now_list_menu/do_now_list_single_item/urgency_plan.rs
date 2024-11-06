@@ -107,7 +107,10 @@ pub(crate) async fn prompt_for_dependencies(
                 | DependencyWithItemNode::DuringItem(..) => {
                     println!(
                         "{}",
-                        DisplayDependenciesWithItemNode::new(&vec![&currently_waiting_on])
+                        DisplayDependenciesWithItemNode::new(
+                            &vec![&currently_waiting_on],
+                            Filter::Active
+                        )
                     );
 
                     let selection = Select::new(

@@ -158,7 +158,7 @@ impl Display for SearchMenuUrgencyItem<'_> {
                 )
             }
             SearchMenuUrgencyItem::Item { item } => {
-                let display_item_status = DisplayItemStatus::new(item);
+                let display_item_status = DisplayItemStatus::new(item, Filter::Active);
                 write!(f, "{}", display_item_status)
             }
         }

@@ -53,7 +53,7 @@ pub(crate) async fn select_an_item<'a>(
         })
         .map(|(_, v)| v);
     let mut existing_items = active_items
-        .map(|x| DisplayItemNode::new(x.get_item_node()))
+        .map(|x| DisplayItemNode::new(x.get_item_node(), Filter::Active))
         .collect::<Vec<_>>();
     match sorting_order {
         SelectAnItemSortingOrder::MotivationsFirst => existing_items.sort_by(|a, b| {

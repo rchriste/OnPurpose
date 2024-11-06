@@ -5,13 +5,17 @@ use chrono::{DateTime, Local, Utc};
 use crate::{
     data_storage::surrealdb_layer::surreal_item::{SurrealScheduled, SurrealUrgency},
     display::display_duration_one_unit::DisplayDurationOneUnit,
-    node::item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
+    node::{
+        item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
+        Filter,
+    },
 };
 
 use super::{display_item_node::DisplayItemNode, DisplayStyle};
 
 pub(crate) struct DisplayUrgencyPlan<'s> {
     urgency_plan: &'s Option<UrgencyPlanWithItemNode<'s>>,
+    filter: Filter,
 }
 
 impl Display for DisplayUrgencyPlan<'_> {
@@ -67,7 +71,7 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Include(include) => {
                                         write!(f, " Item worked on must be one of: ")?;
                                         for (count, item) in include.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item);
+                                            let display = DisplayItemNode::new(item, self.filter);
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -80,7 +84,7 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Exclude(exclude) => {
                                         write!(f, " Item worked on must not be one of: ")?;
                                         for (count, item) in exclude.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item);
+                                            let display = DisplayItemNode::new(item, self.filter);
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -116,7 +120,7 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Include(include) => {
                                         write!(f, " Item worked on must be one of: ")?;
                                         for (count, item) in include.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item);
+                                            let display = DisplayItemNode::new(item, self.filter);
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -129,7 +133,7 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Exclude(exclude) => {
                                         write!(f, " Item worked on must not be one of: ")?;
                                         for (count, item) in exclude.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item);
+                                            let display = DisplayItemNode::new(item, self.filter);
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -152,8 +156,11 @@ impl Display for DisplayUrgencyPlan<'_> {
 }
 
 impl<'s> DisplayUrgencyPlan<'s> {
-    pub(crate) fn new(urgency_plan: &'s Option<UrgencyPlanWithItemNode>) -> Self {
-        Self { urgency_plan }
+    pub(crate) fn new(urgency_plan: &'s Option<UrgencyPlanWithItemNode>, filter: Filter) -> Self {
+        Self {
+            urgency_plan,
+            filter,
+        }
     }
 }
 

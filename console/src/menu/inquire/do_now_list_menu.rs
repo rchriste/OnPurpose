@@ -32,7 +32,7 @@ use crate::{
         display_scheduled_item::DisplayScheduledItem,
     },
     menu::inquire::back_menu::present_back_menu,
-    node::action_with_item_status::ActionWithItemStatus,
+    node::{action_with_item_status::ActionWithItemStatus, Filter},
     systems::do_now_list::DoNowList,
 };
 
@@ -57,7 +57,7 @@ impl Display for InquireDoNowListItem<'_> {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item"),
             Self::Search => write!(f, "🔍  Search"),
             Self::DoNowListSingleItem(item) => {
-                let display = DisplayActionWithItemStatus::new(item);
+                let display = DisplayActionWithItemStatus::new(item, Filter::Active);
                 write!(f, "{}", display)
             }
             Self::RefreshList(bullet_list_created) => write!(

@@ -75,7 +75,10 @@ pub(crate) async fn give_this_item_a_parent(
         list.push(ParentItem::FinishItem);
     }
     for node in nodes.iter() {
-        list.push(ParentItem::ItemNode(DisplayItemNode::new(node)));
+        list.push(ParentItem::ItemNode(DisplayItemNode::new(
+            node,
+            Filter::Active,
+        )));
     }
 
     let selection = Select::new(

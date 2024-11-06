@@ -21,7 +21,7 @@ use crate::{
         present_do_now_list_menu,
         review_item::present_review_item_menu,
     },
-    node::action_with_item_status::ActionWithItemStatus,
+    node::{action_with_item_status::ActionWithItemStatus, Filter},
     systems::do_now_list::DoNowList,
 };
 
@@ -58,7 +58,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
 ) -> Result<(), ()> {
     let display_choices = choices
         .iter()
-        .map(DisplayActionWithItemStatus::new)
+        .map(|x| DisplayActionWithItemStatus::new(x, Filter::Active))
         .collect::<Vec<_>>();
 
     let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());
