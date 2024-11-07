@@ -206,7 +206,14 @@ pub(crate) async fn present_do_now_list_item_selected(
     println!();
     print_time_spent(menu_for, do_now_list);
     println!("Selected Item:");
-    println!("  {}", DisplayItem::new(menu_for.get_item()));
+    println!(
+        "{}",
+        DisplayItemNode::new(
+            menu_for.get_item_node(),
+            Filter::Active,
+            DisplayFormat::MultiLineTree
+        )
+    );
     print_completed_children(menu_for);
     print_in_progress_children(menu_for, do_now_list.get_all_items_status());
     println!();

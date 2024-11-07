@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.1.94"
+version = "0.1.95"
 edition = "2021"
 
 [dependencies]
