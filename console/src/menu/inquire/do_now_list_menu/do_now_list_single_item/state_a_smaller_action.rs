@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     urgency_plan::{prompt_for_dependencies_and_urgency_plan, AddOrRemove},
-    ItemTypeSelection,
+    DisplayFormat, ItemTypeSelection,
 };
 
 pub(crate) enum SelectAnItemSortingOrder {
@@ -53,7 +53,7 @@ pub(crate) async fn select_an_item<'a>(
         })
         .map(|(_, v)| v);
     let mut existing_items = active_items
-        .map(|x| DisplayItemNode::new(x.get_item_node(), Filter::Active))
+        .map(|x| DisplayItemNode::new(x.get_item_node(), Filter::Active, DisplayFormat::SingleLine))
         .collect::<Vec<_>>();
     match sorting_order {
         SelectAnItemSortingOrder::MotivationsFirst => existing_items.sort_by(|a, b| {

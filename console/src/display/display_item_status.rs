@@ -2,11 +2,12 @@ use std::fmt::Display;
 
 use crate::node::{item_status::ItemStatus, Filter};
 
-use super::display_item_node::DisplayItemNode;
+use super::display_item_node::{DisplayFormat, DisplayItemNode};
 
 pub struct DisplayItemStatus<'s> {
     item_status: &'s ItemStatus<'s>,
     filter: Filter,
+    display_format: DisplayFormat,
 }
 
 impl Display for DisplayItemStatus<'_> {
@@ -17,17 +18,26 @@ impl Display for DisplayItemStatus<'_> {
             write!(f, "⌛ ")?;
         }
 
-        let display_node = DisplayItemNode::new(self.item_status.get_item_node(), self.filter);
+        let display_node = DisplayItemNode::new(
+            self.item_status.get_item_node(),
+            self.filter,
+            self.display_format,
+        );
         write!(f, "{}", display_node)?;
         Ok(())
     }
 }
 
 impl<'s> DisplayItemStatus<'s> {
-    pub(crate) fn new(item_status: &'s ItemStatus, filter: Filter) -> Self {
+    pub(crate) fn new(
+        item_status: &'s ItemStatus,
+        filter: Filter,
+        display_format: DisplayFormat,
+    ) -> Self {
         Self {
             item_status,
             filter,
+            display_format,
         }
     }
 

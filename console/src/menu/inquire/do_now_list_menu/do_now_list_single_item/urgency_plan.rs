@@ -12,7 +12,10 @@ use crate::{
         surreal_tables::SurrealTables,
         SurrealItemsInScope, SurrealTrigger,
     },
-    display::display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
+    display::{
+        display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
+        display_item_node::DisplayFormat,
+    },
     menu::inquire::do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
         select_an_item, SelectAnItemSortingOrder,
     },
@@ -109,7 +112,8 @@ pub(crate) async fn prompt_for_dependencies(
                         "{}",
                         DisplayDependenciesWithItemNode::new(
                             &vec![&currently_waiting_on],
-                            Filter::Active
+                            Filter::Active,
+                            DisplayFormat::SingleLine
                         )
                     );
 

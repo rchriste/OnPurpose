@@ -11,11 +11,15 @@ use crate::{
     },
 };
 
-use super::{display_item_node::DisplayItemNode, DisplayStyle};
+use super::{
+    display_item_node::{DisplayFormat, DisplayItemNode},
+    DisplayStyle,
+};
 
 pub(crate) struct DisplayUrgencyPlan<'s> {
     urgency_plan: &'s Option<UrgencyPlanWithItemNode<'s>>,
     filter: Filter,
+    display_format: DisplayFormat,
 }
 
 impl Display for DisplayUrgencyPlan<'_> {
@@ -71,7 +75,11 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Include(include) => {
                                         write!(f, " Item worked on must be one of: ")?;
                                         for (count, item) in include.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item, self.filter);
+                                            let display = DisplayItemNode::new(
+                                                item,
+                                                self.filter,
+                                                self.display_format,
+                                            );
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -84,7 +92,11 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Exclude(exclude) => {
                                         write!(f, " Item worked on must not be one of: ")?;
                                         for (count, item) in exclude.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item, self.filter);
+                                            let display = DisplayItemNode::new(
+                                                item,
+                                                self.filter,
+                                                self.display_format,
+                                            );
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -120,7 +132,11 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Include(include) => {
                                         write!(f, " Item worked on must be one of: ")?;
                                         for (count, item) in include.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item, self.filter);
+                                            let display = DisplayItemNode::new(
+                                                item,
+                                                self.filter,
+                                                self.display_format,
+                                            );
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -133,7 +149,11 @@ impl Display for DisplayUrgencyPlan<'_> {
                                     ItemsInScopeWithItemNode::Exclude(exclude) => {
                                         write!(f, " Item worked on must not be one of: ")?;
                                         for (count, item) in exclude.iter().enumerate() {
-                                            let display = DisplayItemNode::new(item, self.filter);
+                                            let display = DisplayItemNode::new(
+                                                item,
+                                                self.filter,
+                                                self.display_format,
+                                            );
                                             write!(
                                                 f,
                                                 "({} of {}) {}, ",
@@ -156,10 +176,15 @@ impl Display for DisplayUrgencyPlan<'_> {
 }
 
 impl<'s> DisplayUrgencyPlan<'s> {
-    pub(crate) fn new(urgency_plan: &'s Option<UrgencyPlanWithItemNode>, filter: Filter) -> Self {
+    pub(crate) fn new(
+        urgency_plan: &'s Option<UrgencyPlanWithItemNode>,
+        filter: Filter,
+        display_format: DisplayFormat,
+    ) -> Self {
         Self {
             urgency_plan,
             filter,
+            display_format,
         }
     }
 }

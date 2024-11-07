@@ -52,6 +52,8 @@ use crate::{
     systems::do_now_list::DoNowList,
 };
 
+use super::DisplayFormat;
+
 pub(crate) enum LogTime {
     SeparateTaskLogTheTime,
     PartOfAnotherTaskDoNotLogTheTime,
@@ -662,7 +664,7 @@ async fn parent_to_item(
         .iter()
         .map(|x| ItemNode::new(x, items, time_spent_log))
         .collect::<Vec<_>>();
-    let list = DisplayItemNode::make_list(&item_nodes, Filter::Active);
+    let list = DisplayItemNode::make_list(&item_nodes, Filter::Active, DisplayFormat::SingleLine);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
     match selection {

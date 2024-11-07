@@ -8,9 +8,16 @@ use crate::{
 
 use super::display_item::DisplayItem;
 
+#[derive(Clone, Copy)]
+pub(crate) enum DisplayFormat {
+    MultiLineTree,
+    SingleLine,
+}
+
 pub struct DisplayItemNode<'s> {
     item_node: &'s ItemNode<'s>,
     filter: Filter,
+    display_format: DisplayFormat,
 }
 
 impl Display for DisplayItemNode<'_> {
@@ -25,26 +32,61 @@ impl Display for DisplayItemNode<'_> {
             write!(f, "{} ", display_item)?;
         }
         let parents = self.item_node.create_parent_chain(self.filter);
-        for item in parents.iter() {
-            let display_item = DisplayItem::new(item);
-            write!(f, " ⬅ {}", display_item)?;
+        match self.display_format {
+            DisplayFormat::MultiLineTree => {
+                for (j, (depth, item)) in parents.iter().enumerate() {
+                    write!(f, "\n")?;
+                    for i in 0..*depth {
+                        if i == *depth - 1 {
+                            write!(f, " ┗{}", DisplayItem::new(item))?;
+                        } else {
+                            if parents.iter().skip(j + 1).any(|(d, _)| *d == i) {
+                                write!(f, "  ┃")?;
+                            } else {
+                                write!(f, "   ")?;
+                            }
+                        }
+                    }
+                }
+            }
+            DisplayFormat::SingleLine => {
+                let mut last_depth = 0;
+                for (depth, item) in parents.iter() {
+                    let display_item = DisplayItem::new(item);
+                    if last_depth < *depth {
+                        write!(f, " ⬅ {}", display_item)?;
+                    } else {
+                        write!(f, " // {}", display_item)?;
+                    }
+                    last_depth = *depth;
+                }
+            }
         }
         Ok(())
     }
 }
 
 impl<'s> DisplayItemNode<'s> {
-    pub(crate) fn new(item_node: &'s ItemNode<'s>, filter: Filter) -> Self {
-        DisplayItemNode { item_node, filter }
+    pub(crate) fn new(
+        item_node: &'s ItemNode<'s>,
+        filter: Filter,
+        display_format: DisplayFormat,
+    ) -> Self {
+        DisplayItemNode {
+            item_node,
+            filter,
+            display_format,
+        }
     }
 
     pub(crate) fn make_list(
         item_nodes: &'s [ItemNode<'s>],
         filter: Filter,
+        display_format: DisplayFormat,
     ) -> Vec<DisplayItemNode<'s>> {
         item_nodes
             .iter()
-            .map(|x| DisplayItemNode::new(x, filter))
+            .map(|x| DisplayItemNode::new(x, filter, display_format))
             .collect()
     }
 

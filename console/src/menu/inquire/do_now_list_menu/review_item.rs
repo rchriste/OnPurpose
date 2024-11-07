@@ -16,8 +16,8 @@ use crate::{
     },
     display::{
         display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
-        display_item::DisplayItem, display_item_status::DisplayItemStatus,
-        display_urgency_plan::DisplayUrgencyPlan,
+        display_item::DisplayItem, display_item_node::DisplayFormat,
+        display_item_status::DisplayItemStatus, display_urgency_plan::DisplayUrgencyPlan,
     },
     menu::inquire::{
         do_now_list_menu::do_now_list_single_item::{
@@ -78,8 +78,11 @@ impl Display for ReviewItemMenuChoices<'_> {
                         DependencyWithItemNode::AfterChildItem(_) => false,
                     })
                     .collect::<Vec<_>>();
-                let display_ready =
-                    DisplayDependenciesWithItemNode::new(&dependencies, Filter::Active);
+                let display_ready = DisplayDependenciesWithItemNode::new(
+                    &dependencies,
+                    Filter::Active,
+                    DisplayFormat::SingleLine,
+                );
                 write!(
                     f,
                     "Update dependencies this item is waiting on, current setting is children plus: {}",
@@ -87,8 +90,11 @@ impl Display for ReviewItemMenuChoices<'_> {
                 )
             }
             ReviewItemMenuChoices::UpdateUrgencyPlan { current_item } => {
-                let display_urgency =
-                    DisplayUrgencyPlan::new(current_item.get_urgency_plan(), Filter::Active);
+                let display_urgency = DisplayUrgencyPlan::new(
+                    current_item.get_urgency_plan(),
+                    Filter::Active,
+                    DisplayFormat::SingleLine,
+                );
                 write!(f, "Update urgency, current setting: {}", display_urgency)
             }
             ReviewItemMenuChoices::FinishThisItem => write!(f, "Finish this item"),
@@ -359,7 +365,11 @@ async fn present_review_item_menu_internal<'a>(
                 Ok(())
             } else {
                 println!("Item finished, going back to the item under review");
-                let display_item = DisplayItemStatus::new(item_under_review, Filter::Active);
+                let display_item = DisplayItemStatus::new(
+                    item_under_review,
+                    Filter::Active,
+                    DisplayFormat::SingleLine,
+                );
                 println!("{}", display_item);
                 refresh_items_present_review_item_menu_internal(
                     item_under_review,

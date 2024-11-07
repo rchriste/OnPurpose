@@ -2250,7 +2250,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.93"
+version = "0.1.94"
 dependencies = [
  "ahash 0.8.11",
  "better_term",

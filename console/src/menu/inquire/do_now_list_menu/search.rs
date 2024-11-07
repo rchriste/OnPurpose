@@ -8,7 +8,7 @@ use crate::{
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
     },
-    display::display_item_status::DisplayItemStatus,
+    display::{display_item_node::DisplayFormat, display_item_status::DisplayItemStatus},
     menu::inquire::do_now_list_menu::do_now_list_single_item::present_do_now_list_item_selected,
     node::{
         item_status::{ItemStatus, UrgencyPlanWithItemNode},
@@ -158,7 +158,8 @@ impl Display for SearchMenuUrgencyItem<'_> {
                 )
             }
             SearchMenuUrgencyItem::Item { item } => {
-                let display_item_status = DisplayItemStatus::new(item, Filter::Active);
+                let display_item_status =
+                    DisplayItemStatus::new(item, Filter::Active, DisplayFormat::SingleLine);
                 write!(f, "{}", display_item_status)
             }
         }

@@ -15,7 +15,8 @@ use crate::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
     display::{
-        display_duration::DisplayDuration, display_item_node::DisplayItemNode,
+        display_duration::DisplayDuration,
+        display_item_node::{DisplayFormat, DisplayItemNode},
         display_item_status::DisplayItemStatus,
     },
     menu::inquire::back_menu::configure::configure,
@@ -146,7 +147,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
 
     let list = all_top_nodes
         .iter()
-        .map(|x| DisplayItemStatus::new(x, Filter::Active))
+        .map(|x| DisplayItemStatus::new(x, Filter::Active, DisplayFormat::SingleLine))
         .collect::<Vec<_>>();
 
     let selection = Select::new("Select a priority to view...", list).prompt();
@@ -186,7 +187,7 @@ async fn view_priorities_of_item_status(
                 .get_items_status()
                 .get(x.get_surreal_record_id())
                 .expect("Comes from this list so will be found");
-            DisplayItemStatus::new(item_status, Filter::Active)
+            DisplayItemStatus::new(item_status, Filter::Active, DisplayFormat::SingleLine)
         })
         .collect();
     let selection = Select::new("Select a child to view...", list).prompt();
@@ -195,8 +196,11 @@ async fn view_priorities_of_item_status(
             println!("{}", display_priority);
             parent.push(display_item_status);
             if display_priority.has_children(Filter::Active) {
-                let display_item_status =
-                    DisplayItemStatus::new(display_priority.get_item_status(), Filter::Active);
+                let display_item_status = DisplayItemStatus::new(
+                    display_priority.get_item_status(),
+                    Filter::Active,
+                    DisplayFormat::SingleLine,
+                );
                 Box::pin(view_priorities_of_item_status(
                     display_item_status,
                     parent,
@@ -378,7 +382,11 @@ async fn present_reflection(
     for item in items_in_range.iter() {
         println!(
             "{}",
-            DisplayItemNode::new(item.item_status.get_item_node(), Filter::All)
+            DisplayItemNode::new(
+                item.item_status.get_item_node(),
+                Filter::All,
+                DisplayFormat::MultiLineTree
+            )
         );
         let iteration_count = item.time_spent.len();
         let total_time: chrono::Duration = item.time_spent.iter().map(|x| x.get_time_delta()).sum();
@@ -505,7 +513,11 @@ impl<'e> DebugViewItem<'e> {
     }
 
     fn new(item: &'e ItemNode<'e>) -> Self {
-        Self::Item(DisplayItemNode::new(item, Filter::All))
+        Self::Item(DisplayItemNode::new(
+            item,
+            Filter::All,
+            DisplayFormat::MultiLineTree,
+        ))
     }
 }
 

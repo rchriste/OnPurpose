@@ -9,7 +9,10 @@ use crate::{
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealPriorityKind,
     },
-    display::display_action_with_item_status::DisplayActionWithItemStatus,
+    display::{
+        display_action_with_item_status::DisplayActionWithItemStatus,
+        display_item_node::DisplayFormat,
+    },
     menu::inquire::do_now_list_menu::{
         classify_item::present_item_needs_a_classification_menu,
         do_now_list_single_item::{
@@ -58,7 +61,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
 ) -> Result<(), ()> {
     let display_choices = choices
         .iter()
-        .map(|x| DisplayActionWithItemStatus::new(x, Filter::Active))
+        .map(|x| DisplayActionWithItemStatus::new(x, Filter::Active, DisplayFormat::SingleLine))
         .collect::<Vec<_>>();
 
     let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());

@@ -4,11 +4,12 @@ use chrono::{DateTime, Local};
 
 use crate::node::{item_status::DependencyWithItemNode, Filter};
 
-use super::display_item_node::DisplayItemNode;
+use super::display_item_node::{DisplayFormat, DisplayItemNode};
 
 pub(crate) struct DisplayDependenciesWithItemNode<'s> {
     dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>,
     filter: Filter,
+    display_format: DisplayFormat,
 }
 
 impl Display for DisplayDependenciesWithItemNode<'_> {
@@ -37,15 +38,18 @@ impl Display for DisplayDependenciesWithItemNode<'_> {
                         )?
                     }
                     DependencyWithItemNode::AfterItem(dependency) => {
-                        let display_item_node = DisplayItemNode::new(dependency, self.filter);
+                        let display_item_node =
+                            DisplayItemNode::new(dependency, self.filter, self.display_format);
                         write!(f, "After dependency {}", display_item_node)?
                     }
                     DependencyWithItemNode::AfterChildItem(smaller_item) => {
-                        let display_item_node = DisplayItemNode::new(smaller_item, self.filter);
+                        let display_item_node =
+                            DisplayItemNode::new(smaller_item, self.filter, self.display_format);
                         write!(f, "After child item {}", display_item_node)?
                     }
                     DependencyWithItemNode::DuringItem(item_node) => {
-                        let display_item_node = DisplayItemNode::new(item_node, self.filter);
+                        let display_item_node =
+                            DisplayItemNode::new(item_node, self.filter, self.display_format);
                         write!(f, "During item {}", display_item_node)?
                     }
                 }
@@ -59,10 +63,12 @@ impl<'s> DisplayDependenciesWithItemNode<'s> {
     pub(crate) fn new(
         dependencies: &'s Vec<&'s DependencyWithItemNode<'s>>,
         filter: Filter,
+        display_format: DisplayFormat,
     ) -> Self {
         DisplayDependenciesWithItemNode {
             dependencies,
             filter,
+            display_format,
         }
     }
 }

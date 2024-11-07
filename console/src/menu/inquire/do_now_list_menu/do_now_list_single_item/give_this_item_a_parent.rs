@@ -17,6 +17,8 @@ use crate::{
     node::{item_node::ItemNode, Filter},
 };
 
+use super::DisplayFormat;
+
 enum ParentItem<'e> {
     ItemNode(DisplayItemNode<'e>),
     FinishItem,
@@ -78,6 +80,7 @@ pub(crate) async fn give_this_item_a_parent(
         list.push(ParentItem::ItemNode(DisplayItemNode::new(
             node,
             Filter::Active,
+            DisplayFormat::SingleLine,
         )));
     }
 
