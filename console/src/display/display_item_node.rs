@@ -35,16 +35,14 @@ impl Display for DisplayItemNode<'_> {
         match self.display_format {
             DisplayFormat::MultiLineTree => {
                 for (j, (depth, item)) in parents.iter().enumerate() {
-                    write!(f, "\n")?;
+                    writeln!(f)?;
                     for i in 0..*depth {
                         if i == *depth - 1 {
                             write!(f, " ┗{}", DisplayItem::new(item))?;
+                        } else if parents.iter().skip(j + 1).any(|(d, _)| *d == i) {
+                            write!(f, "  ┃")?;
                         } else {
-                            if parents.iter().skip(j + 1).any(|(d, _)| *d == i) {
-                                write!(f, "  ┃")?;
-                            } else {
-                                write!(f, "   ")?;
-                            }
+                            write!(f, "   ")?;
                         }
                     }
                 }
