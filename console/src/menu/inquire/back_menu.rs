@@ -1,7 +1,8 @@
 pub(crate) mod configure;
 
-use std::{cmp::Ordering, collections::HashMap, fmt::Display};
+use std::{cmp::Ordering, fmt::Display, vec};
 
+use ahash::HashMap;
 use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
@@ -9,19 +10,24 @@ use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{time_spent::TimeSpent, BaseData},
+    base_data::{item::Item, time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
     display::{
         display_duration::DisplayDuration,
+        display_item::DisplayItem,
         display_item_node::{DisplayFormat, DisplayItemNode},
         display_item_status::DisplayItemStatus,
     },
     menu::inquire::back_menu::configure::configure,
     new_item::NewItem,
-    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    node::{
+        item_node::{ItemNode, ShrinkingItemNode},
+        item_status::ItemStatus,
+        Filter,
+    },
 };
 
 use super::{
@@ -365,42 +371,85 @@ async fn present_reflection(
     let calculated_data = CalculatedData::new_from_base_data(base_data);
     let items_status = calculated_data.get_items_status();
 
-    let mut items_in_range: Vec<ItemTimeSpent<'_>> = things_done
+    let mut items_in_range: HashMap<&RecordId, ItemTimeSpent<'_>> = things_done
         .into_iter()
         .map(|(k, v)| {
             let item_status = items_status
                 .get(&k)
                 .expect("All items in the log should be in the item status");
-            ItemTimeSpent {
-                item_status,
-                time_spent: v,
+            (
+                item_status.get_surreal_record_id(),
+                ItemTimeSpent {
+                    item_status,
+                    time_spent: v,
+                    visited: false,
+                },
+            )
+        })
+        .collect();
+
+    let no_parents_non_core: Vec<RecordId> = items_in_range
+        .iter()
+        .filter_map(|(_, v)| {
+            if v.item_status.has_parents(Filter::All) {
+                None
+            } else if !v.is_type_motivation_kind_core() {
+                Some(v.get_surreal_record_id().clone())
+            } else {
+                None
             }
         })
         .collect();
 
-    items_in_range.sort();
-    for item in items_in_range.iter() {
-        println!(
-            "{}",
-            DisplayItemNode::new(
-                item.item_status.get_item_node(),
-                Filter::All,
-                DisplayFormat::MultiLineTree
-            )
-        );
-        let iteration_count = item.time_spent.len();
-        let total_time: chrono::Duration = item.time_spent.iter().map(|x| x.get_time_delta()).sum();
-        let total_time: std::time::Duration = total_time.to_std().expect("valid");
-        let display_duration = DisplayDuration::new(&total_time);
-        println!("\t{} times for {}", iteration_count, display_duration);
+    println!("🧹 Non-Core Work");
+    println!();
+    for item in no_parents_non_core.into_iter() {
+        print_children_time_spent(item, &mut items_in_range);
+    }
+
+    println!();
+    println!("🏢 Core Work");
+    println!();
+
+    let no_parents_core: Vec<RecordId> = items_in_range
+        .iter()
+        .filter_map(|(_, v)| {
+            if v.item_status.has_parents(Filter::All) {
+                None
+            } else if v.is_type_motivation_kind_core() {
+                Some(v.get_surreal_record_id().clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for item in no_parents_core.into_iter() {
+        print_children_time_spent(item, &mut items_in_range);
+    }
+
+    println!();
+
+    let not_visited = items_in_range
+        .iter()
+        .filter(|(_, x)| !x.visited)
+        .map(|(_, x)| x.get_surreal_record_id().clone())
+        .collect::<Vec<_>>();
+    if !not_visited.is_empty() {
+        println!("Not known if core or non-core because of shifting parent/child relationship");
+        println!();
+        for record_id in not_visited.into_iter() {
+            print_children_time_spent(record_id, &mut items_in_range);
+        }
+        println!();
     }
 
     println!();
 
     let core_work = items_in_range
         .iter()
-        .filter(|x| x.is_type_motivation_kind_core())
-        .flat_map(|x| &x.time_spent)
+        .filter(|(_, x)| x.is_type_motivation_kind_core())
+        .flat_map(|(_, x)| &x.time_spent)
         .fold(
             (chrono::Duration::default(), 0),
             |(sum_duration, count), time_spent| {
@@ -410,8 +459,8 @@ async fn present_reflection(
 
     let non_core_work = items_in_range
         .iter()
-        .filter(|x| x.is_type_motivation_kind_non_core())
-        .flat_map(|x| &x.time_spent)
+        .filter(|(_, x)| x.is_type_motivation_kind_non_core())
+        .flat_map(|(_, x)| &x.time_spent)
         .fold(
             (chrono::Duration::default(), 0),
             |(sum_duration, count), time_spent| {
@@ -445,9 +494,116 @@ async fn present_reflection(
     }
 }
 
+fn print_children_time_spent(
+    record_id: RecordId,
+    items_in_range: &mut HashMap<&RecordId, ItemTimeSpent>,
+) {
+    let mut visited = Vec::default();
+    let item_time = items_in_range.get(&record_id).expect("Is there");
+    let iteration_count = item_time.time_spent.len();
+    let total_time: chrono::Duration = item_time
+        .time_spent
+        .iter()
+        .map(|x| x.get_time_delta())
+        .sum();
+    let total_time: std::time::Duration = total_time.to_std().expect("valid");
+    let display_duration = DisplayDuration::new(&total_time);
+    println!(
+        "{} 🕜🕜{} times for {}",
+        DisplayItem::new(item_time.get_item()),
+        iteration_count,
+        display_duration
+    );
+
+    let children = item_time
+        .get_item_node()
+        .create_child_chain_filtered(Filter::All, items_in_range);
+    for (j, (depth, item)) in children.iter().enumerate() {
+        for k in 0..2 {
+            //This for loop is so we can print out the tree structure with spaces between the lines so it is easier to read
+            for i in 0..*depth {
+                if i == *depth - 1 {
+                    if k == 0 {
+                        println!("  ┃");
+                    } else {
+                        let item_time = items_in_range
+                            .get(item.get_surreal_record_id())
+                            .expect("Is there");
+                        visited.push(item_time.get_surreal_record_id().clone());
+                        let iteration_count = item_time.time_spent.len();
+                        let total_time: chrono::Duration = item_time
+                            .time_spent
+                            .iter()
+                            .map(|x| x.get_time_delta())
+                            .sum();
+                        let total_time: std::time::Duration = total_time.to_std().expect("valid");
+                        let display_duration = DisplayDuration::new(&total_time);
+
+                        println!(
+                            "  ┗{} 🕜🕜{} times for {}",
+                            DisplayItem::new(item_time.get_item()),
+                            iteration_count,
+                            display_duration
+                        );
+                    }
+                } else if children.iter().skip(j + 1).any(|(d, _)| *d - 1 == i) {
+                    print!("  ┃");
+                } else {
+                    print!("   ");
+                }
+            }
+        }
+    }
+    visited.push(record_id);
+    for record_id in visited.into_iter() {
+        items_in_range
+            .get_mut(&record_id)
+            .expect("Is there")
+            .mark_as_visited();
+    }
+}
+
+impl<'s> ItemNode<'s> {
+    fn create_child_chain_filtered(
+        &'s self,
+        filter: Filter,
+        filter_to: &HashMap<&RecordId, ItemTimeSpent>,
+    ) -> Vec<(u32, &'s Item<'s>)> {
+        let mut result = Vec::default();
+        for i in self.get_children(filter) {
+            if filter_to.contains_key(i.get_surreal_record_id()) {
+                result.push((1, i.item));
+                let children = i.create_shrinking_children_filtered(filter, 2, filter_to);
+                result.extend(children.iter());
+            }
+        }
+        result
+    }
+}
+
+impl ShrinkingItemNode<'_> {
+    fn create_shrinking_children_filtered(
+        &self,
+        filter: Filter,
+        depth: u32,
+        filter_to: &HashMap<&RecordId, ItemTimeSpent>,
+    ) -> Vec<(u32, &Item)> {
+        let mut result = Vec::default();
+        for i in self.get_children(filter) {
+            if filter_to.contains_key(i.get_surreal_record_id()) {
+                result.push((depth, i.item));
+                let children = i.create_shrinking_children_filtered(filter, depth + 1, filter_to);
+                result.extend(children.iter());
+            }
+        }
+        result
+    }
+}
+
 struct ItemTimeSpent<'s> {
     item_status: &'s ItemStatus<'s>,
     time_spent: Vec<&'s TimeSpent<'s>>,
+    visited: bool,
 }
 
 impl PartialEq for ItemTimeSpent<'_> {
@@ -492,6 +648,22 @@ impl ItemTimeSpent<'_> {
 
     fn is_type_motivation_kind_non_core(&self) -> bool {
         self.item_status.is_type_motivation_kind_non_core()
+    }
+
+    fn mark_as_visited(&mut self) {
+        self.visited = true;
+    }
+
+    fn get_item_node(&self) -> &ItemNode<'_> {
+        self.item_status.get_item_node()
+    }
+
+    fn get_item(&self) -> &Item<'_> {
+        self.item_status.get_item()
+    }
+
+    fn get_surreal_record_id(&self) -> &RecordId {
+        self.item_status.get_surreal_record_id()
     }
 }
 

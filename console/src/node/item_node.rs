@@ -292,12 +292,7 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn create_parent_chain(&'s self, filter: Filter) -> Vec<(u32, &'s Item<'s>)> {
         let mut result = Vec::default();
-        let iter: Box<dyn Iterator<Item = &GrowingItemNode>> = match filter {
-            Filter::All => Box::new(self.parents.iter()),
-            Filter::Active => Box::new(self.parents.iter().filter(|x| !x.item.is_finished())),
-            Filter::Finished => Box::new(self.parents.iter().filter(|x| x.item.is_finished())),
-        };
-        for i in iter {
+        for i in self.get_parents(filter) {
             result.push((1, i.item));
             let parents = i.create_growing_parents(filter, 2);
             result.extend(parents.iter());
@@ -441,22 +436,28 @@ pub(crate) struct GrowingItemNode<'s> {
 
 impl<'s> GrowingItemNode<'s> {
     pub(crate) fn create_growing_parents(
-        &self,
+        &'s self,
         filter: Filter,
         levels_deep: u32,
     ) -> Vec<(u32, &'s Item<'s>)> {
-        let iter: Box<dyn Iterator<Item = &GrowingItemNode>> = match filter {
-            Filter::All => Box::new(self.larger.iter()),
-            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
-            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.item.is_finished())),
-        };
         let mut result = Vec::default();
-        for i in iter {
+        for i in self.get_parents(filter) {
             result.push((levels_deep, i.item));
             let parents = i.create_growing_parents(filter, levels_deep + 1);
             result.extend(parents.iter());
         }
         result
+    }
+
+    pub(crate) fn get_parents(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &'s GrowingItemNode<'s>> + 's + Send> {
+        match filter {
+            Filter::All => Box::new(self.larger.iter()),
+            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
+            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.item.is_finished())),
+        }
     }
 
     pub(crate) fn get_item(&self) -> &'s Item<'s> {
@@ -669,8 +670,8 @@ fn get_time_spent_on_this<'a>(
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ShrinkingItemNode<'s> {
-    item: &'s Item<'s>,
-    smaller: Vec<ShrinkingItemNode<'s>>,
+    pub(crate) item: &'s Item<'s>,
+    pub(crate) smaller: Vec<ShrinkingItemNode<'s>>,
 }
 
 impl<'s> ShrinkingItemNode<'s> {
@@ -680,6 +681,17 @@ impl<'s> ShrinkingItemNode<'s> {
 
     pub(crate) fn get_surreal_record_id(&self) -> &Thing {
         self.item.get_surreal_record_id()
+    }
+
+    pub(crate) fn get_children(
+        &'s self,
+        filter: Filter,
+    ) -> Box<dyn Iterator<Item = &'s ShrinkingItemNode<'s>> + 's + Send> {
+        match filter {
+            Filter::All => Box::new(self.smaller.iter()),
+            Filter::Active => Box::new(self.smaller.iter().filter(|x| !x.item.is_finished())),
+            Filter::Finished => Box::new(self.smaller.iter().filter(|x| x.item.is_finished())),
+        }
     }
 }
 
