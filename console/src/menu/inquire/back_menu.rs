@@ -535,8 +535,10 @@ fn print_children_time_spent(
                             .time_spent
                             .iter()
                             .map(|x| x.get_time_delta())
+                            .filter(|x| *x == x.abs())
                             .sum();
-                        let total_time: std::time::Duration = total_time.to_std().expect("valid");
+                        let total_time: std::time::Duration =
+                            total_time.to_std().expect("We do filter to only positive values");
                         let display_duration = DisplayDuration::new(&total_time);
 
                         println!(
@@ -546,7 +548,12 @@ fn print_children_time_spent(
                             display_duration
                         );
                     }
-                } else if children.iter().skip(j + 1).any(|(d, _)| *d - 1 == i) {
+                } else if children
+                    .iter()
+                    .skip(j + 1)
+                    .take_while(|(d, _)| (*d - 1) >= i)
+                    .any(|(d, _)| *d - 1 == i)
+                {
                     print!("  ┃");
                 } else {
                     print!("   ");
@@ -554,6 +561,7 @@ fn print_children_time_spent(
             }
         }
     }
+    println!();
     visited.push(record_id);
     for record_id in visited.into_iter() {
         items_in_range
