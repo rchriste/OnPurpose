@@ -769,12 +769,10 @@ pub(crate) async fn present_search_menu(
                 .map(|x| SearchMenuUrgencyItem::Item { item: x })
                 .collect::<Vec<_>>();
 
-            let selection = Select::new("Select an item to view", list)
-                .prompt()
-                .unwrap();
+            let selection = Select::new("Select an item to view", list).prompt();
 
             match selection {
-                SearchMenuUrgencyItem::Item { item } => {
+                Ok(SearchMenuUrgencyItem::Item { item }) => {
                     present_do_now_list_item_selected(
                         item,
                         Utc::now(),
@@ -783,6 +781,10 @@ pub(crate) async fn present_search_menu(
                     )
                     .await
                 }
+                Err(InquireError::OperationCanceled) => {
+                    Box::pin(present_search_menu(do_now_list, send_to_data_storage_layer)).await
+                }
+                Err(InquireError::OperationInterrupted) => Err(()),
                 _ => panic!("Programming error. Expected item"),
             }
         }

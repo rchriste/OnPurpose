@@ -537,8 +537,9 @@ fn print_children_time_spent(
                             .map(|x| x.get_time_delta())
                             .filter(|x| *x == x.abs())
                             .sum();
-                        let total_time: std::time::Duration =
-                            total_time.to_std().expect("We do filter to only positive values");
+                        let total_time: std::time::Duration = total_time
+                            .to_std()
+                            .expect("We do filter to only positive values");
                         let display_duration = DisplayDuration::new(&total_time);
 
                         println!(
