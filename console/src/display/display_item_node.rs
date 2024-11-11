@@ -38,8 +38,13 @@ impl Display for DisplayItemNode<'_> {
                     writeln!(f)?;
                     for i in 0..*depth {
                         if i == *depth - 1 {
-                            write!(f, " ┗{}", DisplayItem::new(item))?;
-                        } else if parents.iter().skip(j + 1).any(|(d, _)| *d - 1 == i) {
+                            write!(f, "  ┗{}", DisplayItem::new(item))?;
+                        } else if parents
+                            .iter()
+                            .skip(j + 1)
+                            .take_while(|(d, _)| (*d - 1) >= i)
+                            .any(|(d, _)| *d - 1 == i)
+                        {
                             write!(f, "  ┃")?;
                         } else {
                             write!(f, "   ")?;
