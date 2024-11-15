@@ -487,6 +487,52 @@ async fn present_reflection(
         );
     }
 
+    let total_time = logs_in_range
+        .iter()
+        .map(|x| x.get_time_delta())
+        .sum::<chrono::Duration>();
+    let urgent_time = logs_in_range
+        .iter()
+        .filter(|x| x.is_urgent())
+        .map(|x| x.get_time_delta())
+        .sum::<chrono::Duration>();
+    let most_important_time = logs_in_range
+        .iter()
+        .filter(|x| x.is_important())
+        .map(|x| x.get_time_delta())
+        .sum::<chrono::Duration>();
+    let menu_selection_time = logs_in_range
+        .iter()
+        .filter(|x| x.is_menu_navigation())
+        .map(|x| x.get_time_delta())
+        .sum::<chrono::Duration>();
+
+    if !total_time.is_zero() {
+        println!();
+        if !urgent_time.is_zero() {
+            println!(
+                "Urgent time spent: {} ({}%)",
+                DisplayDuration::new(&urgent_time.to_std().expect("valid")),
+                urgent_time.num_seconds() * 100 / total_time.num_seconds()
+            );
+        }
+        if !most_important_time.is_zero() {
+            println!(
+                "Most important time spent: {} ({}%)",
+                DisplayDuration::new(&most_important_time.to_std().expect("valid")),
+                most_important_time.num_seconds() * 100 / total_time.num_seconds()
+            );
+        }
+        if !menu_selection_time.is_zero() {
+            println!(
+                "Menu selection time spent: {} ({}%)",
+                DisplayDuration::new(&menu_selection_time.to_std().expect("valid")),
+                menu_selection_time.num_seconds() * 100 / total_time.num_seconds()
+            );
+        }
+    }
+
+    println!();
     match Text::new("Press Enter to continue...").prompt() {
         Ok(_) | Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),

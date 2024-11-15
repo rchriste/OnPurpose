@@ -1,5 +1,6 @@
 use std::{fmt::Display, time::Duration};
 
+use ahash::HashSet;
 use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
@@ -13,11 +14,14 @@ use crate::{
     },
     display::display_duration::DisplayDuration,
     new_time_spent::NewTimeSpent,
-    node::{item_status::ItemStatus, Filter},
+    node::{item_status::ItemStatus, why_in_scope_and_action_with_item_status::ToSurreal, Filter},
 };
+
+use super::WhyInScope;
 
 pub(crate) async fn log_worked_on_this(
     selected: &ItemStatus<'_>,
+    why_in_scope: &HashSet<WhyInScope>,
     when_selected: &DateTime<Utc>,
     now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -43,6 +47,7 @@ pub(crate) async fn log_worked_on_this(
         // -How much time spent, show amount of time since started and show amount of time since last item completed, or allow user to enter a duration
         if let Some(dedication) = ask_about_dedication()? {
             let time_spent = NewTimeSpent {
+                why_in_scope: why_in_scope.to_surreal(),
                 working_on,
                 urgency,
                 when_started,

@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 use chrono::Utc;
 use inquire::Select;
 use itertools::Itertools;
@@ -31,6 +31,7 @@ use crate::{
     node::{
         item_node::ItemNode,
         item_status::{DependencyWithItemNode, ItemStatus},
+        why_in_scope_and_action_with_item_status::{ToSurreal, WhyInScope},
         Filter,
     },
 };
@@ -180,6 +181,7 @@ impl ReviewItemMenuChoices<'_> {
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
+    why_in_scope: &HashSet<WhyInScope>,
     all_items: &HashMap<&RecordId, ItemStatus<'_>>,
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -197,6 +199,7 @@ pub(crate) async fn present_review_item_menu(
     match log_time {
         LogTime::SeparateTaskLogTheTime => {
             let new_time_spent = NewTimeSpent {
+                why_in_scope: why_in_scope.to_surreal(),
                 working_on: vec![SurrealAction::ReviewItem(
                     item_status.get_surreal_record_id().clone(),
                 )], //TODO: I should also add all the parent items that this is making progress towards the goal

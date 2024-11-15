@@ -1,14 +1,19 @@
 use std::time::Duration;
 
+use ahash::HashSet;
 use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::opt::RecordId;
 
-use crate::data_storage::surrealdb_layer::surreal_time_spent::SurrealTimeSpent;
+use crate::{
+    data_storage::surrealdb_layer::surreal_time_spent::SurrealTimeSpent,
+    node::why_in_scope_and_action_with_item_status::WhyInScope,
+};
 
 use super::item::Item;
 
 pub(crate) struct TimeSpent<'s> {
     surreal_time_spent: &'s SurrealTimeSpent,
+    why_in_scope: HashSet<WhyInScope>,
     when_started: DateTime<Utc>,
     when_stopped: DateTime<Utc>,
     duration: Duration,
@@ -36,8 +41,16 @@ impl<'s> TimeSpent<'s> {
             .iter()
             .map(|action| action.get_record_id().clone())
             .collect();
+
+        let why_in_scope = surreal_time_spent
+            .why_in_scope
+            .iter()
+            .map(|x| x.clone().into())
+            .collect::<HashSet<WhyInScope>>();
+
         TimeSpent {
             surreal_time_spent,
+            why_in_scope,
             when_started,
             when_stopped,
             duration,
@@ -74,5 +87,17 @@ impl<'s> TimeSpent<'s> {
 
     pub(crate) fn worked_towards(&self) -> &Vec<RecordId> {
         &self.worked_towards
+    }
+
+    pub(crate) fn is_urgent(&self) -> bool {
+        self.why_in_scope.contains(&WhyInScope::Urgency)
+    }
+
+    pub(crate) fn is_important(&self) -> bool {
+        self.why_in_scope.contains(&WhyInScope::Importance)
+    }
+
+    pub(crate) fn is_menu_navigation(&self) -> bool {
+        self.why_in_scope.contains(&WhyInScope::MenuNavigation)
     }
 }

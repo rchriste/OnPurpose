@@ -12,6 +12,7 @@ use crate::{
     menu::inquire::do_now_list_menu::do_now_list_single_item::present_do_now_list_item_selected,
     node::{
         item_status::{ItemStatus, UrgencyPlanWithItemNode},
+        why_in_scope_and_action_with_item_status::WhyInScope,
         Filter, IsTriggered,
     },
     systems::do_now_list::DoNowList,
@@ -686,8 +687,11 @@ pub(crate) async fn present_search_menu(
                 .unwrap();
             match selection {
                 SearchMenuUrgencyItem::Item { item } => {
+                    let why_in_scope = WhyInScope::new_menu_navigation();
+
                     present_do_now_list_item_selected(
                         item,
+                        &why_in_scope,
                         Utc::now(),
                         do_now_list,
                         send_to_data_storage_layer,
@@ -743,8 +747,10 @@ pub(crate) async fn present_search_menu(
 
             match selection {
                 SearchMenuUrgencyItem::Item { item } => {
+                    let why_in_scope = WhyInScope::new_menu_navigation();
                     present_do_now_list_item_selected(
                         item,
+                        &why_in_scope,
                         Utc::now(),
                         do_now_list,
                         send_to_data_storage_layer,
@@ -755,8 +761,10 @@ pub(crate) async fn present_search_menu(
             }
         }
         Ok(SearchMenuUrgencyItem::Item { item }) => {
+            let why_in_scope = WhyInScope::new_menu_navigation();
             present_do_now_list_item_selected(
                 item,
+                &why_in_scope,
                 Utc::now(),
                 do_now_list,
                 send_to_data_storage_layer,
@@ -773,8 +781,10 @@ pub(crate) async fn present_search_menu(
 
             match selection {
                 Ok(SearchMenuUrgencyItem::Item { item }) => {
+                    let why_in_scope = WhyInScope::new_menu_navigation();
                     present_do_now_list_item_selected(
                         item,
+                        &why_in_scope,
                         Utc::now(),
                         do_now_list,
                         send_to_data_storage_layer,
