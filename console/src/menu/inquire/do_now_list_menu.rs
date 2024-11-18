@@ -25,14 +25,20 @@ use crate::{
     base_data::BaseData,
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
+        data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
+        surreal_tables::SurrealTables,
     },
     display::{
-        display_action_with_item_status::DisplayActionWithItemStatus, display_item::DisplayItem,
-        display_item_node::DisplayFormat, display_scheduled_item::DisplayScheduledItem,
+        display_item::DisplayItem, display_item_node::DisplayFormat,
+        display_scheduled_item::DisplayScheduledItem,
+        display_urgency_level_item_with_item_status::DisplayUrgencyLevelItemWithItemStatus,
     },
     menu::inquire::back_menu::present_back_menu,
-    node::{action_with_item_status::ActionWithItemStatus, Filter},
+    node::{
+        action_with_item_status::ActionWithItemStatus,
+        urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
+        why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus, Filter,
+    },
     systems::do_now_list::DoNowList,
 };
 
@@ -45,7 +51,7 @@ use super::back_menu::capture;
 pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
-    DoNowListSingleItem(&'e ActionWithItemStatus<'e>),
+    DoNowListSingleItem(&'e UrgencyLevelItemWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     BackMenu,
     Help,
@@ -57,7 +63,7 @@ impl Display for InquireDoNowListItem<'_> {
             Self::CaptureNewItem => write!(f, "🗬   Capture New Item"),
             Self::Search => write!(f, "🔍  Search"),
             Self::DoNowListSingleItem(item) => {
-                let display = DisplayActionWithItemStatus::new(
+                let display = DisplayUrgencyLevelItemWithItemStatus::new(
                     item,
                     Filter::Active,
                     DisplayFormat::SingleLine,
@@ -77,7 +83,7 @@ impl Display for InquireDoNowListItem<'_> {
 
 impl<'a> InquireDoNowListItem<'a> {
     pub(crate) fn create_list(
-        item_action: &'a [ActionWithItemStatus<'a>],
+        item_action: &'a [UrgencyLevelItemWithItemStatus<'a>],
         do_now_list_created: DateTime<Utc>,
     ) -> Vec<InquireDoNowListItem<'a>> {
         chain!(
@@ -179,7 +185,7 @@ pub(crate) async fn present_do_now_list_menu(
             present_search_menu(do_now_list, send_to_data_storage_layer).await
         }
         Ok(InquireDoNowListItem::DoNowListSingleItem(selected)) => match selected {
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
+            UrgencyLevelItemWithItemStatus::MultipleItems(choices) => {
                 present_pick_what_should_be_done_first_menu(
                     choices,
                     do_now_list,
@@ -187,61 +193,85 @@ pub(crate) async fn present_do_now_list_menu(
                 )
                 .await
             }
-            ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
-                present_pick_item_review_frequency_menu(
-                    item_status,
-                    selected.get_urgency_now(),
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
-                present_item_needs_a_classification_menu(
-                    item_status,
-                    selected.get_urgency_now(),
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            ActionWithItemStatus::ReviewItem(item_status) => {
-                present_review_item_menu(
-                    item_status,
-                    selected.get_urgency_now(),
-                    do_now_list.get_all_items_status(),
-                    LogTime::SeparateTaskLogTheTime,
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            ActionWithItemStatus::MakeProgress(item_status) => {
-                if item_status.is_person_or_group() {
-                    present_is_person_or_group_around_menu(
-                        item_status.get_item_node(),
-                        send_to_data_storage_layer,
-                    )
-                    .await
-                } else {
-                    Box::pin(present_do_now_list_item_selected(
-                        item_status,
-                        Utc::now(),
-                        do_now_list,
-                        send_to_data_storage_layer,
-                    ))
-                    .await
+            UrgencyLevelItemWithItemStatus::SingleItem(
+                why_in_scope_and_action_with_item_status,
+            ) => {
+                let why_in_scope = why_in_scope_and_action_with_item_status.get_why_in_scope();
+                match why_in_scope_and_action_with_item_status.get_action() {
+                    ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
+                        present_pick_item_review_frequency_menu(
+                            item_status,
+                            item_status
+                                .get_urgency_now()
+                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                                .clone(),
+                            why_in_scope,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
+                        present_item_needs_a_classification_menu(
+                            item_status,
+                            item_status
+                                .get_urgency_now()
+                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                                .clone(),
+                            why_in_scope,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    ActionWithItemStatus::ReviewItem(item_status) => {
+                        present_review_item_menu(
+                            item_status,
+                            item_status
+                                .get_urgency_now()
+                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                                .clone(),
+                            why_in_scope,
+                            do_now_list.get_all_items_status(),
+                            LogTime::SeparateTaskLogTheTime,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    ActionWithItemStatus::MakeProgress(item_status) => {
+                        if item_status.is_person_or_group() {
+                            present_is_person_or_group_around_menu(
+                                item_status.get_item_node(),
+                                send_to_data_storage_layer,
+                            )
+                            .await
+                        } else {
+                            Box::pin(present_do_now_list_item_selected(
+                                item_status,
+                                why_in_scope,
+                                Utc::now(),
+                                do_now_list,
+                                send_to_data_storage_layer,
+                            ))
+                            .await
+                        }
+                    }
+                    ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+                        present_set_ready_and_urgency_plan_menu(
+                            item_status,
+                            why_in_scope,
+                            item_status.get_urgency_now().cloned(),
+                            LogTime::SeparateTaskLogTheTime,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
+                        present_parent_back_to_a_motivation_menu(
+                            item_status,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
                 }
-            }
-            ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
-                present_set_ready_and_urgency_plan_menu(
-                    item_status,
-                    Some(selected.get_urgency_now()),
-                    LogTime::SeparateTaskLogTheTime,
-                    send_to_data_storage_layer,
-                )
-                .await
-            }
-            ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
-                present_parent_back_to_a_motivation_menu(item_status, send_to_data_storage_layer)
-                    .await
             }
         },
         Ok(InquireDoNowListItem::RefreshList(..)) | Err(InquireError::OperationCanceled) => {

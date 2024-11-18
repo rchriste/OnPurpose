@@ -1,3 +1,5 @@
+use std::{hash::Hash, mem};
+
 use ahash::HashMap;
 use surrealdb::opt::RecordId;
 
@@ -9,7 +11,11 @@ use crate::{
     },
 };
 
-use super::item_status::{ActionWithItemNode, ItemStatus};
+use super::{
+    item_status::{ActionWithItemNode, ItemStatus},
+    urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
+    why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ActionWithItemStatus<'e> {
@@ -18,8 +24,14 @@ pub(crate) enum ActionWithItemStatus<'e> {
     ItemNeedsAClassification(&'e ItemStatus<'e>),
     ReviewItem(&'e ItemStatus<'e>),
     PickItemReviewFrequency(&'e ItemStatus<'e>),
-    PickWhatShouldBeDoneFirst(Vec<ActionWithItemStatus<'e>>),
     MakeProgress(&'e ItemStatus<'e>),
+}
+
+impl Hash for ActionWithItemStatus<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        self.get_surreal_record_id().hash(state);
+    }
 }
 
 impl<'e> ActionWithItemStatus<'e> {
@@ -101,13 +113,24 @@ impl<'e> ActionWithItemStatus<'e> {
 
     pub(crate) fn clone_to_surreal_action(&self) -> SurrealAction {
         match self {
-            ActionWithItemStatus::MakeProgress(item) => SurrealAction::MakeProgress(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::ParentBackToAMotivation(item) => SurrealAction::ParentBackToAMotivation(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::PickItemReviewFrequency(item) => SurrealAction::PickItemReviewFrequency(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::ItemNeedsAClassification(item) => SurrealAction::ItemNeedsAClassification(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => todo!("It is not valid to call get_surreal_action in this scenario. If that is desired then we need to work out what to do."),
-            ActionWithItemStatus::ReviewItem(item) => SurrealAction::ReviewItem(item.get_surreal_record_id().clone()),
-            ActionWithItemStatus::SetReadyAndUrgency(item) => SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone()),
+            ActionWithItemStatus::MakeProgress(item) => {
+                SurrealAction::MakeProgress(item.get_surreal_record_id().clone())
+            }
+            ActionWithItemStatus::ParentBackToAMotivation(item) => {
+                SurrealAction::ParentBackToAMotivation(item.get_surreal_record_id().clone())
+            }
+            ActionWithItemStatus::PickItemReviewFrequency(item) => {
+                SurrealAction::PickItemReviewFrequency(item.get_surreal_record_id().clone())
+            }
+            ActionWithItemStatus::ItemNeedsAClassification(item) => {
+                SurrealAction::ItemNeedsAClassification(item.get_surreal_record_id().clone())
+            }
+            ActionWithItemStatus::ReviewItem(item) => {
+                SurrealAction::ReviewItem(item.get_surreal_record_id().clone())
+            }
+            ActionWithItemStatus::SetReadyAndUrgency(item) => {
+                SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone())
+            }
         }
     }
 
@@ -119,9 +142,6 @@ impl<'e> ActionWithItemStatus<'e> {
             | ActionWithItemStatus::PickItemReviewFrequency(item)
             | ActionWithItemStatus::ItemNeedsAClassification(item)
             | ActionWithItemStatus::MakeProgress(item) => item.get_surreal_record_id(),
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(_) => {
-                todo!("It is not valid to call this function on this item")
-            }
         }
     }
 
@@ -138,14 +158,6 @@ impl<'e> ActionWithItemStatus<'e> {
             ActionWithItemStatus::PickItemReviewFrequency(..) => {
                 SurrealUrgency::InTheModeMaybeUrgent
             }
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                let urgency = choices
-                    .iter()
-                    .map(|x| x.get_urgency_now())
-                    .max()
-                    .expect("It is not valid for choices to be empty");
-                urgency
-            }
             ActionWithItemStatus::ReviewItem(..) => SurrealUrgency::InTheModeMaybeUrgent,
             ActionWithItemStatus::SetReadyAndUrgency(..) => {
                 SurrealUrgency::InTheModeDefinitelyUrgent
@@ -155,20 +167,22 @@ impl<'e> ActionWithItemStatus<'e> {
 }
 
 #[derive(Default)]
-pub(crate) struct ActionListsByUrgency<'s> {
-    pub(crate) more_urgent_than_anything_including_scheduled: Vec<ActionWithItemStatus<'s>>,
-    pub(crate) scheduled_any_mode: Vec<ActionWithItemStatus<'s>>,
-    pub(crate) more_urgent_than_mode: Vec<ActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_scheduled: Vec<ActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_definitely_urgent: Vec<ActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_maybe_urgent_and_by_importance: Vec<ActionWithItemStatus<'s>>,
+pub(crate) struct WhyInScopeActionListsByUrgency<'s> {
+    pub(crate) more_urgent_than_anything_including_scheduled:
+        Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) scheduled_any_mode: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) more_urgent_than_mode: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) in_the_mode_scheduled: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) in_the_mode_definitely_urgent: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) in_the_mode_maybe_urgent_and_by_importance:
+        Vec<WhyInScopeAndActionWithItemStatus<'s>>,
 }
 
-impl<'s> ActionListsByUrgency<'s> {
+impl<'s> WhyInScopeActionListsByUrgency<'s> {
     pub(crate) fn apply_in_the_moment_priorities(
         self,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
-    ) -> Vec<ActionWithItemStatus<'s>> {
+    ) -> Vec<UrgencyLevelItemWithItemStatus<'s>> {
         let mut ordered_bullet_list = Vec::new();
 
         if let Some(more_urgent_than_anything_including_scheduled) = self
@@ -221,16 +235,16 @@ trait ApplyInTheMomentPriorities<'s> {
     fn apply_in_the_moment_priorities(
         self,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
-    ) -> Option<ActionWithItemStatus<'s>>;
+    ) -> Option<UrgencyLevelItemWithItemStatus<'s>>;
 }
 
-impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
+impl<'s> ApplyInTheMomentPriorities<'s> for Vec<WhyInScopeAndActionWithItemStatus<'s>> {
     fn apply_in_the_moment_priorities(
         self,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
-    ) -> Option<ActionWithItemStatus<'s>> {
+    ) -> Option<UrgencyLevelItemWithItemStatus> {
         //Go through all ItemActions and look for that item in all_priorities and if found then if it is the highest priority then remove from the list all other items found and if it is the lowest priority then remove it if there are any higher priorities in the list.
-        let all = self.iter().collect::<Vec<_>>();
+        let all = self.iter().map(|x| x.get_action()).collect::<Vec<_>>();
         let lowest_priority_removed = self.iter().filter(|item_action| {
             let mut checked_something = false;
             //I need to go through everything that removes myself as the lowest priority and then go through the list a second time looking for the highest priority and removing all other items so this needs to be a two pass thing right now it is written as one pass
@@ -239,7 +253,7 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
                 .filter(|x| {
                     x.is_active()
                         && x.get_kind() == &SurrealPriorityKind::LowestPriority
-                        && x.get_choice() == *item_action
+                        && x.get_choice() == item_action.get_action()
                 })
                 .any(|lowest_priority| {
                     checked_something = true;
@@ -259,7 +273,7 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
                 .filter(|x| {
                     x.is_active()
                         && x.get_kind() == &SurrealPriorityKind::HighestPriority
-                        && x.in_not_chosen(item_action)
+                        && x.in_not_chosen(item_action.get_action())
                 })
                 .all(|highest_priority_choice| {
                     checked_something = true;
@@ -280,21 +294,25 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<ActionWithItemStatus<'s>> {
         if choices.is_empty() {
             None
         } else if choices.len() == 1 {
-            Some(
+            Some(UrgencyLevelItemWithItemStatus::SingleItem(
                 choices
                     .into_iter()
                     .next()
                     .expect("Size is checked to be at least 1"),
-            )
+            ))
         } else {
-            Some(ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices))
+            Some(UrgencyLevelItemWithItemStatus::new_multiple_items(choices))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::iter::once;
+
+    use ahash::HashSet;
     use chrono::Utc;
+    use itertools::chain;
 
     use crate::{
         base_data::BaseData,
@@ -307,8 +325,18 @@ mod tests {
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
-        node::action_with_item_status::{ActionWithItemStatus, ApplyInTheMomentPriorities},
+        node::{
+            action_with_item_status::{
+                ActionWithItemStatus, ApplyInTheMomentPriorities, UrgencyLevelItemWithItemStatus,
+                WhyInScopeAndActionWithItemStatus,
+            },
+            why_in_scope_and_action_with_item_status::WhyInScope,
+        },
     };
+
+    fn test_default_mode_why_in_scope() -> HashSet<WhyInScope> {
+        chain!(once(WhyInScope::Importance), once(WhyInScope::Urgency)).collect()
+    }
 
     #[test]
     fn apply_in_the_moment_priorities_when_only_one_item_is_given_with_no_in_the_moment_priorities_then_that_one_item_is_returned(
@@ -329,20 +357,36 @@ mod tests {
         let calculated_data = calculated_data::CalculatedData::new_from_base_data(base_data);
 
         let (_, item_status) = calculated_data.get_items_status().iter().next().unwrap();
+        let why_in_scope = test_default_mode_why_in_scope();
         let item_action = ActionWithItemStatus::MakeProgress(item_status);
+        let why_in_scope_and_action_with_item_status =
+            WhyInScopeAndActionWithItemStatus::new(why_in_scope, item_action);
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
-        let dut = vec![item_action];
+        let dut = vec![why_in_scope_and_action_with_item_status];
         let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(
-            result.clone_to_surreal_action().get_record_id(),
-            &only_item.id.unwrap()
-        );
-        assert_eq!(result, ActionWithItemStatus::MakeProgress(item_status));
+        assert!(matches!(
+            result,
+            UrgencyLevelItemWithItemStatus::SingleItem(_)
+        ));
+        match result {
+            UrgencyLevelItemWithItemStatus::MultipleItems(..) => panic!("Test Failure"),
+            UrgencyLevelItemWithItemStatus::SingleItem(result) => {
+                assert_eq!(
+                    result.clone_to_surreal_action().get_record_id(),
+                    &only_item.id.unwrap()
+                );
+
+                assert_eq!(
+                    result.get_action(),
+                    &ActionWithItemStatus::MakeProgress(item_status)
+                );
+            }
+        }
     }
 
     #[test]
@@ -377,7 +421,15 @@ mod tests {
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
 
         let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -386,13 +438,15 @@ mod tests {
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(
-            result,
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(vec![
-                first_item_action,
-                second_item_action,
-            ])
-        );
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(..) => panic!("Test Failure"),
+            UrgencyLevelItemWithItemStatus::MultipleItems(vec) => {
+                assert_eq!(
+                    vec.len(),
+                    vec![first_item_action, second_item_action,].len()
+                );
+            }
+        }
     }
 
     #[test]
@@ -442,16 +496,29 @@ mod tests {
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
 
-        let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![first_item_action.clone(), second_item_action.clone()];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(result, first_item_action,);
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(result) => {
+                assert_eq!(result.get_action(), first_item_action.get_action());
+            }
+            UrgencyLevelItemWithItemStatus::MultipleItems(..) => panic!("Test Failure"),
+        }
     }
 
     #[test]
@@ -501,16 +568,29 @@ mod tests {
             .expect("Second item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
 
-        let blank_in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
+        let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
         let dut = vec![first_item_action.clone(), second_item_action.clone()];
-        let result = dut.apply_in_the_moment_priorities(blank_in_the_moment_priorities);
+        let result = dut.apply_in_the_moment_priorities(in_the_moment_priorities);
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(result, second_item_action,);
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(result) => {
+                assert_eq!(result.get_action(), second_item_action.get_action());
+            }
+            UrgencyLevelItemWithItemStatus::MultipleItems(..) => panic!("Test Failure"),
+        }
     }
 
     #[test]
@@ -572,8 +652,20 @@ mod tests {
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
         let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let third_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            third_item_action,
+        );
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -586,13 +678,24 @@ mod tests {
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(
-            result,
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(vec![
-                first_item_action.clone(),
-                third_item_action.clone()
-            ]),
-        );
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(..) => panic!("Test Failure"),
+            UrgencyLevelItemWithItemStatus::MultipleItems(vec) => {
+                //WhyInScopeAndActionWithItemStatus doesn't support Eq so do the following
+                assert_eq!(
+                    vec.len(),
+                    vec![first_item_action.clone(), third_item_action.clone(),].len()
+                );
+                assert_eq!(
+                    vec[0].get_action(),
+                    vec![first_item_action.clone(), third_item_action.clone(),][0].get_action()
+                );
+                assert_eq!(
+                    vec[1].get_action(),
+                    vec![first_item_action, third_item_action,][1].get_action()
+                );
+            }
+        }
     }
 
     #[test]
@@ -654,8 +757,20 @@ mod tests {
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
         let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let third_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            third_item_action,
+        );
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -668,13 +783,24 @@ mod tests {
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(
-            result,
-            ActionWithItemStatus::PickWhatShouldBeDoneFirst(vec![
-                second_item_action.clone(),
-                third_item_action.clone()
-            ]),
-        );
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(..) => panic!("Test Failure"),
+            UrgencyLevelItemWithItemStatus::MultipleItems(vec) => {
+                //WhyInScopeAndActionWithItemStatus doesn't support Eq so do the following
+                assert_eq!(
+                    vec.len(),
+                    vec![second_item_action.clone(), third_item_action.clone(),].len()
+                );
+                assert_eq!(
+                    vec[0].get_action(),
+                    vec![second_item_action.clone(), third_item_action.clone(),][0].get_action()
+                );
+                assert_eq!(
+                    vec[1].get_action(),
+                    vec![second_item_action, third_item_action,][1].get_action()
+                );
+            }
+        }
     }
 
     #[test]
@@ -751,8 +877,20 @@ mod tests {
             .expect("Third item status not found");
 
         let first_item_action = ActionWithItemStatus::MakeProgress(first_item_status);
+        let first_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            first_item_action,
+        );
         let second_item_action = ActionWithItemStatus::MakeProgress(second_item_status);
+        let second_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            second_item_action,
+        );
         let third_item_action = ActionWithItemStatus::MakeProgress(third_item_status);
+        let third_item_action = WhyInScopeAndActionWithItemStatus::new(
+            test_default_mode_why_in_scope(),
+            third_item_action,
+        );
 
         let in_the_moment_priorities = calculated_data.get_in_the_moment_priorities();
 
@@ -765,6 +903,11 @@ mod tests {
 
         assert!(result.is_some());
         let result = result.expect("assert.is_some() should have passed");
-        assert_eq!(result, first_item_action);
+        match result {
+            UrgencyLevelItemWithItemStatus::SingleItem(result) => {
+                assert_eq!(result.get_action(), first_item_action.get_action());
+            }
+            UrgencyLevelItemWithItemStatus::MultipleItems(..) => panic!("Test Failure"),
+        }
     }
 }

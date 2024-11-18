@@ -1,4 +1,4 @@
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
@@ -8,8 +8,10 @@ use crate::{
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     node::{
-        action_with_item_status::{ActionListsByUrgency, ActionWithItemStatus},
+        action_with_item_status::{ActionWithItemStatus, WhyInScopeActionListsByUrgency},
         item_status::ItemStatus,
+        urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
+        why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
         Filter,
     },
     systems::upcoming::Upcoming,
@@ -21,7 +23,7 @@ pub(crate) struct DoNowList {
 
     #[borrows(calculated_data)]
     #[covariant]
-    ordered_do_now_list: Vec<ActionWithItemStatus<'this>>,
+    ordered_do_now_list: Vec<UrgencyLevelItemWithItemStatus<'this>>,
 
     #[borrows(calculated_data)]
     #[covariant]
@@ -48,24 +50,49 @@ impl DoNowList {
                 let most_important_items = everything_that_has_no_parent
                     .iter()
                     .filter_map(|x| x.recursive_get_most_important_and_ready(all_items_status))
-                    .collect::<Vec<_>>();
+                    .map(ActionWithItemStatus::MakeProgress)
+                    .map(|action| {
+                        let mut why_in_scope = HashSet::default();
+                        why_in_scope.insert(WhyInScope::Importance);
+                        WhyInScopeAndActionWithItemStatus::new(why_in_scope, action)
+                    });
                 let urgent_items = everything_that_has_no_parent
                     .iter()
                     .flat_map(|x| {
                         x.recursive_get_urgent_bullet_list(all_items_status, Vec::default())
                     })
-                    .collect::<Vec<_>>();
+                    .map(|action| {
+                        let mut why_in_scope = HashSet::default();
+                        why_in_scope.insert(WhyInScope::Urgency);
+                        WhyInScopeAndActionWithItemStatus::new(why_in_scope, action)
+                    });
 
-                let mut bullet_lists_by_urgency = ActionListsByUrgency::default();
+                let items = most_important_items.chain(urgent_items).fold(
+                    HashSet::default(),
+                    |mut acc: HashSet<WhyInScopeAndActionWithItemStatus>,
+                     x: WhyInScopeAndActionWithItemStatus| {
+                        match HashSet::take(&mut acc, &x) {
+                            Some(mut existing) => {
+                                existing.extend_why_in_scope(x.get_why_in_scope());
+                                acc.insert(existing);
+                            }
+                            None => {
+                                acc.insert(x);
+                            }
+                        }
+                        acc
+                    },
+                );
 
-                for item in most_important_items.into_iter() {
-                    let item = ActionWithItemStatus::MakeProgress(item);
+                let mut bullet_lists_by_urgency = WhyInScopeActionListsByUrgency::default();
+
+                for item in items.iter().filter(|x| x.is_in_scope_for_importance()) {
                     bullet_lists_by_urgency
                         .in_the_mode_maybe_urgent_and_by_importance
-                        .push_if_new(item);
+                        .push_if_new(item.clone());
                 }
 
-                for item in urgent_items.into_iter() {
+                for item in items.into_iter() {
                     match item.get_urgency_now() {
                         SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => {
                             bullet_lists_by_urgency
@@ -113,7 +140,7 @@ impl DoNowList {
         .build()
     }
 
-    pub(crate) fn get_ordered_do_now_list(&self) -> &[ActionWithItemStatus<'_>] {
+    pub(crate) fn get_ordered_do_now_list(&self) -> &[UrgencyLevelItemWithItemStatus<'_>] {
         self.borrow_ordered_do_now_list()
     }
 
@@ -135,20 +162,22 @@ impl DoNowList {
 }
 
 trait PushIfNew<'t> {
-    fn push_if_new(&mut self, item: ActionWithItemStatus<'t>);
+    fn push_if_new(&mut self, item: WhyInScopeAndActionWithItemStatus<'t>);
 }
 
-impl<'t> PushIfNew<'t> for Vec<ActionWithItemStatus<'t>> {
-    fn push_if_new(&mut self, item: ActionWithItemStatus<'t>) {
-        match self
-            .iter()
-            .find(|x| x.get_surreal_record_id() == item.get_surreal_record_id())
-        {
+impl<'t> PushIfNew<'t> for Vec<WhyInScopeAndActionWithItemStatus<'t>> {
+    fn push_if_new(&mut self, item: WhyInScopeAndActionWithItemStatus<'t>) {
+        match self.iter().find(|x| x.get_action() == item.get_action()) {
             None => {
                 self.push(item);
             }
-            Some(_) => {
+            Some(x) => {
                 //Do nothing, Item is already there
+                if item.get_why_in_scope() != x.get_why_in_scope() {
+                    println!("item: {:?}", item);
+                    println!("x: {:?}", x);
+                }
+                assert!(item.get_why_in_scope() == x.get_why_in_scope());
             }
         }
     }

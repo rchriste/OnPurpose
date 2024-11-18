@@ -1,6 +1,8 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
+    hash::Hash,
+    mem,
     ops::{Div, Mul, Sub},
 };
 
@@ -541,6 +543,24 @@ pub(crate) enum SurrealUrgency {
     InTheModeDefinitelyUrgent,
     InTheModeMaybeUrgent, //This is one of the things that map to PriorityLevel::RoutineReview
     InTheModeByImportance,
+}
+
+impl Hash for SurrealUrgency {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled
+            | SurrealUrgency::MoreUrgentThanMode
+            | SurrealUrgency::InTheModeDefinitelyUrgent
+            | SurrealUrgency::InTheModeMaybeUrgent
+            | SurrealUrgency::InTheModeByImportance => {
+                mem::discriminant(self).hash(state);
+            }
+            SurrealUrgency::ScheduledAnyMode(_) | SurrealUrgency::InTheModeScheduled(_) => {
+                //Because in the future I plan on scheduled being just another urgency and use the higher level scheduling for all items
+                mem::discriminant(self).hash(state);
+            }
+        }
+    }
 }
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that

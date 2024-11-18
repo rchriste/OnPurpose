@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+use ahash::HashSet;
 use chrono::Utc;
 use inquire::Select;
 use tokio::sync::mpsc::Sender;
@@ -11,7 +12,10 @@ use crate::{
         surreal_item::{SurrealFrequency, SurrealReviewGuidance, SurrealUrgency},
     },
     new_time_spent::NewTimeSpent,
-    node::item_status::ItemStatus,
+    node::{
+        item_status::ItemStatus,
+        why_in_scope_and_action_with_item_status::{ToSurreal, WhyInScope},
+    },
 };
 
 pub(crate) enum Frequency {
@@ -103,6 +107,7 @@ impl ReviewGuidance {
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
     current_urgency: SurrealUrgency,
+    why_in_scope: &HashSet<WhyInScope>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let started_present_pick_item_review_frequency = Utc::now();
@@ -147,6 +152,7 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
         .unwrap();
 
     let new_time_spent = NewTimeSpent {
+        why_in_scope: why_in_scope.to_surreal(),
         working_on: vec![SurrealAction::ReviewItem(
             item_status.get_surreal_record_id().clone(),
         )], //TODO: Should I also add all the parent items that this is making progress towards the goal
@@ -155,6 +161,7 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
         dedication: None,
         urgency: Some(current_urgency),
     };
+
     send_to_data_storage_layer
         .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
         .await

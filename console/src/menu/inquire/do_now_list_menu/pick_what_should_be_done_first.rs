@@ -10,8 +10,8 @@ use crate::{
         data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealPriorityKind,
     },
     display::{
-        display_action_with_item_status::DisplayActionWithItemStatus,
         display_item_node::DisplayFormat,
+        display_why_in_scope_and_action_with_item_status::DisplayWhyInScopeAndActionWithItemStatus,
     },
     menu::inquire::do_now_list_menu::{
         classify_item::present_item_needs_a_classification_menu,
@@ -28,7 +28,9 @@ use crate::{
     systems::do_now_list::DoNowList,
 };
 
-use super::do_now_list_single_item::urgency_plan::prompt_for_triggers;
+use super::{
+    do_now_list_single_item::urgency_plan::prompt_for_triggers, WhyInScopeAndActionWithItemStatus,
+};
 
 enum HighestOrLowest {
     PickThisTime,
@@ -55,13 +57,19 @@ impl Display for HighestOrLowest {
 }
 
 pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
-    choices: &'a [ActionWithItemStatus<'a>],
+    choices: &'a [WhyInScopeAndActionWithItemStatus<'a>],
     do_now_list: &DoNowList,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let display_choices = choices
         .iter()
-        .map(|x| DisplayActionWithItemStatus::new(x, Filter::Active, DisplayFormat::SingleLine))
+        .map(|x| {
+            DisplayWhyInScopeAndActionWithItemStatus::new(
+                x,
+                Filter::Active,
+                DisplayFormat::SingleLine,
+            )
+        })
         .collect::<Vec<_>>();
 
     let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());
@@ -110,20 +118,14 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
             return Ok(());
         }
         HighestOrLowest::PickThisTime => {
+            let why_in_scope = choice.get_why_in_scope();
             let item_action = choice.get_action();
             match item_action {
-                ActionWithItemStatus::PickWhatShouldBeDoneFirst(choices) => {
-                    return Box::pin(present_pick_what_should_be_done_first_menu(
-                        choices,
-                        do_now_list,
-                        send_to_data_storage_layer,
-                    ))
-                    .await;
-                }
                 ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                     return present_pick_item_review_frequency_menu(
                         item_status,
                         item_action.get_urgency_now(),
+                        why_in_scope,
                         send_to_data_storage_layer,
                     )
                     .await;
@@ -132,6 +134,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     return present_review_item_menu(
                         item_status,
                         item_action.get_urgency_now(),
+                        why_in_scope,
                         do_now_list.get_all_items_status(),
                         LogTime::SeparateTaskLogTheTime,
                         send_to_data_storage_layer,
@@ -148,6 +151,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     } else {
                         return Box::pin(present_do_now_list_item_selected(
                             item_status,
+                            why_in_scope,
                             chrono::Utc::now(),
                             do_now_list,
                             send_to_data_storage_layer,
@@ -159,6 +163,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     return present_item_needs_a_classification_menu(
                         item_status,
                         item_action.get_urgency_now(),
+                        why_in_scope,
                         send_to_data_storage_layer,
                     )
                     .await;
@@ -166,6 +171,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
                     return present_set_ready_and_urgency_plan_menu(
                         item_status,
+                        why_in_scope,
                         Some(item_action.get_urgency_now()),
                         LogTime::SeparateTaskLogTheTime,
                         send_to_data_storage_layer,
@@ -193,7 +199,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
             kind: highest_or_lowest,
             not_chosen: choices
                 .iter()
-                .filter(|x| x != &choice.get_action())
+                .filter(|x| x.get_action() != choice.get_action())
                 .map(|x| x.clone_to_surreal_action())
                 .collect(),
             in_effect_until,

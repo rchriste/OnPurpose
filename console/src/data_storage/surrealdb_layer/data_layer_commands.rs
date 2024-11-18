@@ -1,4 +1,5 @@
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use surrealdb::{
     engine::any::{connect, Any, IntoEndpoint},
     opt::{PatchOp, RecordId},
@@ -21,7 +22,7 @@ use super::{
         SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
     },
     surreal_tables::SurrealTables,
-    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentOldVersion},
+    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0},
     SurrealTrigger,
 };
 
@@ -315,10 +316,12 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         }
     };
 
+    let surreal_in_the_moment_priorities = surreal_in_the_moment_priorities.await.unwrap();
+
     SurrealTables {
         surreal_items: all_items,
         surreal_time_spent_log: time_spent_log,
-        surreal_in_the_moment_priorities: surreal_in_the_moment_priorities.await.unwrap(),
+        surreal_in_the_moment_priorities,
     }
 }
 
@@ -337,10 +340,7 @@ async fn upgrade_items_table(db: &Surreal<Any>) {
 }
 
 async fn upgrade_time_spent_log(db: &Surreal<Any>) {
-    let a: Vec<SurrealTimeSpentOldVersion> = db
-        .select(SurrealTimeSpentOldVersion::TABLE_NAME)
-        .await
-        .unwrap();
+    let a: Vec<SurrealTimeSpentVersion0> = db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
     for time_spent_old in a.into_iter() {
         let time_spent: SurrealTimeSpent = time_spent_old.into();
         let updated: SurrealTimeSpent = db
@@ -351,6 +351,11 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
             .unwrap();
         assert_eq!(time_spent, updated);
     }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
+struct SurrealIdOnly {
+    id: Thing,
 }
 
 async fn send_time_spent(sender: oneshot::Sender<Vec<SurrealTimeSpent>>, db: &Surreal<Any>) {

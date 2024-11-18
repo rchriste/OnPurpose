@@ -1,3 +1,4 @@
+use ahash::HashSet;
 use chrono::{DateTime, Utc};
 use duration_str::parse;
 use tokio::sync::mpsc::Sender;
@@ -22,13 +23,14 @@ use crate::{
     new_time_spent::NewTimeSpent,
     node::{
         item_status::{DependencyWithItemNode, ItemStatus},
+        why_in_scope_and_action_with_item_status::ToSurreal,
         Filter, Urgency,
     },
 };
 use inquire::{InquireError, Select, Text};
 use std::fmt::{Display, Formatter};
 
-use super::LogTime;
+use super::{LogTime, WhyInScope};
 
 enum UrgencyPlanSelection {
     StaysTheSame,
@@ -650,6 +652,7 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
 
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     selected: &ItemStatus<'_>,
+    why_in_scope: &HashSet<WhyInScope>,
     current_urgency: Option<SurrealUrgency>,
     log_time: LogTime,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
@@ -692,6 +695,7 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     match log_time {
         LogTime::SeparateTaskLogTheTime => {
             let new_time_spent = NewTimeSpent {
+                why_in_scope: why_in_scope.to_surreal(),
                 working_on: vec![SurrealAction::SetReadyAndUrgency(
                     selected.get_surreal_record_id().clone(),
                 )], //TODO: Should this also be logging onto all the parent items that this is making progress towards the goal?
