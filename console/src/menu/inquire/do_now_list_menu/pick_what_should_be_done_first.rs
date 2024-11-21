@@ -90,7 +90,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
-    let highest_or_lowest = Select::new(
+    let highest_or_lowest = match Select::new(
         "Highest or lowest priority?",
         vec![
             HighestOrLowest::PickThisTime,
@@ -100,7 +100,19 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         ],
     )
     .prompt()
-    .unwrap();
+    {
+        Ok(highest_or_lowest) => highest_or_lowest,
+        Err(InquireError::OperationCanceled) => {
+            return Box::pin(present_do_now_list_menu(
+                do_now_list,
+                *do_now_list.get_now(),
+                send_to_data_storage_layer,
+            ))
+            .await
+        }
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+    };
 
     let highest_or_lowest = match highest_or_lowest {
         HighestOrLowest::RecordHighestPriorityUntil => SurrealPriorityKind::HighestPriority,
