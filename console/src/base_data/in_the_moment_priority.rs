@@ -48,6 +48,7 @@ impl<'s> InTheMomentPriorityWithItemAction<'s> {
             .iter()
             .map(|action| ActionWithItemStatus::from_surreal_action(action, items_status))
             .collect();
+
         InTheMomentPriorityWithItemAction {
             surreal_in_the_moment_priority,
             in_effect_until,

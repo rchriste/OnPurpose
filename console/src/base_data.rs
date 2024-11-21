@@ -8,6 +8,7 @@ use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
 use crate::data_storage::surrealdb_layer::{
+    surreal_current_mode::SurrealCurrentMode,
     surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_tables::SurrealTables,
 };
 
@@ -68,5 +69,9 @@ impl BaseData {
     pub(crate) fn get_surreal_in_the_moment_priorities(&self) -> &[SurrealInTheMomentPriority] {
         self.borrow_surreal_tables()
             .get_surreal_in_the_moment_priorities()
+    }
+
+    pub(crate) fn get_surreal_current_modes(&self) -> &[SurrealCurrentMode] {
+        self.borrow_surreal_tables().get_surreal_current_modes()
     }
 }

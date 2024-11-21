@@ -1,3 +1,4 @@
+pub(crate) mod change_mode;
 pub(crate) mod classify_item;
 pub(crate) mod do_now_list_single_item;
 pub(crate) mod parent_back_to_a_motivation;
@@ -9,6 +10,7 @@ pub(crate) mod search;
 use std::{fmt::Display, iter::once};
 
 use better_term::Style;
+use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
 use classify_item::present_item_needs_a_classification_menu;
 use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
@@ -39,7 +41,10 @@ use crate::{
         urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
         why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus, Filter,
     },
-    systems::do_now_list::DoNowList,
+    systems::do_now_list::{
+        current_mode::{CurrentMode, SelectedSingleMode},
+        DoNowList,
+    },
 };
 
 use self::do_now_list_single_item::{
@@ -51,6 +56,7 @@ use super::back_menu::capture;
 pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
+    ChangeMode(&'e CurrentMode),
     DoNowListSingleItem(&'e UrgencyLevelItemWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     BackMenu,
@@ -70,6 +76,16 @@ impl Display for InquireDoNowListItem<'_> {
                 );
                 write!(f, "{}", display)
             }
+            Self::ChangeMode(current_mode) => {
+                let mut mode_icons = "I:".to_string();
+                mode_icons.push_str(&turn_to_icons(current_mode.get_importance_in_scope()));
+                mode_icons.push_str("  & ");
+
+                mode_icons.push_str("U:");
+                let urgency_mode_icons = turn_to_icons(current_mode.get_urgency_in_scope());
+                mode_icons.push_str(&urgency_mode_icons);
+                write!(f, "🧭  Change Mode - Currently: {}", mode_icons)
+            }
             Self::RefreshList(bullet_list_created) => write!(
                 f,
                 "🔄  Reload List ({})",
@@ -81,16 +97,40 @@ impl Display for InquireDoNowListItem<'_> {
     }
 }
 
+fn turn_to_icons(in_scope: &[SelectedSingleMode]) -> String {
+    let mut mode_icons = String::default();
+    if in_scope
+        .iter()
+        .any(|x| x == &SelectedSingleMode::AllCoreMotivationalPurposes)
+    {
+        mode_icons.push('🏢');
+    } else {
+        mode_icons.push_str("  ");
+    }
+    if in_scope
+        .iter()
+        .any(|x| x == &SelectedSingleMode::AllNonCoreMotivationalPurposes)
+    {
+        mode_icons.push('🏞')
+    } else {
+        mode_icons.push(' ')
+    }
+
+    mode_icons
+}
+
 impl<'a> InquireDoNowListItem<'a> {
     pub(crate) fn create_list(
         item_action: &'a [UrgencyLevelItemWithItemStatus<'a>],
         do_now_list_created: DateTime<Utc>,
+        current_mode: &'a CurrentMode,
     ) -> Vec<InquireDoNowListItem<'a>> {
         chain!(
             once(InquireDoNowListItem::RefreshList(
                 do_now_list_created.into()
             )),
             once(InquireDoNowListItem::Search),
+            once(InquireDoNowListItem::ChangeMode(current_mode)),
             once(InquireDoNowListItem::CaptureNewItem),
             item_action
                 .iter()
@@ -166,10 +206,13 @@ pub(crate) async fn present_do_now_list_menu(
 ) -> Result<(), ()> {
     let ordered_do_now_list = do_now_list.get_ordered_do_now_list();
 
-    let inquire_do_now_list =
-        InquireDoNowListItem::create_list(ordered_do_now_list, do_now_list_created);
+    let inquire_do_now_list = InquireDoNowListItem::create_list(
+        ordered_do_now_list,
+        do_now_list_created,
+        do_now_list.get_current_mode(),
+    );
 
-    let starting_cursor = if ordered_do_now_list.is_empty() { 4 } else { 3 };
+    let starting_cursor = if ordered_do_now_list.is_empty() { 5 } else { 4 };
     let selected = Select::new(
         "Select from this \"Do Now\" list (default choice is recommended)|",
         inquire_do_now_list,
@@ -183,6 +226,9 @@ pub(crate) async fn present_do_now_list_menu(
         Ok(InquireDoNowListItem::CaptureNewItem) => capture(send_to_data_storage_layer).await,
         Ok(InquireDoNowListItem::Search) => {
             present_search_menu(do_now_list, send_to_data_storage_layer).await
+        }
+        Ok(InquireDoNowListItem::ChangeMode(current_mode)) => {
+            present_change_mode_menu(current_mode, send_to_data_storage_layer).await
         }
         Ok(InquireDoNowListItem::DoNowListSingleItem(selected)) => match selected {
             UrgencyLevelItemWithItemStatus::MultipleItems(choices) => {

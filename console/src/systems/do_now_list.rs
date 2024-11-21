@@ -1,7 +1,10 @@
 use ahash::{HashMap, HashSet};
 use chrono::{DateTime, Utc};
+use current_mode::CurrentMode;
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
+
+pub(crate) mod current_mode;
 
 use crate::{
     base_data::time_spent::TimeSpent,
@@ -47,8 +50,10 @@ impl DoNowList {
                     .collect::<Vec<_>>();
 
                 let all_items_status = calculated_data.get_items_status();
+                let current_mode = calculated_data.get_current_mode();
                 let most_important_items = everything_that_has_no_parent
                     .iter()
+                    .filter(|x| current_mode.is_importance_in_the_mode(x.get_item_node()))
                     .filter_map(|x| x.recursive_get_most_important_and_ready(all_items_status))
                     .map(ActionWithItemStatus::MakeProgress)
                     .map(|action| {
@@ -108,20 +113,26 @@ impl DoNowList {
                                 .push_if_new(item);
                         }
                         SurrealUrgency::InTheModeScheduled(_) => {
-                            bullet_lists_by_urgency
-                                .in_the_mode_scheduled
-                                .push_if_new(item);
+                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
+                                bullet_lists_by_urgency
+                                    .in_the_mode_scheduled
+                                    .push_if_new(item);
+                            }
                         }
                         SurrealUrgency::InTheModeDefinitelyUrgent => {
-                            bullet_lists_by_urgency
-                                .in_the_mode_definitely_urgent
-                                .push_if_new(item);
+                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
+                                bullet_lists_by_urgency
+                                    .in_the_mode_definitely_urgent
+                                    .push_if_new(item);
+                            }
                         }
                         SurrealUrgency::InTheModeMaybeUrgent
                         | SurrealUrgency::InTheModeByImportance => {
-                            bullet_lists_by_urgency
-                                .in_the_mode_maybe_urgent_and_by_importance
-                                .push_if_new(item);
+                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
+                                bullet_lists_by_urgency
+                                    .in_the_mode_maybe_urgent_and_by_importance
+                                    .push_if_new(item);
+                            }
                         }
                     }
                 }
@@ -158,6 +169,10 @@ impl DoNowList {
 
     pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {
         self.borrow_calculated_data().get_time_spent_log()
+    }
+
+    pub(crate) fn get_current_mode(&self) -> &CurrentMode {
+        self.borrow_calculated_data().get_current_mode()
     }
 }
 

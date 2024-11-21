@@ -9,7 +9,7 @@ use derive_builder::Builder;
 use crate::base_data::{item::Item, time_spent::TimeSpent};
 
 use super::{
-    data_layer_commands::DataLayerCommands,
+    data_layer_commands::DataLayerCommands, surreal_current_mode::SurrealCurrentMode,
     surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_item::SurrealItem,
     surreal_time_spent::SurrealTimeSpent,
 };
@@ -25,6 +25,9 @@ pub(crate) struct SurrealTables {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_in_the_moment_priorities: Vec<SurrealInTheMomentPriority>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) surreal_current_modes: Vec<SurrealCurrentMode>,
 }
 
 impl SurrealTables {
@@ -50,5 +53,9 @@ impl SurrealTables {
 
     pub(crate) fn get_surreal_in_the_moment_priorities(&self) -> &[SurrealInTheMomentPriority] {
         &self.surreal_in_the_moment_priorities
+    }
+
+    pub(crate) fn get_surreal_current_modes(&self) -> &[SurrealCurrentMode] {
+        &self.surreal_current_modes
     }
 }

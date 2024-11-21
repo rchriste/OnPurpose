@@ -3,6 +3,7 @@ use crate::data_storage::surrealdb_layer::surreal_item::{SurrealScheduled, Surre
 pub(crate) mod action_with_item_status;
 pub(crate) mod item_node;
 pub(crate) mod item_status;
+pub(crate) mod item_status_why_in_mode;
 pub(crate) mod urgency_level_item_with_item_status;
 pub(crate) mod why_in_scope_and_action_with_item_status;
 
