@@ -36,6 +36,7 @@
         "rustflags",
         "rustls",
         "serde",
+        "softprops",
         "struct",
         "surrealdb",
         "testcopy",
@@ -43,6 +44,7 @@
         "thon",
         "upstreamed",
         "Visio",
-        "Ｗｏｒｋ"
+        "Ｗｏｒｋ",
+        "zerocopy"
     ]
 }

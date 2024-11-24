@@ -135,6 +135,7 @@ pub(crate) enum SurrealMotivationKind {
     NotSet,
     CoreWork,
     NonCoreWork,
+    DoesNotFitInCoreOrNonCore,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]

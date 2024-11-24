@@ -501,7 +501,7 @@ impl Display for Urgency {
                 write!(f, "🔴  When in the mode, definitely urgent")
             }
             Urgency::InTheModeMaybeUrgent => write!(f, "🟡  When in the mode, maybe urgent"),
-            Urgency::InTheModeByImportance => write!(f, "🔝  Not immediately urgent"),
+            Urgency::InTheModeByImportance => write!(f, "🟢  Not immediately urgent"),
         }
     }
 }

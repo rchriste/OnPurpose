@@ -388,12 +388,32 @@ async fn present_reflection(
         })
         .collect();
 
+    let neither = items_in_range
+        .iter()
+        .filter_map(|(_, v)| {
+            if v.item_status.has_parents(Filter::All) {
+                None
+            } else if v.item_status.is_type_motivation_kind_neither() {
+                Some(v.get_surreal_record_id().clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if !neither.is_empty() {
+        println!("🚫 Neither Core nor Non-Core Work");
+        println!();
+        for item in neither.into_iter() {
+            print_children_time_spent(item, &mut items_in_range);
+        }
+    }
     let no_parents_non_core: Vec<RecordId> = items_in_range
         .iter()
         .filter_map(|(_, v)| {
             if v.item_status.has_parents(Filter::All) {
                 None
-            } else if !v.is_type_motivation_kind_core() {
+            } else if !v.is_type_motivation_kind_core() && !v.is_type_motivation_kind_neither() {
                 Some(v.get_surreal_record_id().clone())
             } else {
                 None
@@ -467,7 +487,19 @@ async fn present_reflection(
                 (sum_duration + time_spent.get_time_delta(), count + 1)
             },
         );
-    let total = core_work.0 + non_core_work.0;
+
+    let neither_work = items_in_range
+        .iter()
+        .filter(|(_, x)| x.is_type_motivation_kind_neither())
+        .flat_map(|(_, x)| &x.time_spent)
+        .fold(
+            (chrono::Duration::default(), 0),
+            |(sum_duration, count), time_spent| {
+                (sum_duration + time_spent.get_time_delta(), count + 1)
+            },
+        );
+
+    let total = core_work.0 + non_core_work.0; //neither is NOT part of the total
 
     if total.num_seconds() != 0 {
         println!("Core Work");
@@ -484,6 +516,15 @@ async fn present_reflection(
             non_core_work.1,
             DisplayDuration::new(&non_core_work.0.to_std().expect("valid")),
             non_core_work.0.num_seconds() * 100 / total.num_seconds()
+        );
+    }
+
+    if neither_work.0.num_seconds() != 0 {
+        println!("Neither Core nor Non-Core Work");
+        println!(
+            "\t{} times for {}",
+            neither_work.1,
+            DisplayDuration::new(&neither_work.0.to_std().expect("valid"))
         );
     }
 
@@ -703,6 +744,10 @@ impl ItemTimeSpent<'_> {
 
     fn is_type_motivation_kind_non_core(&self) -> bool {
         self.item_status.is_type_motivation_kind_non_core()
+    }
+
+    fn is_type_motivation_kind_neither(&self) -> bool {
+        self.item_status.is_type_motivation_kind_neither()
     }
 
     fn mark_as_visited(&mut self) {

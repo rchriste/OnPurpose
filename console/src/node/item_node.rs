@@ -352,16 +352,16 @@ impl<'s> ItemNode<'s> {
         items
     }
 
-    pub(crate) fn is_core_work(&self, filter: Filter) -> bool {
+    pub(crate) fn is_core_work_or_neither(&self, filter: Filter) -> bool {
         self.get_self_and_parents(filter)
             .iter()
-            .any(|x| x.is_type_motivation_kind_core())
+            .any(|x| x.is_type_motivation_kind_core_or_neither())
     }
 
-    pub(crate) fn is_non_core_work(&self, filter: Filter) -> bool {
+    pub(crate) fn is_non_core_work_or_neither(&self, filter: Filter) -> bool {
         self.get_self_and_parents(filter)
             .iter()
-            .any(|x| x.is_type_motivation_kind_non_core())
+            .any(|x| x.is_type_motivation_kind_non_core_or_neither())
     }
 
     pub(crate) fn get_type(&self) -> &SurrealItemType {
@@ -382,6 +382,10 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn is_type_motivation_kind_non_core(&self) -> bool {
         self.item.is_type_motivation_kind_non_core()
+    }
+
+    pub(crate) fn is_type_motivation_kind_neither(&self) -> bool {
+        self.item.is_type_motivation_kind_neither()
     }
 
     pub(crate) fn has_children(&self, filter: Filter) -> bool {

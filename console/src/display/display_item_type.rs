@@ -37,6 +37,13 @@ impl Display for DisplayItemType<'_> {
                             DisplayStyle::Full => write!(f, " Non-Core")?,
                         }
                     }
+                    SurrealMotivationKind::DoesNotFitInCoreOrNonCore => {
+                        write!(f, "🚫")?;
+                        match self.style {
+                            DisplayStyle::Abbreviated => {}
+                            DisplayStyle::Full => write!(f, " Neither")?,
+                        }
+                    }
                 }
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),

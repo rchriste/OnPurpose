@@ -83,9 +83,11 @@ impl CurrentMode {
 
 fn is_in_scope(in_scope: &[SelectedSingleMode], item_node: &ItemNode) -> bool {
     in_scope.iter().any(|x| match x {
-        SelectedSingleMode::AllCoreMotivationalPurposes => item_node.is_core_work(Filter::Active),
+        SelectedSingleMode::AllCoreMotivationalPurposes => {
+            item_node.is_core_work_or_neither(Filter::Active)
+        }
         SelectedSingleMode::AllNonCoreMotivationalPurposes => {
-            item_node.is_non_core_work(Filter::Active)
+            item_node.is_non_core_work_or_neither(Filter::Active)
         }
     })
 }

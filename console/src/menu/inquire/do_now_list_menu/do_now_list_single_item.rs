@@ -726,6 +726,7 @@ pub(crate) enum ItemTypeSelection {
     Goal,
     MotivationCore,
     MotivationNonCore,
+    MotivationNeither,
     NormalHelp,
 }
 
@@ -740,6 +741,9 @@ impl Display for ItemTypeSelection {
             Self::MotivationNonCore => {
                 write!(f, "Non-Core Motivational Purpose 🎯🧹")
             }
+            Self::MotivationNeither => {
+                write!(f, "Neither Core nor Non-Core Motivational Purpose 🎯🧩")
+            }
             Self::NormalHelp => write!(f, "❓ Help"),
         }
     }
@@ -752,6 +756,7 @@ impl ItemTypeSelection {
             Self::Goal,
             Self::MotivationCore,
             Self::MotivationNonCore,
+            Self::MotivationNeither,
             Self::NormalHelp,
         ]
     }
@@ -778,6 +783,11 @@ impl ItemTypeSelection {
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::Motivation(
                     SurrealMotivationKind::NonCoreWork,
+                )),
+            ItemTypeSelection::MotivationNeither => new_item_builder
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(SurrealItemType::Motivation(
+                    SurrealMotivationKind::DoesNotFitInCoreOrNonCore,
                 )),
             ItemTypeSelection::NormalHelp => {
                 panic!("NormalHelp should be handled before this point")
@@ -902,6 +912,17 @@ pub(crate) async fn declare_item_type(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
                     SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
+                ))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Ok(ItemTypeSelection::MotivationNeither) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_record_id().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    SurrealItemType::Motivation(SurrealMotivationKind::DoesNotFitInCoreOrNonCore),
                 ))
                 .await
                 .unwrap();
