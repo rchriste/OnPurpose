@@ -136,7 +136,8 @@ pub(crate) async fn prompt_for_dependencies(
                     }
                 }
                 DependencyWithItemNode::UntilScheduled { .. }
-                | DependencyWithItemNode::AfterChildItem(..) => {
+                | DependencyWithItemNode::AfterChildItem(..)
+                | DependencyWithItemNode::WaitingToBeInterrupted => {
                     //Not stored in SurrealDependencies so just skip over
                 }
             }

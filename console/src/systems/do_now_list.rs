@@ -41,12 +41,12 @@ impl DoNowList {
         DoNowListBuilder {
             calculated_data,
             ordered_do_now_list_builder: |calculated_data| {
-                //Get all top level items that are not motivations
+                //Get all top level items
                 let everything_that_has_no_parent = calculated_data
                     .get_items_status()
                     .iter()
                     .map(|(_, v)| v)
-                    .filter(|x| !x.has_parents(Filter::Active) && x.is_active() && !x.is_type_motivation())
+                    .filter(|x| !x.has_parents(Filter::Active) && x.is_active())
                     .collect::<Vec<_>>();
 
                 let all_items_status = calculated_data.get_items_status();

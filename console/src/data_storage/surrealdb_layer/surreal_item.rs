@@ -27,7 +27,7 @@ pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
 
-    #[cfg_attr(test, builder(default = "1"))]
+    #[cfg_attr(test, builder(default = "2"))]
     pub(crate) version: u32,
 
     #[cfg_attr(test, builder(default))]
@@ -84,7 +84,7 @@ impl SurrealItem {
         let last_reviewed = new_item.last_reviewed.map(|dt| dt.into());
         SurrealItem {
             id: None,
-            version: 1,
+            version: 2,
             summary: new_item.summary,
             finished: new_item.finished,
             responsibility: new_item.responsibility,

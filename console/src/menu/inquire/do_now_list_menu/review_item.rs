@@ -76,7 +76,8 @@ impl Display for ReviewItemMenuChoices<'_> {
                         | DependencyWithItemNode::UntilScheduled { .. }
                         | DependencyWithItemNode::AfterItem(_)
                         | DependencyWithItemNode::DuringItem(_) => true,
-                        DependencyWithItemNode::AfterChildItem(_) => false,
+                        DependencyWithItemNode::AfterChildItem(_)
+                        | DependencyWithItemNode::WaitingToBeInterrupted => false,
                     })
                     .collect::<Vec<_>>();
                 let display_ready = DisplayDependenciesWithItemNode::new(

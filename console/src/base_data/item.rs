@@ -8,8 +8,8 @@ use surrealdb::{
 };
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
-    SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType, SurrealMotivationKind,
-    SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+    Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
+    SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 #[derive(Eq, Clone, Debug)]
@@ -183,6 +183,14 @@ impl<'b> Item<'b> {
 
     pub(crate) fn is_goal(&self) -> bool {
         matches!(self.get_item_type(), &SurrealItemType::Goal(..))
+    }
+
+    pub(crate) fn is_responsibility_reactive(&self) -> bool {
+        self.get_surreal_responsibility() == &Responsibility::ReactiveBeAvailableToAct
+    }
+
+    pub(crate) fn get_surreal_responsibility(&self) -> &Responsibility {
+        &self.surreal_item.responsibility
     }
 
     pub(crate) fn get_created(&self) -> &DateTime<Utc> {

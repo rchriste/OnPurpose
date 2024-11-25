@@ -52,6 +52,9 @@ impl Display for DisplayDependenciesWithItemNode<'_> {
                             DisplayItemNode::new(item_node, self.filter, self.display_format);
                         write!(f, "During item {}", display_item_node)?
                     }
+                    DependencyWithItemNode::WaitingToBeInterrupted => {
+                        write!(f, "Waiting to be interrupted")?
+                    }
                 }
             }
             Ok(())

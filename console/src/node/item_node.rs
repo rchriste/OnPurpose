@@ -43,6 +43,7 @@ pub(crate) enum DependencyWithItem<'e> {
     AfterItem(&'e Item<'e>),
     AfterChildItem(&'e Item<'e>),
     DuringItem(&'e Item<'e>),
+    WaitingToBeInterrupted,
 }
 
 impl IsActive for DependencyWithItem<'_> {
@@ -53,6 +54,7 @@ impl IsActive for DependencyWithItem<'_> {
             DependencyWithItem::AfterItem(item) => item.is_active(),
             DependencyWithItem::AfterChildItem(item) => item.is_active(),
             DependencyWithItem::DuringItem(item) => item.is_active(),
+            DependencyWithItem::WaitingToBeInterrupted => true,
         }
     }
 }
@@ -633,6 +635,11 @@ fn calculate_dependencies<'a>(
         result.push(DependencyWithItem::AfterChildItem(smaller.get_item()));
     }
 
+    //Items that are reactive are always waiting for something to happen
+    if item.is_responsibility_reactive() {
+        result.push(DependencyWithItem::WaitingToBeInterrupted);
+    }
+
     result
 }
 
@@ -832,7 +839,7 @@ fn calculate_urgent_action_items<'a>(
         }
         None => {
             //Need to set an urgency plan
-            if !has_children(children, Filter::Active) {
+            if !has_children(children, Filter::Active) && !item.is_responsibility_reactive() {
                 result.push(ActionWithItem::SetReadyAndUrgency(item));
             }
         }

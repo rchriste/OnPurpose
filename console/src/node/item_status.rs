@@ -43,6 +43,7 @@ pub(crate) enum DependencyWithItemNode<'e> {
     AfterItem(&'e ItemNode<'e>),
     AfterChildItem(&'e ItemNode<'e>),
     DuringItem(&'e ItemNode<'e>),
+    WaitingToBeInterrupted,
 }
 
 impl IsActive for DependencyWithItemNode<'_> {
@@ -53,6 +54,7 @@ impl IsActive for DependencyWithItemNode<'_> {
             DependencyWithItemNode::AfterItem(item) => item.is_active(),
             DependencyWithItemNode::AfterChildItem(item) => item.is_active(),
             DependencyWithItemNode::DuringItem(item) => item.is_active(),
+            DependencyWithItemNode::WaitingToBeInterrupted => true,
         }
     }
 }
@@ -169,6 +171,7 @@ impl From<DependencyWithItemNode<'_>> for SurrealDependency {
             DependencyWithItemNode::AfterItem(item_node) => SurrealDependency::AfterItem(item_node.get_surreal_record_id().clone()),
             DependencyWithItemNode::AfterChildItem(..) => panic!("Programming error, AfterSmallerItem, is not represented in SurrealDependency, it is derived. Do not call into on this."),
             DependencyWithItemNode::DuringItem(item_node) => SurrealDependency::DuringItem(item_node.get_surreal_record_id().clone()),
+            DependencyWithItemNode::WaitingToBeInterrupted => panic!("Programming error, WaitingToBeInterrupted, is not represented in SurrealDependency, it is derived. Do not call into on this."),
         }
     }
 }
@@ -576,6 +579,9 @@ fn calculate_dependencies<'s>(
                     after: *after,
                     is_active: *is_active,
                 }
+            }
+            DependencyWithItem::WaitingToBeInterrupted => {
+                DependencyWithItemNode::WaitingToBeInterrupted
             }
         })
         .collect()

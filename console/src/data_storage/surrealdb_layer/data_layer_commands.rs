@@ -321,7 +321,14 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let surreal_current_modes = db.select(SurrealCurrentMode::TABLE_NAME);
 
     let all_items: Vec<SurrealItem> = match all_items.await {
-        Ok(all_items) => all_items,
+        Ok(all_items) => {
+            if all_items.iter().any(|x: &SurrealItem| x.version == 1) {
+                upgrade_items_table_version1_to_version2(db).await;
+                db.select(SurrealItem::TABLE_NAME).await.unwrap()
+            } else {
+                all_items
+            }
+        }
         Err(err) => {
             println!("Upgrading items table because of issue: {}", err);
             upgrade_items_table(db).await;
@@ -345,6 +352,27 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         surreal_time_spent_log: time_spent_log,
         surreal_in_the_moment_priorities,
         surreal_current_modes: surreal_current_modes.await.unwrap(),
+    }
+}
+
+async fn upgrade_items_table_version1_to_version2(db: &Surreal<Any>) {
+    let a: Vec<SurrealItem> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
+    for mut item_old_version in a.into_iter() {
+        let item: SurrealItem = if matches!(item_old_version.item_type, SurrealItemType::Motivation(_)) {
+            item_old_version.responsibility = Responsibility::ReactiveBeAvailableToAct;
+            item_old_version.version = 2;
+            item_old_version
+        } else {
+            item_old_version.version = 2;
+            item_old_version
+        };
+        let updated: SurrealItem = db
+            .update(item.id.clone().unwrap())
+            .content(item.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(item, updated);
     }
 }
 

@@ -777,15 +777,15 @@ impl ItemTypeSelection {
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
             ItemTypeSelection::MotivationCore => new_item_builder
-                .responsibility(Responsibility::ProactiveActionToTake)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
                 .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
             ItemTypeSelection::MotivationNonCore => new_item_builder
-                .responsibility(Responsibility::ProactiveActionToTake)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
                 .item_type(SurrealItemType::Motivation(
                     SurrealMotivationKind::NonCoreWork,
                 )),
             ItemTypeSelection::MotivationNeither => new_item_builder
-                .responsibility(Responsibility::ProactiveActionToTake)
+                .responsibility(Responsibility::ReactiveBeAvailableToAct)
                 .item_type(SurrealItemType::Motivation(
                     SurrealMotivationKind::DoesNotFitInCoreOrNonCore,
                 )),
