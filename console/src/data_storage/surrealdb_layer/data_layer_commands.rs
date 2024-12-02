@@ -358,14 +358,15 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 async fn upgrade_items_table_version1_to_version2(db: &Surreal<Any>) {
     let a: Vec<SurrealItem> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
     for mut item_old_version in a.into_iter() {
-        let item: SurrealItem = if matches!(item_old_version.item_type, SurrealItemType::Motivation(_)) {
-            item_old_version.responsibility = Responsibility::ReactiveBeAvailableToAct;
-            item_old_version.version = 2;
-            item_old_version
-        } else {
-            item_old_version.version = 2;
-            item_old_version
-        };
+        let item: SurrealItem =
+            if matches!(item_old_version.item_type, SurrealItemType::Motivation(_)) {
+                item_old_version.responsibility = Responsibility::ReactiveBeAvailableToAct;
+                item_old_version.version = 2;
+                item_old_version
+            } else {
+                item_old_version.version = 2;
+                item_old_version
+            };
         let updated: SurrealItem = db
             .update(item.id.clone().unwrap())
             .content(item.clone())

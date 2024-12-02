@@ -425,11 +425,11 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn get_dependencies(
         &'s self,
         filter: Filter,
-    ) -> Box<dyn Iterator<Item = &'s DependencyWithItem> + 's> {
+    ) -> Box<dyn Iterator<Item = &'s DependencyWithItem<'s>> + 's> {
         get_dependencies(&self.dependencies, filter)
     }
 
-    pub(crate) fn get_urgency_plan(&'s self) -> &Option<UrgencyPlanWithItem<'s>> {
+    pub(crate) fn get_urgency_plan(&'s self) -> &'s Option<UrgencyPlanWithItem<'s>> {
         &self.urgency_plan
     }
 
@@ -441,7 +441,7 @@ impl<'s> ItemNode<'s> {
         self.get_dependencies(Filter::Active).next().is_none()
     }
 
-    pub(crate) fn get_urgent_action_items(&'s self) -> &Vec<ActionWithItem<'s>> {
+    pub(crate) fn get_urgent_action_items(&'s self) -> &'s Vec<ActionWithItem<'s>> {
         &self.urgent_action_items
     }
 }

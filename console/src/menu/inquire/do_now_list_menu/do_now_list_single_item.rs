@@ -534,7 +534,7 @@ fn print_in_progress_children(
                 _ => true,
             });
             if has_dependencies {
-                print!("⌛");
+                print!("⏳");
             }
             let urgency_now = child
                 .get_urgency_now()
@@ -724,6 +724,7 @@ async fn parent_to_item(
 pub(crate) enum ItemTypeSelection {
     Action,
     Goal,
+    Idea,
     MotivationCore,
     MotivationNonCore,
     MotivationNeither,
@@ -733,8 +734,9 @@ pub(crate) enum ItemTypeSelection {
 impl Display for ItemTypeSelection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Action => write!(f, "Step 🪜"),
-            Self::Goal => write!(f, "Project 🪧"),
+            Self::Action => write!(f, "Task or Step 🪜"),
+            Self::Goal => write!(f, "Commitment or Project 🪧"),
+            Self::Idea => write!(f, "Idea or Thought 💡"),
             Self::MotivationCore => {
                 write!(f, "Core Motivational Purpose 🎯🏢")
             }
@@ -742,7 +744,7 @@ impl Display for ItemTypeSelection {
                 write!(f, "Non-Core Motivational Purpose 🎯🧹")
             }
             Self::MotivationNeither => {
-                write!(f, "Neither Core nor Non-Core Motivational Purpose 🎯🧩")
+                write!(f, "Neither Core nor Non-Core Motivational Purpose 🎯🚫")
             }
             Self::NormalHelp => write!(f, "❓ Help"),
         }
@@ -754,6 +756,7 @@ impl ItemTypeSelection {
         vec![
             Self::Action,
             Self::Goal,
+            Self::Idea,
             Self::MotivationCore,
             Self::MotivationNonCore,
             Self::MotivationNeither,
@@ -789,6 +792,9 @@ impl ItemTypeSelection {
                 .item_type(SurrealItemType::Motivation(
                     SurrealMotivationKind::DoesNotFitInCoreOrNonCore,
                 )),
+            ItemTypeSelection::Idea => new_item_builder
+                .responsibility(Responsibility::ProactiveActionToTake)
+                .item_type(SurrealItemType::IdeaOrThought),
             ItemTypeSelection::NormalHelp => {
                 panic!("NormalHelp should be handled before this point")
             }
@@ -899,7 +905,7 @@ pub(crate) async fn declare_item_type(
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
-                    Responsibility::ProactiveActionToTake,
+                    Responsibility::ReactiveBeAvailableToAct,
                     SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
                 ))
                 .await
@@ -910,7 +916,7 @@ pub(crate) async fn declare_item_type(
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
-                    Responsibility::ProactiveActionToTake,
+                    Responsibility::ReactiveBeAvailableToAct,
                     SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
                 ))
                 .await
@@ -921,8 +927,19 @@ pub(crate) async fn declare_item_type(
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
-                    Responsibility::ProactiveActionToTake,
+                    Responsibility::ReactiveBeAvailableToAct,
                     SurrealItemType::Motivation(SurrealMotivationKind::DoesNotFitInCoreOrNonCore),
+                ))
+                .await
+                .unwrap();
+            Ok(())
+        }
+        Ok(ItemTypeSelection::Idea) => {
+            send_to_data_storage_layer
+                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
+                    item.get_surreal_record_id().clone(),
+                    Responsibility::ProactiveActionToTake,
+                    SurrealItemType::IdeaOrThought,
                 ))
                 .await
                 .unwrap();

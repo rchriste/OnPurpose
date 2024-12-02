@@ -153,7 +153,8 @@ pub(crate) async fn prompt_for_dependencies(
     list.push(ReadySelection::AfterDateTime);
     list.push(ReadySelection::AfterItem);
 
-    let ready = Select::new("When is this item ready?", list)
+    println!();
+    let ready = Select::new("When will this item be ready to work on?", list)
         .prompt()
         .unwrap();
     match ready {
@@ -161,6 +162,7 @@ pub(crate) async fn prompt_for_dependencies(
             //do nothing
         }
         ReadySelection::AfterDateTime => {
+            println!();
             let exact_start = Text::new("Enter a date or an amount of time to wait, for example \"1/4/2025 3:00pm\", \"30m\", \"1h\", or \"1d\"\n|").prompt().unwrap();
             let exact_start = match parse(&exact_start) {
                 Ok(exact_start) => {

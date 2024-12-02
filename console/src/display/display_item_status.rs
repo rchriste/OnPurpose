@@ -15,7 +15,7 @@ impl Display for DisplayItemStatus<'_> {
         write!(f, "|")?;
         if self.has_dependencies(self.filter) {
             //write a red circle emoji
-            write!(f, "⌛ ")?;
+            write!(f, "⏳ ")?;
         }
 
         let display_node = DisplayItemNode::new(

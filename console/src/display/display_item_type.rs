@@ -16,7 +16,7 @@ impl Display for DisplayItemType<'_> {
                 write!(f, "🪧")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
-                    DisplayStyle::Full => write!(f, " Project"),
+                    DisplayStyle::Full => write!(f, " Commitment or Project"),
                 }
             }
             SurrealItemType::Motivation(kind) => {
@@ -54,7 +54,7 @@ impl Display for DisplayItemType<'_> {
                 write!(f, "🪜")?;
                 match self.style {
                     DisplayStyle::Abbreviated => Ok(()),
-                    DisplayStyle::Full => write!(f, " Step"),
+                    DisplayStyle::Full => write!(f, " Task or Step"),
                 }
             }
             SurrealItemType::Undeclared => match self.style {
