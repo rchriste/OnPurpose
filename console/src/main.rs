@@ -4,6 +4,7 @@ pub(crate) mod data_storage;
 pub(crate) mod display;
 pub(crate) mod menu;
 pub(crate) mod new_item;
+pub(crate) mod new_mode;
 pub(crate) mod new_time_spent;
 mod node;
 pub(crate) mod systems;

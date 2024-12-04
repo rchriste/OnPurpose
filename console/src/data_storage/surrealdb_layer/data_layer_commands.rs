@@ -11,7 +11,10 @@ use tokio::sync::{
     oneshot::{self, error::RecvError},
 };
 
-use crate::{new_item::NewItem, new_time_spent::NewTimeSpent};
+use crate::{
+    data_storage::surrealdb_layer::surreal_mode::SurrealMode, new_item::NewItem, new_mode::NewMode,
+    new_time_spent::NewTimeSpent,
+};
 
 use super::{
     surreal_current_mode::{NewCurrentMode, SurrealCurrentMode},
@@ -22,6 +25,7 @@ use super::{
         Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemOldVersion,
         SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
     },
+    surreal_mode,
     surreal_tables::SurrealTables,
     surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0},
     SurrealTrigger,
@@ -36,6 +40,7 @@ pub(crate) enum DataLayerCommands {
         when_finished: Datetime,
     },
     NewItem(NewItem),
+    NewMode(NewMode),
     CoverItemWithANewItem {
         cover_this: RecordId,
         cover_with: NewItem,
@@ -139,6 +144,20 @@ pub(crate) async fn data_storage_start_and_run(
                     &db,
                 )
                 .await
+            }
+            Some(DataLayerCommands::NewMode(new_mode)) => {
+                let mut surreal_mode: SurrealMode = new_mode.into();
+                let created: SurrealMode = db
+                    .create(surreal_mode::SurrealMode::TABLE_NAME)
+                    .content(surreal_mode.clone())
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .next()
+                    .unwrap();
+
+                surreal_mode.id = created.id.clone();
+                assert_eq!(surreal_mode, created);
             }
             Some(DataLayerCommands::ParentItemWithExistingItem {
                 child,
@@ -319,6 +338,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let time_spent_log = db.select(SurrealTimeSpent::TABLE_NAME);
     let surreal_in_the_moment_priorities = db.select(SurrealInTheMomentPriority::TABLE_NAME);
     let surreal_current_modes = db.select(SurrealCurrentMode::TABLE_NAME);
+    let surreal_modes = db.select(surreal_mode::SurrealMode::TABLE_NAME);
 
     let all_items: Vec<SurrealItem> = match all_items.await {
         Ok(all_items) => {
@@ -347,11 +367,14 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     let surreal_in_the_moment_priorities = surreal_in_the_moment_priorities.await.unwrap();
 
+    let surreal_modes = surreal_modes.await.unwrap();
+
     SurrealTables {
         surreal_items: all_items,
         surreal_time_spent_log: time_spent_log,
         surreal_in_the_moment_priorities,
         surreal_current_modes: surreal_current_modes.await.unwrap(),
+        surreal_modes,
     }
 }
 

@@ -6,12 +6,12 @@ use tokio::sync::mpsc::Sender;
 #[cfg(test)]
 use derive_builder::Builder;
 
-use crate::base_data::{item::Item, time_spent::TimeSpent};
+use crate::base_data::{item::Item, mode::Mode, time_spent::TimeSpent};
 
 use super::{
     data_layer_commands::DataLayerCommands, surreal_current_mode::SurrealCurrentMode,
     surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_item::SurrealItem,
-    surreal_time_spent::SurrealTimeSpent,
+    surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpent,
 };
 
 #[derive(Clone, Debug)]
@@ -28,6 +28,9 @@ pub(crate) struct SurrealTables {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_current_modes: Vec<SurrealCurrentMode>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) surreal_modes: Vec<SurrealMode>,
 }
 
 impl SurrealTables {
@@ -49,6 +52,10 @@ impl SurrealTables {
 
     pub(crate) fn make_time_spent_log(&self) -> impl Iterator<Item = TimeSpent<'_>> {
         self.surreal_time_spent_log.iter().map(TimeSpent::new)
+    }
+
+    pub(crate) fn make_modes(&self) -> impl Iterator<Item = Mode<'_>> {
+        self.surreal_modes.iter().map(Mode::new)
     }
 
     pub(crate) fn get_surreal_in_the_moment_priorities(&self) -> &[SurrealInTheMomentPriority] {
