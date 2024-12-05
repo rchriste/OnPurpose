@@ -1,9 +1,11 @@
-pub(crate) mod configure;
+pub(crate) mod configure_settings;
+pub(crate) mod configure_modes;
 
 use std::{cmp::Ordering, fmt::Display, vec};
 
 use ahash::HashMap;
 use chrono::{DateTime, Local, Utc};
+use configure_settings::configure_settings;
 use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 use surrealdb::opt::RecordId;
@@ -21,7 +23,7 @@ use crate::{
         display_item_node::{DisplayFormat, DisplayItemNode},
         display_item_status::DisplayItemStatus,
     },
-    menu::inquire::back_menu::configure::configure,
+    menu::inquire::back_menu::configure_modes::configure_modes,
     new_item::NewItem,
     node::{
         item_node::{ItemNode, ShrinkingItemNode},
@@ -38,7 +40,8 @@ enum TopMenuSelection {
     Reflection,
     ViewDoNowList,
     ViewPriorities,
-    Configure,
+    ConfigureModes,
+    ConfigureSettings,
     DebugViewAllItems,
 }
 
@@ -53,7 +56,8 @@ impl Display for TopMenuSelection {
             TopMenuSelection::DebugViewAllItems => {
                 write!(f, "🔍  Debug View All Items")
             }
-            TopMenuSelection::Configure => write!(f, "⚙️  Configure"),
+            TopMenuSelection::ConfigureSettings => write!(f, "⚙️  Configure Settings"),
+            TopMenuSelection::ConfigureModes => write!(f, "😊  Configure Modes"),
         }
     }
 }
@@ -63,7 +67,8 @@ impl TopMenuSelection {
         vec![
             Self::ViewPriorities,
             Self::Reflection,
-            Self::Configure,
+            Self::ConfigureModes,
+            Self::ConfigureSettings,
             Self::ViewDoNowList,
             Self::DebugViewAllItems,
         ]
@@ -82,7 +87,8 @@ pub(crate) async fn present_back_menu(
             present_normal_do_now_list_menu(send_to_data_storage_layer).await
         }
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
-        Ok(TopMenuSelection::Configure) => configure().await,
+        Ok(TopMenuSelection::ConfigureSettings) => configure_settings().await,
+        Ok(TopMenuSelection::ConfigureModes) => configure_modes(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }

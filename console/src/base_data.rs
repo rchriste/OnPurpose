@@ -1,5 +1,6 @@
 pub(crate) mod in_the_moment_priority;
 pub(crate) mod item;
+pub(crate) mod mode;
 pub(crate) mod time_spent;
 
 use ahash::HashMap;
@@ -14,6 +15,7 @@ use crate::data_storage::surrealdb_layer::{
 
 use self::{
     item::{Item, ItemVecExtensions},
+    mode::Mode,
     time_spent::TimeSpent,
 };
 
@@ -33,6 +35,10 @@ pub(crate) struct BaseData {
     #[borrows(surreal_tables)]
     #[covariant]
     time_spent_log: Vec<TimeSpent<'this>>,
+
+    #[borrows(surreal_tables)]
+    #[covariant]
+    modes: Vec<Mode<'this>>,
 }
 
 impl BaseData {
@@ -46,6 +52,7 @@ impl BaseData {
             active_items_builder: |items| items.filter_active_items(),
             now,
             time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log().collect(),
+            modes_builder: |surreal_tables| surreal_tables.make_modes().collect(),
         }
         .build()
     }
@@ -73,5 +80,9 @@ impl BaseData {
 
     pub(crate) fn get_surreal_current_modes(&self) -> &[SurrealCurrentMode] {
         self.borrow_surreal_tables().get_surreal_current_modes()
+    }
+
+    pub(crate) fn get_modes(&self) -> &[Mode] {
+        self.borrow_modes()
     }
 }

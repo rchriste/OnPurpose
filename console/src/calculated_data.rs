@@ -2,7 +2,7 @@ use crate::{
     base_data::{
         in_the_moment_priority::InTheMomentPriorityWithItemAction, time_spent::TimeSpent, BaseData,
     },
-    node::{item_node::ItemNode, item_status::ItemStatus},
+    node::{item_node::ItemNode, item_status::ItemStatus, mode_node::ModeNode},
     systems::do_now_list::current_mode::CurrentMode,
 };
 use ahash::HashMap;
@@ -28,6 +28,10 @@ pub(crate) struct CalculatedData {
 
     #[borrows(base_data)]
     current_mode: CurrentMode,
+
+    #[borrows(base_data)]
+    #[covariant]
+    mode_nodes: Vec<ModeNode<'this>>,
 }
 
 impl CalculatedData {
@@ -81,6 +85,10 @@ impl CalculatedData {
                         CurrentMode::new(surreal_current_mode)
                 }
             },
+            mode_nodes_builder: |base_data| {
+                let all_modes = base_data.get_modes();
+                all_modes.iter().map(|x| ModeNode::new(x, all_modes)).collect()
+            },
         }
         .build()
     }
@@ -103,5 +111,9 @@ impl CalculatedData {
 
     pub(crate) fn get_current_mode(&self) -> &CurrentMode {
         self.borrow_current_mode()
+    }
+
+    pub(crate) fn get_mode_nodes(&self) -> &[ModeNode] {
+        self.borrow_mode_nodes()
     }
 }

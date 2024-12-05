@@ -14,7 +14,7 @@ impl Display for ConfigureOptions {
     }
 }
 
-pub(crate) async fn configure() -> Result<(), ()> {
+pub(crate) async fn configure_settings() -> Result<(), ()> {
     let list = vec![ConfigureOptions::Help];
 
     let selection = Select::new("What to configure?", list).prompt();
