@@ -76,6 +76,7 @@ pub(crate) enum DataLayerCommands {
     AddItemDependency(RecordId, SurrealDependency),
     RemoveItemDependency(RecordId, SurrealDependency),
     UpdateSummary(RecordId, String),
+    UpdateModeName(RecordId, String),
     UpdateUrgencyPlan(RecordId, Option<SurrealUrgencyPlan>),
     UpdateItemReviewFrequency(RecordId, SurrealFrequency, SurrealReviewGuidance),
     UpdateItemLastReviewedDate(RecordId, Datetime),
@@ -255,6 +256,15 @@ pub(crate) async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::UpdateSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
+            }
+            Some(DataLayerCommands::UpdateModeName(thing, new_name)) => {
+                let updated: SurrealMode = db
+                    .update(thing)
+                    .patch(PatchOp::replace("/name", new_name.clone()))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(updated.name, new_name);
             }
             Some(DataLayerCommands::UpdateResponsibilityAndItemType(
                 item,

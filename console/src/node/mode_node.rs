@@ -35,4 +35,8 @@ impl<'s> ModeNode<'s> {
     pub(crate) fn get_surreal_id(&self) -> &Thing {
         self.mode.get_surreal_id()
     }
+
+    pub(crate) fn get_name(&self) -> &str {
+        self.mode.get_name()
+    }
 }

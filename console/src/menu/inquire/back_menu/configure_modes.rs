@@ -1,11 +1,14 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    cmp::Ordering,
+    fmt::{Display, Formatter},
+};
 
 use chrono::Utc;
 use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData,
+    base_data::{mode::Mode, BaseData},
     calculated_data::CalculatedData,
     display::display_mode_node::DisplayModeNode,
     menu::inquire::back_menu::{present_back_menu, SurrealTables},
@@ -37,6 +40,8 @@ impl Display for ConfigureModesOptions<'_> {
 
 enum ConfigureModesOptionsSelected<'e> {
     AddWithParent(&'e ModeNode<'e>),
+    EditName(&'e ModeNode<'e>),
+    Back,
     Done,
 }
 
@@ -48,6 +53,12 @@ impl Display for ConfigureModesOptionsSelected<'_> {
                 "Add New Mode Under {}",
                 DisplayModeNode::new(parent, DisplayFormat::SingleLine)
             ),
+            ConfigureModesOptionsSelected::EditName(mode) => write!(
+                f,
+                "Edit Name of {}",
+                DisplayModeNode::new(mode, DisplayFormat::SingleLine)
+            ),
+            ConfigureModesOptionsSelected::Back => write!(f, "Back"),
             ConfigureModesOptionsSelected::Done => write!(f, "Done (Return to \"Do Now\" List)"),
         }
     }
@@ -65,12 +76,44 @@ pub(crate) async fn configure_modes(
     let calculated_data = CalculatedData::new_from_base_data(base_data);
 
     let mut options = vec![ConfigureModesOptions::Add];
-    options.extend(
-        calculated_data
-            .get_mode_nodes()
-            .iter()
-            .map(ConfigureModesOptions::Mode),
-    );
+    let mut mode_nodes = calculated_data.get_mode_nodes().iter().collect::<Vec<_>>();
+    mode_nodes.sort_by(|a, b| {
+        fn compare_chains(
+            mut a_parent_chain: Vec<&Mode<'_>>,
+            mut b_parent_chain: Vec<&Mode<'_>>,
+        ) -> Ordering {
+            let a_parent_chain_last = a_parent_chain.last();
+            let b_parent_chain_last = b_parent_chain.last();
+            if a_parent_chain_last.is_none() && b_parent_chain_last.is_none() {
+                Ordering::Equal
+            } else if a_parent_chain_last.is_none() {
+                Ordering::Less
+            } else if b_parent_chain_last.is_none() {
+                Ordering::Greater
+            } else {
+                let a_parent_chain_last =
+                    a_parent_chain_last.expect("Earlier if statement guarantees this is_some()");
+                let b_parent_chain_last =
+                    b_parent_chain_last.expect("Earlier if statement guarantees this is_some()");
+                let ordering = a_parent_chain_last
+                    .get_name()
+                    .cmp(b_parent_chain_last.get_name());
+                if let Ordering::Equal = ordering {
+                    a_parent_chain.pop();
+                    b_parent_chain.pop();
+                    compare_chains(a_parent_chain, b_parent_chain)
+                } else {
+                    ordering
+                }
+            }
+        }
+
+        let a_parent_chain = a.create_parent_chain();
+        let b_parent_chain = b.create_parent_chain();
+        compare_chains(a_parent_chain, b_parent_chain)
+    });
+
+    options.extend(mode_nodes.into_iter().map(ConfigureModesOptions::Mode));
     options.push(ConfigureModesOptions::Done);
 
     let selection = Select::new("Select a mode", options).prompt();
@@ -99,6 +142,8 @@ pub(crate) async fn configure_modes(
         Ok(ConfigureModesOptions::Mode(mode)) => {
             let options = vec![
                 ConfigureModesOptionsSelected::AddWithParent(mode),
+                ConfigureModesOptionsSelected::EditName(mode),
+                ConfigureModesOptionsSelected::Back,
                 ConfigureModesOptionsSelected::Done,
             ];
 
@@ -129,8 +174,33 @@ pub(crate) async fn configure_modes(
                         }
                     }
                 }
+                Ok(ConfigureModesOptionsSelected::EditName(mode)) => {
+                    let name = inquire::Text::new("Enter the new name of the mode")
+                        .with_default(mode.get_name())
+                        .prompt();
+                    match name {
+                        Ok(name) => {
+                            send_to_data_storage_layer
+                                .send(DataLayerCommands::UpdateModeName(
+                                    mode.get_surreal_id().clone(),
+                                    name,
+                                ))
+                                .await
+                                .unwrap();
+
+                            Box::pin(configure_modes(send_to_data_storage_layer)).await
+                        }
+                        Err(InquireError::OperationCanceled) => {
+                            Box::pin(configure_modes(send_to_data_storage_layer)).await
+                        }
+                        Err(InquireError::OperationInterrupted) => Err(()),
+                        Err(_) => {
+                            todo!()
+                        }
+                    }
+                }
                 Ok(ConfigureModesOptionsSelected::Done) => Ok(()),
-                Err(InquireError::OperationCanceled) => {
+                Ok(ConfigureModesOptionsSelected::Back) | Err(InquireError::OperationCanceled) => {
                     Box::pin(configure_modes(send_to_data_storage_layer)).await
                 }
                 Err(InquireError::OperationInterrupted) => Err(()),
