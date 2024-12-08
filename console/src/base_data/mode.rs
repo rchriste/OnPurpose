@@ -11,7 +11,7 @@ impl<'s> Mode<'s> {
         Self { surreal_mode }
     }
 
-    pub(crate) fn get_summary(&self) -> &'s str {
+    pub(crate) fn get_name(&self) -> &'s str {
         &self.surreal_mode.name
     }
 

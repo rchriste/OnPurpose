@@ -8,7 +8,7 @@ pub(crate) struct DisplayMode<'s> {
 
 impl Display for DisplayMode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.mode.get_summary())
+        write!(f, "{}", self.mode.get_name())
     }
 }
 

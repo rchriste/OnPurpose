@@ -1,5 +1,5 @@
-pub(crate) mod configure_settings;
 pub(crate) mod configure_modes;
+pub(crate) mod configure_settings;
 
 use std::{cmp::Ordering, fmt::Display, vec};
 
