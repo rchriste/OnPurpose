@@ -2249,7 +2249,7 @@ dependencies = [
 
 [[package]]
 name = "on_purpose"
-version = "0.1.109"
+version = "0.1.110"
 dependencies = [
  "ahash 0.8.11",
  "better_term",
@@ -2797,9 +2797,9 @@ checksum = "ffead9d0a0b45f3e0bc063a244b1779fd53a09d2c2f7282c186a016b1f10a778"
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b6dfecf2c74bce2466cabf93f6664d6998a69eb21e39f4207930065b27b771f"
+checksum = "03a862b389f93e68874fbf580b9de08dd02facb9a788ebadaf4a3fd33cf58834"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -3140,9 +3140,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.19"
+version = "0.23.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "934b404430bb06b3fae2cba809eb45a1ab1aecd64491213d7c3301b88393f8d1"
+checksum = "5065c3f250cbd332cd894be57c40fa52387247659b14a2d6041d121547903b1b"
 dependencies = [
  "log",
  "once_cell",
