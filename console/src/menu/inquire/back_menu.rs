@@ -577,6 +577,10 @@ async fn present_reflection(
                 menu_selection_time.num_seconds() * 100 / total_time.num_seconds()
             );
         }
+        println!(
+            "Total time spent: {}",
+            DisplayDuration::new(&total_time.to_std().expect("valid"))
+        );
     }
 
     println!();
