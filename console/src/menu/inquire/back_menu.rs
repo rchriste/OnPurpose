@@ -505,15 +505,21 @@ async fn present_reflection(
             },
         );
 
-    let total = core_work.0 + non_core_work.0; //neither is NOT part of the total
+    let total_time = logs_in_range
+        .iter()
+        .map(|x| x.get_time_delta())
+        .sum::<chrono::Duration>();
 
-    if total.num_seconds() != 0 {
+    let total_time_num_seconds = total_time.num_seconds();
+    let neither_work_num_seconds = neither_work.0.num_seconds();
+    let core_and_non_core_num_seconds = total_time_num_seconds - neither_work_num_seconds;
+    if core_and_non_core_num_seconds != 0 {
         println!("Core Work");
         println!(
             "\t{} times for {} ({}%)",
             core_work.1,
             DisplayDuration::new(&core_work.0.to_std().expect("valid")),
-            core_work.0.num_seconds() * 100 / total.num_seconds()
+            core_work.0.num_seconds() * 100 / core_and_non_core_num_seconds
         );
 
         println!("Non-Core Work");
@@ -521,7 +527,7 @@ async fn present_reflection(
             "\t{} times for {} ({}%)",
             non_core_work.1,
             DisplayDuration::new(&non_core_work.0.to_std().expect("valid")),
-            non_core_work.0.num_seconds() * 100 / total.num_seconds()
+            non_core_work.0.num_seconds() * 100 / core_and_non_core_num_seconds
         );
     }
 
@@ -534,10 +540,6 @@ async fn present_reflection(
         );
     }
 
-    let total_time = logs_in_range
-        .iter()
-        .map(|x| x.get_time_delta())
-        .sum::<chrono::Duration>();
     let urgent_time = logs_in_range
         .iter()
         .filter(|x| x.is_urgent())
@@ -554,27 +556,27 @@ async fn present_reflection(
         .map(|x| x.get_time_delta())
         .sum::<chrono::Duration>();
 
-    if !total_time.is_zero() {
+    if total_time_num_seconds != 0 {
         println!();
         if !urgent_time.is_zero() {
             println!(
                 "Urgent time spent: {} ({}%)",
                 DisplayDuration::new(&urgent_time.to_std().expect("valid")),
-                urgent_time.num_seconds() * 100 / total_time.num_seconds()
+                urgent_time.num_seconds() * 100 / total_time_num_seconds
             );
         }
         if !most_important_time.is_zero() {
             println!(
                 "Most important time spent: {} ({}%)",
                 DisplayDuration::new(&most_important_time.to_std().expect("valid")),
-                most_important_time.num_seconds() * 100 / total_time.num_seconds()
+                most_important_time.num_seconds() * 100 / total_time_num_seconds
             );
         }
         if !menu_selection_time.is_zero() {
             println!(
                 "Menu selection time spent: {} ({}%)",
                 DisplayDuration::new(&menu_selection_time.to_std().expect("valid")),
-                menu_selection_time.num_seconds() * 100 / total_time.num_seconds()
+                menu_selection_time.num_seconds() * 100 / total_time_num_seconds
             );
         }
         println!(
