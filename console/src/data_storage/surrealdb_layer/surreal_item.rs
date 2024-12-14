@@ -535,6 +535,7 @@ pub(crate) enum SurrealUrgencyPlan {
     StaysTheSame(SurrealUrgency),
 }
 
+//TODO: Mode needs to be adjusted so the concept of more urgent than mode can state what mode but that probably needs to happen in a different type or way
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, PartialOrd, Ord)]
 pub(crate) enum SurrealUrgency {
     MoreUrgentThanAnythingIncludingScheduled,
