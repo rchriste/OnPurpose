@@ -116,12 +116,23 @@ impl DataLayerCommands {
 }
 
 pub(crate) async fn data_storage_start_and_run(
-    mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
+    data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
     endpoint: impl IntoEndpoint,
 ) {
+    let db = data_storage_connect_to_db(endpoint).await;
+    data_storage_endless_loop(db, data_storage_layer_receive_rx).await
+}
+
+pub(crate) async fn data_storage_connect_to_db(endpoint: impl IntoEndpoint) -> Surreal<Any> {
     let db = connect(endpoint).await.unwrap();
     db.use_ns("OnPurpose").use_db("Russ").await.unwrap(); //TODO: "Russ" should be a parameter, maybe the username or something
+    db
+}
 
+pub(crate) async fn data_storage_endless_loop(
+    db: Surreal<Any>,
+    mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
+) {
     // let updated: Option<SurrealItem> = db.update((SurrealItem::TABLE_NAME, "5i5mkemqn0f1716v3ycw"))
     //     .patch(PatchOp::replace("/urgency_plan", None::<Option<SurrealUrgencyPlan>>)).await.unwrap();
     // assert!(updated.is_some());
@@ -418,7 +429,16 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     let surreal_in_the_moment_priorities = surreal_in_the_moment_priorities.await.unwrap();
 
-    let surreal_modes = surreal_modes.await.unwrap();
+    let surreal_modes = match surreal_modes.await {
+        Ok(surreal_modes) => surreal_modes,
+        Err(err) => {
+            println!("Surreal Modes is missing because of issue: {}", err);
+            upgrade_modes_table(db).await;
+            db.select(surreal_mode::SurrealMode::TABLE_NAME)
+                .await
+                .unwrap()
+        }
+    };
 
     SurrealTables {
         surreal_items: all_items,
@@ -477,6 +497,23 @@ async fn upgrade_time_spent_log(db: &Surreal<Any>) {
             .unwrap()
             .unwrap();
         assert_eq!(time_spent, updated);
+    }
+}
+
+async fn upgrade_modes_table(db: &Surreal<Any>) {
+    let a: Vec<surreal_mode::SurrealModeVersion0> = db
+        .select(surreal_mode::SurrealMode::TABLE_NAME)
+        .await
+        .unwrap();
+    for mode_old_version in a.into_iter() {
+        let mode: SurrealMode = mode_old_version.into();
+        let updated: SurrealMode = db
+            .update(mode.id.clone().expect("In DB"))
+            .content(mode.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(mode, updated);
     }
 }
 

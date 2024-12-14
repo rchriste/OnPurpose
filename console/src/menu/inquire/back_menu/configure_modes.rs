@@ -13,7 +13,7 @@ use crate::{
     display::display_mode_node::DisplayModeNode,
     menu::inquire::back_menu::{present_back_menu, SurrealTables},
     new_mode::NewModeBuilder,
-    node::mode_node::ModeNode,
+    node::{mode_node::ModeNode, Filter},
 };
 
 use super::{DataLayerCommands, DisplayFormat};
@@ -41,6 +41,8 @@ impl Display for ConfigureModesOptions<'_> {
 enum ConfigureModesOptionsSelected<'e> {
     AddWithParent(&'e ModeNode<'e>),
     EditName(&'e ModeNode<'e>),
+    AutoConfiguration(&'e ModeNode<'e>),
+    ManualConfiguration(&'e ModeNode<'e>),
     Back,
     Done,
 }
@@ -56,6 +58,16 @@ impl Display for ConfigureModesOptionsSelected<'_> {
             ConfigureModesOptionsSelected::EditName(mode) => write!(
                 f,
                 "Edit Name of {}",
+                DisplayModeNode::new(mode, DisplayFormat::SingleLine)
+            ),
+            ConfigureModesOptionsSelected::AutoConfiguration(mode) => write!(
+                f,
+                "Auto-Configure {}",
+                DisplayModeNode::new(mode, DisplayFormat::SingleLine)
+            ),
+            ConfigureModesOptionsSelected::ManualConfiguration(mode) => write!(
+                f,
+                "Configure {}",
                 DisplayModeNode::new(mode, DisplayFormat::SingleLine)
             ),
             ConfigureModesOptionsSelected::Back => write!(f, "Back"),
@@ -145,6 +157,8 @@ pub(crate) async fn configure_modes(
             let options = vec![
                 ConfigureModesOptionsSelected::AddWithParent(mode),
                 ConfigureModesOptionsSelected::EditName(mode),
+                ConfigureModesOptionsSelected::AutoConfiguration(mode),
+                ConfigureModesOptionsSelected::ManualConfiguration(mode),
                 ConfigureModesOptionsSelected::Back,
                 ConfigureModesOptionsSelected::Done,
             ];
@@ -201,6 +215,22 @@ pub(crate) async fn configure_modes(
                             todo!()
                         }
                     }
+                }
+                Ok(ConfigureModesOptionsSelected::AutoConfiguration(mode)) => {
+                    //Get all top level items that are motivations
+                    let motivations_with_no_parent = calculated_data
+                    .get_items_status()
+                    .iter()
+                    .map(|(_, v)| v)
+                    .filter(|x| x.is_active() && x.is_type_motivation() && !x.has_parents(Filter::Active))
+                    .collect::<Vec<_>>();
+
+                    let urgency_no_scope = motivations_with_no_parent.iter().filter(|x|)
+                    
+                    todo!()
+                }
+                Ok(ConfigureModesOptionsSelected::ManualConfiguration(mode)) => {
+                    todo!()
                 }
                 Ok(ConfigureModesOptionsSelected::Done) => Ok(()),
                 Ok(ConfigureModesOptionsSelected::Back) | Err(InquireError::OperationCanceled) => {
