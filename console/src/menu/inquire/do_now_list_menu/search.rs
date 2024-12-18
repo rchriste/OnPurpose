@@ -622,6 +622,7 @@ pub(crate) async fn present_search_menu(
         list.push(SearchMenuUrgencyItem::Item { item });
     }
 
+    println!();
     let selection = Select::new("Select an item to view", list).prompt();
 
     match selection {

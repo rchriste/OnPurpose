@@ -1,5 +1,5 @@
 use ahash::HashSet;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use duration_str::parse;
 use tokio::sync::mpsc::Sender;
 
@@ -17,8 +17,11 @@ use crate::{
         display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
         display_item_node::DisplayFormat,
     },
-    menu::inquire::do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
-        select_an_item, SelectAnItemSortingOrder,
+    menu::inquire::{
+        do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
+            select_an_item, SelectAnItemSortingOrder,
+        },
+        parse_exact_or_relative_datetime,
     },
     new_time_spent::NewTimeSpent,
     node::{
@@ -56,13 +59,13 @@ enum ReadySelection {
 impl Display for ReadySelection {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReadySelection::Now => write!(f, "Ready, now"),
+            ReadySelection::Now => write!(f, "🗸 Ready, now"),
             ReadySelection::NothingElse => write!(f, "Nothing else"),
             ReadySelection::AfterDateTime => {
-                write!(f, "Cannot do, yet, wait an amount of wall clock time")
+                write!(f, "✗ Wait until...an exact date/time")
             }
             ReadySelection::AfterItem => {
-                write!(f, "Cannot do, yet, wait until another item finishes")
+                write!(f, "✗ Wait until...another item finishes")
             }
         }
     }
@@ -154,34 +157,39 @@ pub(crate) async fn prompt_for_dependencies(
     list.push(ReadySelection::AfterItem);
 
     println!();
-    let ready = Select::new("When will this item be ready to work on?", list)
-        .prompt()
-        .unwrap();
+    let ready = Select::new("When will this item be ready to work on?", list).prompt();
     match ready {
-        ReadySelection::Now | ReadySelection::NothingElse => {
+        Ok(ReadySelection::Now | ReadySelection::NothingElse) => {
             //do nothing
         }
-        ReadySelection::AfterDateTime => {
-            println!();
-            let exact_start = Text::new("Enter a date or an amount of time to wait, for example \"1/4/2025 3:00pm\", \"30m\", \"1h\", or \"1d\"\n|").prompt().unwrap();
-            let exact_start = match parse(&exact_start) {
-                Ok(exact_start) => {
-                    let now = Utc::now();
-                    now + exact_start
-                }
-                Err(_) => match dateparser::parse(&exact_start) {
+        Ok(ReadySelection::AfterDateTime) => {
+            let exact_start: DateTime<Utc> = loop {
+                println!();
+                let exact_start = match Text::new("Enter a date or an amount of time to wait\nFor example: \"1/4/2025 3:00pm\", \"30m\", \"1h\", or \"1d\"\n|").prompt() {
                     Ok(exact_start) => exact_start,
-                    Err(e) => {
-                        todo!("Error: {:?}", e)
+                    Err(InquireError::OperationCanceled) => {
+                        todo!("Go back to the previous menu");
                     }
-                },
+                    Err(InquireError::OperationInterrupted) => {
+                        return Err(());
+                    }
+                    Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+                };
+                let exact_start = parse_exact_or_relative_datetime(&exact_start, Local::now());
+                match exact_start {
+                    Some(exact_start) => break exact_start.into(),
+                    None => {
+                        println!("Invalid date or duration, please try again");
+                        continue;
+                    }
+                }
             };
             result.push((
                 AddOrRemove::Add,
                 SurrealDependency::AfterDateTime(exact_start.into()),
             ));
         }
-        ReadySelection::AfterItem => {
+        Ok(ReadySelection::AfterItem) => {
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
                 .await
                 .unwrap();
@@ -213,6 +221,9 @@ pub(crate) async fn prompt_for_dependencies(
                 }
             }
         }
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
     Ok(result)
 }

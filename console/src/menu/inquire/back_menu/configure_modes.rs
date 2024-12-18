@@ -116,6 +116,8 @@ pub(crate) async fn configure_modes(
     options.extend(mode_nodes.into_iter().map(ConfigureModesOptions::Mode));
     options.push(ConfigureModesOptions::Done);
 
+    println!();
+
     let selection = Select::new("Select a mode", options).prompt();
     match selection {
         Ok(ConfigureModesOptions::Add) => {
@@ -147,6 +149,7 @@ pub(crate) async fn configure_modes(
                 ConfigureModesOptionsSelected::Done,
             ];
 
+            println!();
             let selection = Select::new("Select an option", options).prompt();
             match selection {
                 Ok(ConfigureModesOptionsSelected::AddWithParent(parent)) => {

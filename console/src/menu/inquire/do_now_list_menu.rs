@@ -212,6 +212,7 @@ pub(crate) async fn present_do_now_list_menu(
         do_now_list.get_current_mode(),
     );
 
+    println!();
     let starting_cursor = if ordered_do_now_list.is_empty() { 5 } else { 4 };
     let selected = Select::new(
         "Select from this \"Do Now\" list (default choice is recommended)|",

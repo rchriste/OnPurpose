@@ -26,8 +26,6 @@ impl Display for DisplayItemNode<'_> {
 
         if self.item_node.is_person_or_group() {
             write!(f, "Is {} around?", display_item)?;
-        } else if self.item_node.is_goal() && !self.item_node.has_children(self.filter) {
-            write!(f, "[NEEDS NEXT STEP] ⬅ {}", display_item)?;
         } else {
             write!(f, "{} ", display_item)?;
         }

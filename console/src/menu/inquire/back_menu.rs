@@ -80,6 +80,7 @@ pub(crate) async fn present_back_menu(
 ) -> Result<(), ()> {
     let back_menu = TopMenuSelection::make_list();
 
+    println!();
     let selection = Select::new("Select from the below list|", back_menu).prompt();
     match selection {
         Ok(TopMenuSelection::Reflection) => present_reflection(send_to_data_storage_layer).await,
@@ -162,6 +163,7 @@ async fn view_priorities(send_to_data_storage_layer: &Sender<DataLayerCommands>)
         .map(|x| DisplayItemStatus::new(x, Filter::Active, DisplayFormat::SingleLine))
         .collect::<Vec<_>>();
 
+    println!();
     let selection = Select::new("Select a priority to view...", list).prompt();
     match selection {
         Ok(display_item_status) => {
