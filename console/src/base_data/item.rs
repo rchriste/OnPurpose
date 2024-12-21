@@ -181,10 +181,6 @@ impl<'b> Item<'b> {
         )
     }
 
-    pub(crate) fn is_goal(&self) -> bool {
-        matches!(self.get_item_type(), &SurrealItemType::Goal(..))
-    }
-
     pub(crate) fn is_responsibility_reactive(&self) -> bool {
         self.get_surreal_responsibility() == &Responsibility::ReactiveBeAvailableToAct
     }

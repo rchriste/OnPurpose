@@ -1,5 +1,5 @@
 use ahash::HashSet;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use duration_str::parse;
 use tokio::sync::mpsc::Sender;
 
@@ -175,7 +175,7 @@ pub(crate) async fn prompt_for_dependencies(
                     }
                     Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 };
-                let exact_start = parse_exact_or_relative_datetime(&exact_start, Local::now());
+                let exact_start = parse_exact_or_relative_datetime(&exact_start);
                 match exact_start {
                     Some(exact_start) => break exact_start.into(),
                     None => {

@@ -325,10 +325,6 @@ impl<'s> ItemNode<'s> {
         self.item.is_person_or_group()
     }
 
-    pub(crate) fn is_goal(&self) -> bool {
-        self.item.is_goal()
-    }
-
     pub(crate) fn has_parents(&self, filter: Filter) -> bool {
         has_parents(&self.parents, filter)
     }

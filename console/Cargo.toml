@@ -1,6 +1,6 @@
 [package]
 name = "on_purpose"
-version = "0.1.111"
+version = "0.1.112"
 edition = "2021"
 
 [dependencies]
@@ -12,8 +12,11 @@ surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }
 serde = "1.0.208" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
 duration-str = "0.11.2" #So I can parse the amount of time to wait
-parse_datetime = "0.6.0" #So I can parse when to expect something to be available
-dateparser = "0.2.1"
+parse_datetime = "0.6.0" #So I can parse when to expect something to be available, fundu should replace this
+fundu = { version = "2.0.1", features = ["standard", "custom"] } #So I can parse when to expect something to be available
+dateparser = { git = "https://github.com/rchriste/dateparser", branch = "main" }
+lazy_static = "1.4.0" #So I can efficiently parse regular expressions
+regex = "1.10.2" #So I can parse more date formats
 itertools = "0.13.0"
 #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 # ouroboros = "0.18.0"
