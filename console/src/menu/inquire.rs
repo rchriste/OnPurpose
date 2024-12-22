@@ -9,6 +9,20 @@ pub(crate) mod do_now_list_menu;
 pub(crate) mod select_higher_importance_than_this;
 pub(crate) mod update_item_summary;
 
+#[must_use]
+fn parse_exact_or_relative_datetime_help_string() -> &'static str {
+    concat!(
+        "Enter an exact time or a time relative to now. Examples:\n",
+        "\"3:00pm\" or \"3pm\", for today at 3:00pm or type \"Tomorrow 3pm\" for tomorrow at 3:00pm\n",
+        "\"Mon 3:15pm\" for Monday of this week at 3pm. Or you can say \"next Mon 5pm\" for next week's Monday\n",
+        "You can also say \"last Mon 5pm\" for last week's Monday\n",
+        "Full dates also work like \"1/15/2025 4:15pm\" or \"2/13/2025 4pm\"\n",
+        "Relative times also work like \"30m\" or \"30min\" for in thirty minutes from now, or\n",
+        "  \"1h\", \"1hour\", for in an hour, or \"1d\", \"1day\", for in a day, or\n",
+        "  \"1w\", \"1week\" for in a week; you can also say \"30m ago\" or \"-30m\" to give a time in the past\n"
+    )
+}
+
 fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
     lazy_static! {
         static ref relative_parser: CustomDurationParser<'static> = CustomDurationParser::builder()
@@ -33,7 +47,14 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
             .build();
     }
     match relative_parser.parse(input) {
-        Ok(exact_start) => Some(Local::now() + exact_start.saturating_into()), //I call Local::now rather than take it as an input to keep things the same as how dateparse::parse works as it uses local time for some of the parsing and does not accept now as an input
+        Ok(exact_start) => {
+            if exact_start.is_positive() {
+                Some(Local::now() + exact_start.saturating_into()) //I call Local::now rather than take it as an input to keep things the same as how dateparse::parse works as it uses local time for some of the parsing and does not accept now as an input
+            } else {
+                //std::time::Duration does not support negative durations so we need to handle this ourselves
+                Some(Local::now() - exact_start.abs().saturating_into())
+            }
+        }
         Err(_) => match dateparser::parse_with(
             input,
             &Local,
@@ -42,7 +63,7 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
             Ok(exact_start) => Some(exact_start.into()),
             Err(_e) => {
                 lazy_static! {
-                    static ref RE: Regex = RegexBuilder::new(r"^\s*(next\s+)?(Monday|Mon|Tuesday|Tue|Wed|Wednesday|Thu|Thursday|Fri|Friday|Sat|Saturday|Sun|Sunday|Tomorrow)\s*(([0-9]{1,2})(:[0-9]{2}(:[0-9]{2})?)?\s*(am|pm)?)?\s*$").case_insensitive(true).build().expect("Regex is valid");
+                    static ref RE: Regex = RegexBuilder::new(r"^\s*(last\s+|next\s+)?(Monday|Mon|Tuesday|Tue|Wed|Wednesday|Thu|Thursday|Fri|Friday|Sat|Saturday|Sun|Sunday|Tomorrow)\s*(([0-9]{1,2})(:[0-9]{2}(:[0-9]{2})?)?\s*(am|pm)?)?\s*$").case_insensitive(true).build().expect("Regex is valid");
                 }
                 if RE.is_match(input) {
                     let captures = RE.captures(input).unwrap();
@@ -107,8 +128,26 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
                         panic!("This should not be possible as the regex should only match if it is one of the days of the week")
                     };
                     let date = if captures.get(1).is_some() {
-                        //If they type in next then add a week to the date
-                        date + Duration::days(7)
+                        lazy_static! {
+                            static ref LastRE: Regex = RegexBuilder::new(r"^\s*(last)")
+                                .case_insensitive(true)
+                                .build()
+                                .expect("Regex is valid");
+                            static ref NextRE: Regex = RegexBuilder::new(r"^\s*(next)")
+                                .case_insensitive(true)
+                                .build()
+                                .expect("Regex is valid");
+                        }
+                        let last_or_next = captures.get(1).unwrap().as_str();
+                        if NextRE.is_match(last_or_next) {
+                            //If they type in next then add a week to the date
+                            date + Duration::days(7)
+                        } else if LastRE.is_match(last_or_next) {
+                            //If they type in last then subtract a week from the date
+                            date - Duration::days(7)
+                        } else {
+                            panic!("This should not be possible as the regex should not match")
+                        }
                     } else {
                         date
                     };
@@ -537,13 +576,23 @@ mod tests {
         let now = Local::now();
         let days_since_sunday_plus_one: i64 = now.weekday().number_from_sunday().into();
         let days_since_sunday = days_since_sunday_plus_one - 1;
-        let next_sunday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(0);
-        let next_monday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(1);
-        let next_tuesday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(2);
-        let next_wednesday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(3);
-        let next_thursday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(4);
-        let next_friday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(5);
-        let next_saturday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday) + Duration::days(6);
+        let next_sunday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(0);
+        let next_monday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(1);
+        let next_tuesday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(2);
+        let next_wednesday = now.date_naive() + Duration::days(7)
+            - Duration::days(days_since_sunday)
+            + Duration::days(3);
+        let next_thursday = now.date_naive() + Duration::days(7)
+            - Duration::days(days_since_sunday)
+            + Duration::days(4);
+        let next_friday = now.date_naive() + Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(5);
+        let next_saturday = now.date_naive() + Duration::days(7)
+            - Duration::days(days_since_sunday)
+            + Duration::days(6);
 
         assert_eq!(
             parse_exact_or_relative_datetime("next Mon"),
@@ -899,6 +948,382 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_exact_or_relative_datetime_each_last_weekday_can_be_typed_in() {
+        let now = Local::now();
+        let days_since_sunday_plus_one: i64 = now.weekday().number_from_sunday().into();
+        let days_since_sunday = days_since_sunday_plus_one - 1;
+        let last_sunday = now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(0);
+        let last_monday = now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(1);
+        let last_tuesday = now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(2);
+        let last_wednesday =
+            now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+                + Duration::days(3);
+        let last_thursday =
+            now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+                + Duration::days(4);
+        let last_friday = now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+            + Duration::days(5);
+        let last_saturday =
+            now.date_naive() - Duration::days(7) - Duration::days(days_since_sunday)
+                + Duration::days(6);
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Mon"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Monday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last MON"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last MONDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Mon 5pm"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(17, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Mon 5:17pm"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(17, 17, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Mon 17:17"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(17, 17, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Mon 17:17:30"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_monday.and_time(NaiveTime::from_hms_opt(17, 17, 30).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Tue"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_tuesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Tuesday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_tuesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last TUE"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_tuesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last TUESDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_tuesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Wed"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_wednesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Wednesday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_wednesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last WED"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_wednesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last WEDNESDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_wednesday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Thu"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_thursday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Thursday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_thursday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last THU"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_thursday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last THURSDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_thursday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Fri"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_friday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Friday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_friday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last FRI"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_friday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last FRIDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_friday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Sat"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_saturday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Saturday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_saturday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last SAT"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_saturday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last SATURDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_saturday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Sun"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_sunday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last Sunday"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_sunday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last SUN"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_sunday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+
+        assert_eq!(
+            parse_exact_or_relative_datetime("last SUNDAY"),
+            Some(
+                Local
+                    .from_local_datetime(
+                        &last_sunday.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                    )
+                    .unwrap()
+            )
+        );
+    }
+
+    #[test]
     fn test_parse_exact_or_relative_datetime_time_only_is_today_at_that_time() {
         //Just giving the time will default to today at that time
         //Saying number and am/pm will default to the start of the hour
@@ -1058,18 +1483,22 @@ mod tests {
             ("30 sec", Duration::seconds(30)),
             ("30seconds", Duration::seconds(30)),
             ("30 seconds", Duration::seconds(30)),
+            ("-30s", Duration::seconds(-30)),
+            ("30s ago", Duration::seconds(-30)),
             ("30m", Duration::minutes(30)),
             ("30 m", Duration::minutes(30)),
             ("30min", Duration::minutes(30)),
             ("30 min", Duration::minutes(30)),
             ("30minutes", Duration::minutes(30)),
             ("30 minutes", Duration::minutes(30)),
+            ("30m ago", Duration::minutes(-30)),
             ("1h", Duration::hours(1)),
             ("1 h", Duration::hours(1)),
             ("1hour", Duration::hours(1)),
             ("1 hour", Duration::hours(1)),
             ("2hours", Duration::hours(2)),
             ("2 hours", Duration::hours(2)),
+            ("2h ago", Duration::hours(-2)),
             ("1d", Duration::days(1)),
             ("1 d", Duration::days(1)),
             ("1day", Duration::days(1)),
@@ -1082,15 +1511,16 @@ mod tests {
             ("1 week", Duration::weeks(1)),
             ("2weeks", Duration::weeks(2)),
             ("2 weeks", Duration::weeks(2)),
+            ("1w ago", Duration::weeks(-1)),
         ];
 
         for (input, expected) in input_and_expected {
             println!("input={:?}", input);
-            assert!(
-                parse_exact_or_relative_datetime(input).expect("Should parse, Test failure")
-                    - (Local::now() + expected)
-                    < Duration::seconds(1)
-            );
+            let dut = parse_exact_or_relative_datetime(input);
+            let expected = Local::now() + expected;
+            println!("dut={:?}", dut);
+            println!("expected={:?}", expected);
+            assert!(dut.expect("Should parse, Test failure") - expected < Duration::seconds(1));
         }
     }
 

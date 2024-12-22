@@ -333,7 +333,6 @@ pub(crate) async fn present_do_now_list_item_selected(
                 menu_for,
                 why_in_scope,
                 &when_selected,
-                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await
@@ -351,7 +350,6 @@ pub(crate) async fn present_do_now_list_item_selected(
                 menu_for,
                 why_in_scope,
                 &when_selected,
-                Utc::now(),
                 send_to_data_storage_layer,
             )
             .await

@@ -6,7 +6,6 @@ use std::{cmp::Ordering, fmt::Display, vec};
 use ahash::HashMap;
 use chrono::{DateTime, Local, Utc};
 use configure_settings::configure_settings;
-use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
@@ -23,7 +22,10 @@ use crate::{
         display_item_node::{DisplayFormat, DisplayItemNode},
         display_item_status::DisplayItemStatus,
     },
-    menu::inquire::back_menu::configure_modes::configure_modes,
+    menu::inquire::{
+        back_menu::configure_modes::configure_modes, parse_exact_or_relative_datetime,
+        parse_exact_or_relative_datetime_help_string,
+    },
     new_item::NewItem,
     node::{
         item_node::{ItemNode, ShrinkingItemNode},
@@ -318,39 +320,40 @@ async fn view_priorities_single_item_no_children(
 async fn present_reflection(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let now = Local::now();
-    let start = match Text::new("Enter Staring Time").prompt() {
-        Ok(when_started) => match parse(&when_started) {
-            Ok(duration) => now - duration,
-            Err(_) => match dateparser::parse(&when_started) {
-                Ok(when_started) => when_started.into(),
-                Err(_) => {
+    let start = loop {
+        match Text::new("Enter Staring Time (\"?\" for help)").prompt() {
+            Ok(when_started) => match parse_exact_or_relative_datetime(&when_started) {
+                Some(start) => break start,
+                None => {
                     println!("Invalid input. Please try again.");
-                    return Box::pin(present_reflection(send_to_data_storage_layer)).await;
+                    println!();
+                    println!("{}", parse_exact_or_relative_datetime_help_string());
+                    continue;
                 }
             },
-        },
-        Err(InquireError::OperationCanceled) => return Ok(()),
-        Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+            Err(InquireError::OperationCanceled) => return Ok(()),
+            Err(InquireError::OperationInterrupted) => return Err(()),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+        };
     };
 
-    let end = match Text::new("Enter Ending Time").prompt() {
-        Ok(when_finished) => match parse(&when_finished) {
-            Ok(duration) => now - duration,
-            Err(_) => match dateparser::parse(&when_finished) {
-                Ok(when_finished) => when_finished.into(),
-                Err(_) => {
+    let end = loop {
+        match Text::new("Enter Ending Time (\"?\" for help \"0m\" for now)").prompt() {
+            Ok(when_finished) => match parse_exact_or_relative_datetime(&when_finished) {
+                Some(end) => break end,
+                None => {
                     println!("Invalid input. Please try again.");
-                    return Box::pin(present_reflection(send_to_data_storage_layer)).await;
+                    println!();
+                    println!("{}", parse_exact_or_relative_datetime_help_string());
+                    continue;
                 }
             },
-        },
-        Err(InquireError::OperationCanceled) => {
-            return Box::pin(present_reflection(send_to_data_storage_layer)).await
-        }
-        Err(InquireError::OperationInterrupted) => return Err(()),
-        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+            Err(InquireError::OperationCanceled) => {
+                return Box::pin(present_reflection(send_to_data_storage_layer)).await
+            }
+            Err(InquireError::OperationInterrupted) => return Err(()),
+            Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+        };
     };
 
     println!("Time spent between {} and {}", start, end);

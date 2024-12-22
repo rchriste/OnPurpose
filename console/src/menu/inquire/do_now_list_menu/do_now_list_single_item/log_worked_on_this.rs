@@ -2,7 +2,6 @@ use std::{fmt::Display, time::Duration};
 
 use ahash::HashSet;
 use chrono::{DateTime, Local, Utc};
-use duration_str::parse;
 use inquire::{InquireError, Select, Text};
 use surrealdb::sql::Datetime;
 use tokio::sync::{mpsc::Sender, oneshot};
@@ -13,6 +12,9 @@ use crate::{
         surreal_time_spent::SurrealDedication,
     },
     display::display_duration::DisplayDuration,
+    menu::inquire::{
+        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
+    },
     new_time_spent::NewTimeSpent,
     node::{item_status::ItemStatus, why_in_scope_and_action_with_item_status::ToSurreal, Filter},
 };
@@ -23,7 +25,6 @@ pub(crate) async fn log_worked_on_this(
     selected: &ItemStatus<'_>,
     why_in_scope: &HashSet<WhyInScope>,
     when_selected: &DateTime<Utc>,
-    now: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     //TODO: Change Error return type to a custom struct ExitProgram or something
@@ -40,7 +41,6 @@ pub(crate) async fn log_worked_on_this(
             send_to_data_storage_layer,
             when_selected,
             selected.get_now(),
-            now,
         )
         .await?;
         // -When marked "I worked on this"
@@ -143,7 +143,6 @@ async fn ask_when_started_and_stopped(
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
     when_selected: &DateTime<Utc>,
     bullet_list_created: &DateTime<Utc>,
-    now: DateTime<Utc>,
 ) -> Result<(DateTime<Utc>, DateTime<Utc>), ()> {
     let when_last_time_finished = get_when_the_last_item_finished(send_to_data_storage_layer).await;
 
@@ -163,7 +162,7 @@ async fn ask_when_started_and_stopped(
     ));
     started_when.push(StartedWhen::CustomTime);
 
-    loop {
+    'outer: loop {
         let started_when = Select::new(
             "When did you start working on this item?",
             started_when.clone(),
@@ -177,28 +176,24 @@ async fn ask_when_started_and_stopped(
             Ok(StartedWhen::WhenBulletListWasFirstShown(when_bullet_list_was_first_shown)) => {
                 when_bullet_list_was_first_shown
             }
-            Ok(StartedWhen::CustomTime) => {
-                match Text::new("Enter how long ago or the exact time when this item was started.")
+            Ok(StartedWhen::CustomTime) => loop {
+                match Text::new("Enter relative or the exact time when this item was started. Use the word \"ago\" like \"30m ago\" (\"?\" for help).\n|")
                     .prompt()
                 {
-                    Ok(when_started) => match parse(&when_started) {
-                        Ok(duration) => {
-                            let when_started = now - duration;
-                            when_started.into()
+                    Ok(when_started) => match parse_exact_or_relative_datetime(&when_started) {
+                        Some(when_started) => break when_started,
+                        None => {
+                            println!("Invalid input. Please try again.");
+                            println!();
+                            println!("{}", parse_exact_or_relative_datetime_help_string());
+                            continue;
                         }
-                        Err(_) => match dateparser::parse(&when_started) {
-                            Ok(when_started) => when_started.into(),
-                            Err(_) => {
-                                println!("Invalid input. Please try again.");
-                                continue;
-                            }
-                        },
                     },
-                    Err(InquireError::OperationCanceled) => continue,
+                    Err(InquireError::OperationCanceled) => continue 'outer,
                     Err(InquireError::OperationInterrupted) => return Err(()),
                     Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 }
-            }
+            },
             Err(InquireError::OperationCanceled) => {
                 todo!("Operation Canceled")
             }
@@ -213,28 +208,24 @@ async fn ask_when_started_and_stopped(
             Select::new("When did you stop working on this item?", stopped_when).prompt();
         let when_stopped = match stopped_when {
             Ok(StoppedWhen::Now) => Local::now(),
-            Ok(StoppedWhen::ManualTime) => {
-                match Text::new("Enter how long ago or the exact time when this item was stopped.")
+            Ok(StoppedWhen::ManualTime) => loop {
+                match Text::new("Enter relative or the exact time when this item was stopped. Use the word \"ago\" like \"30m ago\" (\"?\" for help).\n|")
                     .prompt()
                 {
-                    Ok(when_stopped) => match parse(&when_stopped) {
-                        Ok(duration) => {
-                            let when_stopped = now - duration;
-                            when_stopped.into()
+                    Ok(when_stopped) => match parse_exact_or_relative_datetime(&when_stopped) {
+                        Some(when_stopped) => break when_stopped,
+                        None => {
+                            println!("Invalid input. Please try again.");
+                            println!();
+                            println!("{}", parse_exact_or_relative_datetime_help_string());
+                            continue;
                         }
-                        Err(_) => match dateparser::parse(&when_stopped) {
-                            Ok(when_stopped) => when_stopped.into(),
-                            Err(_) => {
-                                println!("Invalid input. Please try again.");
-                                continue;
-                            }
-                        },
                     },
-                    Err(InquireError::OperationCanceled) => continue,
+                    Err(InquireError::OperationCanceled) => continue 'outer,
                     Err(InquireError::OperationInterrupted) => return Err(()),
                     Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 }
-            }
+            },
             Err(InquireError::OperationCanceled) => continue,
             Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),

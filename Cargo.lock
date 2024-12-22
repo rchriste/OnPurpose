@@ -909,20 +909,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
-name = "duration-str"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f88959de2d447fd3eddcf1909d1f19fe084e27a056a6904203dc5d8b9e771c1e"
-dependencies = [
- "chrono",
- "rust_decimal",
- "serde",
- "thiserror 2.0.9",
- "time",
- "winnow",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2262,8 +2248,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "on_purpose"
-version = "0.1.112"
+name = "once_cell"
+version = "1.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
+
+[[package]]
+name = "onpurpose"
+version = "0.1.113"
 dependencies = [
  "ahash 0.8.11",
  "better_term",
@@ -2271,7 +2263,6 @@ dependencies = [
  "crossterm",
  "dateparser",
  "derive_builder",
- "duration-str",
  "fundu",
  "futures",
  "inquire",
@@ -2286,12 +2277,6 @@ dependencies = [
  "surrealdb-alpha",
  "tokio",
 ]
-
-[[package]]
-name = "once_cell"
-version = "1.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "ouroboros"

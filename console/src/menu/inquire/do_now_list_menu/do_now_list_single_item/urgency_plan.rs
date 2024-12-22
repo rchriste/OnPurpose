@@ -1,6 +1,7 @@
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
-use duration_str::parse;
+use fundu::{CustomDurationParser, CustomTimeUnit, SaturatingInto, TimeUnit};
+use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
         do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
             select_an_item, SelectAnItemSortingOrder,
         },
-        parse_exact_or_relative_datetime,
+        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
     new_time_spent::NewTimeSpent,
     node::{
@@ -165,7 +166,11 @@ pub(crate) async fn prompt_for_dependencies(
         Ok(ReadySelection::AfterDateTime) => {
             let exact_start: DateTime<Utc> = loop {
                 println!();
-                let exact_start = match Text::new("Enter a date or an amount of time to wait\nFor example: \"1/4/2025 3:00pm\", \"30m\", \"1h\", or \"1d\"\n|").prompt() {
+                let exact_start = match Text::new(
+                    "Enter a date or an amount of time to wait (\"?\" for help)\n|",
+                )
+                .prompt()
+                {
                     Ok(exact_start) => exact_start,
                     Err(InquireError::OperationCanceled) => {
                         todo!("Go back to the previous menu");
@@ -180,6 +185,8 @@ pub(crate) async fn prompt_for_dependencies(
                     Some(exact_start) => break exact_start.into(),
                     None => {
                         println!("Invalid date or duration, please try again");
+                        println!();
+                        println!("{}", parse_exact_or_relative_datetime_help_string());
                         continue;
                     }
                 }
@@ -335,24 +342,29 @@ async fn prompt_for_trigger(
     .unwrap();
 
     match trigger_type {
-        TriggerType::WallClockDateTime => {
-            let exact_start = Text::new("Enter when you want to trigger")
-                .prompt()
-                .unwrap();
-            let exact_start = match parse(&exact_start) {
-                Ok(exact_start) => {
-                    let now = Utc::now();
-                    now + exact_start
-                }
-                Err(_) => match dateparser::parse(&exact_start) {
+        TriggerType::WallClockDateTime => loop {
+            let exact_start =
+                match Text::new("Enter when you want to trigger (\"?\" for help)\n|").prompt() {
                     Ok(exact_start) => exact_start,
-                    Err(e) => {
-                        todo!("Error: {:?}", e)
+                    Err(InquireError::OperationCanceled) => {
+                        todo!("Go back to the previous menu");
                     }
-                },
+                    Err(InquireError::OperationInterrupted) => {
+                        todo!("Change return type of this function so this can be returned")
+                    }
+                    Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+                };
+            let exact_start: DateTime<Utc> = match parse_exact_or_relative_datetime(&exact_start) {
+                Some(exact_start) => exact_start.into(),
+                None => {
+                    println!("Invalid date or duration, please try again");
+                    println!();
+                    println!("{}", parse_exact_or_relative_datetime_help_string());
+                    continue;
+                }
             };
-            SurrealTrigger::WallClockDateTime(exact_start.into())
-        }
+            break SurrealTrigger::WallClockDateTime(exact_start.into());
+        },
         TriggerType::LoggedInvocationCount => {
             let count_needed = Text::new("Enter the count needed").prompt().unwrap();
             let count_needed = match count_needed.parse::<u32>() {
@@ -370,11 +382,34 @@ async fn prompt_for_trigger(
             }
         }
         TriggerType::LoggedAmountOfTimeSpent => {
-            let amount_of_time = Text::new("Enter the amount of time").prompt().unwrap();
-            let amount_of_time = match parse(&amount_of_time) {
-                Ok(amount_of_time) => amount_of_time,
-                Err(e) => {
-                    todo!("Error: {:?}", e)
+            lazy_static! {
+                static ref relative_parser: CustomDurationParser<'static> =
+                    CustomDurationParser::builder()
+                        .allow_time_unit_delimiter()
+                        .number_is_optional()
+                        .time_units(&[
+                            CustomTimeUnit::with_default(
+                                TimeUnit::Second,
+                                &["s", "sec", "secs", "second", "seconds"]
+                            ),
+                            CustomTimeUnit::with_default(
+                                TimeUnit::Minute,
+                                &["m", "min", "mins", "minute", "minutes"]
+                            ),
+                            CustomTimeUnit::with_default(TimeUnit::Hour, &["h", "hour", "hours"]),
+                        ])
+                        .build();
+            }
+
+            let amount_of_time = loop {
+                let amount_of_time = Text::new("Enter the amount of time (Examples:\"30sec\", \"30s\", \"30min\", \"30m\", \"2hours\", \"2h\")\n|").prompt().unwrap();
+                match relative_parser.parse(&amount_of_time) {
+                    Ok(amount_of_time) => break amount_of_time.saturating_into(),
+                    Err(_) => {
+                        println!("Invalid date or duration, please try again");
+                        println!();
+                        continue;
+                    }
                 }
             };
             let items_in_scope = prompt_for_items_in_scope(send_to_data_storage_layer).await;
@@ -577,58 +612,65 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
     let start_when = Select::new("When do you want to start this item?", start_when).prompt();
     let start_when = match start_when {
         Ok(StartWhenOption::ExactTime) => loop {
-            let exact_start = Text::new("Enter the exact time you want to start this item")
-                .prompt()
-                .unwrap();
-            let exact_start = match parse(&exact_start) {
-                Ok(exact_start) => {
-                    let now = Utc::now();
-                    now + exact_start
+            let exact_start =
+                Text::new("Enter the exact time you want to start this item (\"?\" for help)\n|")
+                    .prompt()
+                    .unwrap();
+
+            let exact_start = match parse_exact_or_relative_datetime(&exact_start) {
+                Some(exact_start) => exact_start,
+                None => {
+                    println!("Invalid date or duration, please try again");
+                    println!();
+                    println!("{}", parse_exact_or_relative_datetime_help_string());
+                    continue;
                 }
-                Err(_) => match dateparser::parse(&exact_start) {
-                    Ok(exact_start) => exact_start,
-                    Err(_) => {
-                        println!("Invalid date or duration, please try again");
-                        continue;
-                    }
-                },
             };
-            break StartWhen::ExactTime(exact_start);
+            break StartWhen::ExactTime(exact_start.into());
         },
         Ok(StartWhenOption::TimeRange) => {
             let range_start = loop {
-                let range_start = Text::new("Enter the start of the range").prompt().unwrap();
-                let range_start = match parse(&range_start) {
-                    Ok(range_start) => {
-                        let now = Utc::now();
-                        now + range_start
-                    }
-                    Err(_) => match dateparser::parse(&range_start) {
-                        Ok(range_start) => range_start,
-                        Err(_) => {
-                            println!("Invalid date or duration, please try again");
-                            continue;
+                let range_start =
+                    match Text::new("Enter the start of the range (\"?\" for help)\n|").prompt() {
+                        Ok(range_start) => match parse_exact_or_relative_datetime(&range_start) {
+                            Some(range_start) => range_start,
+                            None => {
+                                println!("Invalid date or duration, please try again");
+                                println!();
+                                println!("{}", parse_exact_or_relative_datetime_help_string());
+                                continue;
+                            }
+                        },
+                        Err(InquireError::OperationCanceled) => {
+                            todo!();
                         }
-                    },
-                };
-                break range_start;
+                        Err(InquireError::OperationInterrupted) => return Err(()),
+                        Err(err) => {
+                            panic!("Unexpected error, try restarting the terminal: {}", err)
+                        }
+                    };
+                break range_start.into();
             };
             let range_end = loop {
-                let range_end = Text::new("Enter the end of the range").prompt().unwrap();
-                let range_end = match parse(&range_end) {
-                    Ok(range_end) => {
-                        let now = Utc::now();
-                        now + range_end
-                    }
-                    Err(_) => match dateparser::parse(&range_end) {
-                        Ok(range_end) => range_end,
-                        Err(_) => {
+                let range_end = match Text::new("Enter the end of the range (\"?\" for help)\n|")
+                    .prompt()
+                {
+                    Ok(range_end) => match parse_exact_or_relative_datetime(&range_end) {
+                        Some(range_end) => range_end,
+                        None => {
                             println!("Invalid date or duration, please try again");
+                            println!();
+                            println!("{}", parse_exact_or_relative_datetime_help_string());
                             continue;
                         }
                     },
+                    Err(InquireError::OperationCanceled) => {
+                        todo!();
+                    }
+                    Err(InquireError::OperationInterrupted) => return Err(()),
+                    Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
                 };
-                break range_end;
+                break range_end.into();
             };
             StartWhen::TimeRange(range_start, range_end)
         }
@@ -640,14 +682,36 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     };
 
-    let time_boxed = Text::new("Time box how much time for this item")
+    lazy_static! {
+        static ref relative_parser: CustomDurationParser<'static> = CustomDurationParser::builder()
+            .allow_time_unit_delimiter()
+            .number_is_optional()
+            .time_units(&[
+                CustomTimeUnit::with_default(
+                    TimeUnit::Second,
+                    &["s", "sec", "secs", "second", "seconds"]
+                ),
+                CustomTimeUnit::with_default(
+                    TimeUnit::Minute,
+                    &["m", "min", "mins", "minute", "minutes"]
+                ),
+                CustomTimeUnit::with_default(TimeUnit::Hour, &["h", "hour", "hours"]),
+            ])
+            .build();
+    }
+
+    let time_boxed = loop {
+        let time_boxed = Text::new("Time box how much time for this item (Examples: \"30sec\", \"30s\", \"30min\", \"30m\", \"2hours\", \"2h\")")
         .prompt()
         .unwrap();
-    let time_boxed = match parse(time_boxed) {
-        Ok(time_boxed) => time_boxed,
-        Err(e) => {
-            todo!("Error: {:?}", e)
-        }
+        match relative_parser.parse(&time_boxed) {
+            Ok(time_boxed) => break time_boxed.saturating_into(),
+            Err(_) => {
+                println!("Invalid date or duration, please try again");
+                println!();
+                continue;
+            }
+        };
     };
 
     let surreal_scheduled = match start_when {

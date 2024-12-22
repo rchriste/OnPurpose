@@ -1,6 +1,6 @@
 [package]
-name = "on_purpose"
-version = "0.1.112"
+name = "onpurpose"
+version = "0.1.113"
 edition = "2021"
 
 [dependencies]
@@ -11,7 +11,6 @@ futures = "0.3" #Recommended by the official Rust Async book for async programmi
 surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }
 serde = "1.0.208" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
-duration-str = "0.11.2" #So I can parse the amount of time to wait
 parse_datetime = "0.6.0" #So I can parse when to expect something to be available, fundu should replace this
 fundu = { version = "2.0.1", features = ["standard", "custom"] } #So I can parse when to expect something to be available
 dateparser = { git = "https://github.com/rchriste/dateparser", branch = "main" }

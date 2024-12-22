@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'on_purpose'",
+            "name": "Debug executable 'onpurpose'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=on_purpose",
-                    "--package=on_purpose"
+                    "--bin=onpurpose",
+                    "--package=onpurpose"
                 ],
                 "filter": {
-                    "name": "on_purpose",
+                    "name": "onpurpose",
                     "kind": "bin"
                 }
             },
@@ -25,20 +25,20 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'on_purpose'",
+            "name": "Debug unit tests in executable 'onpurpose'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=on_purpose",
-                    "--package=on_purpose"
+                    "--bin=onpurpose",
+                    "--package=onpurpose"
                 ],
                 "filter": {
-                    "name": "on_purpose",
+                    "name": "onpurpose",
                     "kind": "bin"
                 }
             },
-            "args": ["when_one_item_is_scheduled_inside_of_another_item_it_is_marked_as_a_conflict"],
+            "args": [""],
             "cwd": "${workspaceFolder}"
         }
     ]
