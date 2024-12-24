@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 use chrono::Utc;
-use inquire::{InquireError, Select};
+use inquire::{InquireError, MultiSelect, Select};
 use rand::Rng;
 use tokio::sync::mpsc::Sender;
 
@@ -44,10 +44,10 @@ impl Display for HighestOrLowest {
         match self {
             HighestOrLowest::PickThisTime => write!(f, "Pick This Once"),
             HighestOrLowest::RecordHighestPriorityUntil => {
-                write!(f, "Set as highest priority of these items until...")
+                write!(f, "Set as a higher priority...")
             }
             HighestOrLowest::RecordLowestPriorityUntil => {
-                write!(f, "Set as lowest priority of these items until...")
+                write!(f, "Set as a lower priority...")
             }
             HighestOrLowest::FinishOrRetireItem => {
                 write!(f, "Finish or retire item")
@@ -201,6 +201,46 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         }
     };
 
+    let other_items = choices
+        .iter()
+        .filter(|x| x.get_action() != choice.get_action())
+        .map(|x| {
+            DisplayWhyInScopeAndActionWithItemStatus::new(
+                x,
+                Filter::Active,
+                DisplayFormat::SingleLine,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    //Set the starting position to the choice so the other options you see are the same ones that you just saw in the previous menu
+    let starting_position = choices
+        .iter()
+        .enumerate()
+        .find_map(|(index, x)| {
+            if x.get_action() == choice.get_action() {
+                Some(index % (choices.len() - 1)) //The -1 is to account for the fact that the choice is not in the list of other items, we need to mod (%) to make sure we don't go out of bounds because of this
+            } else {
+                None
+            }
+        })
+        .expect("Choice just selected will always be found");
+    let other_items = MultiSelect::new("What other items should be affected?", other_items)
+        .with_starting_cursor(starting_position)
+        .prompt();
+
+    let not_chosen = match other_items {
+        Ok(not_chosen) => not_chosen
+            .into_iter()
+            .map(|x| x.clone_to_surreal_action())
+            .collect(),
+        Err(InquireError::OperationCanceled) => {
+            return Ok(()); // Do nothing, just continue
+        }
+        Err(InquireError::OperationInterrupted) => return Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+    };
+
     println!("How long should this be in effect?");
     let now = Utc::now();
     let in_effect_until = prompt_for_triggers(&now, send_to_data_storage_layer).await;
@@ -209,11 +249,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         .send(DataLayerCommands::DeclareInTheMomentPriority {
             choice: choice.clone_to_surreal_action(),
             kind: highest_or_lowest,
-            not_chosen: choices
-                .iter()
-                .filter(|x| x.get_action() != choice.get_action())
-                .map(|x| x.clone_to_surreal_action())
-                .collect(),
+            not_chosen,
             in_effect_until,
         })
         .await
