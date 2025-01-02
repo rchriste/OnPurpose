@@ -5,7 +5,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::item::Item,
+    base_data::{event::Event, item::Item},
     data_storage::surrealdb_layer::surreal_item::{
         EqF32, SurrealDependency, SurrealScheduled, SurrealUrgency,
     },
@@ -41,6 +41,7 @@ pub(crate) enum DependencyWithItemNode<'e> {
         is_active: bool,
     },
     AfterItem(&'e ItemNode<'e>),
+    AfterEvent(&'e Event<'e>),
     AfterChildItem(&'e ItemNode<'e>),
     DuringItem(&'e ItemNode<'e>),
     WaitingToBeInterrupted,
@@ -54,6 +55,7 @@ impl IsActive for DependencyWithItemNode<'_> {
             DependencyWithItemNode::AfterItem(item) => item.is_active(),
             DependencyWithItemNode::AfterChildItem(item) => item.is_active(),
             DependencyWithItemNode::DuringItem(item) => item.is_active(),
+            DependencyWithItemNode::AfterEvent(event) => event.is_active(),
             DependencyWithItemNode::WaitingToBeInterrupted => true,
         }
     }
@@ -172,6 +174,7 @@ impl From<DependencyWithItemNode<'_>> for SurrealDependency {
             DependencyWithItemNode::AfterChildItem(..) => panic!("Programming error, AfterSmallerItem, is not represented in SurrealDependency, it is derived. Do not call into on this."),
             DependencyWithItemNode::DuringItem(item_node) => SurrealDependency::DuringItem(item_node.get_surreal_record_id().clone()),
             DependencyWithItemNode::WaitingToBeInterrupted => panic!("Programming error, WaitingToBeInterrupted, is not represented in SurrealDependency, it is derived. Do not call into on this."),
+            DependencyWithItemNode::AfterEvent(event) => SurrealDependency::AfterEvent(event.get_surreal_record_id().clone()),
         }
     }
 }
@@ -547,7 +550,7 @@ impl From<EqF32> for LapCountGreaterOrLess {
 }
 
 fn calculate_dependencies<'s>(
-    item_node: &ItemNode<'s>,
+    item_node: &'s ItemNode<'s>,
     all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
 ) -> Vec<DependencyWithItemNode<'s>> {
     item_node
@@ -583,6 +586,7 @@ fn calculate_dependencies<'s>(
             DependencyWithItem::WaitingToBeInterrupted => {
                 DependencyWithItemNode::WaitingToBeInterrupted
             }
+            DependencyWithItem::AfterEvent(event) => DependencyWithItemNode::AfterEvent(event),
         })
         .collect()
 }
@@ -638,7 +642,7 @@ mod tests {
             surreal_item::SurrealDependency,
             surreal_tables::SurrealTables,
         },
-        new_item::NewItemBuilder,
+        new_item::{NewDependency, NewItemBuilder},
         node::Filter,
     };
 
@@ -762,11 +766,13 @@ mod tests {
             .send(DataLayerCommands::NewItem(
                 NewItemBuilder::default()
                     .summary("Item that needs to wait until tomorrow")
-                    .dependencies(vec![SurrealDependency::AfterDateTime(
-                        DateTime::from(Utc::now())
-                            .checked_add_days(Days::new(1))
-                            .expect("Far from overflowing")
-                            .into(),
+                    .dependencies(vec![NewDependency::Existing(
+                        SurrealDependency::AfterDateTime(
+                            DateTime::from(Utc::now())
+                                .checked_add_days(Days::new(1))
+                                .expect("Far from overflowing")
+                                .into(),
+                        ),
                     )])
                     .build()
                     .expect("valid new item"),

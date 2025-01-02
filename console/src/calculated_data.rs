@@ -1,6 +1,7 @@
 use crate::{
     base_data::{
-        in_the_moment_priority::InTheMomentPriorityWithItemAction, time_spent::TimeSpent, BaseData,
+        event::Event, in_the_moment_priority::InTheMomentPriorityWithItemAction,
+        time_spent::TimeSpent, BaseData,
     },
     node::{item_node::ItemNode, item_status::ItemStatus, mode_node::ModeNode},
     systems::do_now_list::current_mode::CurrentMode,
@@ -45,7 +46,7 @@ impl CalculatedData {
                     .map(|(k, x)| {
                         (
                             *k,
-                            ItemNode::new(x, base_data.get_items(), base_data.get_time_spent_log()),
+                            ItemNode::new(x, base_data.get_items(), base_data.get_events(), base_data.get_time_spent_log()),
                         )
                     })
                     .collect::<HashMap<_, _>>()
@@ -115,5 +116,13 @@ impl CalculatedData {
 
     pub(crate) fn get_mode_nodes(&self) -> &[ModeNode] {
         self.borrow_mode_nodes()
+    }
+
+    pub(crate) fn get_events(&self) -> &HashMap<&RecordId, Event> {
+        self.borrow_base_data().get_events()
+    }
+
+    pub(crate) fn get_base_data(&self) -> &BaseData {
+        self.borrow_base_data()
     }
 }

@@ -2,12 +2,15 @@ use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use surrealdb::sql::Datetime;
 
-use crate::data_storage::surrealdb_layer::surreal_item::{
-    Responsibility, SurrealDependency, SurrealFrequency, SurrealItemType, SurrealLap,
-    SurrealReviewGuidance, SurrealUrgencyPlan,
+use crate::{
+    data_storage::surrealdb_layer::surreal_item::{
+        Responsibility, SurrealDependency, SurrealFrequency, SurrealItemType, SurrealLap,
+        SurrealReviewGuidance, SurrealUrgencyPlan,
+    },
+    new_event::NewEvent,
 };
 
-#[derive(Builder)]
+#[derive(Builder, Clone, Debug)]
 #[builder(setter(into))]
 pub(crate) struct NewItem {
     pub(crate) summary: String,
@@ -31,7 +34,7 @@ pub(crate) struct NewItem {
     pub(crate) lap: Option<SurrealLap>,
 
     #[builder(default)]
-    pub(crate) dependencies: Vec<SurrealDependency>,
+    pub(crate) dependencies: Vec<NewDependency>,
 
     #[builder(default)]
     pub(crate) last_reviewed: Option<DateTime<Utc>>,
@@ -41,6 +44,15 @@ pub(crate) struct NewItem {
 
     #[builder(default)]
     pub(crate) review_guidance: Option<SurrealReviewGuidance>,
+}
+
+/// This type exists because it is possible to add a new event to a new item meaning that both need to be created at the same time.
+#[derive(Clone, Debug)]
+pub(crate) enum NewDependency {
+    /// Dependency already exists in the database.
+    Existing(SurrealDependency),
+    /// Dependency is a new event that needs to be created.
+    NewEvent(NewEvent),
 }
 
 impl NewItem {

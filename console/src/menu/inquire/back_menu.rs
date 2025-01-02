@@ -821,11 +821,12 @@ async fn debug_view_all_items(
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let all_items = base_data.get_items();
     let active_items = base_data.get_active_items();
+    let all_events = base_data.get_events();
     let time_spent_log = base_data.get_time_spent_log();
 
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, all_items, time_spent_log))
+        .map(|x| ItemNode::new(x, all_items, all_events, time_spent_log))
         .collect::<Vec<_>>();
 
     let item_nodes = item_nodes.iter().collect::<Vec<_>>();

@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::{
+    new_item::NewDependency,
     urgency_plan::{prompt_for_dependencies_and_urgency_plan, AddOrRemove},
     DisplayFormat, ItemTypeSelection,
 };
@@ -147,13 +148,21 @@ pub(crate) async fn state_a_smaller_action(
 
             Ok(())
         }
-        Ok(None) => state_a_child_action_new_item(selected_item, send_to_data_storage_layer).await,
+        Ok(None) => {
+            state_a_child_action_new_item(
+                selected_item,
+                calculated_data.get_base_data(),
+                send_to_data_storage_layer,
+            )
+            .await
+        }
         Err(()) => Err(()),
     }
 }
 
 pub(crate) async fn state_a_child_action_new_item(
     selected_item: &ItemNode<'_>,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
@@ -164,6 +173,7 @@ pub(crate) async fn state_a_child_action_new_item(
             ItemTypeSelection::print_normal_help();
             Box::pin(state_a_child_action_new_item(
                 selected_item,
+                base_data,
                 send_to_data_storage_layer,
             ))
             .await
@@ -181,12 +191,17 @@ pub(crate) async fn state_a_child_action_new_item(
             };
             let parent = selected_item;
 
-            let (dependencies, urgency_plan) =
-                prompt_for_dependencies_and_urgency_plan(None, send_to_data_storage_layer).await;
-            let dependencies = dependencies.into_iter().map(|(a, b)|
+            let (dependencies, urgency_plan) = prompt_for_dependencies_and_urgency_plan(
+                None,
+                base_data,
+                send_to_data_storage_layer,
+            )
+            .await;
+            let dependencies = dependencies.into_iter().map(|a|
                 match a {
-                    AddOrRemove::Add => b,
-                    AddOrRemove::Remove => panic!("You are adding a new item there is nothing to remove so this case will never be hit"),
+                    AddOrRemove::AddExisting(b) => NewDependency::Existing(b),
+                    AddOrRemove::AddNewEvent(new_event) => NewDependency::NewEvent(new_event),
+                    AddOrRemove::RemoveExisting(_) => unreachable!("You are adding a new item there is nothing to remove so this case will never be hit"),
                 }).collect::<Vec<_>>();
             new_item.dependencies = dependencies;
             new_item.urgency_plan = Some(urgency_plan);

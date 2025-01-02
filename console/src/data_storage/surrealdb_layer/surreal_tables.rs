@@ -6,12 +6,12 @@ use tokio::sync::mpsc::Sender;
 #[cfg(test)]
 use derive_builder::Builder;
 
-use crate::base_data::{item::Item, mode::Mode, time_spent::TimeSpent};
+use crate::base_data::{event::Event, item::Item, mode::Mode, time_spent::TimeSpent};
 
 use super::{
     data_layer_commands::DataLayerCommands, surreal_current_mode::SurrealCurrentMode,
-    surreal_in_the_moment_priority::SurrealInTheMomentPriority, surreal_item::SurrealItem,
-    surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpent,
+    surreal_event::SurrealEvent, surreal_in_the_moment_priority::SurrealInTheMomentPriority,
+    surreal_item::SurrealItem, surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpent,
 };
 
 #[derive(Clone, Debug)]
@@ -31,6 +31,9 @@ pub(crate) struct SurrealTables {
 
     #[cfg_attr(test, builder(default))]
     pub(crate) surreal_modes: Vec<SurrealMode>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) surreal_events: Vec<SurrealEvent>,
 }
 
 impl SurrealTables {
@@ -47,6 +50,13 @@ impl SurrealTables {
         self.surreal_items
             .iter()
             .map(|x| (x.id.as_ref().expect("In DB"), x.make_item(now)))
+            .collect()
+    }
+
+    pub(crate) fn make_events(&self) -> HashMap<&RecordId, Event<'_>> {
+        self.surreal_events
+            .iter()
+            .map(|x| (x.id.as_ref().expect("In DB"), Event::new(x)))
             .collect()
     }
 
