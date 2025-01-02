@@ -14,7 +14,10 @@ use surrealdb::{
     sql::{Datetime, Duration, Thing},
 };
 
-use crate::{base_data::item::Item, new_item::NewItem};
+use crate::{
+    base_data::item::Item,
+    new_item::{NewDependency, NewItem},
+};
 
 use super::SurrealTrigger;
 
@@ -77,12 +80,35 @@ impl From<SurrealItem> for Option<Thing> {
 impl SurrealItem {
     pub(crate) const TABLE_NAME: &'static str = "item";
 
+    /// Creates a new SurrealItem, however for that to happen the dependencies need to already exist in the database.
+    /// If a NewDependency item is encountered that is a new item then that is returned in the failure result meaning
+    /// that you need to create that event first and then update the NewItem to have it point to the newly existing event
+    /// and submit again. The reason why this architecture is chosen of making it so NewItem can contain a message to
+    /// create a new event is so it is possible to do both operations in one transaction and keep the responsibility of
+    /// this in the data storage layer. The goal is to avoid the upper layer needing to send in multiple change requests
+    /// for what should be a single transaction.
     pub(crate) fn new(
         new_item: NewItem,
         smaller_items_in_priority_order: Vec<SurrealOrderedSubItem>,
-    ) -> Self {
+    ) -> Result<Self, Box<NewItem>> {
+        let dependencies = if new_item
+            .dependencies
+            .iter()
+            .any(|dep| matches!(dep, NewDependency::NewEvent(_)))
+        {
+            return Err(Box::new(new_item));
+        } else {
+            new_item
+                .dependencies
+                .into_iter()
+                .map(|dep| match dep {
+                    NewDependency::Existing(dep) => dep,
+                    NewDependency::NewEvent(_) => unreachable!(),
+                })
+                .collect()
+        };
         let last_reviewed = new_item.last_reviewed.map(|dt| dt.into());
-        SurrealItem {
+        Ok(SurrealItem {
             id: None,
             version: 2,
             summary: new_item.summary,
@@ -94,11 +120,11 @@ impl SurrealItem {
             created: new_item.created.into(),
             urgency_plan: new_item.urgency_plan,
             lap: new_item.lap,
-            dependencies: new_item.dependencies,
+            dependencies,
             last_reviewed,
             review_frequency: new_item.review_frequency,
             review_guidance: new_item.review_guidance,
-        }
+        })
     }
 
     pub(crate) fn make_item<'a>(&'a self, now: &'a DateTime<Utc>) -> Item<'a> {
@@ -188,6 +214,7 @@ pub(crate) enum SurrealDependency {
     AfterDateTime(Datetime),
     DuringItem(RecordId), //TODO: This should be removed as it is no longer used
     AfterItem(RecordId),
+    AfterEvent(RecordId),
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]

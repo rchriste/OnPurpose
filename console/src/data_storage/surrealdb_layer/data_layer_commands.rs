@@ -12,12 +12,16 @@ use tokio::sync::{
 };
 
 use crate::{
-    data_storage::surrealdb_layer::surreal_mode::SurrealMode, new_item::NewItem, new_mode::NewMode,
+    data_storage::surrealdb_layer::surreal_mode::SurrealMode,
+    new_event::NewEvent,
+    new_item::{NewDependency, NewItem},
+    new_mode::NewMode,
     new_time_spent::NewTimeSpent,
 };
 
 use super::{
     surreal_current_mode::{NewCurrentMode, SurrealCurrentMode},
+    surreal_event::SurrealEvent,
     surreal_in_the_moment_priority::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
@@ -75,6 +79,7 @@ pub(crate) enum DataLayerCommands {
     UpdateResponsibilityAndItemType(RecordId, Responsibility, SurrealItemType),
     AddItemDependency(RecordId, SurrealDependency),
     RemoveItemDependency(RecordId, SurrealDependency),
+    AddItemDependencyNewEvent(RecordId, NewEvent),
     UpdateSummary(RecordId, String),
     UpdateModeName(RecordId, String),
     UpdateUrgencyPlan(RecordId, Option<SurrealUrgencyPlan>),
@@ -87,6 +92,14 @@ pub(crate) enum DataLayerCommands {
         in_effect_until: Vec<SurrealTrigger>,
     },
     SetCurrentMode(NewCurrentMode),
+    TriggerEvent {
+        event: RecordId,
+        when: Datetime,
+    },
+    UntriggerEvent {
+        event: RecordId,
+        when: Datetime,
+    },
 }
 
 impl DataLayerCommands {
@@ -208,6 +221,9 @@ pub(crate) async fn data_storage_start_and_run(
             }
             Some(DataLayerCommands::RemoveItemDependency(record_id, to_remove)) => {
                 remove_dependency(record_id, to_remove, &db).await
+            }
+            Some(DataLayerCommands::AddItemDependencyNewEvent(record_id, new_event)) => {
+                add_dependency_new_event(record_id, new_event, &db).await
             }
             Some(DataLayerCommands::UpdateRelativeImportance {
                 parent,
@@ -337,6 +353,30 @@ pub(crate) async fn data_storage_start_and_run(
                 let updated = updated.into_iter().next().unwrap();
                 assert_eq!(current_mode, updated);
             }
+            Some(DataLayerCommands::TriggerEvent { event, when }) => {
+                let updated: SurrealEvent = db
+                    .update(event.clone())
+                    .patch(PatchOp::replace("/triggered", true))
+                    .patch(PatchOp::replace("/last_updated", when.clone()))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(updated.id, Some(event));
+                assert!(updated.triggered);
+                assert_eq!(updated.last_updated, when);
+            }
+            Some(DataLayerCommands::UntriggerEvent { event, when }) => {
+                let updated: SurrealEvent = db
+                    .update(event.clone())
+                    .patch(PatchOp::replace("/triggered", false))
+                    .patch(PatchOp::replace("/last_updated", when.clone()))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(updated.id, Some(event));
+                assert!(!updated.triggered);
+                assert_eq!(updated.last_updated, when);
+            }
             None => return, //Channel closed, time to shutdown down, exit
         }
     }
@@ -349,6 +389,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
     let surreal_in_the_moment_priorities = db.select(SurrealInTheMomentPriority::TABLE_NAME);
     let surreal_current_modes = db.select(SurrealCurrentMode::TABLE_NAME);
     let surreal_modes = db.select(surreal_mode::SurrealMode::TABLE_NAME);
+    let surreal_events = db.select(SurrealEvent::TABLE_NAME);
 
     let all_items: Vec<SurrealItem> = match all_items.await {
         Ok(all_items) => {
@@ -385,6 +426,7 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
         surreal_in_the_moment_priorities,
         surreal_current_modes: surreal_current_modes.await.unwrap(),
         surreal_modes,
+        surreal_events: surreal_events.await.unwrap(),
     }
 }
 
@@ -471,8 +513,20 @@ pub(crate) async fn finish_item(finish_this: RecordId, when_finished: Datetime, 
     assert_eq!(updated.finished, Some(when_finished));
 }
 
-async fn create_new_item(new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
-    let mut surreal_item: SurrealItem = SurrealItem::new(new_item, vec![]);
+async fn create_new_item(mut new_item: NewItem, db: &Surreal<Any>) -> SurrealItem {
+    for dependency in new_item.dependencies.iter_mut() {
+        match dependency {
+            NewDependency::NewEvent(new_event) => {
+                let created = create_new_event(new_event.clone(), db).await;
+                *dependency = NewDependency::Existing(SurrealDependency::AfterEvent(
+                    created.id.expect("In DB"),
+                ));
+            }
+            NewDependency::Existing(_) => {}
+        }
+    }
+    let mut surreal_item: SurrealItem = SurrealItem::new(new_item, vec![])
+        .expect("We fix up NewDependency::NewEvent above so it will never happen here");
     let created: Vec<SurrealItem> = db
         .create(SurrealItem::TABLE_NAME)
         .content(surreal_item.clone())
@@ -574,16 +628,29 @@ async fn parent_item_with_a_new_child(
 
 async fn parent_new_item_with_an_existing_child_item(
     child: RecordId,
-    parent_new_item: NewItem,
+    mut parent_new_item: NewItem,
     db: &Surreal<Any>,
 ) {
+    for dependency in parent_new_item.dependencies.iter_mut() {
+        match dependency {
+            NewDependency::NewEvent(new_event) => {
+                let created = create_new_event(new_event.clone(), db).await;
+                *dependency = NewDependency::Existing(SurrealDependency::AfterEvent(
+                    created.id.expect("In DB"),
+                ));
+            }
+            NewDependency::Existing(_) => {}
+        }
+    }
+
     //TODO: Write a Unit Test for this
     let smaller_items_in_priority_order = vec![SurrealOrderedSubItem::SubItem {
         surreal_item_id: child,
     }];
 
     let mut parent_surreal_item =
-        SurrealItem::new(parent_new_item, smaller_items_in_priority_order);
+        SurrealItem::new(parent_new_item, smaller_items_in_priority_order)
+            .expect("We deal with new events above so it will never happen here");
     let created = db
         .create(SurrealItem::TABLE_NAME)
         .content(parent_surreal_item.clone())
@@ -629,6 +696,27 @@ async fn remove_dependency(record_id: RecordId, to_remove: SurrealDependency, db
         .unwrap()
         .unwrap();
     assert_eq!(surreal_item, update);
+}
+
+async fn add_dependency_new_event(record_id: RecordId, new_event: NewEvent, db: &Surreal<Any>) {
+    let created: SurrealEvent = create_new_event(new_event, db).await;
+    let new_dependency = SurrealDependency::AfterEvent(created.id.expect("In DB"));
+
+    add_dependency(record_id, new_dependency, db).await
+}
+
+async fn create_new_event(new_event: NewEvent, db: &Surreal<Any>) -> SurrealEvent {
+    let event: SurrealEvent = new_event.into();
+    let created = db
+        .create(SurrealEvent::TABLE_NAME)
+        .content(event.clone())
+        .await
+        .unwrap();
+    assert_eq!(1, created.len());
+    let created: SurrealEvent = created.into_iter().next().unwrap();
+    assert_eq!(created.last_updated, event.last_updated);
+    assert_eq!(created.summary, event.summary);
+    created
 }
 
 async fn update_item_summary(item_to_update: RecordId, new_summary: String, db: &Surreal<Any>) {

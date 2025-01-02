@@ -8,7 +8,7 @@ use surrealdb::{
 };
 
 use crate::{
-    base_data::{item::Item, time_spent::TimeSpent},
+    base_data::{event::Event, item::Item, time_spent::TimeSpent},
     data_storage::surrealdb_layer::{
         surreal_item::{
             SurrealDependency, SurrealItem, SurrealItemType, SurrealReviewGuidance,
@@ -43,6 +43,7 @@ pub(crate) enum DependencyWithItem<'e> {
     AfterItem(&'e Item<'e>),
     AfterChildItem(&'e Item<'e>),
     DuringItem(&'e Item<'e>),
+    AfterEvent(&'e Event<'e>),
     WaitingToBeInterrupted,
 }
 
@@ -54,6 +55,7 @@ impl IsActive for DependencyWithItem<'_> {
             DependencyWithItem::AfterItem(item) => item.is_active(),
             DependencyWithItem::AfterChildItem(item) => item.is_active(),
             DependencyWithItem::DuringItem(item) => item.is_active(),
+            DependencyWithItem::AfterEvent(event) => event.is_active(),
             DependencyWithItem::WaitingToBeInterrupted => true,
         }
     }
@@ -256,6 +258,7 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
         all_items: &'s HashMap<&'s RecordId, Item<'s>>,
+        all_events: &'s HashMap<&'s RecordId, Event<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
         let visited = vec![item.get_surreal_record_id()];
@@ -271,7 +274,8 @@ impl<'s> ItemNode<'s> {
         let children = item.find_children(all_items, &visited);
         let children = create_shrinking_nodes(&children, all_items, visited);
         let urgency_plan = calculate_urgency_plan(item, all_items, time_spent_log);
-        let dependencies = calculate_dependencies(item, &urgency_plan, all_items, &children);
+        let dependencies =
+            calculate_dependencies(item, &urgency_plan, all_items, all_events, &children);
         let urgent_action_items = if item.is_active() {
             calculate_urgent_action_items(item, &parents, &children, &urgency_plan, &dependencies)
         } else {
@@ -587,6 +591,7 @@ fn calculate_dependencies<'a>(
     item: &'a Item,
     urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
     all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    all_events: &'a HashMap<&'a RecordId, Event<'a>>,
     smaller: &[ShrinkingItemNode<'a>],
 ) -> Vec<DependencyWithItem<'a>> {
     //Making smaller of type ShrinkingItemNode gets rid of the circular reference as that is checked when creating the ShrinkingItemNode
@@ -610,6 +615,12 @@ fn calculate_dependencies<'a>(
                     .get(during)
                     .expect("All items should contain this");
                 DependencyWithItem::DuringItem(item)
+            }
+            SurrealDependency::AfterEvent(event) => {
+                let event = all_events
+                    .get(event)
+                    .expect("All events should contain this");
+                DependencyWithItem::AfterEvent(event)
             }
         })
         .collect::<Vec<_>>();
@@ -899,12 +910,13 @@ mod tests {
         let now = Utc::now();
         let items = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
+        let events = surreal_tables.make_events();
 
         let to_dos = active_items
             .iter()
             .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &items, &all_time_spent))
+            .map(|x| ItemNode::new(x, &items, &events, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 
@@ -960,12 +972,13 @@ mod tests {
         let now = Utc::now();
         let items = surreal_tables.make_items(&now);
         let active_items = items.filter_active_items();
+        let events = surreal_tables.make_events();
 
         let to_dos = active_items
             .iter()
             .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &items, &all_time_spent))
+            .map(|x| ItemNode::new(x, &items, &events, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 

@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData,
+    base_data::{event::Event, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
@@ -24,6 +24,7 @@ use crate::{
         },
         parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
+    new_event::{NewEvent, NewEventBuilder},
     new_time_spent::NewTimeSpent,
     node::{
         item_status::{DependencyWithItemNode, ItemStatus},
@@ -32,7 +33,11 @@ use crate::{
     },
 };
 use inquire::{InquireError, Select, Text};
-use std::fmt::{Display, Formatter};
+use itertools::chain;
+use std::{
+    fmt::{Display, Formatter},
+    iter::once,
+};
 
 use super::{LogTime, WhyInScope};
 
@@ -55,6 +60,7 @@ enum ReadySelection {
     NothingElse,
     AfterDateTime,
     AfterItem,
+    AfterEvent,
 }
 
 impl Display for ReadySelection {
@@ -68,23 +74,29 @@ impl Display for ReadySelection {
             ReadySelection::AfterItem => {
                 write!(f, "✗ Wait until...another item finishes")
             }
+            ReadySelection::AfterEvent => {
+                write!(f, "✗ Wait until...an event happens")
+            }
         }
     }
 }
 
 pub(crate) async fn prompt_for_dependencies_and_urgency_plan(
     currently_selected: Option<&ItemStatus<'_>>,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> (Vec<(AddOrRemove, SurrealDependency)>, SurrealUrgencyPlan) {
-    let ready = prompt_for_dependencies(currently_selected, send_to_data_storage_layer).await;
+) -> (Vec<AddOrRemove>, SurrealUrgencyPlan) {
+    let ready =
+        prompt_for_dependencies(currently_selected, base_data, send_to_data_storage_layer).await;
     let now = Utc::now();
     let urgency_plan = prompt_for_urgency_plan(&now, send_to_data_storage_layer).await;
     (ready.unwrap(), urgency_plan)
 }
 
 pub(crate) enum AddOrRemove {
-    Add,
-    Remove,
+    AddExisting(SurrealDependency),
+    AddNewEvent(NewEvent),
+    RemoveExisting(SurrealDependency),
 }
 
 enum RemoveOrKeep {
@@ -101,10 +113,25 @@ impl Display for RemoveOrKeep {
     }
 }
 
+enum EventSelection<'e> {
+    NewEvent,
+    ExistingEvent(&'e Event<'e>),
+}
+
+impl Display for EventSelection<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventSelection::NewEvent => write!(f, "Create a new event"),
+            EventSelection::ExistingEvent(event) => write!(f, "{}", event.get_summary()),
+        }
+    }
+}
+
 pub(crate) async fn prompt_for_dependencies(
     currently_selected: Option<&ItemStatus<'_>>,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
-) -> Result<Vec<(AddOrRemove, SurrealDependency)>, ()> {
+) -> Result<Vec<AddOrRemove>, ()> {
     let mut result = Vec::default();
     let mut user_choose_to_keep = false;
     if let Some(currently_selected) = currently_selected {
@@ -113,7 +140,8 @@ pub(crate) async fn prompt_for_dependencies(
             match currently_waiting_on {
                 DependencyWithItemNode::AfterDateTime { .. }
                 | DependencyWithItemNode::AfterItem(..)
-                | DependencyWithItemNode::DuringItem(..) => {
+                | DependencyWithItemNode::DuringItem(..)
+                | DependencyWithItemNode::AfterEvent(..) => {
                     println!(
                         "{}",
                         DisplayDependenciesWithItemNode::new(
@@ -135,7 +163,9 @@ pub(crate) async fn prompt_for_dependencies(
                             user_choose_to_keep = true;
                         }
                         RemoveOrKeep::Remove => {
-                            result.push((AddOrRemove::Remove, currently_waiting_on.clone().into()));
+                            result.push(AddOrRemove::RemoveExisting(
+                                currently_waiting_on.clone().into(),
+                            ));
                         }
                     }
                 }
@@ -156,6 +186,7 @@ pub(crate) async fn prompt_for_dependencies(
 
     list.push(ReadySelection::AfterDateTime);
     list.push(ReadySelection::AfterItem);
+    list.push(ReadySelection::AfterEvent);
 
     println!();
     let ready = Select::new("When will this item be ready to work on?", list).prompt();
@@ -191,10 +222,9 @@ pub(crate) async fn prompt_for_dependencies(
                     }
                 }
             };
-            result.push((
-                AddOrRemove::Add,
-                SurrealDependency::AfterDateTime(exact_start.into()),
-            ));
+            result.push(AddOrRemove::AddExisting(SurrealDependency::AfterDateTime(
+                exact_start.into(),
+            )));
         }
         Ok(ReadySelection::AfterItem) => {
             let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
@@ -215,8 +245,7 @@ pub(crate) async fn prompt_for_dependencies(
             )
             .await;
             match selected {
-                Ok(Some(after_item)) => result.push((
-                    AddOrRemove::Add,
+                Ok(Some(after_item)) => result.push(AddOrRemove::AddExisting(
                     SurrealDependency::AfterItem(after_item.get_surreal_record_id().clone()),
                 )),
                 Ok(None) => {
@@ -226,6 +255,54 @@ pub(crate) async fn prompt_for_dependencies(
                 Err(()) => {
                     return Err(());
                 }
+            }
+        }
+        Ok(ReadySelection::AfterEvent) => {
+            let events = base_data.get_events();
+            let mut events = events.iter().map(|(_, value)| value).collect::<Vec<_>>();
+            events.sort_by(|a, b| a.get_last_updated().cmp(b.get_last_updated()));
+            let list = chain!(
+                once(EventSelection::NewEvent),
+                events.iter().map(|x| EventSelection::ExistingEvent(x))
+            )
+            .collect::<Vec<_>>();
+            let selected = Select::new(
+                "Select an event that must happen first or create a new event",
+                list,
+            )
+            .prompt();
+            match selected {
+                Ok(EventSelection::NewEvent) => {
+                    let new_event = Text::new("Enter the name of the new event")
+                        .prompt()
+                        .unwrap();
+                    let new_event = NewEventBuilder::default()
+                        .summary(new_event)
+                        .build()
+                        .unwrap();
+                    result.push(AddOrRemove::AddNewEvent(new_event));
+                }
+                Ok(EventSelection::ExistingEvent(event)) => {
+                    //If the event is triggered so we need to untrigger the event so it can be triggered again
+                    //But we also do this even if the event is not triggered because it also updates the last updated time
+                    send_to_data_storage_layer
+                        .send(DataLayerCommands::UntriggerEvent {
+                            event: event.get_surreal_record_id().clone(),
+                            when: Utc::now().into(),
+                        })
+                        .await
+                        .unwrap();
+                    let event =
+                        SurrealDependency::AfterEvent(event.get_surreal_record_id().clone());
+                    result.push(AddOrRemove::AddExisting(event));
+                }
+                Err(InquireError::OperationCanceled) => {
+                    todo!()
+                }
+                Err(InquireError::OperationInterrupted) => {
+                    return Err(());
+                }
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
             }
         }
         Err(InquireError::OperationCanceled) => todo!(),
@@ -733,15 +810,20 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     why_in_scope: &HashSet<WhyInScope>,
     current_urgency: Option<SurrealUrgency>,
     log_time: LogTime,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_present_set_ready_and_urgency_plan_menu = Utc::now();
-    let (dependencies, urgency_plan) =
-        prompt_for_dependencies_and_urgency_plan(Some(selected), send_to_data_storage_layer).await;
+    let (dependencies, urgency_plan) = prompt_for_dependencies_and_urgency_plan(
+        Some(selected),
+        base_data,
+        send_to_data_storage_layer,
+    )
+    .await;
 
-    for (command, dependency) in dependencies.into_iter() {
+    for command in dependencies.into_iter() {
         match command {
-            AddOrRemove::Add => {
+            AddOrRemove::AddExisting(dependency) => {
                 send_to_data_storage_layer
                     .send(DataLayerCommands::AddItemDependency(
                         selected.get_surreal_record_id().clone(),
@@ -750,11 +832,20 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
                     .await
                     .unwrap();
             }
-            AddOrRemove::Remove => {
+            AddOrRemove::RemoveExisting(dependency) => {
                 send_to_data_storage_layer
                     .send(DataLayerCommands::RemoveItemDependency(
                         selected.get_surreal_record_id().clone(),
                         dependency,
+                    ))
+                    .await
+                    .unwrap();
+            }
+            AddOrRemove::AddNewEvent(new_event) => {
+                send_to_data_storage_layer
+                    .send(DataLayerCommands::AddItemDependencyNewEvent(
+                        selected.get_surreal_record_id().clone(),
+                        new_event,
                     ))
                     .await
                     .unwrap();

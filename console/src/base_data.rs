@@ -1,3 +1,4 @@
+pub(crate) mod event;
 pub(crate) mod in_the_moment_priority;
 pub(crate) mod item;
 pub(crate) mod mode;
@@ -14,6 +15,7 @@ use crate::data_storage::surrealdb_layer::{
 };
 
 use self::{
+    event::Event,
     item::{Item, ItemVecExtensions},
     mode::Mode,
     time_spent::TimeSpent,
@@ -34,6 +36,10 @@ pub(crate) struct BaseData {
 
     #[borrows(surreal_tables)]
     #[covariant]
+    events: HashMap<&'this RecordId, Event<'this>>,
+
+    #[borrows(surreal_tables)]
+    #[covariant]
     time_spent_log: Vec<TimeSpent<'this>>,
 
     #[borrows(surreal_tables)]
@@ -50,6 +56,7 @@ impl BaseData {
             surreal_tables,
             items_builder: |surreal_tables, now| surreal_tables.make_items(now),
             active_items_builder: |items| items.filter_active_items(),
+            events_builder: |surreal_tables| surreal_tables.make_events(),
             now,
             time_spent_log_builder: |surreal_tables| surreal_tables.make_time_spent_log().collect(),
             modes_builder: |surreal_tables| surreal_tables.make_modes().collect(),
@@ -67,6 +74,10 @@ impl BaseData {
 
     pub(crate) fn get_active_items(&self) -> &[&Item] {
         self.borrow_active_items()
+    }
+
+    pub(crate) fn get_events(&self) -> &HashMap<&RecordId, Event> {
+        self.borrow_events()
     }
 
     pub(crate) fn get_time_spent_log(&self) -> &[TimeSpent] {

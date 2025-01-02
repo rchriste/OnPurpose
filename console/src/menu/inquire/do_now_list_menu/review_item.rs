@@ -75,7 +75,8 @@ impl Display for ReviewItemMenuChoices<'_> {
                         DependencyWithItemNode::AfterDateTime { .. }
                         | DependencyWithItemNode::UntilScheduled { .. }
                         | DependencyWithItemNode::AfterItem(_)
-                        | DependencyWithItemNode::DuringItem(_) => true,
+                        | DependencyWithItemNode::DuringItem(_)
+                        | DependencyWithItemNode::AfterEvent(_) => true,
                         DependencyWithItemNode::AfterChildItem(_)
                         | DependencyWithItemNode::WaitingToBeInterrupted => false,
                     })
@@ -185,6 +186,7 @@ pub(crate) async fn present_review_item_menu(
     why_in_scope: &HashSet<WhyInScope>,
     all_items: &HashMap<&RecordId, ItemStatus<'_>>,
     log_time: LogTime,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_review_item_menu = Utc::now();
@@ -193,6 +195,7 @@ pub(crate) async fn present_review_item_menu(
         item_status,
         item_status,
         all_items,
+        base_data,
         send_to_data_storage_layer,
     )
     .await?;
@@ -247,6 +250,7 @@ async fn refresh_items_present_review_item_menu_internal(
         updated_item_under_review,
         updated_selected_item,
         updated_all_items,
+        updated_calculated_data.get_base_data(),
         send_to_data_storage_layer,
     ))
     .await
@@ -256,6 +260,7 @@ async fn present_review_item_menu_internal<'a>(
     item_under_review: &ItemStatus<'a>,
     selected_item: &ItemStatus<'a>,
     all_items: &'a HashMap<&'a RecordId, ItemStatus<'a>>,
+    base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let choices = ReviewItemMenuChoices::make_list(selected_item);
@@ -304,12 +309,12 @@ async fn present_review_item_menu_internal<'a>(
                 "current_item exists twice so it can be used by display trait"
             );
             let dependencies =
-                prompt_for_dependencies(Some(selected_item), send_to_data_storage_layer)
+                prompt_for_dependencies(Some(selected_item), base_data, send_to_data_storage_layer)
                     .await
                     .unwrap();
-            for (command, dependency) in dependencies.into_iter() {
+            for command in dependencies.into_iter() {
                 match command {
-                    AddOrRemove::Add => {
+                    AddOrRemove::AddExisting(dependency) => {
                         send_to_data_storage_layer
                             .send(DataLayerCommands::AddItemDependency(
                                 selected_item.get_surreal_record_id().clone(),
@@ -318,7 +323,16 @@ async fn present_review_item_menu_internal<'a>(
                             .await
                             .unwrap();
                     }
-                    AddOrRemove::Remove => {
+                    AddOrRemove::AddNewEvent(new_event) => {
+                        send_to_data_storage_layer
+                            .send(DataLayerCommands::AddItemDependencyNewEvent(
+                                selected_item.get_surreal_record_id().clone(),
+                                new_event,
+                            ))
+                            .await
+                            .unwrap();
+                    }
+                    AddOrRemove::RemoveExisting(dependency) => {
                         send_to_data_storage_layer
                             .send(DataLayerCommands::RemoveItemDependency(
                                 selected_item.get_surreal_record_id().clone(),
@@ -415,6 +429,7 @@ async fn present_review_item_menu_internal<'a>(
                 item_under_review,
                 parent,
                 all_items,
+                base_data,
                 send_to_data_storage_layer,
             ))
             .await
@@ -443,6 +458,7 @@ async fn present_review_item_menu_internal<'a>(
                 item_under_review,
                 child,
                 all_items,
+                base_data,
                 send_to_data_storage_layer,
             ))
             .await

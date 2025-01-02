@@ -55,6 +55,9 @@ impl Display for DisplayDependenciesWithItemNode<'_> {
                     DependencyWithItemNode::WaitingToBeInterrupted => {
                         write!(f, "Waiting to be interrupted")?
                     }
+                    DependencyWithItemNode::AfterEvent(event) => {
+                        write!(f, "After event {}", event.get_summary())?
+                    }
                 }
             }
             Ok(())

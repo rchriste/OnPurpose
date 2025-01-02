@@ -293,11 +293,13 @@ pub(crate) async fn present_do_now_list_item_selected(
             Ok(())
         }
         Ok(DoNowListSingleItemSelection::UnableToDoThisRightNow) => {
+            let base_data = do_now_list.get_base_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
+                base_data,
                 send_to_data_storage_layer,
             )
             .await
@@ -307,6 +309,7 @@ pub(crate) async fn present_do_now_list_item_selected(
                 .await
         }
         Ok(DoNowListSingleItemSelection::ReviewItem) => {
+            let base_data = do_now_list.get_base_data();
             review_item::present_review_item_menu(
                 menu_for,
                 menu_for
@@ -316,16 +319,19 @@ pub(crate) async fn present_do_now_list_item_selected(
                 why_in_scope,
                 do_now_list.get_all_items_status(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
+                base_data,
                 send_to_data_storage_layer,
             )
             .await
         }
         Ok(DoNowListSingleItemSelection::WorkedOnThis) => {
+            let base_data = do_now_list.get_base_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
+                base_data,
                 send_to_data_storage_layer,
             )
             .await?;
@@ -355,11 +361,13 @@ pub(crate) async fn present_do_now_list_item_selected(
             .await
         }
         Ok(DoNowListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
+            let base_data = do_now_list.get_base_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
+                base_data,
                 send_to_data_storage_layer,
             )
             .await
@@ -616,6 +624,7 @@ async fn finish_do_now_item(
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
             let items = base_data.get_items();
+            let events = base_data.get_events();
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let time_spent_log = base_data.get_time_spent_log();
             let updated_parent = ItemNode::new(
@@ -623,6 +632,7 @@ async fn finish_do_now_item(
                     .get(parent_surreal_record_id)
                     .expect("Should be there"),
                 items,
+                events,
                 time_spent_log,
             );
 
@@ -680,10 +690,11 @@ async fn parent_to_item(
     let base_data = BaseData::new_from_surreal_tables(raw_data, now);
     let items = base_data.get_items();
     let active_items = base_data.get_active_items();
+    let events = base_data.get_events();
     let time_spent_log = base_data.get_time_spent_log();
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, items, time_spent_log))
+        .map(|x| ItemNode::new(x, items, events, time_spent_log))
         .collect::<Vec<_>>();
     let list = DisplayItemNode::make_list(&item_nodes, Filter::Active, DisplayFormat::SingleLine);
 

@@ -9,6 +9,7 @@ pub(crate) mod search;
 
 use std::{fmt::Display, iter::once};
 
+use ahash::{HashMap, HashSet};
 use better_term::Style;
 use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
@@ -21,10 +22,11 @@ use pick_item_review_frequency::present_pick_item_review_frequency_menu;
 use pick_what_should_be_done_first::present_pick_what_should_be_done_first_menu;
 use review_item::present_review_item_menu;
 use search::present_search_menu;
+use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::BaseData,
+    base_data::{event::Event, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
@@ -32,14 +34,16 @@ use crate::{
     },
     display::{
         display_item::DisplayItem, display_item_node::DisplayFormat,
-        display_scheduled_item::DisplayScheduledItem,
+        display_item_status::DisplayItemStatus, display_scheduled_item::DisplayScheduledItem,
         display_urgency_level_item_with_item_status::DisplayUrgencyLevelItemWithItemStatus,
     },
     menu::inquire::back_menu::present_back_menu,
     node::{
         action_with_item_status::ActionWithItemStatus,
+        item_status::{DependencyWithItemNode, ItemStatus},
         urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
-        why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus, Filter,
+        why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
+        Filter,
     },
     systems::do_now_list::{
         current_mode::{CurrentMode, SelectedSingleMode},
@@ -57,6 +61,7 @@ pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
     ChangeMode(&'e CurrentMode),
+    DeclareEvent { waiting_on: Vec<&'e Event<'e>> },
     DoNowListSingleItem(&'e UrgencyLevelItemWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
     BackMenu,
@@ -91,6 +96,19 @@ impl Display for InquireDoNowListItem<'_> {
                 "🔄  Reload List ({})",
                 bullet_list_created.format("%I:%M%p")
             ),
+            Self::DeclareEvent { waiting_on } => {
+                if waiting_on.is_empty() {
+                    write!(f, "⚡  Declare Event")
+                } else if waiting_on.len() == 1 {
+                    write!(
+                        f,
+                        "⚡  Waiting on: {}",
+                        waiting_on.first().expect("len() == 1").get_summary()
+                    )
+                } else {
+                    write!(f, "⚡  Waiting on: {} events", waiting_on.len())
+                }
+            }
             Self::BackMenu => write!(f, "🏠  Back Menu"),
             Self::Help => write!(f, "❓  Help"),
         }
@@ -122,21 +140,35 @@ fn turn_to_icons(in_scope: &[SelectedSingleMode]) -> String {
 impl<'a> InquireDoNowListItem<'a> {
     pub(crate) fn create_list(
         item_action: &'a [UrgencyLevelItemWithItemStatus<'a>],
+        events: &'a HashMap<&'a RecordId, Event<'a>>,
         do_now_list_created: DateTime<Utc>,
         current_mode: &'a CurrentMode,
     ) -> Vec<InquireDoNowListItem<'a>> {
-        chain!(
+        let waiting_on = events
+            .iter()
+            .filter(|(_, x)| x.is_active())
+            .map(|(_, x)| x)
+            .collect::<Vec<_>>();
+        let iter = chain!(
             once(InquireDoNowListItem::RefreshList(
                 do_now_list_created.into()
             )),
             once(InquireDoNowListItem::Search),
+        );
+        let iter: Box<dyn Iterator<Item = InquireDoNowListItem<'a>>> = if !waiting_on.is_empty() {
+            Box::new(iter.chain(once(InquireDoNowListItem::DeclareEvent { waiting_on })))
+        } else {
+            Box::new(iter)
+        };
+        chain!(
+            iter,
             once(InquireDoNowListItem::ChangeMode(current_mode)),
             once(InquireDoNowListItem::CaptureNewItem),
             item_action
                 .iter()
                 .map(InquireDoNowListItem::DoNowListSingleItem),
             once(InquireDoNowListItem::BackMenu),
-            once(InquireDoNowListItem::Help)
+            once(InquireDoNowListItem::Help),
         )
         .collect()
     }
@@ -199,15 +231,51 @@ pub(crate) fn present_upcoming(do_now_list: &DoNowList) {
     }
 }
 
+enum EventSelection<'e> {
+    ReturnToDoNowList,
+    Event(&'e Event<'e>),
+}
+
+impl Display for EventSelection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventSelection::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
+            EventSelection::Event(event) => write!(f, "{}", event.get_summary()),
+        }
+    }
+}
+
+enum EventTrigger<'e> {
+    ReturnToDoNowList,
+    TriggerEvent,
+    ItemDependentOnThisEvent(&'e ItemStatus<'e>),
+}
+
+impl Display for EventTrigger<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventTrigger::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
+            EventTrigger::TriggerEvent => write!(f, "⚡ Trigger or record that this event has happened"),
+            EventTrigger::ItemDependentOnThisEvent(item) => {
+                let display =
+                    DisplayItemStatus::new(item, Filter::Active, DisplayFormat::SingleLine);
+                write!(f, "{}", display)
+            }
+        }
+    }
+}
+
 pub(crate) async fn present_do_now_list_menu(
     do_now_list: &DoNowList,
     do_now_list_created: DateTime<Utc>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let ordered_do_now_list = do_now_list.get_ordered_do_now_list();
+    let events = do_now_list.get_events();
 
     let inquire_do_now_list = InquireDoNowListItem::create_list(
         ordered_do_now_list,
+        events,
         do_now_list_created,
         do_now_list.get_current_mode(),
     );
@@ -230,6 +298,76 @@ pub(crate) async fn present_do_now_list_menu(
         }
         Ok(InquireDoNowListItem::ChangeMode(current_mode)) => {
             present_change_mode_menu(current_mode, send_to_data_storage_layer).await
+        }
+        Ok(InquireDoNowListItem::DeclareEvent { mut waiting_on }) => {
+            waiting_on.sort_by(|a, b| a.get_last_updated().cmp(b.get_last_updated()));
+            let list = chain!(
+                once(EventSelection::ReturnToDoNowList),
+                waiting_on.into_iter().map(EventSelection::Event)
+            )
+            .collect::<Vec<_>>();
+            let selected = Select::new("Select the event that just happened|", list).prompt();
+            match selected {
+                Ok(EventSelection::Event(event)) => {
+                    let list = chain!(
+                        once(EventTrigger::ReturnToDoNowList),
+                        once(EventTrigger::TriggerEvent),
+                        do_now_list
+                            .get_all_items_status()
+                            .iter()
+                            .map(|(_, item)| item)
+                            .filter(|x| x.get_dependencies(Filter::Active).any(|x| match x {
+                                DependencyWithItemNode::AfterEvent(event_waiting_on) => {
+                                    event_waiting_on.get_surreal_record_id()
+                                        == event.get_surreal_record_id()
+                                }
+                                _ => false,
+                            }))
+                            .map(EventTrigger::ItemDependentOnThisEvent)
+                    )
+                    .collect::<Vec<_>>();
+                    let selected = Select::new(
+                        "Clear event or select an item that is dependent on this event|",
+                        list,
+                    )
+                    .prompt();
+                    match selected {
+                        Ok(EventTrigger::TriggerEvent) => {
+                            send_to_data_storage_layer
+                                .send(DataLayerCommands::TriggerEvent {
+                                    event: event.get_surreal_record_id().clone(),
+                                    when: Utc::now().into(),
+                                })
+                                .await
+                                .unwrap();
+                            Ok(())
+                        }
+                        Ok(EventTrigger::ItemDependentOnThisEvent(item_status)) => {
+                            let mut why_in_scope = HashSet::default();
+                            why_in_scope.insert(WhyInScope::MenuNavigation);
+                            Box::pin(present_do_now_list_item_selected(
+                                item_status,
+                                &why_in_scope,
+                                Utc::now(),
+                                do_now_list,
+                                send_to_data_storage_layer,
+                            ))
+                            .await
+                        }
+                        Ok(EventTrigger::ReturnToDoNowList)
+                        | Err(InquireError::OperationCanceled) => Ok(()),
+                        Err(InquireError::OperationInterrupted) => Err(()),
+                        Err(err) => {
+                            panic!("Unexpected error, try restarting the terminal: {}", err)
+                        }
+                    }
+                }
+                Ok(EventSelection::ReturnToDoNowList) | Err(InquireError::OperationCanceled) => {
+                    Ok(())
+                }
+                Err(InquireError::OperationInterrupted) => Err(()),
+                Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+            }
         }
         Ok(InquireDoNowListItem::DoNowListSingleItem(selected)) => match selected {
             UrgencyLevelItemWithItemStatus::MultipleItems(choices) => {
@@ -270,6 +408,7 @@ pub(crate) async fn present_do_now_list_menu(
                         .await
                     }
                     ActionWithItemStatus::ReviewItem(item_status) => {
+                        let base_data = do_now_list.get_base_data();
                         present_review_item_menu(
                             item_status,
                             item_status
@@ -279,6 +418,7 @@ pub(crate) async fn present_do_now_list_menu(
                             why_in_scope,
                             do_now_list.get_all_items_status(),
                             LogTime::SeparateTaskLogTheTime,
+                            base_data,
                             send_to_data_storage_layer,
                         )
                         .await
@@ -302,11 +442,13 @@ pub(crate) async fn present_do_now_list_menu(
                         }
                     }
                     ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
+                        let base_data = do_now_list.get_base_data();
                         present_set_ready_and_urgency_plan_menu(
                             item_status,
                             why_in_scope,
                             item_status.get_urgency_now().cloned(),
                             LogTime::SeparateTaskLogTheTime,
+                            base_data,
                             send_to_data_storage_layer,
                         )
                         .await
