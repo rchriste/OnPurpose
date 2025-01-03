@@ -283,7 +283,15 @@ pub(crate) async fn present_do_now_list_menu(
     );
 
     println!();
-    let starting_cursor = if ordered_do_now_list.is_empty() { 5 } else { 4 };
+    let starting_cursor = if ordered_do_now_list.is_empty()
+        || inquire_do_now_list
+            .iter()
+            .any(|x| matches!(x, InquireDoNowListItem::DeclareEvent { .. }))
+    {
+        5
+    } else {
+        4
+    };
     let selected = Select::new(
         "Select from this \"Do Now\" list (default choice is recommended)|",
         inquire_do_now_list,
