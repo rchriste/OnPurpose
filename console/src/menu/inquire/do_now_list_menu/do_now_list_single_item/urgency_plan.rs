@@ -260,7 +260,7 @@ pub(crate) async fn prompt_for_dependencies(
         Ok(ReadySelection::AfterEvent) => {
             let events = base_data.get_events();
             let mut events = events.iter().map(|(_, value)| value).collect::<Vec<_>>();
-            events.sort_by(|a, b| a.get_last_updated().cmp(b.get_last_updated()));
+            events.sort_by(|a, b| b.get_last_updated().cmp(a.get_last_updated()));
             let list = chain!(
                 once(EventSelection::NewEvent),
                 events.iter().map(|x| EventSelection::ExistingEvent(x))

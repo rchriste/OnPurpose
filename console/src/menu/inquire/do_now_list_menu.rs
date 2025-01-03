@@ -310,7 +310,7 @@ pub(crate) async fn present_do_now_list_menu(
             present_change_mode_menu(current_mode, send_to_data_storage_layer).await
         }
         Ok(InquireDoNowListItem::DeclareEvent { mut waiting_on }) => {
-            waiting_on.sort_by(|a, b| a.get_last_updated().cmp(b.get_last_updated()));
+            waiting_on.sort_by(|a, b| b.get_last_updated().cmp(a.get_last_updated()));
             let list = chain!(
                 once(EventSelection::ReturnToDoNowList),
                 waiting_on.into_iter().map(EventSelection::Event)
