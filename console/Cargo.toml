@@ -1,6 +1,6 @@
 [package]
 name = "onpurpose"
-version = "0.1.115"
+version = "0.1.116"
 edition = "2021"
 
 [dependencies]
@@ -16,7 +16,7 @@ fundu = { version = "2.0.1", features = ["standard", "custom"] } #So I can parse
 dateparser = { git = "https://github.com/rchriste/dateparser", branch = "main" }
 lazy_static = "1.4.0" #So I can efficiently parse regular expressions
 regex = "1.10.2" #So I can parse more date formats
-itertools = "0.13.0"
+itertools = "0.14.0"
 #So I can create a self referencing struct, another option that I found or an alternative library could be https://lib.rs/crates/escher
 # ouroboros = "0.18.0"
 # Use my own version so I can try to disable a clippy warning. After this is upstreamed I can switch back to the official version.

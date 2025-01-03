@@ -61,18 +61,12 @@ impl<'s> InTheMomentPriorityWithItemAction<'s> {
         &self.choice
     }
 
+    pub(crate) fn get_not_chosen(&self) -> &[ActionWithItemStatus] {
+        &self.not_chosen
+    }
+
     pub(crate) fn get_kind(&self) -> &SurrealPriorityKind {
         &self.surreal_in_the_moment_priority.kind
-    }
-
-    pub(crate) fn in_not_chosen(&self, search_for: &ActionWithItemStatus) -> bool {
-        self.not_chosen.contains(search_for)
-    }
-
-    pub(crate) fn in_not_chosen_any(&self, search_for: &[&ActionWithItemStatus]) -> bool {
-        search_for
-            .iter()
-            .any(|item_action| self.in_not_chosen(item_action))
     }
 
     pub(crate) fn is_active(&self) -> bool {

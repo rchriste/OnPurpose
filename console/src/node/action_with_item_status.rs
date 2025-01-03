@@ -1,6 +1,7 @@
 use std::{hash::Hash, mem};
 
 use ahash::HashMap;
+use itertools::Itertools;
 use surrealdb::opt::RecordId;
 
 use crate::{
@@ -255,50 +256,41 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<WhyInScopeAndActionWithItemStatu
         self,
         all_priorities: &'s [InTheMomentPriorityWithItemAction<'s>],
     ) -> Option<UrgencyLevelItemWithItemStatus<'s>> {
-        //Go through all ItemActions and look for that item in all_priorities and if found then if it is the highest priority then remove from the list all other items found and if it is the lowest priority then remove it if there are any higher priorities in the list.
-        let all = self.iter().map(|x| x.get_action()).collect::<Vec<_>>();
-        let lowest_priority_removed = self.iter().filter(|item_action| {
-            let mut checked_something = false;
-            //I need to go through everything that removes myself as the lowest priority and then go through the list a second time looking for the highest priority and removing all other items so this needs to be a two pass thing right now it is written as one pass
-            let result = all_priorities
-                .iter()
-                .filter(|x| {
-                    x.is_active()
-                        && x.get_kind() == &SurrealPriorityKind::LowestPriority
-                        && x.get_choice() == item_action.get_action()
-                })
-                .any(|lowest_priority| {
-                    checked_something = true;
-                    !lowest_priority.in_not_chosen_any(&all)
-                });
-            if checked_something {
-                result
-            } else {
-                true
+        let mut choices = self.clone();
+        for priority in all_priorities.iter().filter(|x| x.is_active()) {
+            match priority.get_kind() {
+                SurrealPriorityKind::HighestPriority => {
+                    if choices
+                        .iter()
+                        .any(|item_action| priority.get_choice() == item_action.get_action())
+                    {
+                        for lower_priority in priority.get_not_chosen() {
+                            if let Some((i, _)) = choices
+                                .iter()
+                                .find_position(|x| x.get_action() == lower_priority)
+                            {
+                                choices.swap_remove(i);
+                            }
+                        }
+                    }
+                }
+                SurrealPriorityKind::LowestPriority => {
+                    if let Some((position, _)) = choices.iter().find_position(|item_action| {
+                        priority.get_choice() == item_action.get_action()
+                    }) {
+                        if choices.iter().any(|item_action| {
+                            priority
+                                .get_not_chosen()
+                                .iter()
+                                .any(|lower_priority| item_action.get_action() == lower_priority)
+                        }) {
+                            choices.swap_remove(position);
+                        }
+                    }
+                }
             }
-        });
+        }
 
-        let highest_priority_removed = lowest_priority_removed.filter(|item_action| {
-            let mut checked_something = false;
-            let result = all_priorities
-                .iter()
-                .filter(|x| {
-                    x.is_active()
-                        && x.get_kind() == &SurrealPriorityKind::HighestPriority
-                        && x.in_not_chosen(item_action.get_action())
-                })
-                .all(|highest_priority_choice| {
-                    checked_something = true;
-                    !all.iter()
-                        .any(|other| highest_priority_choice.get_choice() == *other)
-                });
-            if checked_something {
-                result
-            } else {
-                true
-            }
-        });
-        let choices = highest_priority_removed.cloned().collect::<Vec<_>>();
         if self.len() > 1 {
             assert!(!choices.is_empty(), "I am not expecting that it will ever be possible to remove all choices if so then this should be debugged");
         }
@@ -805,14 +797,12 @@ mod tests {
                     vec.len(),
                     vec![second_item_action.clone(), third_item_action.clone(),].len()
                 );
-                assert_eq!(
-                    vec[0].get_action(),
-                    vec![second_item_action.clone(), third_item_action.clone(),][0].get_action()
-                );
-                assert_eq!(
-                    vec[1].get_action(),
-                    vec![second_item_action, third_item_action,][1].get_action()
-                );
+                assert!(vec![second_item_action.clone(), third_item_action.clone()]
+                    .iter()
+                    .any(|x| vec[0].get_action() == x.get_action()));
+                assert!(vec![second_item_action.clone(), third_item_action.clone()]
+                    .iter()
+                    .any(|x| vec[1].get_action() == x.get_action()));
             }
         }
     }

@@ -255,7 +255,9 @@ impl Display for EventTrigger<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EventTrigger::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
-            EventTrigger::TriggerEvent => write!(f, "⚡ Trigger or record that this event has happened"),
+            EventTrigger::TriggerEvent => {
+                write!(f, "⚡ Trigger or record that this event has happened")
+            }
             EventTrigger::ItemDependentOnThisEvent(item) => {
                 let display =
                     DisplayItemStatus::new(item, Filter::Active, DisplayFormat::SingleLine);
