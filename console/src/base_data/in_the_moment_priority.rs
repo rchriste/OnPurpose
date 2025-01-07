@@ -1,4 +1,5 @@
 use ahash::HashMap;
+use chrono::{DateTime, Utc};
 use surrealdb::{opt::RecordId, sql::Datetime};
 
 use crate::{
@@ -20,6 +21,7 @@ pub(crate) struct InTheMomentPriorityWithItemAction<'s> {
     in_effect_until: Vec<TriggerWithItemNode<'s>>,
     choice: ActionWithItemStatus<'s>,
     not_chosen: Vec<ActionWithItemStatus<'s>>,
+    created: DateTime<Utc>,
 }
 
 impl<'s> InTheMomentPriorityWithItemAction<'s> {
@@ -48,12 +50,14 @@ impl<'s> InTheMomentPriorityWithItemAction<'s> {
             .iter()
             .map(|action| ActionWithItemStatus::from_surreal_action(action, items_status))
             .collect();
+        let created = surreal_in_the_moment_priority.created.clone().into();
 
         InTheMomentPriorityWithItemAction {
             surreal_in_the_moment_priority,
             in_effect_until,
             choice,
             not_chosen,
+            created,
         }
     }
 
@@ -71,5 +75,9 @@ impl<'s> InTheMomentPriorityWithItemAction<'s> {
 
     pub(crate) fn is_active(&self) -> bool {
         !self.in_effect_until.iter().any(|x| x.is_triggered())
+    }
+
+    pub(crate) fn get_created(&self) -> &DateTime<Utc> {
+        &self.created
     }
 }

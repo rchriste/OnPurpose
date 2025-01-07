@@ -61,7 +61,7 @@ impl CalculatedData {
                 let now_sql = (*base_data.get_now()).into();
                 let all_items = base_data.get_items();
                 let time_spent_log = base_data.get_time_spent_log();
-                base_data
+                let mut in_the_moment_priorities = base_data
                     .get_surreal_in_the_moment_priorities()
                     .iter()
                     .map(|x| {
@@ -74,7 +74,12 @@ impl CalculatedData {
                             time_spent_log,
                         )
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                //We are sorting by created so the order is consistent. This is meant to make it so when priorities are applied making a new priority won't cover up or erase an older already set priority.
+                in_the_moment_priorities.sort_by(|a, b| {
+                    a.get_created().cmp(b.get_created())
+                });
+                in_the_moment_priorities
             },
             current_mode_builder: |base_data| {
                 let surreal_current_modes = base_data.get_surreal_current_modes();
