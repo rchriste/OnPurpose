@@ -22,7 +22,7 @@ use crate::{
         do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
             select_an_item, SelectAnItemSortingOrder,
         },
-        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
+        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string, select_mode_scope,
     },
     new_event::{NewEvent, NewEventBuilder},
     new_time_spent::NewTimeSpent,
@@ -613,55 +613,44 @@ async fn prompt_for_items_to_select(calculated_data: &CalculatedData) -> Vec<&It
 impl Display for Urgency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Urgency::MoreUrgentThanAnythingIncludingScheduled => {
-                write!(f, "🚨  More urgent than anything including scheduled")
+            Urgency::CrisesUrgency => {
+                write!(f, "🔥  Crises urgency")
             }
-            Urgency::ScheduledAnyMode => {
-                write!(f, "🗓️❗Schedule, to do, no matter your mode")
+            Urgency::ScheduledUrgency => write!(f, "🗓️ Scheduled"),
+            Urgency::DefinitelyUrgent => {
+                write!(f, "🔴  Definitely urgent")
             }
-            Urgency::MoreUrgentThanMode => {
-                write!(f, "🔥  More urgent than your mode")
-            }
-            Urgency::InTheModeScheduled => write!(f, "🗓️⭳ When in the mode, scheduled"),
-            Urgency::InTheModeDefinitelyUrgent => {
-                write!(f, "🔴  When in the mode, definitely urgent")
-            }
-            Urgency::InTheModeMaybeUrgent => write!(f, "🟡  When in the mode, maybe urgent"),
-            Urgency::InTheModeByImportance => write!(f, "🟢  Not immediately urgent"),
+            Urgency::MaybeUrgent => write!(f, "🟡  Maybe urgent"),
+            Urgency::NotUrgent => write!(f, "🟢  Not urgent"),
         }
     }
 }
 
-fn prompt_for_urgency() -> SurrealUrgency {
+fn prompt_for_urgency() -> Option<SurrealUrgency> {
     let urgency = Select::new(
         "Select immediate urgency|",
         vec![
-            Urgency::MoreUrgentThanAnythingIncludingScheduled,
-            Urgency::ScheduledAnyMode,
-            Urgency::MoreUrgentThanMode,
-            Urgency::InTheModeScheduled,
-            Urgency::InTheModeDefinitelyUrgent,
-            Urgency::InTheModeMaybeUrgent,
-            Urgency::InTheModeByImportance,
+            Urgency::CrisesUrgency,
+            Urgency::ScheduledUrgency,
+            Urgency::DefinitelyUrgent,
+            Urgency::MaybeUrgent,
+            Urgency::NotUrgent,
         ],
     )
     .with_starting_cursor(6)
     .prompt()
     .unwrap();
+    let mode = select_mode_scope();
     match urgency {
-        Urgency::MoreUrgentThanAnythingIncludingScheduled => {
-            SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled
+        Urgency::CrisesUrgency => {
+            Some(SurrealUrgency::CrisesUrgent(mode))
         }
-        Urgency::ScheduledAnyMode => {
-            SurrealUrgency::ScheduledAnyMode(prompt_to_schedule().unwrap().unwrap())
+        Urgency::ScheduledUrgency => {
+            Some(SurrealUrgency::Scheduled(mode, prompt_to_schedule().unwrap().unwrap()))
         }
-        Urgency::MoreUrgentThanMode => SurrealUrgency::MoreUrgentThanMode,
-        Urgency::InTheModeScheduled => {
-            SurrealUrgency::InTheModeScheduled(prompt_to_schedule().unwrap().unwrap())
-        }
-        Urgency::InTheModeDefinitelyUrgent => SurrealUrgency::InTheModeDefinitelyUrgent,
-        Urgency::InTheModeMaybeUrgent => SurrealUrgency::InTheModeMaybeUrgent,
-        Urgency::InTheModeByImportance => SurrealUrgency::InTheModeByImportance,
+        Urgency::DefinitelyUrgent => Some(SurrealUrgency::DefinitelyUrgent(mode)),
+        Urgency::MaybeUrgent => Some(SurrealUrgency::MaybeUrgent(mode)),
+        Urgency::NotUrgent => None,
     }
 }
 

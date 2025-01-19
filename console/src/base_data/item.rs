@@ -9,7 +9,7 @@ use surrealdb::{
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
     Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
-    SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+    SurrealMotivationKind, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 #[derive(Eq, Clone, Debug)]

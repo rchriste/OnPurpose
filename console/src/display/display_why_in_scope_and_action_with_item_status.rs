@@ -32,13 +32,11 @@ impl Display for DisplayWhyInScopeAndActionWithItemStatus<'_> {
 
         let urgency = self.get_urgency_now();
         match urgency {
-            SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => write!(f, "🚨 ")?,
-            SurrealUrgency::MoreUrgentThanMode => write!(f, "🔥 ")?,
-            SurrealUrgency::InTheModeByImportance => {}
-            SurrealUrgency::InTheModeDefinitelyUrgent => write!(f, "🔴 ")?,
-            SurrealUrgency::InTheModeMaybeUrgent => write!(f, "🟡 ")?,
-            SurrealUrgency::ScheduledAnyMode(..) => write!(f, "🗓️❗ ")?,
-            SurrealUrgency::InTheModeScheduled(..) => write!(f, "🗓️⭳ ")?,
+            Some(SurrealUrgency::CrisesUrgent(mode)) => write!(f, "🔥 ")?,
+            None => {}
+            Some(SurrealUrgency::DefinitelyUrgent(mode)) => write!(f, "🔴 ")?,
+            Some(SurrealUrgency::MaybeUrgent(mode)) => write!(f, "🟡 ")?,
+            Some(SurrealUrgency::Scheduled(mode, _)) => write!(f, "🗓️ ")?,
         }
 
         write!(
@@ -62,7 +60,7 @@ impl<'s> DisplayWhyInScopeAndActionWithItemStatus<'s> {
         }
     }
 
-    pub(crate) fn get_urgency_now(&self) -> SurrealUrgency {
+    pub(crate) fn get_urgency_now(&self) -> Option<SurrealUrgency> {
         self.item.get_urgency_now()
     }
 

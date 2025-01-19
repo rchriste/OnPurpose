@@ -104,7 +104,7 @@ impl<'e> WhyInScopeAndActionWithItemStatus<'e> {
             .any(|x| x == &WhyInScope::Importance)
     }
 
-    pub(crate) fn get_urgency_now(&self) -> SurrealUrgency {
+    pub(crate) fn get_urgency_now(&self) -> Option<SurrealUrgency> {
         self.action.get_urgency_now()
     }
 

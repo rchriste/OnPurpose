@@ -64,11 +64,11 @@ impl IsActive for DependencyWithItemNode<'_> {
 #[derive(Clone, Debug)]
 pub(crate) enum UrgencyPlanWithItemNode<'e> {
     WillEscalate {
-        initial: SurrealUrgency,
+        initial: Option<SurrealUrgency>,
         triggers: Vec<TriggerWithItemNode<'e>>,
-        later: SurrealUrgency,
+        later: Option<SurrealUrgency>,
     },
-    StaysTheSame(SurrealUrgency),
+    StaysTheSame(Option<SurrealUrgency>),
 }
 
 #[derive(Clone, Debug)]
@@ -420,7 +420,7 @@ impl<'s> ItemStatus<'s> {
         &self.urgency_plan
     }
 
-    pub(crate) fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+    pub(crate) fn get_urgency_now(&self) -> Option<&Option<SurrealUrgency>> {
         self.item_node.get_urgency_now()
     }
 

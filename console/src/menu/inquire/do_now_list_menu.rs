@@ -29,7 +29,7 @@ use crate::{
     base_data::{event::Event, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
+        data_layer_commands::DataLayerCommands,
         surreal_tables::SurrealTables,
     },
     display::{
@@ -57,10 +57,24 @@ use self::do_now_list_single_item::{
 
 use super::back_menu::capture;
 
+enum HasImportance {
+    Yes,
+    No,
+}
+
+impl Display for HasImportance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HasImportance::Yes => write!(f, "Set Modes that this importance link is active (recommended)"),
+            HasImportance::No => write!(f, "This link has no \"importance\", for example for urgency or self-care only"),
+        }
+    }
+}
+
 pub(crate) enum InquireDoNowListItem<'e> {
     CaptureNewItem,
     Search,
-    ChangeMode(&'e CurrentMode),
+    ChangeMode(&'e CurrentMode<'e>),
     DeclareEvent { waiting_on: Vec<&'e Event<'e>> },
     DoNowListSingleItem(&'e UrgencyLevelItemWithItemStatus<'e>),
     RefreshList(DateTime<Local>),
@@ -396,10 +410,7 @@ pub(crate) async fn present_do_now_list_menu(
                     ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                         present_pick_item_review_frequency_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
+                            item_status.get_urgency_now().unwrap_or(&None).clone(),
                             why_in_scope,
                             send_to_data_storage_layer,
                         )
@@ -408,10 +419,7 @@ pub(crate) async fn present_do_now_list_menu(
                     ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
                         present_item_needs_a_classification_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
+                            item_status.get_urgency_now().unwrap_or(&None).clone(),
                             why_in_scope,
                             send_to_data_storage_layer,
                         )
@@ -421,10 +429,7 @@ pub(crate) async fn present_do_now_list_menu(
                         let base_data = do_now_list.get_base_data();
                         present_review_item_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
+                            item_status.get_urgency_now().unwrap_or(&None).clone(),
                             why_in_scope,
                             do_now_list.get_all_items_status(),
                             LogTime::SeparateTaskLogTheTime,
@@ -456,7 +461,7 @@ pub(crate) async fn present_do_now_list_menu(
                         present_set_ready_and_urgency_plan_menu(
                             item_status,
                             why_in_scope,
-                            item_status.get_urgency_now().cloned(),
+                            item_status.get_urgency_now().cloned().unwrap_or_default(),
                             LogTime::SeparateTaskLogTheTime,
                             base_data,
                             send_to_data_storage_layer,

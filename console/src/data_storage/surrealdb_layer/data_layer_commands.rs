@@ -26,8 +26,9 @@ use super::{
         SurrealAction, SurrealInTheMomentPriority, SurrealPriorityKind,
     },
     surreal_item::{
-        Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemOldVersion,
-        SurrealItemType, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+        Responsibility, SurrealDependency, SurrealFrequency, SurrealImportance, SurrealItem,
+        SurrealItemOldVersion, SurrealItemType, SurrealModeScope, SurrealReviewGuidance,
+        SurrealUrgencyPlan,
     },
     surreal_mode,
     surreal_tables::SurrealTables,
@@ -56,17 +57,17 @@ pub(crate) enum DataLayerCommands {
     UpdateRelativeImportance {
         parent: RecordId,
         update_this_child: RecordId,
-        higher_importance_than_this_child: Option<RecordId>,
+        higher_importance_than_this_child: Option<(SurrealModeScope, Option<RecordId>)>
     },
     ParentItemWithExistingItem {
         child: RecordId,
         parent: RecordId,
-        higher_importance_than_this: Option<RecordId>,
+        higher_importance_than_this: Option<(SurrealModeScope, Option<RecordId>)>,
     },
     ParentItemWithANewChildItem {
         child: NewItem,
         parent: RecordId,
-        higher_importance_than_this: Option<RecordId>,
+        higher_importance_than_this: Option<(SurrealModeScope, Option<RecordId>)>,
     },
     ParentNewItemWithAnExistingChildItem {
         child: RecordId,
@@ -81,7 +82,7 @@ pub(crate) enum DataLayerCommands {
     RemoveItemDependency(RecordId, SurrealDependency),
     AddItemDependencyNewEvent(RecordId, NewEvent),
     UpdateSummary(RecordId, String),
-    UpdateModeName(RecordId, String),
+    UpdateModeSummary(RecordId, String),
     UpdateUrgencyPlan(RecordId, Option<SurrealUrgencyPlan>),
     UpdateItemReviewFrequency(RecordId, SurrealFrequency, SurrealReviewGuidance),
     UpdateItemLastReviewedDate(RecordId, Datetime),
@@ -116,12 +117,23 @@ impl DataLayerCommands {
 }
 
 pub(crate) async fn data_storage_start_and_run(
-    mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
+    data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
     endpoint: impl IntoEndpoint,
 ) {
+    let db = data_storage_connect_to_db(endpoint).await;
+    data_storage_endless_loop(db, data_storage_layer_receive_rx).await
+}
+
+pub(crate) async fn data_storage_connect_to_db(endpoint: impl IntoEndpoint) -> Surreal<Any> {
     let db = connect(endpoint).await.unwrap();
     db.use_ns("OnPurpose").use_db("Russ").await.unwrap(); //TODO: "Russ" should be a parameter, maybe the username or something
+    db
+}
 
+pub(crate) async fn data_storage_endless_loop(
+    db: Surreal<Any>,
+    mut data_storage_layer_receive_rx: Receiver<DataLayerCommands>,
+) {
     // let updated: Option<SurrealItem> = db.update((SurrealItem::TABLE_NAME, "5i5mkemqn0f1716v3ycw"))
     //     .patch(PatchOp::replace("/urgency_plan", None::<Option<SurrealUrgencyPlan>>)).await.unwrap();
     // assert!(updated.is_some());
@@ -178,20 +190,40 @@ pub(crate) async fn data_storage_start_and_run(
                 parent,
                 higher_importance_than_this,
             }) => {
-                parent_item_with_existing_item(child, parent, higher_importance_than_this, &db)
-                    .await
+                parent_item_with_existing_item(
+                    child,
+                    parent,
+                    higher_importance_than_this,
+                    &db,
+                )
+                .await
             }
             Some(DataLayerCommands::ParentItemWithANewChildItem {
                 child,
                 parent,
                 higher_importance_than_this,
             }) => {
-                parent_item_with_a_new_child(child, parent, higher_importance_than_this, &db).await
+                parent_item_with_a_new_child(
+                    child,
+                    parent,
+                    higher_importance_than_this,
+                    &db,
+                )
+                .await
             }
             Some(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                 child,
+                child_importance_scope,
                 parent_new_item,
-            }) => parent_new_item_with_an_existing_child_item(child, parent_new_item, &db).await,
+            }) => {
+                parent_new_item_with_an_existing_child_item(
+                    child,
+                    child_importance_scope,
+                    parent_new_item,
+                    &db,
+                )
+                .await
+            }
             Some(DataLayerCommands::ParentItemRemoveParent {
                 child,
                 parent_to_remove,
@@ -199,15 +231,17 @@ pub(crate) async fn data_storage_start_and_run(
                 let mut parent: SurrealItem =
                     db.select(parent_to_remove.clone()).await.unwrap().unwrap();
 
-                parent.smaller_items_in_priority_order = parent
-                    .smaller_items_in_priority_order
+                parent.smaller_items_in_importance_order = parent
+                    .smaller_items_in_importance_order
                     .into_iter()
-                    .filter(|x| match x {
-                        SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                            surreal_item_id != &child
-                        }
-                    })
+                    .filter(|x| x.child_item != child)
                     .collect::<Vec<_>>();
+                parent.smaller_items_not_important = parent
+                    .smaller_items_not_important
+                    .into_iter()
+                    .filter(|x| x != &child)
+                    .collect::<Vec<_>>();
+
                 let saved = db
                     .update(parent_to_remove)
                     .content(parent.clone())

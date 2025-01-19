@@ -12,11 +12,11 @@ impl<'s> Mode<'s> {
     }
 
     pub(crate) fn get_name(&self) -> &'s str {
-        &self.surreal_mode.name
+        &self.surreal_mode.summary
     }
 
     pub(crate) fn get_parent(&self) -> &'s Option<Thing> {
-        &self.surreal_mode.parent
+        &self.surreal_mode.parent_mode
     }
 
     pub(crate) fn get_surreal_id(&self) -> &'s Thing {

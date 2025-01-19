@@ -8,7 +8,7 @@ use crate::{
     base_data::in_the_moment_priority::InTheMomentPriorityWithItemAction,
     data_storage::surrealdb_layer::{
         surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
-        surreal_item::SurrealUrgency,
+        surreal_item::{SurrealModeScope, SurrealUrgency},
     },
 };
 
@@ -147,22 +147,30 @@ impl<'e> ActionWithItemStatus<'e> {
         }
     }
 
-    pub(crate) fn get_urgency_now(&self) -> SurrealUrgency {
+    pub(crate) fn get_urgency_now(&self) -> Option<SurrealUrgency> {
         match self {
             ActionWithItemStatus::MakeProgress(item_status, ..) => item_status
                 .get_urgency_now()
-                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
+                .unwrap_or(&None) //None meaning default to there is no urgency if the urgency has not been set
                 .clone(),
             ActionWithItemStatus::ParentBackToAMotivation(..)
             | ActionWithItemStatus::ItemNeedsAClassification(..) => {
-                SurrealUrgency::MoreUrgentThanMode
+                Some(SurrealUrgency::DefinitelyUrgent(SurrealModeScope::AllModes))
             }
-            ActionWithItemStatus::PickItemReviewFrequency(..) => {
-                SurrealUrgency::InTheModeMaybeUrgent
+            ActionWithItemStatus::PickItemReviewFrequency(item_status)
+            | ActionWithItemStatus::ReviewItem(item_status) => {
+                match item_status.get_urgency_now().unwrap_or(&None) {
+                    Some(SurrealUrgency::Scheduled(mode_scope, _))
+                    | Some(SurrealUrgency::CrisesUrgent(mode_scope))
+                    | Some(SurrealUrgency::DefinitelyUrgent(mode_scope))
+                    | Some(SurrealUrgency::MaybeUrgent(mode_scope)) => {
+                        Some(SurrealUrgency::MaybeUrgent(mode_scope.clone()))
+                    }
+                    None => None,
+                }
             }
-            ActionWithItemStatus::ReviewItem(..) => SurrealUrgency::InTheModeMaybeUrgent,
             ActionWithItemStatus::SetReadyAndUrgency(..) => {
-                SurrealUrgency::InTheModeDefinitelyUrgent
+                Some(SurrealUrgency::DefinitelyUrgent(SurrealModeScope::AllModes))
             }
         }
     }
@@ -325,16 +333,13 @@ mod tests {
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
-            surreal_item::{
-                SurrealItemBuilder, SurrealItemType, SurrealMotivationKind, SurrealOrderedSubItem,
-            },
+            surreal_item::{SurrealImportance, SurrealItemBuilder, SurrealItemType, SurrealMotivationKind},
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
         node::{
             action_with_item_status::{
-                ActionWithItemStatus, ApplyInTheMomentPriorities, UrgencyLevelItemWithItemStatus,
-                WhyInScopeAndActionWithItemStatus,
+                ActionWithItemStatus, ApplyInTheMomentPriorities, SurrealModeScope, UrgencyLevelItemWithItemStatus, WhyInScopeAndActionWithItemStatus
             },
             why_in_scope_and_action_with_item_status::WhyInScope,
         },
@@ -937,12 +942,14 @@ mod tests {
         let core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "core").into()))
             .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
-            .smaller_items_in_priority_order(vec![
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "1").into(),
+            .smaller_items_in_importance_order(vec![
+                SurrealImportance {
+                    child_item: ("surreal_item", "1").into(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "2").into(),
+                SurrealImportance {
+                    child_item: ("surreal_item", "2").into(),
+                    scope: SurrealModeScope::AllModes,
                 },
             ])
             .summary("Core motivation")
@@ -954,8 +961,9 @@ mod tests {
             .item_type(SurrealItemType::Motivation(
                 SurrealMotivationKind::NonCoreWork,
             ))
-            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                surreal_item_id: ("surreal_item", "3").into(),
+            .smaller_items_in_importance_order(vec![SurrealImportance {
+                child_item: ("surreal_item", "3").into(),
+                scope: SurrealModeScope::AllModes,
             }])
             .summary("Core motivation")
             .build()
@@ -1054,12 +1062,14 @@ mod tests {
         let core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "core").into()))
             .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
-            .smaller_items_in_priority_order(vec![
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "1").into(),
+            .smaller_items_in_importance_order(vec![
+                SurrealImportance {
+                    child_item: ("surreal_item", "1").into(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "2").into(),
+                SurrealImportance {
+                    child_item: ("surreal_item", "2").into(),
+                    scope: SurrealModeScope::AllModes,
                 },
             ])
             .summary("Core motivation")
@@ -1071,8 +1081,9 @@ mod tests {
             .item_type(SurrealItemType::Motivation(
                 SurrealMotivationKind::NonCoreWork,
             ))
-            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                surreal_item_id: ("surreal_item", "3").into(),
+            .smaller_items_in_importance_order(vec![SurrealImportance {
+                child_item: ("surreal_item", "3").into(),
+                scope: SurrealModeScope::AllModes,
             }])
             .summary("Core motivation")
             .build()

@@ -1,66 +1,19 @@
 use crate::{
     data_storage::surrealdb_layer::surreal_current_mode::{
-        SurrealCurrentMode, SurrealSelectedSingleMode,
-    },
-    node::{item_node::ItemNode, Filter},
-};
 
-pub(crate) struct CurrentMode {
-    urgency_in_scope: Vec<SelectedSingleMode>,
-    importance_in_scope: Vec<SelectedSingleMode>,
+pub(crate) struct CurrentMode<'s> {
+    mode: &'s ModeNode<'s>,
 }
 
-#[derive(PartialEq, Eq)]
-pub(crate) enum SelectedSingleMode {
-    AllCoreMotivationalPurposes,
-    AllNonCoreMotivationalPurposes,
-}
-
-impl Default for CurrentMode {
-    fn default() -> Self {
-        //By default everything should be selected
-        CurrentMode {
-            urgency_in_scope: vec![
-                SelectedSingleMode::AllCoreMotivationalPurposes,
-                SelectedSingleMode::AllNonCoreMotivationalPurposes,
-            ],
-            importance_in_scope: vec![
-                SelectedSingleMode::AllCoreMotivationalPurposes,
-                SelectedSingleMode::AllNonCoreMotivationalPurposes,
-            ],
-        }
-    }
-}
-
-impl SurrealSelectedSingleMode {
-    pub(crate) fn copy_to_items_in_scope_with_item_nodes(&self) -> SelectedSingleMode {
-        match self {
-            SurrealSelectedSingleMode::AllCoreMotivationalPurposes => {
-                SelectedSingleMode::AllCoreMotivationalPurposes
-            }
-            SurrealSelectedSingleMode::AllNonCoreMotivationalPurposes => {
-                SelectedSingleMode::AllNonCoreMotivationalPurposes
-            }
-        }
-    }
-}
-
-impl CurrentMode {
-    pub(crate) fn new(surreal_current_mode: &SurrealCurrentMode) -> CurrentMode {
-        let urgency_in_scope = surreal_current_mode
-            .urgency_in_scope
+impl<'s> CurrentMode<'s> {
+    pub(crate) fn new(surreal_current_mode: &SurrealCurrentMode, mode_nodes: &'s [ModeNode<'s>]) -> Self {
+        let mode = mode_nodes
             .iter()
-            .map(|urgency| urgency.copy_to_items_in_scope_with_item_nodes())
-            .collect::<Vec<_>>();
-        let importance_in_scope = surreal_current_mode
-            .importance_in_scope
-            .iter()
-            .map(|importance| importance.copy_to_items_in_scope_with_item_nodes())
-            .collect::<Vec<_>>();
+            .find(|mode| mode.get_surreal_id() == surreal_current_mode.mode.as_ref().expect("Mode must exist"))
+            .expect("Mode must exist");
 
         CurrentMode {
-            urgency_in_scope,
-            importance_in_scope,
+            mode,
         }
     }
 
