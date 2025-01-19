@@ -190,7 +190,7 @@ mod tests {
         DataLayerCommands, data_storage_start_and_run,
     };
     use crate::data_storage::surrealdb_layer::surreal_item::{
-        SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
+        SurrealModeScope, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
     };
     use crate::data_storage::surrealdb_layer::surreal_tables::SurrealTables;
     use crate::new_item::NewItemBuilder;
@@ -208,18 +208,21 @@ mod tests {
             .send(DataLayerCommands::NewItem(
                 NewItemBuilder::default()
                     .summary("3 hour item")
-                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(
-                        SurrealUrgency::ScheduledAnyMode(SurrealScheduled::Exact {
-                            start: now
-                                .checked_add_signed(TimeDelta::hours(1))
-                                .expect("Won't overflow")
-                                .into(),
-                            duration: (TimeDelta::hours(3)
-                                .to_std()
-                                .expect("Won't overflow")
-                                .into()),
-                        }),
-                    )))
+                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(Some(
+                        SurrealUrgency::Scheduled(
+                            SurrealModeScope::AllModes,
+                            SurrealScheduled::Exact {
+                                start: now
+                                    .checked_add_signed(TimeDelta::hours(1))
+                                    .expect("Won't overflow")
+                                    .into(),
+                                duration: (TimeDelta::hours(3)
+                                    .to_std()
+                                    .expect("Won't overflow")
+                                    .into()),
+                            },
+                        ),
+                    ))))
                     .build()
                     .expect("Valid new item"),
             ))
@@ -230,18 +233,21 @@ mod tests {
             .send(DataLayerCommands::NewItem(
                 NewItemBuilder::default()
                     .summary("1 hour item")
-                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(
-                        SurrealUrgency::ScheduledAnyMode(SurrealScheduled::Exact {
-                            start: now
-                                .checked_add_signed(TimeDelta::hours(2))
-                                .expect("Won't overflow")
-                                .into(),
-                            duration: (TimeDelta::hours(1)
-                                .to_std()
-                                .expect("Won't overflow")
-                                .into()),
-                        }),
-                    )))
+                    .urgency_plan(Some(SurrealUrgencyPlan::StaysTheSame(Some(
+                        SurrealUrgency::Scheduled(
+                            SurrealModeScope::AllModes,
+                            SurrealScheduled::Exact {
+                                start: now
+                                    .checked_add_signed(TimeDelta::hours(2))
+                                    .expect("Won't overflow")
+                                    .into(),
+                                duration: (TimeDelta::hours(1)
+                                    .to_std()
+                                    .expect("Won't overflow")
+                                    .into()),
+                            },
+                        ),
+                    ))))
                     .build()
                     .expect("Valid new item"),
             ))

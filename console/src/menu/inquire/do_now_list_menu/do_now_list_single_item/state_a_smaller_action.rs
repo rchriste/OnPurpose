@@ -64,15 +64,15 @@ pub(crate) async fn select_an_item<'a>(
                 } else {
                     Ordering::Less
                 }
-            } else if a.is_type_goal() {
+            } else if a.is_type_project() {
                 if b.is_type_motivation() {
                     Ordering::Greater
-                } else if b.is_type_goal() {
+                } else if b.is_type_project() {
                     Ordering::Equal
                 } else {
                     Ordering::Less
                 }
-            } else if b.is_type_motivation() || b.is_type_goal() {
+            } else if b.is_type_motivation() || b.is_type_project() {
                 Ordering::Greater
             } else if a.get_type() == b.get_type() {
                 Ordering::Equal
@@ -133,7 +133,7 @@ pub(crate) async fn state_a_smaller_action(
                     .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_importance_than_this(&items, None)
+                select_higher_importance_than_this(&items, calculated_data.get_mode_nodes(), None)
             } else {
                 None
             };
@@ -151,7 +151,7 @@ pub(crate) async fn state_a_smaller_action(
         Ok(None) => {
             state_a_child_action_new_item(
                 selected_item,
-                calculated_data.get_base_data(),
+                &calculated_data,
                 send_to_data_storage_layer,
             )
             .await
@@ -162,7 +162,7 @@ pub(crate) async fn state_a_smaller_action(
 
 pub(crate) async fn state_a_child_action_new_item(
     selected_item: &ItemNode<'_>,
-    base_data: &BaseData,
+    calculated_data: &CalculatedData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
@@ -173,7 +173,7 @@ pub(crate) async fn state_a_child_action_new_item(
             ItemTypeSelection::print_normal_help();
             Box::pin(state_a_child_action_new_item(
                 selected_item,
-                base_data,
+                calculated_data,
                 send_to_data_storage_layer,
             ))
             .await
@@ -185,7 +185,7 @@ pub(crate) async fn state_a_child_action_new_item(
                     .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_importance_than_this(&items, None)
+                select_higher_importance_than_this(&items, calculated_data.get_mode_nodes(), None)
             } else {
                 None
             };
@@ -193,7 +193,7 @@ pub(crate) async fn state_a_child_action_new_item(
 
             let (dependencies, urgency_plan) = prompt_for_dependencies_and_urgency_plan(
                 None,
-                base_data,
+                calculated_data,
                 send_to_data_storage_layer,
             )
             .await;

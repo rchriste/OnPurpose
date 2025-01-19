@@ -1,4 +1,3 @@
-pub(crate) mod configure_modes;
 pub(crate) mod configure_settings;
 
 use std::{cmp::Ordering, fmt::Display, vec};
@@ -23,8 +22,7 @@ use crate::{
         display_item_status::DisplayItemStatus,
     },
     menu::inquire::{
-        back_menu::configure_modes::configure_modes, parse_exact_or_relative_datetime,
-        parse_exact_or_relative_datetime_help_string,
+        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
     new_item::NewItem,
     node::{
@@ -42,7 +40,6 @@ enum TopMenuSelection {
     Reflection,
     ViewDoNowList,
     ViewPriorities,
-    ConfigureModes,
     ConfigureSettings,
     DebugViewAllItems,
 }
@@ -59,7 +56,6 @@ impl Display for TopMenuSelection {
                 write!(f, "🔍  Debug View All Items")
             }
             TopMenuSelection::ConfigureSettings => write!(f, "⚙️  Configure Settings"),
-            TopMenuSelection::ConfigureModes => write!(f, "😊  Configure Modes"),
         }
     }
 }
@@ -69,7 +65,6 @@ impl TopMenuSelection {
         vec![
             Self::ViewPriorities,
             Self::Reflection,
-            Self::ConfigureModes,
             Self::ConfigureSettings,
             Self::ViewDoNowList,
             Self::DebugViewAllItems,
@@ -91,7 +86,6 @@ pub(crate) async fn present_back_menu(
         }
         Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::ConfigureSettings) => configure_settings().await,
-        Ok(TopMenuSelection::ConfigureModes) => configure_modes(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::DebugViewAllItems) => {
             debug_view_all_items(send_to_data_storage_layer).await
         }
