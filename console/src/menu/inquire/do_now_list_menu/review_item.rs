@@ -131,13 +131,13 @@ impl ReviewItemMenuChoices<'_> {
 
         if current_item
             .get_item_node()
-            .get_parents(Filter::Active)
+            .get_immediate_parents(Filter::Active)
             .count()
             == 1
         {
             let parent = current_item
                 .get_item_node()
-                .get_parents(Filter::Active)
+                .get_immediate_parents(Filter::Active)
                 .next()
                 .expect("Item is for sure there because count is 1")
                 .get_item();
@@ -146,7 +146,10 @@ impl ReviewItemMenuChoices<'_> {
             );
         } else {
             //Note that if there is no parent then we don't show this option and that is by design
-            for parent in current_item.get_item_node().get_parents(Filter::Active) {
+            for parent in current_item
+                .get_item_node()
+                .get_immediate_parents(Filter::Active)
+            {
                 list.push(ReviewItemMenuChoices::UpdateRelativeImportanceShowParent {
                     parent: parent.get_item(),
                 });
@@ -158,11 +161,17 @@ impl ReviewItemMenuChoices<'_> {
         list.push(ReviewItemMenuChoices::FinishThisItem);
         list.push(ReviewItemMenuChoices::AddNewParent);
 
-        for parent in current_item.get_item_node().get_parents(Filter::Active) {
+        for parent in current_item
+            .get_item_node()
+            .get_immediate_parents(Filter::Active)
+        {
             list.push(ReviewItemMenuChoices::GoToParent(parent.get_item()));
         }
 
-        for parent in current_item.get_item_node().get_parents(Filter::Active) {
+        for parent in current_item
+            .get_item_node()
+            .get_immediate_parents(Filter::Active)
+        {
             list.push(ReviewItemMenuChoices::RemoveParent(parent.get_item()));
         }
 
@@ -182,7 +191,7 @@ impl ReviewItemMenuChoices<'_> {
 
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
+    current_urgency: Option<SurrealUrgency>,
     why_in_scope: &HashSet<WhyInScope>,
     all_items: &HashMap<&RecordId, ItemStatus<'_>>,
     log_time: LogTime,
@@ -210,7 +219,7 @@ pub(crate) async fn present_review_item_menu(
                 when_started: start_review_item_menu,
                 when_stopped: Utc::now(),
                 dedication: None,
-                urgency: Some(current_urgency),
+                urgency: current_urgency,
             };
 
             send_to_data_storage_layer

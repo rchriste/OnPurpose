@@ -19,10 +19,7 @@ use crate::{
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
-        surreal_item::{
-            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
-            SurrealUrgency,
-        },
+        surreal_item::{Responsibility, SurrealItemType},
         surreal_tables::SurrealTables,
     },
     display::{
@@ -40,6 +37,7 @@ use crate::{
             },
             review_item,
         },
+        prompt_for_mode_scope,
         select_higher_importance_than_this::select_higher_importance_than_this,
         update_item_summary::update_item_summary,
     },
@@ -53,7 +51,7 @@ use crate::{
     systems::do_now_list::DoNowList,
 };
 
-use super::DisplayFormat;
+use super::{DisplayFormat, HasImportance};
 
 pub(crate) enum LogTime {
     SeparateTaskLogTheTime,
@@ -146,7 +144,7 @@ impl<'e> DoNowListSingleItemSelection<'e> {
         list.push(Self::ReviewItem);
 
         let parent_items = item_node
-            .get_parents(Filter::Active)
+            .get_immediate_parents(Filter::Active)
             .map(|x| x.get_item())
             .collect::<Vec<_>>();
         if !has_no_parent {
@@ -297,7 +295,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -312,10 +310,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             let base_data = do_now_list.get_base_data();
             review_item::present_review_item_menu(
                 menu_for,
-                menu_for
-                    .get_urgency_now()
-                    .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                    .clone(),
+                menu_for.get_urgency_now().unwrap_or(&None).clone(),
                 why_in_scope,
                 do_now_list.get_all_items_status(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
@@ -329,7 +324,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -365,7 +360,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -734,9 +729,7 @@ pub(crate) enum ItemTypeSelection {
     Action,
     Goal,
     Idea,
-    MotivationCore,
-    MotivationNonCore,
-    MotivationNeither,
+    Motivation,
     NormalHelp,
 }
 
@@ -746,14 +739,8 @@ impl Display for ItemTypeSelection {
             Self::Action => write!(f, "Task or Step 🪜"),
             Self::Goal => write!(f, "Commitment or Project 🪧"),
             Self::Idea => write!(f, "Idea or Thought 💡"),
-            Self::MotivationCore => {
-                write!(f, "Core Motivational Purpose 🎯🏢")
-            }
-            Self::MotivationNonCore => {
-                write!(f, "Non-Core Motivational Purpose 🎯🧹")
-            }
-            Self::MotivationNeither => {
-                write!(f, "Neither Core nor Non-Core Motivational Purpose 🎯🚫")
+            Self::Motivation => {
+                write!(f, "Motivational Purpose 🎯")
             }
             Self::NormalHelp => write!(f, "❓ Help"),
         }
@@ -766,9 +753,7 @@ impl ItemTypeSelection {
             Self::Action,
             Self::Goal,
             Self::Idea,
-            Self::MotivationCore,
-            Self::MotivationNonCore,
-            Self::MotivationNeither,
+            Self::Motivation,
             Self::NormalHelp,
         ]
     }
@@ -787,20 +772,10 @@ impl ItemTypeSelection {
                 .item_type(SurrealItemType::Action),
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
-            ItemTypeSelection::MotivationCore => new_item_builder
+                .item_type(SurrealItemType::Project),
+            ItemTypeSelection::Motivation => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
-            ItemTypeSelection::MotivationNonCore => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(
-                    SurrealMotivationKind::NonCoreWork,
-                )),
-            ItemTypeSelection::MotivationNeither => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(
-                    SurrealMotivationKind::DoesNotFitInCoreOrNonCore,
-                )),
+                .item_type(SurrealItemType::Motivation),
             ItemTypeSelection::Idea => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::IdeaOrThought),
@@ -865,9 +840,20 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
+            let has_importance = Select::new(
+                "Should the original item with this parent be rated by importance?",
+                vec![HasImportance::Yes, HasImportance::No],
+            )
+            .prompt()
+            .unwrap();
+            let child_mode_scope = match has_importance {
+                HasImportance::Yes => Some(prompt_for_mode_scope()),
+                HasImportance::No => None,
+            };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_record_id().clone(),
+                    child_importance_scope: child_mode_scope,
                     parent_new_item: new_item,
                 })
                 .await
@@ -904,40 +890,18 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()),
+                    SurrealItemType::Project,
                 ))
                 .await
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::MotivationCore) => {
+        Ok(ItemTypeSelection::Motivation) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Ok(ItemTypeSelection::MotivationNonCore) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Ok(ItemTypeSelection::MotivationNeither) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::DoesNotFitInCoreOrNonCore),
+                    SurrealItemType::Motivation,
                 ))
                 .await
                 .unwrap();

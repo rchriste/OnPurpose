@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
-    display::display_item_status::DisplayItemStatus,
+    display::{display_item_status::DisplayItemStatus, display_mode::DisplayMode},
     node::{action_with_item_status::ActionWithItemStatus, Filter},
 };
 
@@ -40,6 +40,15 @@ impl Display for DisplayActionWithItemStatus<'_> {
             ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
                 let display = DisplayItemStatus::new(item_status, self.filter, self.display_format);
                 write!(f, "[🚦 Set readiness and urgency] {}", display)
+            }
+            ActionWithItemStatus::StateIfInMode(item_status, current_mode) => {
+                let display_mode = DisplayMode::new(current_mode.get_mode());
+                let display = DisplayItemStatus::new(item_status, self.filter, self.display_format);
+                write!(
+                    f,
+                    "[🔒 Is in scope] Mode: {} Item: {}",
+                    display_mode, display
+                )
             }
         }
     }

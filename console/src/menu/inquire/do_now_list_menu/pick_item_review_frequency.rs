@@ -106,7 +106,7 @@ impl ReviewGuidance {
 
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
+    current_urgency: Option<SurrealUrgency>,
     why_in_scope: &HashSet<WhyInScope>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -159,7 +159,7 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
         when_started: started_present_pick_item_review_frequency,
         when_stopped: Utc::now(),
         dedication: None,
-        urgency: Some(current_urgency),
+        urgency: current_urgency,
     };
 
     send_to_data_storage_layer
