@@ -5,7 +5,6 @@ use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
 pub(crate) mod current_mode;
-
 use crate::{
     base_data::{event::Event, time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
@@ -17,7 +16,7 @@ use crate::{
         why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
         Filter,
     },
-    systems::upcoming::Upcoming,
+    systems::{do_now_list::current_mode::IsInTheMode, upcoming::Upcoming},
 };
 
 #[self_referencing]
@@ -93,47 +92,31 @@ impl DoNowList {
 
                 for item in items.iter().filter(|x| x.is_in_scope_for_importance()) {
                     bullet_lists_by_urgency
-                        .in_the_mode_maybe_urgent_and_by_importance
+                        .maybe_urgent_and_by_importance
                         .push_if_new(item.clone());
                 }
 
                 for item in items.into_iter() {
                     match item.get_urgency_now() {
-                        SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled => {
-                            bullet_lists_by_urgency
-                                .more_urgent_than_anything_including_scheduled
-                                .push_if_new(item);
+                        Some(SurrealUrgency::CrisesUrgent(modes_in_scope)) => {
+                            bullet_lists_by_urgency.crises_urgency.push_if_new(item);
                         }
-                        SurrealUrgency::ScheduledAnyMode(_) => {
-                            bullet_lists_by_urgency.scheduled_any_mode.push_if_new(item);
+                        Some(SurrealUrgency::Scheduled(modes_in_scope, _)) => {
+                            bullet_lists_by_urgency.scheduled.push_if_new(item);
                         }
-                        SurrealUrgency::MoreUrgentThanMode => {
-                            bullet_lists_by_urgency
-                                .more_urgent_than_mode
-                                .push_if_new(item);
+                        Some(SurrealUrgency::DefinitelyUrgent(modes_in_scope)) => {
+                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
+                                bullet_lists_by_urgency.definitely_urgent.push_if_new(item);
+                            }
                         }
-                        SurrealUrgency::InTheModeScheduled(_) => {
+                        Some(SurrealUrgency::MaybeUrgent(modes_in_scope)) => {
                             if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
                                 bullet_lists_by_urgency
-                                    .in_the_mode_scheduled
+                                    .maybe_urgent_and_by_importance
                                     .push_if_new(item);
                             }
                         }
-                        SurrealUrgency::InTheModeDefinitelyUrgent => {
-                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
-                                bullet_lists_by_urgency
-                                    .in_the_mode_definitely_urgent
-                                    .push_if_new(item);
-                            }
-                        }
-                        SurrealUrgency::InTheModeMaybeUrgent
-                        | SurrealUrgency::InTheModeByImportance => {
-                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
-                                bullet_lists_by_urgency
-                                    .in_the_mode_maybe_urgent_and_by_importance
-                                    .push_if_new(item);
-                            }
-                        }
+                        None => todo!(),
                     }
                 }
 
@@ -149,6 +132,10 @@ impl DoNowList {
             },
         }
         .build()
+    }
+
+    pub(crate) fn get_calculated_data(&self) -> &CalculatedData {
+        self.borrow_calculated_data()
     }
 
     pub(crate) fn get_ordered_do_now_list(&self) -> &[UrgencyLevelItemWithItemStatus<'_>] {
@@ -171,7 +158,7 @@ impl DoNowList {
         self.borrow_calculated_data().get_time_spent_log()
     }
 
-    pub(crate) fn get_current_mode(&self) -> &CurrentMode {
+    pub(crate) fn get_current_mode(&self) -> &Option<CurrentMode> {
         self.borrow_calculated_data().get_current_mode()
     }
 

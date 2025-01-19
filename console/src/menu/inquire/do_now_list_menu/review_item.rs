@@ -182,7 +182,7 @@ impl ReviewItemMenuChoices<'_> {
 
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
+    current_urgency: Option<SurrealUrgency>,
     why_in_scope: &HashSet<WhyInScope>,
     all_items: &HashMap<&RecordId, ItemStatus<'_>>,
     log_time: LogTime,
@@ -210,7 +210,7 @@ pub(crate) async fn present_review_item_menu(
                 when_started: start_review_item_menu,
                 when_stopped: Utc::now(),
                 dedication: None,
-                urgency: Some(current_urgency),
+                urgency: current_urgency,
             };
 
             send_to_data_storage_layer

@@ -11,7 +11,8 @@ use crate::{
     },
     display::display_item_node::DisplayItemNode,
     menu::inquire::{
-        do_now_list_menu::do_now_list_single_item::ItemTypeSelection,
+        do_now_list_menu::{do_now_list_single_item::ItemTypeSelection, HasImportance},
+        prompt_for_mode_scope,
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
     node::{item_node::ItemNode, Filter},
@@ -154,9 +155,20 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
+            let has_importance = Select::new(
+                "Does this item have importance?",
+                vec![HasImportance::Yes, HasImportance::No],
+            )
+            .prompt()
+            .unwrap();
+            let child_importance_scope = match has_importance {
+                HasImportance::Yes => Some(prompt_for_mode_scope()),
+                HasImportance::No => None,
+            };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_record_id().clone(),
+                    child_importance_scope,
                     parent_new_item: new_item,
                 })
                 .await

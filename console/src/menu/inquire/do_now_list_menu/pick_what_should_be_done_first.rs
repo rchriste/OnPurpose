@@ -187,7 +187,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     return present_set_ready_and_urgency_plan_menu(
                         item_status,
                         why_in_scope,
-                        Some(item_action.get_urgency_now()),
+                        item_action.get_urgency_now(),
                         LogTime::SeparateTaskLogTheTime,
                         base_data,
                         send_to_data_storage_layer,

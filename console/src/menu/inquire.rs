@@ -1,8 +1,13 @@
+use std::fmt::Display;
+
 use fundu::{CustomDurationParser, CustomTimeUnit, SaturatingInto, TimeUnit};
+use inquire::{InquireError, Select};
 use lazy_static::lazy_static;
 
 use chrono::{DateTime, Datelike, Duration, Local, NaiveTime, TimeZone};
 use regex::{Regex, RegexBuilder};
+
+use crate::data_storage::surrealdb_layer::surreal_item::SurrealModeScope;
 
 pub(crate) mod back_menu;
 pub(crate) mod do_now_list_menu;
@@ -196,6 +201,44 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
                 }
             }
         },
+    }
+}
+
+enum ModeSelection {
+    All,
+    Default,
+    AddAdditionalModes,
+}
+
+impl Display for ModeSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModeSelection::All => write!(f, "All Modes"),
+            ModeSelection::Default => write!(f, "Default Modes"),
+            ModeSelection::AddAdditionalModes => write!(f, "Default + Additional Modes"),
+        }
+    }
+}
+
+#[must_use]
+fn prompt_for_mode_scope() -> SurrealModeScope {
+    let list = vec![
+        ModeSelection::Default,
+        ModeSelection::AddAdditionalModes,
+        ModeSelection::All,
+    ];
+    let mode_scope = Select::new("What modes are in scope?", list).prompt();
+    match mode_scope {
+        Ok(ModeSelection::All) => SurrealModeScope::AllModes,
+        Ok(ModeSelection::Default) => SurrealModeScope::DefaultModesWithChanges {
+            extra_modes_included: Vec::default(),
+        },
+        Ok(ModeSelection::AddAdditionalModes) => {
+            todo!("prompt with all non-default modes that can be")
+        }
+        Err(InquireError::OperationCanceled) => todo!(),
+        Err(InquireError::OperationInterrupted) => todo!(),
+        Err(_) => panic!("Unexpected error, try restarting the terminal"),
     }
 }
 

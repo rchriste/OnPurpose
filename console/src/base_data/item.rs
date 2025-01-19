@@ -9,7 +9,7 @@ use surrealdb::{
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
     Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
-    SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+    SurrealMotivationKind, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 use super::Visited;
@@ -234,29 +234,40 @@ impl Item<'_> {
         visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
         self.surreal_item
-            .smaller_items_in_priority_order
+            .smaller_items_in_importance_order
             .iter()
-            .filter_map(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    if !visited.contains(&surreal_item_id) {
-                        other_items.get(surreal_item_id)
-                    } else {
-                        None
-                    }
+            .filter_map(|x| {
+                if !visited.contains(&&x.child_item) {
+                    other_items.get(&x.child_item)
+                } else {
+                    None
                 }
             })
+            .chain(
+                self.surreal_item
+                    .smaller_items_not_important
+                    .iter()
+                    .filter_map(|x| {
+                        if !visited.contains(&x) {
+                            other_items.get(x)
+                        } else {
+                            None
+                        }
+                    }),
+            )
             .collect()
     }
 
     pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
         self.surreal_item
-            .smaller_items_in_priority_order
+            .smaller_items_in_importance_order
             .iter()
-            .any(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    other_item.id == surreal_item_id
-                }
-            })
+            .any(|x| other_item.id == &x.child_item)
+            || self
+                .surreal_item
+                .smaller_items_not_important
+                .iter()
+                .any(|x| x == other_item.id)
     }
 
     pub(crate) fn has_review_frequency(&self) -> bool {
@@ -353,7 +364,8 @@ impl Item<'_> {
 #[cfg(test)]
 mod tests {
     use crate::data_storage::surrealdb_layer::{
-        surreal_item::SurrealItemBuilder, surreal_tables::SurrealTablesBuilder,
+        surreal_item::{SurrealImportance, SurrealItemBuilder, SurrealModeScope},
+        surreal_tables::SurrealTablesBuilder,
     };
 
     use super::*;
@@ -361,13 +373,18 @@ mod tests {
     impl Item<'_> {
         pub(crate) fn has_active_children(&self, all_items: &HashMap<&RecordId, Item<'_>>) -> bool {
             self.surreal_item
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
                 .iter()
-                .any(|x| match x {
-                    SurrealOrderedSubItem::SubItem { surreal_item_id } => all_items
-                        .get(surreal_item_id)
-                        .is_some_and(|x| !x.is_finished()),
+                .any(|x| {
+                    all_items
+                        .get(&x.child_item)
+                        .is_some_and(|x| !x.is_finished())
                 })
+                || self
+                    .surreal_item
+                    .smaller_items_not_important
+                    .iter()
+                    .any(|x| all_items.get(x).is_some_and(|x| !x.is_finished()))
         }
     }
 
@@ -384,8 +401,9 @@ mod tests {
             .summary("Parent item")
             .finished(None)
             .item_type(SurrealItemType::Action)
-            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
+            .smaller_items_in_importance_order(vec![SurrealImportance {
+                child_item: smaller_item.id.as_ref().expect("set above").clone(),
+                scope: SurrealModeScope::AllModes,
             }])
             .build()
             .unwrap();
@@ -421,8 +439,9 @@ mod tests {
             .id(Some(("surreal_item", "2").into()))
             .summary("Parent item")
             .item_type(SurrealItemType::Action)
-            .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                surreal_item_id: smaller_item.id.as_ref().expect("set above").clone(),
+            .smaller_items_in_importance_order(vec![SurrealImportance {
+                child_item: smaller_item.id.as_ref().expect("set above").clone(),
+                scope: SurrealModeScope::AllModes,
             }])
             .build()
             .unwrap();

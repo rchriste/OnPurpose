@@ -64,15 +64,15 @@ impl IsActive for DependencyWithItem<'_> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum UrgencyPlanWithItem<'e> {
     WillEscalate {
-        initial: SurrealUrgency,
+        initial: Option<SurrealUrgency>,
         triggers: Vec<TriggerWithItem<'e>>,
-        later: SurrealUrgency,
+        later: Option<SurrealUrgency>,
     },
-    StaysTheSame(SurrealUrgency),
+    StaysTheSame(Option<SurrealUrgency>),
 }
 
 impl GetUrgencyNow for UrgencyPlanWithItem<'_> {
-    fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+    fn get_urgency_now(&self) -> Option<&Option<SurrealUrgency>> {
         match self {
             UrgencyPlanWithItem::WillEscalate {
                 initial,
@@ -91,7 +91,7 @@ impl GetUrgencyNow for UrgencyPlanWithItem<'_> {
 }
 
 impl GetUrgencyNow for Option<UrgencyPlanWithItem<'_>> {
-    fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+    fn get_urgency_now(&self) -> Option<&Option<SurrealUrgency>> {
         self.as_ref().and_then(|x| x.get_urgency_now())
     }
 }
@@ -414,7 +414,7 @@ impl<'s> ItemNode<'s> {
         self.urgency_plan.get_scheduled_now()
     }
 
-    pub(crate) fn get_urgency_now(&self) -> Option<&SurrealUrgency> {
+    pub(crate) fn get_urgency_now(&self) -> Option<&Option<SurrealUrgency>> {
         self.urgency_plan.get_urgency_now()
     }
 
@@ -815,16 +815,14 @@ fn calculate_urgent_action_items<'a>(
     }
 
     match urgency_plan.get_urgency_now() {
-        Some(SurrealUrgency::MoreUrgentThanAnythingIncludingScheduled)
-        | Some(SurrealUrgency::InTheModeMaybeUrgent)
-        | Some(SurrealUrgency::MoreUrgentThanMode)
-        | Some(SurrealUrgency::InTheModeDefinitelyUrgent) => {
+        Some(Some(SurrealUrgency::CrisesUrgent(mode)))
+        | Some(Some(SurrealUrgency::MaybeUrgent(mode)))
+        | Some(Some(SurrealUrgency::DefinitelyUrgent(mode))) => {
             if !has_dependencies(dependencies, Filter::Active) {
                 result.push(ActionWithItem::MakeProgress(item));
             }
         }
-        Some(SurrealUrgency::InTheModeScheduled(surreal_scheduled))
-        | Some(SurrealUrgency::ScheduledAnyMode(surreal_scheduled)) => {
+        Some(Some(SurrealUrgency::Scheduled(mode, surreal_scheduled))) => {
             if !has_dependencies(dependencies, Filter::Active) {
                 match surreal_scheduled {
                     SurrealScheduled::Exact { start, .. } => {
@@ -840,7 +838,7 @@ fn calculate_urgent_action_items<'a>(
                 }
             }
         }
-        Some(SurrealUrgency::InTheModeByImportance) => {
+        Some(None) => {
             //Do nothing, not urgent
         }
         None => {
@@ -862,7 +860,8 @@ mod tests {
         base_data::item::ItemVecExtensions,
         data_storage::surrealdb_layer::{
             surreal_item::{
-                SurrealDependency, SurrealItemBuilder, SurrealItemType, SurrealOrderedSubItem,
+                SurrealDependency, SurrealImportance, SurrealItemBuilder, SurrealItemType,
+                SurrealModeScope,
             },
             surreal_tables::SurrealTablesBuilder,
         },
@@ -877,8 +876,9 @@ mod tests {
                 .id(Some(("surreal_item", "1").into()))
                 .summary("Main Item that covers something else")
                 .item_type(SurrealItemType::Action)
-                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "3").into(),
+                .smaller_items_in_importance_order(vec![SurrealImportance {
+                    child_item: ("surreal_item", "3").into(),
+                    scope: SurrealModeScope::AllModes,
                 }])
                 .build()
                 .unwrap(),
@@ -886,8 +886,9 @@ mod tests {
                 .id(Some(("surreal_item", "2").into()))
                 .summary("Item that is covered by main item and the item this covers")
                 .item_type(SurrealItemType::Action)
-                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "1").into(),
+                .smaller_items_in_importance_order(vec![SurrealImportance {
+                    child_item: ("surreal_item", "1").into(),
+                    scope: SurrealModeScope::AllModes,
                 }])
                 .build()
                 .unwrap(),
@@ -895,8 +896,9 @@ mod tests {
                 .id(Some(("surreal_item", "3").into()))
                 .summary("Item that is covers the item it is covered by, circular reference")
                 .item_type(SurrealItemType::Action)
-                .smaller_items_in_priority_order(vec![SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: ("surreal_item", "2").into(),
+                .smaller_items_in_importance_order(vec![SurrealImportance {
+                    child_item: ("surreal_item", "2").into(),
+                    scope: SurrealModeScope::AllModes,
                 }])
                 .build()
                 .unwrap(),

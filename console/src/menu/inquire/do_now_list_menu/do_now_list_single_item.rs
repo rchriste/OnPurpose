@@ -21,7 +21,6 @@ use crate::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
             Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
-            SurrealUrgency,
         },
         surreal_tables::SurrealTables,
     },
@@ -40,6 +39,7 @@ use crate::{
             },
             review_item,
         },
+        prompt_for_mode_scope,
         select_higher_importance_than_this::select_higher_importance_than_this,
         update_item_summary::update_item_summary,
     },
@@ -53,7 +53,7 @@ use crate::{
     systems::do_now_list::DoNowList,
 };
 
-use super::DisplayFormat;
+use super::{DisplayFormat, HasImportance};
 
 pub(crate) enum LogTime {
     SeparateTaskLogTheTime,
@@ -297,7 +297,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -312,10 +312,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             let base_data = do_now_list.get_base_data();
             review_item::present_review_item_menu(
                 menu_for,
-                menu_for
-                    .get_urgency_now()
-                    .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                    .clone(),
+                menu_for.get_urgency_now().unwrap_or(&None).clone(),
                 why_in_scope,
                 do_now_list.get_all_items_status(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
@@ -329,7 +326,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -365,7 +362,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
-                menu_for.get_urgency_now().cloned(),
+                menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
@@ -865,9 +862,20 @@ pub(crate) async fn parent_to_new_item(
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
+            let has_importance = Select::new(
+                "Does this item have importance?",
+                vec![HasImportance::Yes, HasImportance::No],
+            )
+            .prompt()
+            .unwrap();
+            let child_mode_scope = match has_importance {
+                HasImportance::Yes => Some(prompt_for_mode_scope()),
+                HasImportance::No => None,
+            };
             send_to_data_storage_layer
                 .send(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                     child: parent_this.get_surreal_record_id().clone(),
+                    child_importance_scope: child_mode_scope,
                     parent_new_item: new_item,
                 })
                 .await

@@ -18,7 +18,7 @@ use super::do_now_list_single_item::declare_item_type;
 
 pub(crate) async fn present_item_needs_a_classification_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
+    current_urgency: Option<SurrealUrgency>,
     why_in_scope: &HashSet<WhyInScope>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
@@ -34,7 +34,7 @@ pub(crate) async fn present_item_needs_a_classification_menu(
         when_started: start_present_item_needs_a_classification_menu,
         when_stopped: Utc::now(),
         dedication: None,
-        urgency: Some(current_urgency),
+        urgency: current_urgency,
     };
 
     send_to_data_storage_layer
