@@ -39,7 +39,7 @@ jobs:
       
       - name: Compress Executable
         run: |
-          tar -cJf OnPurpose_Console_Linux.tar.xz -C ./target/release on_purpose
+          tar -cJf OnPurpose_Console_Linux.tar.xz -C ./target/release onpurpose
   
       - name: Upload Release Asset
         id: upload-release-asset
@@ -58,7 +58,7 @@ jobs:
         
         - name: Compress Executable
           run: |
-            zip OnPurpose_Console_MacOS.zip ./target/release/on_purpose
+            zip OnPurpose_Console_MacOS.zip ./target/release/onpurpose
     
         - name: Upload Release Asset
           id: upload-release-asset
