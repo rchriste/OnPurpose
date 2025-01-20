@@ -97,3 +97,29 @@ impl BaseData {
         self.borrow_modes()
     }
 }
+
+pub(crate) struct Visited<'s, 'v> {
+    myself: &'s RecordId,
+    parent: Option<&'v Visited<'s, 'v>>,
+}
+
+impl<'s, 'v> Visited<'s, 'v> {
+    pub(crate) fn new(new: &'s RecordId, existing: Option<&'v Visited<'s, 'v>>) -> Self {
+        Visited {
+            myself: new,
+            parent: existing,
+        }
+    }
+
+    pub(crate) fn contains(&self, record_id: &RecordId) -> bool {
+        if self.myself == record_id {
+            true
+        } else {
+            match self.parent {
+                Some(parent) => parent.contains(record_id),
+                None => false,
+            }
+        }
+    }
+}
+

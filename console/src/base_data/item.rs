@@ -12,6 +12,8 @@ use crate::data_storage::surrealdb_layer::surreal_item::{
     SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
+use super::Visited;
+
 #[derive(Eq, Clone, Debug)]
 pub(crate) struct Item<'s> {
     id: &'s RecordId,
@@ -214,7 +216,7 @@ impl Item<'_> {
     pub(crate) fn find_parents<'a>(
         &self,
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
-        visited: &[&RecordId],
+        visited: &Visited<'a, '_>,
     ) -> Vec<&'a Item<'a>> {
         other_items
             .iter()
@@ -397,7 +399,7 @@ mod tests {
         let smaller_item = items
             .get(smaller_item.id.as_ref().expect("Set above"))
             .expect("smaller item should be there");
-        let visited = Vec::default();
+        let visited = Visited::new(smaller_item.get_surreal_record_id(), None);
         let find_results = smaller_item.find_parents(&items, &visited);
 
         assert_eq!(find_results.len(), 1);
