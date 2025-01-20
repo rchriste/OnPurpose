@@ -27,8 +27,8 @@ impl Display for InTheModeChoices {
     }
 }
 
-pub(crate) async fn present_change_mode_menu<'a>(
-    current_mode: &'a CurrentMode,
+pub(crate) async fn present_change_mode_menu(
+    current_mode: &CurrentMode,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let choices = vec![InTheModeChoices::CoreWork, InTheModeChoices::NonCoreWork];

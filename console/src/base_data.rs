@@ -122,4 +122,3 @@ impl<'s, 'v> Visited<'s, 'v> {
         }
     }
 }
-

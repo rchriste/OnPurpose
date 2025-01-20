@@ -222,7 +222,7 @@ impl Item<'_> {
             .iter()
             .filter(|(_, other_item)| {
                 other_item.is_this_a_smaller_item(self)
-                    && !visited.contains(&other_item.get_surreal_record_id())
+                    && !visited.contains(other_item.get_surreal_record_id())
             })
             .map(|(_, x)| x)
             .collect()

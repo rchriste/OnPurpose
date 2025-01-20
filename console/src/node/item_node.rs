@@ -565,7 +565,7 @@ pub(crate) fn create_growing_nodes<'a>(
     items
         .iter()
         .filter_map(|x| {
-            if !visited.contains(&x.get_surreal_record_id()) {
+            if !visited.contains(x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let visited = Visited::new(x.get_surreal_record_id(), Some(visited));
                 Some(create_growing_node(x, possible_parents, &visited))
