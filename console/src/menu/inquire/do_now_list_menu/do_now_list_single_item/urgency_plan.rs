@@ -22,7 +22,8 @@ use crate::{
         do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
             select_an_item, SelectAnItemSortingOrder,
         },
-        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string, select_mode_scope,
+        parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
+        prompt_for_mode_scope,
     },
     new_event::{NewEvent, NewEventBuilder},
     new_time_spent::NewTimeSpent,
@@ -640,14 +641,13 @@ fn prompt_for_urgency() -> Option<SurrealUrgency> {
     .with_starting_cursor(6)
     .prompt()
     .unwrap();
-    let mode = select_mode_scope();
+    let mode = prompt_for_mode_scope();
     match urgency {
-        Urgency::CrisesUrgency => {
-            Some(SurrealUrgency::CrisesUrgent(mode))
-        }
-        Urgency::ScheduledUrgency => {
-            Some(SurrealUrgency::Scheduled(mode, prompt_to_schedule().unwrap().unwrap()))
-        }
+        Urgency::CrisesUrgency => Some(SurrealUrgency::CrisesUrgent(mode)),
+        Urgency::ScheduledUrgency => Some(SurrealUrgency::Scheduled(
+            mode,
+            prompt_to_schedule().unwrap().unwrap(),
+        )),
         Urgency::DefinitelyUrgent => Some(SurrealUrgency::DefinitelyUrgent(mode)),
         Urgency::MaybeUrgent => Some(SurrealUrgency::MaybeUrgent(mode)),
         Urgency::NotUrgent => None,

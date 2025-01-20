@@ -227,12 +227,15 @@ fn prompt_for_mode_scope() -> SurrealModeScope {
         ModeSelection::AddAdditionalModes,
         ModeSelection::All,
     ];
-    let mode_scope = Select::new("What modes are in scope?", list)
-        .prompt();
+    let mode_scope = Select::new("What modes are in scope?", list).prompt();
     match mode_scope {
         Ok(ModeSelection::All) => SurrealModeScope::AllModes,
-        Ok(ModeSelection::Default) => SurrealModeScope::DefaultModesWithChanges { extra_included: Vec::default() },
-        Ok(ModeSelection::AddAdditionalModes) => todo!("prompt with all non-default modes that can be"),
+        Ok(ModeSelection::Default) => SurrealModeScope::DefaultModesWithChanges {
+            extra_included: Vec::default(),
+        },
+        Ok(ModeSelection::AddAdditionalModes) => {
+            todo!("prompt with all non-default modes that can be")
+        }
         Err(InquireError::OperationCanceled) => todo!(),
         Err(InquireError::OperationInterrupted) => todo!(),
         Err(_) => panic!("Unexpected error, try restarting the terminal"),

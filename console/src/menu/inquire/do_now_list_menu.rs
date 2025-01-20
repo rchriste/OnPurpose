@@ -29,8 +29,7 @@ use crate::{
     base_data::{event::Event, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands,
-        surreal_tables::SurrealTables,
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
     display::{
         display_item::DisplayItem, display_item_node::DisplayFormat,
@@ -65,8 +64,14 @@ enum HasImportance {
 impl Display for HasImportance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HasImportance::Yes => write!(f, "Set Modes that this importance link is active (recommended)"),
-            HasImportance::No => write!(f, "This link has no \"importance\", for example for urgency or self-care only"),
+            HasImportance::Yes => write!(
+                f,
+                "Set Modes that this importance link is active (recommended)"
+            ),
+            HasImportance::No => write!(
+                f,
+                "This link has no \"importance\", for example for urgency or self-care only"
+            ),
         }
     }
 }

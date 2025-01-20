@@ -189,14 +189,10 @@ impl<'e> ActionWithItemStatus<'e> {
 
 #[derive(Default)]
 pub(crate) struct WhyInScopeActionListsByUrgency<'s> {
-    pub(crate) more_urgent_than_anything_including_scheduled:
-        Vec<WhyInScopeAndActionWithItemStatus<'s>>,
-    pub(crate) scheduled_any_mode: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
-    pub(crate) more_urgent_than_mode: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_scheduled: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_definitely_urgent: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
-    pub(crate) in_the_mode_maybe_urgent_and_by_importance:
-        Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) crises_urgency: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) scheduled: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) definitely_urgent: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
+    pub(crate) maybe_urgent_and_by_importance: Vec<WhyInScopeAndActionWithItemStatus<'s>>,
 }
 
 impl<'s> WhyInScopeActionListsByUrgency<'s> {
@@ -206,46 +202,32 @@ impl<'s> WhyInScopeActionListsByUrgency<'s> {
     ) -> Vec<UrgencyLevelItemWithItemStatus<'s>> {
         let mut ordered_bullet_list = Vec::new();
 
-        if let Some(more_urgent_than_anything_including_scheduled) = self
-            .more_urgent_than_anything_including_scheduled
+        if let Some(crises_urgency) = self
+            .crises_urgency
             .apply_in_the_moment_priorities(all_priorities)
         {
-            ordered_bullet_list.push(more_urgent_than_anything_including_scheduled);
+            ordered_bullet_list.push(crises_urgency);
         }
 
-        if let Some(scheduled_any_mode) = self
-            .scheduled_any_mode
+        if let Some(scheduled) = self
+            .scheduled
             .apply_in_the_moment_priorities(all_priorities)
         {
-            ordered_bullet_list.push(scheduled_any_mode);
+            ordered_bullet_list.push(scheduled);
         }
 
-        if let Some(more_urgent_than_mode) = self
-            .more_urgent_than_mode
+        if let Some(definitely_urgent) = self
+            .definitely_urgent
             .apply_in_the_moment_priorities(all_priorities)
         {
-            ordered_bullet_list.push(more_urgent_than_mode);
+            ordered_bullet_list.push(definitely_urgent);
         }
 
-        if let Some(in_the_mode_scheduled) = self
-            .in_the_mode_scheduled
+        if let Some(maybe_urgent_and_by_importance) = self
+            .maybe_urgent_and_by_importance
             .apply_in_the_moment_priorities(all_priorities)
         {
-            ordered_bullet_list.push(in_the_mode_scheduled);
-        }
-
-        if let Some(in_the_mode_definitely_urgent) = self
-            .in_the_mode_definitely_urgent
-            .apply_in_the_moment_priorities(all_priorities)
-        {
-            ordered_bullet_list.push(in_the_mode_definitely_urgent);
-        }
-
-        if let Some(in_the_mode_maybe_urgent_and_by_importance) = self
-            .in_the_mode_maybe_urgent_and_by_importance
-            .apply_in_the_moment_priorities(all_priorities)
-        {
-            ordered_bullet_list.push(in_the_mode_maybe_urgent_and_by_importance);
+            ordered_bullet_list.push(maybe_urgent_and_by_importance);
         }
 
         ordered_bullet_list
@@ -333,13 +315,16 @@ mod tests {
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
-            surreal_item::{SurrealImportance, SurrealItemBuilder, SurrealItemType, SurrealMotivationKind},
+            surreal_item::{
+                SurrealImportance, SurrealItemBuilder, SurrealItemType, SurrealMotivationKind,
+            },
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },
         node::{
             action_with_item_status::{
-                ActionWithItemStatus, ApplyInTheMomentPriorities, SurrealModeScope, UrgencyLevelItemWithItemStatus, WhyInScopeAndActionWithItemStatus
+                ActionWithItemStatus, ApplyInTheMomentPriorities, SurrealModeScope,
+                UrgencyLevelItemWithItemStatus, WhyInScopeAndActionWithItemStatus,
             },
             why_in_scope_and_action_with_item_status::WhyInScope,
         },

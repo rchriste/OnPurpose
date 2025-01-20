@@ -12,7 +12,9 @@ use tokio::sync::{
 };
 
 use crate::{
-    data_storage::surrealdb_layer::surreal_mode::SurrealMode,
+    data_storage::surrealdb_layer::{
+        surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpentVersion1,
+    },
     new_event::NewEvent,
     new_item::{NewDependency, NewItem},
     new_mode::NewMode,
@@ -32,7 +34,7 @@ use super::{
     },
     surreal_mode,
     surreal_tables::SurrealTables,
-    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0},
+    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0, SurrealTimeSpentVersionOnly},
     SurrealTrigger,
 };
 
@@ -57,7 +59,7 @@ pub(crate) enum DataLayerCommands {
     UpdateRelativeImportance {
         parent: RecordId,
         update_this_child: RecordId,
-        higher_importance_than_this_child: Option<(SurrealModeScope, Option<RecordId>)>
+        higher_importance_than_this_child: Option<(SurrealModeScope, Option<RecordId>)>,
     },
     ParentItemWithExistingItem {
         child: RecordId,
@@ -71,6 +73,7 @@ pub(crate) enum DataLayerCommands {
     },
     ParentNewItemWithAnExistingChildItem {
         child: RecordId,
+        child_importance_scope: Option<SurrealModeScope>,
         parent_new_item: NewItem,
     },
     ParentItemRemoveParent {
@@ -190,26 +193,15 @@ pub(crate) async fn data_storage_endless_loop(
                 parent,
                 higher_importance_than_this,
             }) => {
-                parent_item_with_existing_item(
-                    child,
-                    parent,
-                    higher_importance_than_this,
-                    &db,
-                )
-                .await
+                parent_item_with_existing_item(child, parent, higher_importance_than_this, &db)
+                    .await
             }
             Some(DataLayerCommands::ParentItemWithANewChildItem {
                 child,
                 parent,
                 higher_importance_than_this,
             }) => {
-                parent_item_with_a_new_child(
-                    child,
-                    parent,
-                    higher_importance_than_this,
-                    &db,
-                )
-                .await
+                parent_item_with_a_new_child(child, parent, higher_importance_than_this, &db).await
             }
             Some(DataLayerCommands::ParentNewItemWithAnExistingChildItem {
                 child,
@@ -307,14 +299,14 @@ pub(crate) async fn data_storage_endless_loop(
             Some(DataLayerCommands::UpdateSummary(item, new_summary)) => {
                 update_item_summary(item, new_summary, &db).await
             }
-            Some(DataLayerCommands::UpdateModeName(thing, new_name)) => {
+            Some(DataLayerCommands::UpdateModeSummary(thing, new_name)) => {
                 let updated: SurrealMode = db
                     .update(thing)
-                    .patch(PatchOp::replace("/name", new_name.clone()))
+                    .patch(PatchOp::replace("/summary", new_name.clone()))
                     .await
                     .unwrap()
                     .unwrap();
-                assert_eq!(updated.name, new_name);
+                assert_eq!(updated.summary, new_name);
             }
             Some(DataLayerCommands::UpdateResponsibilityAndItemType(
                 item,
@@ -452,7 +444,16 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 
     let surreal_in_the_moment_priorities = surreal_in_the_moment_priorities.await.unwrap();
 
-    let surreal_modes = surreal_modes.await.unwrap();
+    let surreal_modes = match surreal_modes.await {
+        Ok(surreal_modes) => surreal_modes,
+        Err(err) => {
+            println!("Surreal Modes is missing because of issue: {}", err);
+            upgrade_modes_table(db).await;
+            db.select(surreal_mode::SurrealMode::TABLE_NAME)
+                .await
+                .unwrap()
+        }
+    };
 
     SurrealTables {
         surreal_items: all_items,
@@ -487,30 +488,69 @@ async fn upgrade_items_table_version1_to_version2(db: &Surreal<Any>) {
 }
 
 async fn upgrade_items_table(db: &Surreal<Any>) {
-    let a: Vec<SurrealItemOldVersion> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
-    for item_old_version in a.into_iter() {
-        let item: SurrealItem = item_old_version.into();
-        let updated: SurrealItem = db
-            .update(item.id.clone().unwrap())
-            .content(item.clone())
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(item, updated);
-    }
+    todo!()
+    // let a: Vec<SurrealItemOldVersion> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
+    // for item_old_version in a.into_iter() {
+    //     let item: SurrealItem = item_old_version.into();
+    //     let updated: SurrealItem = db
+    //         .update(item.id.clone().unwrap())
+    //         .content(item.clone())
+    //         .await
+    //         .unwrap()
+    //         .unwrap();
+    //     assert_eq!(item, updated);
+    // }
 }
 
 async fn upgrade_time_spent_log(db: &Surreal<Any>) {
-    let a: Vec<SurrealTimeSpentVersion0> = db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
-    for time_spent_old in a.into_iter() {
-        let time_spent: SurrealTimeSpent = time_spent_old.into();
-        let updated: SurrealTimeSpent = db
-            .update(time_spent.id.clone().expect("In DB"))
-            .content(time_spent.clone())
+    let mut version_only: Vec<SurrealTimeSpentVersionOnly> =
+        db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
+    if version_only.iter().any(|x| x.version == 0) {
+        let a: Vec<SurrealTimeSpentVersion0> =
+            db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
+        for time_spent_old in a.into_iter() {
+            let time_spent: SurrealTimeSpentVersion1 = time_spent_old.into();
+            let updated: SurrealTimeSpentVersion1 = db
+                .update(time_spent.id.clone().expect("In DB"))
+                .content(time_spent.clone())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(time_spent, updated);
+        }
+        version_only = db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
+    }
+
+    if version_only.iter().any(|x| x.version == 1) {
+        let a: Vec<SurrealTimeSpentVersion1> =
+            db.select(SurrealTimeSpent::TABLE_NAME).await.unwrap();
+        for time_spent_old in a.into_iter() {
+            let time_spent: SurrealTimeSpent = time_spent_old.into();
+            let updated: SurrealTimeSpent = db
+                .update(time_spent.id.clone().expect("In DB"))
+                .content(time_spent.clone())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(time_spent, updated);
+        }
+    }
+}
+
+async fn upgrade_modes_table(db: &Surreal<Any>) {
+    let a: Vec<surreal_mode::SurrealModeVersion0> = db
+        .select(surreal_mode::SurrealMode::TABLE_NAME)
+        .await
+        .unwrap();
+    for mode_old_version in a.into_iter() {
+        let mode: SurrealMode = mode_old_version.into();
+        let updated: SurrealMode = db
+            .update(mode.id.clone().expect("In DB"))
+            .content(mode.clone())
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(time_spent, updated);
+        assert_eq!(mode, updated);
     }
 }
 
@@ -559,7 +599,7 @@ async fn create_new_item(mut new_item: NewItem, db: &Surreal<Any>) -> SurrealIte
             NewDependency::Existing(_) => {}
         }
     }
-    let mut surreal_item: SurrealItem = SurrealItem::new(new_item, vec![])
+    let mut surreal_item: SurrealItem = SurrealItem::new(new_item, vec![], vec![])
         .expect("We fix up NewDependency::NewEvent above so it will never happen here");
     let created: Vec<SurrealItem> = db
         .create(SurrealItem::TABLE_NAME)
@@ -592,49 +632,60 @@ async fn cover_item_with_an_existing_item(
     add_dependency(existing_item_to_be_covered, new_dependency, db).await;
 }
 
+/// Some examples:
+/// higher_importance_than_this: None -> Means the child_record should be marked as not important
+/// higher_importance_than_this: Some((_, None)) -> Means the child_record should be as the lowest important on the list
 async fn parent_item_with_existing_item(
     child_record_id: RecordId,
     parent_record_id: RecordId,
-    higher_importance_than_this: Option<RecordId>,
+    higher_importance_than_this: Option<(SurrealModeScope, Option<RecordId>)>,
     db: &Surreal<Any>,
 ) {
     //TODO: This should be refactored so it happens inside of a transaction and ideally as one query because if the data is modified between the time that the data is read and the time that the data is written back out then the data could be lost. I haven't done this yet because I need to figure out how to do this inside of a SurrealDB query and I haven't done that yet.
     let mut parent: SurrealItem = db.select(parent_record_id.clone()).await.unwrap().unwrap();
-    parent.smaller_items_in_priority_order = parent
-        .smaller_items_in_priority_order
+    parent.smaller_items_in_importance_order = parent
+        .smaller_items_in_importance_order
         .into_iter()
-        .filter(|x| match x {
-            SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                surreal_item_id != &child_record_id
-            }
-        })
+        .filter(|x| x.child_item != child_record_id)
         .collect::<Vec<_>>();
-    if let Some(higher_priority_than_this) = higher_importance_than_this {
-        let index_of_higher_priority = parent
-            .smaller_items_in_priority_order
-            .iter()
-            .position(|x| match x {
+    parent.smaller_items_not_important = parent
+        .smaller_items_not_important
+        .into_iter()
+        .filter(|x| x != &child_record_id)
+        .collect::<Vec<_>>();
+
+    match higher_importance_than_this {
+        Some((mode_scope, Some(higher_priority_than_this))) => {
+            let index_of_higher_priority = parent
+                .smaller_items_in_importance_order
+                .iter()
+                .position(|x|
                 //Note that position() is short-circuiting. If there are multiple matches it could be argued that I should panic or assert but
                 //I am just matching the first one and then I just keep going. Because I am still figuring out the design and this is
                 //more in the vein of hardening work I think this is fine but feel free to revisit this.
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    surreal_item_id == &higher_priority_than_this
-                }
-            })
-            .expect("Should already be in the list");
-        parent.smaller_items_in_priority_order.insert(
-            index_of_higher_priority,
-            SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child_record_id,
-            },
-        );
-    } else {
-        parent
-            .smaller_items_in_priority_order
-            .push(SurrealOrderedSubItem::SubItem {
-                surreal_item_id: child_record_id,
-            });
+                x.child_item == higher_priority_than_this)
+                .expect("Should already be in the list");
+            parent.smaller_items_in_importance_order.insert(
+                index_of_higher_priority,
+                SurrealImportance {
+                    child_item: child_record_id,
+                    scope: mode_scope,
+                },
+            );
+        }
+        Some((mode_scope, None)) => {
+            parent
+                .smaller_items_in_importance_order
+                .push(SurrealImportance {
+                    child_item: child_record_id,
+                    scope: mode_scope,
+                });
+        }
+        None => {
+            parent.smaller_items_not_important.push(child_record_id);
+        }
     }
+
     let saved = db
         .update(parent_record_id)
         .content(parent.clone())
@@ -647,7 +698,7 @@ async fn parent_item_with_existing_item(
 async fn parent_item_with_a_new_child(
     child: NewItem,
     parent: RecordId,
-    higher_importance_than_this: Option<RecordId>,
+    higher_importance_than_this: Option<(SurrealModeScope, Option<RecordId>)>,
     db: &Surreal<Any>,
 ) {
     let child = create_new_item(child, db).await;
@@ -660,8 +711,10 @@ async fn parent_item_with_a_new_child(
     .await
 }
 
+/// if child_importance_scope is None then the child is not important
 async fn parent_new_item_with_an_existing_child_item(
     child: RecordId,
+    child_importance_scope: Option<SurrealModeScope>,
     mut parent_new_item: NewItem,
     db: &Surreal<Any>,
 ) {
@@ -678,13 +731,18 @@ async fn parent_new_item_with_an_existing_child_item(
     }
 
     //TODO: Write a Unit Test for this
-    let smaller_items_in_priority_order = vec![SurrealOrderedSubItem::SubItem {
-        surreal_item_id: child,
-    }];
 
-    let mut parent_surreal_item =
-        SurrealItem::new(parent_new_item, smaller_items_in_priority_order)
-            .expect("We deal with new events above so it will never happen here");
+    let mut parent_surreal_item = if let Some(child_mode_scope) = child_importance_scope {
+        let smaller_items_in_priority_order = vec![SurrealImportance {
+            child_item: child,
+            scope: child_mode_scope,
+        }];
+        SurrealItem::new(parent_new_item, smaller_items_in_priority_order, vec![])
+            .expect("We deal with new events above so it will never happen here")
+    } else {
+        SurrealItem::new(parent_new_item, vec![], vec![child])
+            .expect("We deal with new events above so it will never happen here")
+    };
     let created = db
         .create(SurrealItem::TABLE_NAME)
         .content(parent_surreal_item.clone())
@@ -956,6 +1014,7 @@ mod tests {
                     .unwrap()
                     .id
                     .expect("In Db"),
+                child_importance_scope: Some(SurrealModeScope::AllModes),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")
                     .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()))
@@ -975,12 +1034,12 @@ mod tests {
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
                 .len()
         );
         assert_eq!(
-            &SurrealOrderedSubItem::SubItem {
-                surreal_item_id: surreal_tables
+            &SurrealImportance {
+                child_item: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Item that needs a parent")
@@ -988,14 +1047,15 @@ mod tests {
                     .id
                     .as_ref()
                     .unwrap()
-                    .clone()
+                    .clone(),
+                scope: SurrealModeScope::AllModes,
             },
             surreal_tables
                 .surreal_items
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
                 .first()
                 .unwrap()
         );
@@ -1052,7 +1112,7 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: None,
+                higher_importance_than_this: Some((SurrealModeScope::AllModes, None)),
             })
             .await
             .unwrap();
@@ -1067,12 +1127,12 @@ mod tests {
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
                 .len()
         );
         assert_eq!(
-            &SurrealOrderedSubItem::SubItem {
-                surreal_item_id: surreal_tables
+            &SurrealImportance {
+                child_item: surreal_tables
                     .surreal_items
                     .iter()
                     .find(|x| x.summary == "Item that needs a parent")
@@ -1080,14 +1140,15 @@ mod tests {
                     .id
                     .as_ref()
                     .unwrap()
-                    .clone()
+                    .clone(),
+                scope: SurrealModeScope::AllModes,
             },
             surreal_tables
                 .surreal_items
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
                 .first()
                 .unwrap()
         );
@@ -1175,7 +1236,7 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: None,
+                higher_importance_than_this: Some((SurrealModeScope::AllModes, None)),
             })
             .await
             .unwrap();
@@ -1200,7 +1261,7 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: None,
+                higher_importance_than_this: Some((SurrealModeScope::AllModes, None)),
             })
             .await
             .unwrap();
@@ -1223,16 +1284,16 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: Some(
+                higher_importance_than_this: Some((
+                    SurrealModeScope::AllModes,
                     surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item bottom position")
                         .unwrap()
                         .id
-                        .clone()
-                        .expect("In DB"),
-                ),
+                        .clone(),
+                )),
             })
             .await
             .unwrap();
@@ -1255,16 +1316,16 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: Some(
+                higher_importance_than_this: Some((
+                    SurrealModeScope::AllModes,
                     surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item bottom position")
                         .unwrap()
                         .id
-                        .clone()
-                        .expect("In DB"),
-                ),
+                        .clone(),
+                )),
             })
             .await
             .unwrap();
@@ -1273,8 +1334,8 @@ mod tests {
 
         assert_eq!(
             vec![
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item at the top of the list")
@@ -1282,10 +1343,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item 2nd position")
@@ -1293,10 +1355,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item 3rd position")
@@ -1304,10 +1367,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item bottom position")
@@ -1315,7 +1379,8 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
             ],
             surreal_tables
@@ -1323,7 +1388,7 @@ mod tests {
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
         );
 
         drop(sender);
@@ -1409,7 +1474,7 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: None,
+                higher_importance_than_this: Some((SurrealModeScope::AllModes, None)),
             })
             .await
             .unwrap();
@@ -1434,7 +1499,7 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: None,
+                higher_importance_than_this: Some((SurrealModeScope::AllModes, None)),
             })
             .await
             .unwrap();
@@ -1457,7 +1522,8 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: Some(
+                higher_importance_than_this: Some((
+                    SurrealModeScope::AllModes,
                     surreal_tables
                         .surreal_items
                         .iter()
@@ -1467,9 +1533,8 @@ mod tests {
                         })
                         .unwrap()
                         .id
-                        .clone()
-                        .expect("In DB"),
-                ),
+                        .clone(),
+                )),
             })
             .await
             .unwrap();
@@ -1492,7 +1557,8 @@ mod tests {
                     .id
                     .clone()
                     .expect("In DB"),
-                higher_importance_than_this: Some(
+                higher_importance_than_this: Some((
+                    SurrealModeScope::AllModes,
                     surreal_tables
                         .surreal_items
                         .iter()
@@ -1502,9 +1568,8 @@ mod tests {
                         })
                         .unwrap()
                         .id
-                        .clone()
-                        .expect("In DB"),
-                ),
+                        .clone(),
+                )),
             })
             .await
             .unwrap();
@@ -1531,16 +1596,16 @@ mod tests {
                     .as_ref()
                     .expect("In DB")
                     .clone(),
-                higher_importance_than_this: Some(
+                higher_importance_than_this: Some((
+                    SurrealModeScope::AllModes,
                     surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item 2nd position")
                         .unwrap()
                         .id
-                        .clone()
-                        .expect("In DB"),
-                ),
+                        .clone(),
+                )),
             })
             .await
             .unwrap();
@@ -1549,8 +1614,8 @@ mod tests {
 
         assert_eq!(
             vec![
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item at the top of the list")
@@ -1558,10 +1623,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary
@@ -1570,10 +1636,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item 2nd position")
@@ -1581,10 +1648,11 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
-                SurrealOrderedSubItem::SubItem {
-                    surreal_item_id: surreal_tables
+                SurrealImportance {
+                    child_item: surreal_tables
                         .surreal_items
                         .iter()
                         .find(|x| x.summary == "Child Item 3rd position")
@@ -1592,7 +1660,8 @@ mod tests {
                         .id
                         .as_ref()
                         .unwrap()
-                        .clone()
+                        .clone(),
+                    scope: SurrealModeScope::AllModes,
                 },
             ],
             surreal_tables
@@ -1600,7 +1669,7 @@ mod tests {
                 .iter()
                 .find(|x| x.summary == "Parent Item")
                 .unwrap()
-                .smaller_items_in_priority_order
+                .smaller_items_in_importance_order
         );
 
         drop(sender);

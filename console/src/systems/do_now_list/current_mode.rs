@@ -1,20 +1,30 @@
 use crate::{
-    data_storage::surrealdb_layer::surreal_current_mode::{
+    data_storage::surrealdb_layer::surreal_current_mode::SurrealCurrentMode,
+    node::{item_node::ItemNode, mode_node::ModeNode, Filter},
+};
 
 pub(crate) struct CurrentMode<'s> {
     mode: &'s ModeNode<'s>,
 }
 
 impl<'s> CurrentMode<'s> {
-    pub(crate) fn new(surreal_current_mode: &SurrealCurrentMode, mode_nodes: &'s [ModeNode<'s>]) -> Self {
+    pub(crate) fn new(
+        surreal_current_mode: &SurrealCurrentMode,
+        mode_nodes: &'s [ModeNode<'s>],
+    ) -> Self {
         let mode = mode_nodes
             .iter()
-            .find(|mode| mode.get_surreal_id() == surreal_current_mode.mode.as_ref().expect("Mode must exist"))
+            .find(|mode| {
+                mode.get_surreal_id()
+                    == surreal_current_mode.mode.as_ref().expect("Mode must exist")
+            })
             .expect("Mode must exist");
 
-        CurrentMode {
-            mode,
-        }
+        CurrentMode { mode }
+    }
+
+    pub(crate) fn get_mode(&self) -> &ModeNode {
+        self.mode
     }
 
     pub(crate) fn is_urgency_in_the_mode(&self, item_node: &ItemNode) -> bool {

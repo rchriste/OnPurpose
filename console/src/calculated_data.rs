@@ -28,11 +28,12 @@ pub(crate) struct CalculatedData {
     in_the_moment_priorities: Vec<InTheMomentPriorityWithItemAction<'this>>,
 
     #[borrows(base_data)]
-    current_mode: CurrentMode,
-
-    #[borrows(base_data)]
     #[covariant]
     mode_nodes: Vec<ModeNode<'this>>,
+
+    #[borrows(base_data, mode_nodes)]
+    #[covariant]
+    current_mode: Option<CurrentMode<'this>>,
 }
 
 impl CalculatedData {
@@ -81,19 +82,19 @@ impl CalculatedData {
                 });
                 in_the_moment_priorities
             },
-            current_mode_builder: |base_data| {
+            mode_nodes_builder: |base_data| {
+                let all_modes = base_data.get_modes();
+                all_modes.iter().map(|x| ModeNode::new(x, all_modes)).collect()
+            },
+            current_mode_builder: |base_data, mode_nodes| {
                 let surreal_current_modes = base_data.get_surreal_current_modes();
                 assert!(surreal_current_modes.len() <= 1, "There should not be more than one current mode. In the future it would be great for this to be a silent error that just deletes the current mode and logs an error into an error log (that currently doesn't exist) clears it but for now this is an assert. Length is: {}", surreal_current_modes.len());
                 let surreal_current_mode = surreal_current_modes.first();
                 match surreal_current_mode {
-                    None => CurrentMode::default(),
+                    None => None,
                     Some(surreal_current_mode) =>
-                        CurrentMode::new(surreal_current_mode)
+                        Some(CurrentMode::new(surreal_current_mode, mode_nodes))
                 }
-            },
-            mode_nodes_builder: |base_data| {
-                let all_modes = base_data.get_modes();
-                all_modes.iter().map(|x| ModeNode::new(x, all_modes)).collect()
             },
         }
         .build()
@@ -115,7 +116,7 @@ impl CalculatedData {
         self.borrow_base_data().get_time_spent_log()
     }
 
-    pub(crate) fn get_current_mode(&self) -> &CurrentMode {
+    pub(crate) fn get_current_mode(&self) -> &Option<CurrentMode> {
         self.borrow_current_mode()
     }
 

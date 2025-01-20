@@ -3,7 +3,9 @@ use std::fmt::{Display, Formatter};
 use chrono::{DateTime, Local, Utc};
 
 use crate::{
-    data_storage::surrealdb_layer::surreal_item::{SurrealModeScope, SurrealScheduled, SurrealUrgency},
+    data_storage::surrealdb_layer::surreal_item::{
+        SurrealModeScope, SurrealScheduled, SurrealUrgency,
+    },
     display::display_duration_one_unit::DisplayDurationOneUnit,
     node::{
         item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
@@ -200,8 +202,37 @@ impl Display for DisplayUrgency<'_> {
             Some(SurrealUrgency::CrisesUrgent(mode)) => {
                 write!(f, "🔥")?;
                 match self.style {
-                    DisplayStyle::Abbreviated => Ok(()),
-                    DisplayStyle::Full => write!(f, " Crises urgency"),
+                    DisplayStyle::Abbreviated => match mode {
+                        SurrealModeScope::AllModes => write!(f, "(ALL MODES)"),
+                        SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                            if !extra_included.is_empty() {
+                                write!(f, "(")?;
+                                for _ in extra_included.iter() {
+                                    write!(f, "+")?;
+                                }
+                                write!(f, ")")
+                            } else {
+                                Ok(())
+                            }
+                        }
+                    },
+                    DisplayStyle::Full => {
+                        write!(f, " Crises urgency")?;
+                        match mode {
+                            SurrealModeScope::AllModes => write!(f, " (ALL MODES)"),
+                            SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                                if !extra_included.is_empty() {
+                                    write!(f, " (")?;
+                                    for addition in extra_included.iter() {
+                                        todo!("Print out the names of the modes");
+                                    }
+                                    write!(f, ")")
+                                } else {
+                                    Ok(())
+                                }
+                            }
+                        }
+                    }
                 }
             }
             None => {

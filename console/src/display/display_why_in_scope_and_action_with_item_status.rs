@@ -5,7 +5,8 @@ use surrealdb::sql::Thing;
 
 use crate::{
     data_storage::surrealdb_layer::{
-        surreal_in_the_moment_priority::SurrealAction, surreal_item::SurrealUrgency,
+        surreal_in_the_moment_priority::SurrealAction,
+        surreal_item::{SurrealModeScope, SurrealUrgency},
     },
     display::display_action_with_item_status::DisplayActionWithItemStatus,
     node::{
@@ -32,11 +33,67 @@ impl Display for DisplayWhyInScopeAndActionWithItemStatus<'_> {
 
         let urgency = self.get_urgency_now();
         match urgency {
-            Some(SurrealUrgency::CrisesUrgent(mode)) => write!(f, "🔥 ")?,
+            Some(SurrealUrgency::CrisesUrgent(mode)) => {
+                write!(f, "🔥 ")?;
+                match mode {
+                    SurrealModeScope::AllModes => write!(f, "(ALL MODES) ")?,
+                    SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                        if !extra_included.is_empty() {
+                            write!(f, "(")?;
+                            for _ in extra_included.iter() {
+                                write!(f, "+")?;
+                            }
+                            write!(f, ") ")?;
+                        }
+                    }
+                }
+            }
             None => {}
-            Some(SurrealUrgency::DefinitelyUrgent(mode)) => write!(f, "🔴 ")?,
-            Some(SurrealUrgency::MaybeUrgent(mode)) => write!(f, "🟡 ")?,
-            Some(SurrealUrgency::Scheduled(mode, _)) => write!(f, "🗓️ ")?,
+            Some(SurrealUrgency::DefinitelyUrgent(mode)) => {
+                write!(f, "🔴 ")?;
+                match mode {
+                    SurrealModeScope::AllModes => write!(f, "(ALL MODES) ")?,
+                    SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                        if !extra_included.is_empty() {
+                            write!(f, "(")?;
+                            for _ in extra_included.iter() {
+                                write!(f, "+")?;
+                            }
+                            write!(f, ") ")?;
+                        }
+                    }
+                }
+            }
+            Some(SurrealUrgency::MaybeUrgent(mode)) => {
+                write!(f, "🟡 ")?;
+                match mode {
+                    SurrealModeScope::AllModes => write!(f, "(ALL MODES) ")?,
+                    SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                        if !extra_included.is_empty() {
+                            write!(f, "(")?;
+                            for _ in extra_included.iter() {
+                                write!(f, "+")?;
+                            }
+                            write!(f, ") ")?;
+                        }
+                    }
+                }
+            }
+            Some(SurrealUrgency::Scheduled(mode, _)) => {
+                write!(f, "🗓️ ")?;
+                match mode {
+                    SurrealModeScope::AllModes => write!(f, "(ALL MODES) ")?,
+                    SurrealModeScope::DefaultModesWithChanges { extra_included } => {
+                        if !extra_included.is_empty() {
+                            write!(f, "(")?;
+                            for _ in extra_included.iter() {
+                                write!(f, "+")?;
+                            }
+                            write!(f, ") ")?;
+                        }
+                    }
+                }
+            }
         }
 
         write!(
