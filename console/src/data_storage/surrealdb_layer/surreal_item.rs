@@ -30,7 +30,7 @@ pub(crate) struct SurrealItem {
     pub(crate) id: Option<Thing>,
     pub(crate) summary: String,
 
-    #[cfg_attr(test, builder(default = "3"))]
+    #[cfg_attr(test, builder(default = "4"))]
     pub(crate) version: u32,
 
     #[cfg_attr(test, builder(default))]
@@ -143,26 +143,39 @@ pub(crate) enum SurrealItemType {
     #[default]
     Undeclared,
     Action,
-    Goal(SurrealHowMuchIsInMyControl),
+    Project,
     IdeaOrThought,
     /// Purpose behind the work
-    Motivation(SurrealMotivationKind),
+    Motivation,
     PersonOrGroup,
 }
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum SurrealItemTypeVersion3 {
+    #[default]
+    Undeclared,
+    Action,
+    Goal(SurrealHowMuchIsInMyControlVersion3),
+    IdeaOrThought,
+    /// Purpose behind the work
+    Motivation,
+    PersonOrGroup,
+}
+
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum SurrealItemTypeOld {
     #[default]
     Undeclared,
     Action,
-    Goal(SurrealHowMuchIsInMyControl),
+    Goal(SurrealHowMuchIsInMyControlVersion3),
     IdeaOrThought,
     Motivation,
     PersonOrGroup,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum SurrealMotivationKind {
+pub(crate) enum SurrealMotivationKindVersion3 {
     #[default]
     NotSet,
     CoreWork,
@@ -175,14 +188,14 @@ pub(crate) enum ItemTypeOld {
     #[default]
     Undeclared,
     Action,
-    Goal(SurrealHowMuchIsInMyControl),
+    Goal(SurrealHowMuchIsInMyControlVersion3),
     IdeaOrThought,
     Motivation,
     PersonOrGroup,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
-pub(crate) enum SurrealHowMuchIsInMyControl {
+pub(crate) enum SurrealHowMuchIsInMyControlVersion3 {
     #[default]
     NotSet,
     MostlyInMyControl,
@@ -664,6 +677,61 @@ impl Hash for SurrealUrgency {
         }
     }
 }
+
+//derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
+//gave me false errors in the editor (rust-analyzer) so I am just going to try including
+//it always to see if that addresses these phantom errors. Nov2023.
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Builder)]
+#[builder(setter(into))]
+pub(crate) struct SurrealItemOldVersion3 {
+    pub(crate) id: Option<Thing>,
+    pub(crate) summary: String,
+
+    #[cfg_attr(test, builder(default = "4"))]
+    pub(crate) version: u32,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) finished: Option<Datetime>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) responsibility: Responsibility,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) item_type: SurrealItemTypeVersion3,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) notes_location: NotesLocation,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) lap: Option<SurrealLap>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) dependencies: Vec<SurrealDependency>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) last_reviewed: Option<Datetime>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) review_frequency: Option<SurrealFrequency>,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) review_guidance: Option<SurrealReviewGuidance>,
+
+    /// This is meant to be a list of the smaller or subitems of this item that further this item in an ordered list meaning that they should be done in order
+    #[cfg_attr(test, builder(default))]
+    pub(crate) smaller_items_in_importance_order: Vec<SurrealImportance>,
+
+    /// If items are not important then they don't have an order and are therefor placed here
+    #[cfg_attr(test, builder(default))]
+    pub(crate) smaller_items_not_important: Vec<RecordId>,
+
+    #[cfg_attr(test, builder(default = "chrono::Utc::now().into()"))]
+    pub(crate) created: Datetime,
+
+    #[cfg_attr(test, builder(default))]
+    pub(crate) urgency_plan: Option<SurrealUrgencyPlan>,
+}
+
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including

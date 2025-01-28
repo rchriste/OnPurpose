@@ -13,7 +13,7 @@ use tokio::sync::{
 
 use crate::{
     data_storage::surrealdb_layer::{
-        surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpentVersion1,
+        surreal_item::SurrealItemTypeVersion3, surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpentVersion1
     },
     new_event::NewEvent,
     new_item::{NewDependency, NewItem},
@@ -466,25 +466,26 @@ pub(crate) async fn load_from_surrealdb_upgrade_if_needed(db: &Surreal<Any>) -> 
 }
 
 async fn upgrade_items_table_version1_to_version2(db: &Surreal<Any>) {
-    let a: Vec<SurrealItem> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
-    for mut item_old_version in a.into_iter() {
-        let item: SurrealItem =
-            if matches!(item_old_version.item_type, SurrealItemType::Motivation(_)) {
-                item_old_version.responsibility = Responsibility::ReactiveBeAvailableToAct;
-                item_old_version.version = 2;
-                item_old_version
-            } else {
-                item_old_version.version = 2;
-                item_old_version
-            };
-        let updated: SurrealItem = db
-            .update(item.id.clone().unwrap())
-            .content(item.clone())
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(item, updated);
-    }
+    todo!()
+    // let a: Vec<SurrealItemOldVersion> = db.select(SurrealItemOldVersion::TABLE_NAME).await.unwrap();
+    // for mut item_old_version in a.into_iter() {
+    //     let item: SurrealItemVersion3 =
+    //         if matches!(item_old_version.item_type, SurrealItemTypeVersion3::Motivation(_)) {
+    //             item_old_version.responsibility = Responsibility::ReactiveBeAvailableToAct;
+    //             item_old_version.version = 2;
+    //             item_old_version
+    //         } else {
+    //             item_old_version.version = 2;
+    //             item_old_version
+    //         };
+    //     let updated: SurrealItem = db
+    //         .update(item.id.clone().unwrap())
+    //         .content(item.clone())
+    //         .await
+    //         .unwrap()
+    //         .unwrap();
+    //     assert_eq!(item, updated);
+    // }
 }
 
 async fn upgrade_items_table(db: &Surreal<Any>) {
@@ -827,10 +828,7 @@ mod tests {
 
     use super::*;
 
-    use crate::{
-        data_storage::surrealdb_layer::surreal_item::SurrealHowMuchIsInMyControl,
-        new_item::NewItemBuilder,
-    };
+    use crate::new_item::NewItemBuilder;
 
     #[tokio::test]
     async fn data_starts_empty() {
@@ -1017,7 +1015,7 @@ mod tests {
                 child_importance_scope: Some(SurrealModeScope::AllModes),
                 parent_new_item: NewItemBuilder::default()
                     .summary("Parent Item")
-                    .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()))
+                    .item_type(SurrealItemType::Project)
                     .build()
                     .unwrap(),
             })
@@ -1082,7 +1080,7 @@ mod tests {
 
         let parent_item = NewItemBuilder::default()
             .summary("Parent Item")
-            .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()))
+            .item_type(SurrealItemType::Project)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1206,7 +1204,7 @@ mod tests {
 
         let parent_item = NewItemBuilder::default()
             .summary("Parent Item")
-            .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()))
+            .item_type(SurrealItemType::Project)
             .build()
             .expect("Filled out required fields");
         sender
@@ -1444,7 +1442,7 @@ mod tests {
 
         let parent_item = NewItemBuilder::default()
             .summary("Parent Item")
-            .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()))
+            .item_type(SurrealItemType::Project)
             .build()
             .expect("Filled out required fields");
         sender

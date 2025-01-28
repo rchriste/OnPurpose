@@ -316,7 +316,7 @@ mod tests {
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
             surreal_item::{
-                SurrealImportance, SurrealItemBuilder, SurrealItemType, SurrealMotivationKind,
+                SurrealImportance, SurrealItemBuilder, SurrealItemType,
             },
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
@@ -926,7 +926,7 @@ mod tests {
 
         let core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "core").into()))
-            .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
+            .item_type(SurrealItemType::Motivation)
             .smaller_items_in_importance_order(vec![
                 SurrealImportance {
                     child_item: ("surreal_item", "1").into(),
@@ -943,9 +943,7 @@ mod tests {
 
         let non_core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "noncore").into()))
-            .item_type(SurrealItemType::Motivation(
-                SurrealMotivationKind::NonCoreWork,
-            ))
+            .item_type(SurrealItemType::Motivation)
             .smaller_items_in_importance_order(vec![SurrealImportance {
                 child_item: ("surreal_item", "3").into(),
                 scope: SurrealModeScope::AllModes,
@@ -1046,7 +1044,7 @@ mod tests {
 
         let core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "core").into()))
-            .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork))
+            .item_type(SurrealItemType::Motivation)
             .smaller_items_in_importance_order(vec![
                 SurrealImportance {
                     child_item: ("surreal_item", "1").into(),
@@ -1063,9 +1061,7 @@ mod tests {
 
         let non_core_motivation = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "noncore").into()))
-            .item_type(SurrealItemType::Motivation(
-                SurrealMotivationKind::NonCoreWork,
-            ))
+            .item_type(SurrealItemType::Motivation)
             .smaller_items_in_importance_order(vec![SurrealImportance {
                 child_item: ("surreal_item", "3").into(),
                 scope: SurrealModeScope::AllModes,

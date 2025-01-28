@@ -370,8 +370,8 @@ impl<'s> ItemNode<'s> {
         self.item.get_type()
     }
 
-    pub(crate) fn is_type_goal(&self) -> bool {
-        self.item.is_type_goal()
+    pub(crate) fn is_type_project(&self) -> bool {
+        self.item.is_type_project()
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
@@ -796,10 +796,6 @@ fn calculate_urgent_action_items<'a>(
     //Does it need a parent?
     if !has_parents(parents, Filter::Active) && !item.is_type_motivation() {
         result.push(ActionWithItem::ParentBackToAMotivation(item));
-    }
-
-    if item.is_type_motivation_kind_not_set() {
-        result.push(ActionWithItem::ItemNeedsAClassification(item));
     }
 
     //Does it need to pick a review frequency?

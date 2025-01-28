@@ -116,7 +116,9 @@ impl DoNowList {
                                     .push_if_new(item);
                             }
                         }
-                        None => todo!(),
+                        None => {
+                            //Do nothing
+                        },
                     }
                 }
 

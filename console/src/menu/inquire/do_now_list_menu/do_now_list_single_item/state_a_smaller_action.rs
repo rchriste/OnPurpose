@@ -64,15 +64,15 @@ pub(crate) async fn select_an_item<'a>(
                 } else {
                     Ordering::Less
                 }
-            } else if a.is_type_goal() {
+            } else if a.is_type_project() {
                 if b.is_type_motivation() {
                     Ordering::Greater
-                } else if b.is_type_goal() {
+                } else if b.is_type_project() {
                     Ordering::Equal
                 } else {
                     Ordering::Less
                 }
-            } else if b.is_type_motivation() || b.is_type_goal() {
+            } else if b.is_type_motivation() || b.is_type_project() {
                 Ordering::Greater
             } else if a.get_type() == b.get_type() {
                 Ordering::Equal

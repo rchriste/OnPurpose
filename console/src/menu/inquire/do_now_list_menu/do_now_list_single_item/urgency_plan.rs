@@ -615,14 +615,14 @@ impl Display for Urgency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Urgency::Crises => {
-                write!(f, "🔥  Crises urgency")
+                write!(f, "🔥 Crises urgency")
             }
             Urgency::Scheduled => write!(f, "🗓️ Scheduled"),
             Urgency::DefinitelyUrgent => {
-                write!(f, "🔴  Definitely urgent")
+                write!(f, "🔴 Definitely urgent")
             }
-            Urgency::MaybeUrgent => write!(f, "🟡  Maybe urgent"),
-            Urgency::NotUrgent => write!(f, "🟢  Not urgent"),
+            Urgency::MaybeUrgent => write!(f, "🟡 Maybe urgent"),
+            Urgency::NotUrgent => write!(f, "🟢 Not urgent"),
         }
     }
 }
@@ -638,7 +638,7 @@ fn prompt_for_urgency() -> Option<SurrealUrgency> {
             Urgency::NotUrgent,
         ],
     )
-    .with_starting_cursor(6)
+    .with_starting_cursor(4)
     .prompt()
     .unwrap();
     let mode = prompt_for_mode_scope();

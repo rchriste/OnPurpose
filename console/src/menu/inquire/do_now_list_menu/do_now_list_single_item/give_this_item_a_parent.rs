@@ -64,9 +64,9 @@ pub(crate) async fn give_this_item_a_parent(
             Ordering::Less
         } else if !a.is_type_motivation() && b.is_type_motivation() {
             Ordering::Greater
-        } else if a.is_type_goal() && !b.is_type_goal() {
+        } else if a.is_type_project() && !b.is_type_project() {
             Ordering::Less
-        } else if !a.is_type_goal() && b.is_type_goal() {
+        } else if !a.is_type_project() && b.is_type_project() {
             Ordering::Greater
         } else {
             Ordering::Equal

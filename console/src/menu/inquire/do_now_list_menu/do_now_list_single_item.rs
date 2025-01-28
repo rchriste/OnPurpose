@@ -20,7 +20,7 @@ use crate::{
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
-            Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
+            Responsibility, SurrealItemType,
         },
         surreal_tables::SurrealTables,
     },
@@ -731,9 +731,7 @@ pub(crate) enum ItemTypeSelection {
     Action,
     Goal,
     Idea,
-    MotivationCore,
-    MotivationNonCore,
-    MotivationNeither,
+    Motivation,
     NormalHelp,
 }
 
@@ -743,14 +741,8 @@ impl Display for ItemTypeSelection {
             Self::Action => write!(f, "Task or Step 🪜"),
             Self::Goal => write!(f, "Commitment or Project 🪧"),
             Self::Idea => write!(f, "Idea or Thought 💡"),
-            Self::MotivationCore => {
-                write!(f, "Core Motivational Purpose 🎯🏢")
-            }
-            Self::MotivationNonCore => {
-                write!(f, "Non-Core Motivational Purpose 🎯🧹")
-            }
-            Self::MotivationNeither => {
-                write!(f, "Neither Core nor Non-Core Motivational Purpose 🎯🚫")
+            Self::Motivation => {
+                write!(f, "Motivational Purpose 🎯")
             }
             Self::NormalHelp => write!(f, "❓ Help"),
         }
@@ -763,9 +755,7 @@ impl ItemTypeSelection {
             Self::Action,
             Self::Goal,
             Self::Idea,
-            Self::MotivationCore,
-            Self::MotivationNonCore,
-            Self::MotivationNeither,
+            Self::Motivation,
             Self::NormalHelp,
         ]
     }
@@ -784,20 +774,10 @@ impl ItemTypeSelection {
                 .item_type(SurrealItemType::Action),
             ItemTypeSelection::Goal => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
-                .item_type(SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default())),
-            ItemTypeSelection::MotivationCore => new_item_builder
+                .item_type(SurrealItemType::Project),
+            ItemTypeSelection::Motivation => new_item_builder
                 .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)),
-            ItemTypeSelection::MotivationNonCore => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(
-                    SurrealMotivationKind::NonCoreWork,
-                )),
-            ItemTypeSelection::MotivationNeither => new_item_builder
-                .responsibility(Responsibility::ReactiveBeAvailableToAct)
-                .item_type(SurrealItemType::Motivation(
-                    SurrealMotivationKind::DoesNotFitInCoreOrNonCore,
-                )),
+                .item_type(SurrealItemType::Motivation),
             ItemTypeSelection::Idea => new_item_builder
                 .responsibility(Responsibility::ProactiveActionToTake)
                 .item_type(SurrealItemType::IdeaOrThought),
@@ -912,40 +892,18 @@ pub(crate) async fn declare_item_type(
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ProactiveActionToTake,
-                    SurrealItemType::Goal(SurrealHowMuchIsInMyControl::default()),
+                    SurrealItemType::Project,
                 ))
                 .await
                 .unwrap();
             Ok(())
         }
-        Ok(ItemTypeSelection::MotivationCore) => {
+        Ok(ItemTypeSelection::Motivation) => {
             send_to_data_storage_layer
                 .send(DataLayerCommands::UpdateResponsibilityAndItemType(
                     item.get_surreal_record_id().clone(),
                     Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::CoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Ok(ItemTypeSelection::MotivationNonCore) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork),
-                ))
-                .await
-                .unwrap();
-            Ok(())
-        }
-        Ok(ItemTypeSelection::MotivationNeither) => {
-            send_to_data_storage_layer
-                .send(DataLayerCommands::UpdateResponsibilityAndItemType(
-                    item.get_surreal_record_id().clone(),
-                    Responsibility::ReactiveBeAvailableToAct,
-                    SurrealItemType::Motivation(SurrealMotivationKind::DoesNotFitInCoreOrNonCore),
+                    SurrealItemType::Motivation,
                 ))
                 .await
                 .unwrap();

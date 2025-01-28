@@ -9,7 +9,7 @@ use surrealdb::{
 
 use crate::data_storage::surrealdb_layer::surreal_item::{
     Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
-    SurrealMotivationKind, SurrealReviewGuidance, SurrealUrgencyPlan,
+    SurrealReviewGuidance, SurrealUrgencyPlan,
 };
 
 use super::Visited;
@@ -128,59 +128,36 @@ impl<'b> Item<'b> {
         self.get_item_type()
     }
 
-    pub(crate) fn is_type_goal(&self) -> bool {
-        matches!(self.get_item_type(), &SurrealItemType::Goal(..))
+    pub(crate) fn is_type_project(&self) -> bool {
+        matches!(self.get_item_type(), &SurrealItemType::Project)
     }
 
     pub(crate) fn is_type_motivation(&self) -> bool {
-        matches!(self.get_item_type(), &SurrealItemType::Motivation(..))
+        matches!(self.get_item_type(), &SurrealItemType::Motivation)
     }
 
     pub(crate) fn is_type_motivation_kind_not_set(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(SurrealMotivationKind::NotSet)
-        )
+        todo!()
     }
 
     pub(crate) fn is_type_motivation_kind_core_or_neither(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(
-                SurrealMotivationKind::CoreWork | SurrealMotivationKind::DoesNotFitInCoreOrNonCore
-            )
-        )
+        todo!()
     }
 
     pub(crate) fn is_type_motivation_kind_core(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(SurrealMotivationKind::CoreWork)
-        )
+        todo!()
     }
 
     pub(crate) fn is_type_motivation_kind_non_core_or_neither(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(
-                SurrealMotivationKind::NonCoreWork
-                    | SurrealMotivationKind::DoesNotFitInCoreOrNonCore
-            )
-        )
+        todo!()
     }
 
     pub(crate) fn is_type_motivation_kind_non_core(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(SurrealMotivationKind::NonCoreWork)
-        )
+        todo!()
     }
 
     pub(crate) fn is_type_motivation_kind_neither(&self) -> bool {
-        matches!(
-            self.get_item_type(),
-            &SurrealItemType::Motivation(SurrealMotivationKind::DoesNotFitInCoreOrNonCore)
-        )
+        todo!()
     }
 
     pub(crate) fn is_responsibility_reactive(&self) -> bool {
