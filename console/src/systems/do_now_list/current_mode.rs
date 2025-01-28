@@ -1,4 +1,5 @@
 use crate::{
+    base_data::mode::ModeCategory,
     data_storage::surrealdb_layer::surreal_current_mode::SurrealCurrentMode,
     node::{item_node::ItemNode, mode_node::ModeNode, Filter},
 };
@@ -8,15 +9,15 @@ pub(crate) struct CurrentMode<'s> {
 }
 
 pub(crate) trait IsInTheMode {
-    fn is_importance_in_the_mode(&self, item_node: &ItemNode) -> bool;
+    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory;
     fn is_urgency_in_the_mode(&self, item_node: &ItemNode) -> bool;
 }
 
 impl IsInTheMode for &Option<CurrentMode<'_>> {
-    fn is_importance_in_the_mode(&self, item_node: &ItemNode) -> bool {
+    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory {
         match self {
-            Some(current_mode) => current_mode.is_importance_in_the_mode(item_node),
-            None => true,
+            Some(current_mode) => current_mode.get_category_by_importance(item_node),
+            None => ModeCategory::NonCore,
         }
     }
 
@@ -29,8 +30,8 @@ impl IsInTheMode for &Option<CurrentMode<'_>> {
 }
 
 impl IsInTheMode for CurrentMode<'_> {
-    fn is_importance_in_the_mode(&self, item_node: &ItemNode) -> bool {
-        todo!()
+    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory {
+        self.mode.get_category_by_importance(item_node)
     }
 
     fn is_urgency_in_the_mode(&self, item_node: &ItemNode) -> bool {
@@ -56,5 +57,9 @@ impl<'s> CurrentMode<'s> {
 
     pub(crate) fn get_mode(&self) -> &ModeNode {
         self.mode
+    }
+
+    pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
+        self.mode.get_category_by_importance(item)
     }
 }

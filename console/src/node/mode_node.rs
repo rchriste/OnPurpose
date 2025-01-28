@@ -1,6 +1,11 @@
 use surrealdb::sql::Thing;
 
-use crate::{base_data::mode::Mode, data_storage::surrealdb_layer::surreal_mode::SurrealMode};
+use crate::{
+    base_data::mode::{Mode, ModeCategory},
+    data_storage::surrealdb_layer::surreal_mode::SurrealMode,
+};
+
+use super::item_node::ItemNode;
 
 pub(crate) struct ModeNode<'s> {
     mode: &'s Mode<'s>,
@@ -42,5 +47,9 @@ impl<'s> ModeNode<'s> {
 
     pub(crate) fn get_name(&self) -> &str {
         self.mode.get_name()
+    }
+
+    pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
+        self.mode.get_category_by_importance(item)
     }
 }

@@ -6,7 +6,7 @@ use surrealdb::opt::RecordId;
 
 pub(crate) mod current_mode;
 use crate::{
-    base_data::{event::Event, time_spent::TimeSpent, BaseData},
+    base_data::{event::Event, mode::ModeCategory, time_spent::TimeSpent, BaseData},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     node::{
@@ -52,8 +52,14 @@ impl DoNowList {
                 let current_mode = calculated_data.get_current_mode();
                 let most_important_items = everything_that_has_no_parent
                     .iter()
-                    .filter(|x| current_mode.is_importance_in_the_mode(x.get_item_node()))
-                    .filter_map(|x| x.recursive_get_most_important_and_ready(all_items_status))
+                    .filter_map(|x| {
+                        match current_mode.get_category_by_importance(x.get_item_node()) {
+                            ModeCategory::Core |
+                            ModeCategory::NonCore => x.recursive_get_most_important_and_ready(all_items_status),
+                            ModeCategory::OutOfScope => None,
+                            ModeCategory::NotDeclared { .. } => todo!("Prompt to say if this item is in scope on this mode for importance"),
+                        }
+            })
                     .map(ActionWithItemStatus::MakeProgress)
                     .map(|action| {
                         let mut why_in_scope = HashSet::default();
