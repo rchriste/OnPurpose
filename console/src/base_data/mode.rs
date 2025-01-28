@@ -41,6 +41,10 @@ impl<'s> Mode<'s> {
             .expect("Comes from the database so this is always present")
     }
 
+    pub(crate) fn get_surreal(&self) -> &'s SurrealMode {
+        self.surreal_mode
+    }
+
     pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
         todo!()
     }
@@ -63,19 +67,11 @@ impl<'s> Mode<'s> {
                     }
                 }
             }}).collect::<Vec<_>>();
-        if matches.iter().find(|x| x == &&ModeCategory::Core).is_some() {
+        if matches.iter().any(|x| x == &ModeCategory::Core) {
             ModeCategory::Core
-        } else if matches
-            .iter()
-            .find(|x| x == &&ModeCategory::NonCore)
-            .is_some()
-        {
+        } else if matches.iter().any(|x| x == &ModeCategory::NonCore) {
             ModeCategory::NonCore
-        } else if matches
-            .iter()
-            .find(|x| x == &&ModeCategory::OutOfScope)
-            .is_some()
-        {
+        } else if matches.iter().any(|x| x == &ModeCategory::OutOfScope) {
             ModeCategory::OutOfScope
         } else if let Some(item_to_specify) = matches.into_iter().find_map(|x| match x {
             ModeCategory::NotDeclared { item_to_specify } => Some(item_to_specify),

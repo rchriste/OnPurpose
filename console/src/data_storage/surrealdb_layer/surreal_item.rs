@@ -162,7 +162,6 @@ pub(crate) enum SurrealItemTypeVersion3 {
     PersonOrGroup,
 }
 
-
 #[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug, Default)]
 pub(crate) enum SurrealItemTypeOld {
     #[default]
@@ -731,7 +730,6 @@ pub(crate) struct SurrealItemOldVersion3 {
     #[cfg_attr(test, builder(default))]
     pub(crate) urgency_plan: Option<SurrealUrgencyPlan>,
 }
-
 
 //derive Builder is only for tests, I tried adding it just for cfg_attr(test... but that
 //gave me false errors in the editor (rust-analyzer) so I am just going to try including

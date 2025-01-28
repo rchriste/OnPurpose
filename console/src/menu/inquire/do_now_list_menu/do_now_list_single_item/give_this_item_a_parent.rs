@@ -156,7 +156,7 @@ async fn parent_to_a_goal_or_motivation_new_goal_or_motivation(
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let has_importance = Select::new(
-                "Does this item have importance?",
+                "Should the original item with this parent be rated by importance?",
                 vec![HasImportance::Yes, HasImportance::No],
             )
             .prompt()

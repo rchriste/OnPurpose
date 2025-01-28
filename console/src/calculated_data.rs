@@ -90,11 +90,9 @@ impl CalculatedData {
                 let surreal_current_modes = base_data.get_surreal_current_modes();
                 assert!(surreal_current_modes.len() <= 1, "There should not be more than one current mode. In the future it would be great for this to be a silent error that just deletes the current mode and logs an error into an error log (that currently doesn't exist) clears it but for now this is an assert. Length is: {}", surreal_current_modes.len());
                 let surreal_current_mode = surreal_current_modes.first();
-                match surreal_current_mode {
-                    None => None,
-                    Some(surreal_current_mode) =>
-                        Some(CurrentMode::new(surreal_current_mode, mode_nodes))
-                }
+                surreal_current_mode.map(|surreal_current_mode| {
+                        CurrentMode::new(surreal_current_mode, mode_nodes)
+                })
             },
         }
         .build()

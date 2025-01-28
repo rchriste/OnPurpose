@@ -19,9 +19,7 @@ use crate::{
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
-        surreal_item::{
-            Responsibility, SurrealItemType,
-        },
+        surreal_item::{Responsibility, SurrealItemType},
         surreal_tables::SurrealTables,
     },
     display::{
@@ -843,7 +841,7 @@ pub(crate) async fn parent_to_new_item(
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
             let has_importance = Select::new(
-                "Does this item have importance?",
+                "Should the original item with this parent be rated by importance?",
                 vec![HasImportance::Yes, HasImportance::No],
             )
             .prompt()

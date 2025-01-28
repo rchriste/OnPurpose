@@ -315,9 +315,7 @@ mod tests {
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
-            surreal_item::{
-                SurrealImportance, SurrealItemBuilder, SurrealItemType,
-            },
+            surreal_item::{SurrealImportance, SurrealItemBuilder, SurrealItemType},
             surreal_tables::SurrealTablesBuilder,
             SurrealTrigger,
         },

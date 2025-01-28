@@ -13,7 +13,8 @@ use tokio::sync::{
 
 use crate::{
     data_storage::surrealdb_layer::{
-        surreal_item::SurrealItemTypeVersion3, surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpentVersion1
+        surreal_item::SurrealItemTypeVersion3, surreal_mode::SurrealMode,
+        surreal_time_spent::SurrealTimeSpentVersion1,
     },
     new_event::NewEvent,
     new_item::{NewDependency, NewItem},
@@ -47,7 +48,7 @@ pub(crate) enum DataLayerCommands {
         when_finished: Datetime,
     },
     NewItem(NewItem),
-    NewMode(NewMode),
+    NewMode(NewMode, oneshot::Sender<SurrealMode>),
     CoverItemWithANewItem {
         cover_this: RecordId,
         cover_with: NewItem,
@@ -174,7 +175,7 @@ pub(crate) async fn data_storage_endless_loop(
                 )
                 .await
             }
-            Some(DataLayerCommands::NewMode(new_mode)) => {
+            Some(DataLayerCommands::NewMode(new_mode, record_id_of_new_item)) => {
                 let mut surreal_mode: SurrealMode = new_mode.into();
                 let created: SurrealMode = db
                     .create(surreal_mode::SurrealMode::TABLE_NAME)
@@ -187,6 +188,7 @@ pub(crate) async fn data_storage_endless_loop(
 
                 surreal_mode.id = created.id.clone();
                 assert_eq!(surreal_mode, created);
+                record_id_of_new_item.send(created).unwrap();
             }
             Some(DataLayerCommands::ParentItemWithExistingItem {
                 child,

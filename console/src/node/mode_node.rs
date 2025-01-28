@@ -1,6 +1,6 @@
 use surrealdb::sql::Thing;
 
-use crate::base_data::mode::Mode;
+use crate::{base_data::mode::Mode, data_storage::surrealdb_layer::surreal_mode::SurrealMode};
 
 pub(crate) struct ModeNode<'s> {
     mode: &'s Mode<'s>,
@@ -34,6 +34,10 @@ impl<'s> ModeNode<'s> {
 
     pub(crate) fn get_surreal_id(&self) -> &Thing {
         self.mode.get_surreal_id()
+    }
+
+    pub(crate) fn get_surreal(&self) -> &SurrealMode {
+        self.mode.get_surreal()
     }
 
     pub(crate) fn get_name(&self) -> &str {
