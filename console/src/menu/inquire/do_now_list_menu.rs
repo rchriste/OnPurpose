@@ -1,5 +1,6 @@
 pub(crate) mod change_mode;
 pub(crate) mod classify_item;
+pub(crate) mod declare_scope_for_mode;
 pub(crate) mod do_now_list_single_item;
 pub(crate) mod parent_back_to_a_motivation;
 pub(crate) mod pick_item_review_frequency;
@@ -14,6 +15,7 @@ use better_term::Style;
 use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
 use classify_item::present_item_needs_a_classification_menu;
+use declare_scope_for_mode::present_state_if_in_mode_menu;
 use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
 use inquire::{InquireError, Select};
 use itertools::chain;
@@ -453,6 +455,14 @@ pub(crate) async fn present_do_now_list_menu(
                     ActionWithItemStatus::ParentBackToAMotivation(item_status) => {
                         present_parent_back_to_a_motivation_menu(
                             item_status,
+                            send_to_data_storage_layer,
+                        )
+                        .await
+                    }
+                    ActionWithItemStatus::StateIfInMode(item_status, current_mode) => {
+                        present_state_if_in_mode_menu(
+                            item_status,
+                            current_mode,
                             send_to_data_storage_layer,
                         )
                         .await

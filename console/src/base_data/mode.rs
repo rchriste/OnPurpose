@@ -9,6 +9,7 @@ use crate::{
     node::{item_node::ItemNode, item_status::ItemStatus, Filter},
 };
 
+#[derive(Debug)]
 pub(crate) struct Mode<'s> {
     surreal_mode: &'s SurrealMode,
 }
@@ -45,8 +46,49 @@ impl<'s> Mode<'s> {
         self.surreal_mode
     }
 
-    pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
-        todo!()
+    pub(crate) fn get_category_by_importance<'a>(
+        &self,
+        item: &'a ItemNode<'a>,
+    ) -> ModeCategory<'a> {
+        if item.has_parents(Filter::Active) {
+            let mode_categories = item.get_immediate_parents(Filter::Active).filter_map(|x| {
+            match x.get_importance_scope() {
+                Some(importance_scope) => match importance_scope {
+                    SurrealModeScope::AllModes => Some(ModeCategory::NonCore),
+                    SurrealModeScope::DefaultModesWithChanges { extra_modes_included } => todo!("Need to check default modes, and extra modes, and if extra_modes_included causes it to get pulled in"),
+                },
+                None => Some(ModeCategory::OutOfScope),
+            }
+        } ).collect::<Vec<_>>();
+            mode_categories.select_highest_mode_category()
+        } else {
+            if self
+                .surreal_mode
+                .core_in_scope
+                .iter()
+                .any(|x| x.is_importance_in_scope && x.for_item == *item.get_surreal_record_id())
+            {
+                ModeCategory::Core
+            } else if self
+                .surreal_mode
+                .non_core_in_scope
+                .iter()
+                .any(|x| x.is_importance_in_scope && x.for_item == *item.get_surreal_record_id())
+            {
+                ModeCategory::NonCore
+            } else if self
+                .surreal_mode
+                .explicitly_out_of_scope_items
+                .iter()
+                .any(|x| x == item.get_surreal_record_id())
+            {
+                ModeCategory::OutOfScope
+            } else {
+                ModeCategory::NotDeclared {
+                    item_to_specify: item.get_surreal_record_id(),
+                }
+            }
+        }
     }
 
     pub(crate) fn get_category_by_urgency<'a>(
@@ -67,18 +109,28 @@ impl<'s> Mode<'s> {
                     }
                 }
             }}).collect::<Vec<_>>();
-        if matches.iter().any(|x| x == &ModeCategory::Core) {
+        matches.select_highest_mode_category()
+    }
+}
+
+trait SelectHighestModeCategory<'t> {
+    fn select_highest_mode_category(self) -> ModeCategory<'t>;
+}
+
+impl<'a> SelectHighestModeCategory<'a> for Vec<ModeCategory<'a>> {
+    fn select_highest_mode_category(self) -> ModeCategory<'a> {
+        if self.iter().any(|x| x == &ModeCategory::Core) {
             ModeCategory::Core
-        } else if matches.iter().any(|x| x == &ModeCategory::NonCore) {
+        } else if self.iter().any(|x| x == &ModeCategory::NonCore) {
             ModeCategory::NonCore
-        } else if matches.iter().any(|x| x == &ModeCategory::OutOfScope) {
+        } else if self.iter().any(|x| x == &ModeCategory::OutOfScope) {
             ModeCategory::OutOfScope
-        } else if let Some(item_to_specify) = matches.into_iter().find_map(|x| match x {
+        } else if let Some(item_to_specify) = self.into_iter().find_map(|x| match x {
             ModeCategory::NotDeclared { item_to_specify } => Some(item_to_specify),
             _ => None,
         }) {
             ModeCategory::NotDeclared {
-                item_to_specify: item.get_surreal_record_id(),
+                item_to_specify: item_to_specify,
             }
         } else {
             panic!("This should not happen, because we are getting self and parents so there should always be a ModeCategory match")

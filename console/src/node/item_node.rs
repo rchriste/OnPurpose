@@ -11,8 +11,8 @@ use crate::{
     base_data::{event::Event, item::Item, time_spent::TimeSpent, Visited},
     data_storage::surrealdb_layer::{
         surreal_item::{
-            SurrealDependency, SurrealItem, SurrealItemType, SurrealReviewGuidance,
-            SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
+            SurrealDependency, SurrealItem, SurrealItemType, SurrealModeScope,
+            SurrealReviewGuidance, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
         },
         SurrealItemsInScope, SurrealTrigger,
     },
@@ -23,7 +23,7 @@ use super::{Filter, GetUrgencyNow, IsActive, IsTriggered};
 #[derive(Clone, Debug, Eq)]
 pub(crate) struct ItemNode<'s> {
     item: &'s Item<'s>,
-    parents: Vec<GrowingItemNode<'s>>,
+    parents: Vec<GrowingItemNodeWithImportanceScope<'s>>,
     children: Vec<ShrinkingItemNode<'s>>,
     dependencies: Vec<DependencyWithItem<'s>>,
     urgency_plan: Option<UrgencyPlanWithItem<'s>>,
@@ -298,8 +298,8 @@ impl<'s> ItemNode<'s> {
 
     pub(crate) fn create_parent_chain(&'s self, filter: Filter) -> Vec<(u32, &'s Item<'s>)> {
         let mut result = Vec::default();
-        for i in self.get_parents(filter) {
-            result.push((1, i.item));
+        for i in self.get_immediate_parents(filter) {
+            result.push((1, i.get_item()));
             let parents = i.create_growing_parents(filter, 2);
             result.extend(parents.iter());
         }
@@ -333,21 +333,21 @@ impl<'s> ItemNode<'s> {
         has_parents(&self.parents, filter)
     }
 
-    pub(crate) fn get_parents(
+    pub(crate) fn get_immediate_parents(
         &'s self,
         filter: Filter,
-    ) -> Box<dyn Iterator<Item = &'s GrowingItemNode<'s>> + 's + Send> {
+    ) -> Box<dyn Iterator<Item = &'s GrowingItemNodeWithImportanceScope<'s>> + 's + Send> {
         match filter {
             Filter::All => Box::new(self.parents.iter()),
-            Filter::Active => Box::new(self.parents.iter().filter(|x| !x.item.is_finished())),
-            Filter::Finished => Box::new(self.parents.iter().filter(|x| x.item.is_finished())),
+            Filter::Active => Box::new(self.parents.iter().filter(|x| !x.is_finished())),
+            Filter::Finished => Box::new(self.parents.iter().filter(|x| x.is_finished())),
         }
     }
 
     /// Get's larger items and all of their parents and the current item
     pub(crate) fn get_self_and_parents(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         let mut items = Vec::default();
-        for item in self.get_parents(filter) {
+        for item in self.get_immediate_parents(filter) {
             items = item.get_self_and_parents(items);
         }
         items.push(self.item);
@@ -447,9 +447,49 @@ impl<'s> ItemNode<'s> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct GrowingItemNodeWithImportanceScope<'s> {
+    importance_scope: Option<&'s SurrealModeScope>,
+    parent: GrowingItemNode<'s>,
+}
+
+impl<'s> GrowingItemNodeWithImportanceScope<'s> {
+    pub(crate) fn get_item(&self) -> &Item {
+        self.parent.get_item()
+    }
+
+    pub(crate) fn is_finished(&self) -> bool {
+        self.parent.is_finished()
+    }
+
+    pub(crate) fn get_importance_scope(&self) -> Option<&SurrealModeScope> {
+        self.importance_scope
+    }
+
+    pub(crate) fn get_surreal_record_id(&self) -> &Thing {
+        self.parent.get_surreal_record_id()
+    }
+
+    pub(crate) fn get_self_and_parents(&self, items: Vec<&'s Item<'s>>) -> Vec<&'s Item<'s>> {
+        self.parent.get_self_and_parents(items)
+    }
+
+    pub(crate) fn create_growing_parents(
+        &'s self,
+        filter: Filter,
+        levels_deep: u32,
+    ) -> Vec<(u32, &'s Item<'s>)> {
+        self.parent.create_growing_parents(filter, levels_deep)
+    }
+
+    pub(crate) fn get_surreal_review_guidance(&self) -> &Option<SurrealReviewGuidance> {
+        self.parent.get_surreal_review_guidance()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GrowingItemNode<'s> {
     pub(crate) item: &'s Item<'s>,
-    pub(crate) larger: Vec<GrowingItemNode<'s>>,
+    pub(crate) larger: Vec<GrowingItemNodeWithImportanceScope<'s>>,
 }
 
 impl<'s> GrowingItemNode<'s> {
@@ -460,7 +500,7 @@ impl<'s> GrowingItemNode<'s> {
     ) -> Vec<(u32, &'s Item<'s>)> {
         let mut result = Vec::default();
         for i in self.get_parents(filter) {
-            result.push((levels_deep, i.item));
+            result.push((levels_deep, i.get_item()));
             let parents = i.create_growing_parents(filter, levels_deep + 1);
             result.extend(parents.iter());
         }
@@ -470,11 +510,11 @@ impl<'s> GrowingItemNode<'s> {
     pub(crate) fn get_parents(
         &'s self,
         filter: Filter,
-    ) -> Box<dyn Iterator<Item = &'s GrowingItemNode<'s>> + 's + Send> {
+    ) -> Box<dyn Iterator<Item = &'s GrowingItemNodeWithImportanceScope<'s>> + 's + Send> {
         match filter {
             Filter::All => Box::new(self.larger.iter()),
-            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.item.is_finished())),
-            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.item.is_finished())),
+            Filter::Active => Box::new(self.larger.iter().filter(|x| !x.is_finished())),
+            Filter::Finished => Box::new(self.larger.iter().filter(|x| x.is_finished())),
         }
     }
 
@@ -526,6 +566,22 @@ impl ShouldChildrenHaveReviewFrequencySet for &[GrowingItemNode<'_>] {
     }
 }
 
+impl ShouldChildrenHaveReviewFrequencySet for &[GrowingItemNodeWithImportanceScope<'_>] {
+    fn should_children_have_review_frequency_set(
+        &self,
+        visited: Vec<&GrowingItemNode<'_>>,
+    ) -> bool {
+        if self.is_empty() {
+            true
+        } else {
+            self.iter().any(|x| match x.get_surreal_review_guidance() {
+                Some(_) => x.should_children_have_review_frequency_set(visited.clone()),
+                None => false,
+            })
+        }
+    }
+}
+
 impl ShouldChildrenHaveReviewFrequencySet for Vec<GrowingItemNode<'_>> {
     fn should_children_have_review_frequency_set(
         &self,
@@ -533,6 +589,25 @@ impl ShouldChildrenHaveReviewFrequencySet for Vec<GrowingItemNode<'_>> {
     ) -> bool {
         self.as_slice()
             .should_children_have_review_frequency_set(visited)
+    }
+}
+
+impl ShouldChildrenHaveReviewFrequencySet for Vec<GrowingItemNodeWithImportanceScope<'_>> {
+    fn should_children_have_review_frequency_set(
+        &self,
+        visited: Vec<&GrowingItemNode<'_>>,
+    ) -> bool {
+        self.as_slice()
+            .should_children_have_review_frequency_set(visited)
+    }
+}
+
+impl ShouldChildrenHaveReviewFrequencySet for GrowingItemNodeWithImportanceScope<'_> {
+    fn should_children_have_review_frequency_set<'a>(
+        &'a self,
+        visited: Vec<&'a GrowingItemNode<'a>>,
+    ) -> bool {
+        (&self.parent).should_children_have_review_frequency_set(visited)
     }
 }
 
@@ -561,7 +636,7 @@ pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
     possible_parents: &'a HashMap<&'a RecordId, Item<'a>>,
     visited: &Visited<'a, '_>,
-) -> Vec<GrowingItemNode<'a>> {
+) -> Vec<GrowingItemNodeWithImportanceScope<'a>> {
     items
         .iter()
         .filter_map(|x| {
@@ -580,10 +655,14 @@ pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
     all_items: &'a HashMap<&'a RecordId, Item<'a>>,
     visited: &Visited<'a, '_>,
-) -> GrowingItemNode<'a> {
+) -> GrowingItemNodeWithImportanceScope<'a> {
     let parents = item.find_parents(all_items, visited);
-    let larger = create_growing_nodes(parents, all_items, visited);
-    GrowingItemNode { item, larger }
+    let larger: Vec<GrowingItemNodeWithImportanceScope<'_>> =
+        create_growing_nodes(parents, all_items, visited);
+    GrowingItemNodeWithImportanceScope {
+        importance_scope: todo!(),
+        parent: GrowingItemNode { item, larger },
+    }
 }
 
 fn calculate_dependencies<'a>(
@@ -754,11 +833,11 @@ pub(crate) fn create_shrinking_node<'a>(
     ShrinkingItemNode { item, smaller }
 }
 
-fn has_parents(parents: &[GrowingItemNode<'_>], filter: Filter) -> bool {
+fn has_parents(parents: &[GrowingItemNodeWithImportanceScope<'_>], filter: Filter) -> bool {
     match filter {
         Filter::All => !parents.is_empty(),
-        Filter::Active => parents.iter().any(|x| !x.item.is_finished()),
-        Filter::Finished => parents.iter().any(|x| x.item.is_finished()),
+        Filter::Active => parents.iter().any(|x| !x.is_finished()),
+        Filter::Finished => parents.iter().any(|x| x.is_finished()),
     }
 }
 
@@ -787,7 +866,7 @@ fn has_dependencies(dependencies: &[DependencyWithItem], filter: Filter) -> bool
 
 fn calculate_urgent_action_items<'a>(
     item: &'a Item,
-    parents: &[GrowingItemNode],
+    parents: &[GrowingItemNodeWithImportanceScope<'_>],
     children: &[ShrinkingItemNode],
     urgency_plan: &Option<UrgencyPlanWithItem<'_>>,
     dependencies: &[DependencyWithItem],

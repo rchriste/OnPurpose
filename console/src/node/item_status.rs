@@ -596,7 +596,7 @@ fn calculate_parents<'s>(
     all_nodes: &'s HashMap<&'s RecordId, ItemNode<'s>>,
 ) -> Vec<&'s ItemNode<'s>> {
     item_node
-        .get_parents(Filter::All)
+        .get_immediate_parents(Filter::All)
         .map(|x| {
             all_nodes
                 .get(x.get_surreal_record_id())

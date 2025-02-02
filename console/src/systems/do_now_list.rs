@@ -54,13 +54,21 @@ impl DoNowList {
                     .iter()
                     .filter_map(|x| {
                         match current_mode.get_category_by_importance(x.get_item_node()) {
-                            ModeCategory::Core |
-                            ModeCategory::NonCore => x.recursive_get_most_important_and_ready(all_items_status),
+                            ModeCategory::Core | ModeCategory::NonCore => x
+                                .recursive_get_most_important_and_ready(all_items_status)
+                                .map(ActionWithItemStatus::MakeProgress),
                             ModeCategory::OutOfScope => None,
-                            ModeCategory::NotDeclared { .. } => todo!("Prompt to say if this item is in scope on this mode for importance"),
+                            ModeCategory::NotDeclared { item_to_specify } => {
+                                let item_status = all_items_status
+                                    .get(item_to_specify)
+                                    .expect("Item must exist");
+                                let mode_node = current_mode.as_ref().expect(
+                                    "This path will only be selected if there is a current mode",
+                                ).get_mode();
+                                Some(ActionWithItemStatus::StateIfInMode(item_status, mode_node))
+                            }
                         }
-            })
-                    .map(ActionWithItemStatus::MakeProgress)
+                    })
                     .map(|action| {
                         let mut why_in_scope = HashSet::default();
                         why_in_scope.insert(WhyInScope::Importance);

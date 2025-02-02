@@ -5,7 +5,7 @@ use itertools::Itertools;
 use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::in_the_moment_priority::InTheMomentPriorityWithItemAction,
+    base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, mode::Mode},
     data_storage::surrealdb_layer::{
         surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
         surreal_item::{SurrealModeScope, SurrealUrgency},
@@ -15,6 +15,7 @@ use crate::{
 use super::{
     item_node::ItemNode,
     item_status::{ActionWithItemNode, ItemStatus},
+    mode_node::ModeNode,
     urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
     why_in_scope_and_action_with_item_status::WhyInScopeAndActionWithItemStatus,
 };
@@ -27,6 +28,7 @@ pub(crate) enum ActionWithItemStatus<'e> {
     ReviewItem(&'e ItemStatus<'e>),
     PickItemReviewFrequency(&'e ItemStatus<'e>),
     MakeProgress(&'e ItemStatus<'e>),
+    StateIfInMode(&'e ItemStatus<'e>, &'e ModeNode<'e>),
 }
 
 impl Hash for ActionWithItemStatus<'_> {
@@ -84,6 +86,7 @@ impl<'e> ActionWithItemStatus<'e> {
     pub(crate) fn from_surreal_action(
         action: &SurrealAction,
         items_status: &'e HashMap<&'e RecordId, ItemStatus<'e>>,
+        all_modes: &'e [ModeNode<'e>],
     ) -> Self {
         match action {
             SurrealAction::SetReadyAndUrgency(record_id) => {
@@ -110,6 +113,14 @@ impl<'e> ActionWithItemStatus<'e> {
                 let item_status = items_status.get(record_id).expect("All items are there");
                 ActionWithItemStatus::ItemNeedsAClassification(item_status)
             }
+            SurrealAction::StateIfInMode { item, mode } => {
+                let item_status = items_status.get(item).expect("All items are there");
+                let mode_node = all_modes
+                    .iter()
+                    .find(|x| x.get_surreal_id() == mode)
+                    .expect("All modes are there");
+                ActionWithItemStatus::StateIfInMode(item_status, mode_node)
+            }
         }
     }
 
@@ -133,6 +144,10 @@ impl<'e> ActionWithItemStatus<'e> {
             ActionWithItemStatus::SetReadyAndUrgency(item) => {
                 SurrealAction::SetReadyAndUrgency(item.get_surreal_record_id().clone())
             }
+            ActionWithItemStatus::StateIfInMode(item, mode_node) => SurrealAction::StateIfInMode {
+                item: item.get_surreal_record_id().clone(),
+                mode: mode_node.get_surreal_id().clone(),
+            },
         }
     }
 
@@ -144,6 +159,7 @@ impl<'e> ActionWithItemStatus<'e> {
             | ActionWithItemStatus::PickItemReviewFrequency(item)
             | ActionWithItemStatus::ItemNeedsAClassification(item)
             | ActionWithItemStatus::MakeProgress(item) => item.get_surreal_record_id(),
+            ActionWithItemStatus::StateIfInMode(item, _) => item.get_surreal_record_id(),
         }
     }
 
@@ -172,6 +188,9 @@ impl<'e> ActionWithItemStatus<'e> {
             ActionWithItemStatus::SetReadyAndUrgency(..) => {
                 Some(SurrealUrgency::DefinitelyUrgent(SurrealModeScope::AllModes))
             }
+            ActionWithItemStatus::StateIfInMode(item_status, mode_node) => {
+                Some(SurrealUrgency::DefinitelyUrgent(SurrealModeScope::AllModes))
+            }
         }
     }
 
@@ -182,7 +201,8 @@ impl<'e> ActionWithItemStatus<'e> {
             | ActionWithItemStatus::ReviewItem(item)
             | ActionWithItemStatus::PickItemReviewFrequency(item)
             | ActionWithItemStatus::ItemNeedsAClassification(item)
-            | ActionWithItemStatus::MakeProgress(item) => item.get_item_node(),
+            | ActionWithItemStatus::MakeProgress(item)
+            | ActionWithItemStatus::StateIfInMode(item, _) => item.get_item_node(),
         }
     }
 }

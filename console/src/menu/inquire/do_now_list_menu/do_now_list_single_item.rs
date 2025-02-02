@@ -144,7 +144,7 @@ impl<'e> DoNowListSingleItemSelection<'e> {
         list.push(Self::ReviewItem);
 
         let parent_items = item_node
-            .get_parents(Filter::Active)
+            .get_immediate_parents(Filter::Active)
             .map(|x| x.get_item())
             .collect::<Vec<_>>();
         if !has_no_parent {

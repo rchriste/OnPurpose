@@ -23,13 +23,13 @@ pub(crate) struct CalculatedData {
     #[covariant]
     items_status: HashMap<&'this RecordId, ItemStatus<'this>>,
 
-    #[borrows(items_status, base_data, items_nodes)]
-    #[covariant]
-    in_the_moment_priorities: Vec<InTheMomentPriorityWithItemAction<'this>>,
-
     #[borrows(base_data)]
     #[covariant]
     mode_nodes: Vec<ModeNode<'this>>,
+
+    #[borrows(items_status, base_data, items_nodes, mode_nodes)]
+    #[covariant]
+    in_the_moment_priorities: Vec<InTheMomentPriorityWithItemAction<'this>>,
 
     #[borrows(base_data, mode_nodes)]
     #[covariant]
@@ -58,7 +58,7 @@ impl CalculatedData {
                     .map(|(k, x)| (*k, ItemStatus::new(x, item_nodes)))
                     .collect::<HashMap<_, _>>()
             },
-            in_the_moment_priorities_builder: |items_status, base_data, all_nodes| {
+            in_the_moment_priorities_builder: |items_status, base_data, all_nodes, all_modes| {
                 let now_sql = (*base_data.get_now()).into();
                 let all_items = base_data.get_items();
                 let time_spent_log = base_data.get_time_spent_log();
@@ -72,6 +72,7 @@ impl CalculatedData {
                             all_items,
                             all_nodes,
                             items_status,
+                            all_modes,
                             time_spent_log,
                         )
                     })

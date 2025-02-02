@@ -131,13 +131,13 @@ impl ReviewItemMenuChoices<'_> {
 
         if current_item
             .get_item_node()
-            .get_parents(Filter::Active)
+            .get_immediate_parents(Filter::Active)
             .count()
             == 1
         {
             let parent = current_item
                 .get_item_node()
-                .get_parents(Filter::Active)
+                .get_immediate_parents(Filter::Active)
                 .next()
                 .expect("Item is for sure there because count is 1")
                 .get_item();
@@ -146,7 +146,10 @@ impl ReviewItemMenuChoices<'_> {
             );
         } else {
             //Note that if there is no parent then we don't show this option and that is by design
-            for parent in current_item.get_item_node().get_parents(Filter::Active) {
+            for parent in current_item
+                .get_item_node()
+                .get_immediate_parents(Filter::Active)
+            {
                 list.push(ReviewItemMenuChoices::UpdateRelativeImportanceShowParent {
                     parent: parent.get_item(),
                 });
@@ -158,11 +161,17 @@ impl ReviewItemMenuChoices<'_> {
         list.push(ReviewItemMenuChoices::FinishThisItem);
         list.push(ReviewItemMenuChoices::AddNewParent);
 
-        for parent in current_item.get_item_node().get_parents(Filter::Active) {
+        for parent in current_item
+            .get_item_node()
+            .get_immediate_parents(Filter::Active)
+        {
             list.push(ReviewItemMenuChoices::GoToParent(parent.get_item()));
         }
 
-        for parent in current_item.get_item_node().get_parents(Filter::Active) {
+        for parent in current_item
+            .get_item_node()
+            .get_immediate_parents(Filter::Active)
+        {
             list.push(ReviewItemMenuChoices::RemoveParent(parent.get_item()));
         }
 

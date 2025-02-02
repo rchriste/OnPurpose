@@ -8,13 +8,13 @@ pub(crate) struct CurrentMode<'s> {
     mode: &'s ModeNode<'s>,
 }
 
-pub(crate) trait IsInTheMode {
-    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory;
+pub(crate) trait IsInTheMode<'t> {
+    fn get_category_by_importance(&self, item_node: &'t ItemNode) -> ModeCategory<'t>;
     fn is_urgency_in_the_mode(&self, item_node: &ItemNode) -> bool;
 }
 
-impl IsInTheMode for &Option<CurrentMode<'_>> {
-    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory {
+impl<'a> IsInTheMode<'a> for &Option<CurrentMode<'a>> {
+    fn get_category_by_importance(&self, item_node: &'a ItemNode) -> ModeCategory<'a> {
         match self {
             Some(current_mode) => current_mode.get_category_by_importance(item_node),
             None => ModeCategory::NonCore,
@@ -29,8 +29,8 @@ impl IsInTheMode for &Option<CurrentMode<'_>> {
     }
 }
 
-impl IsInTheMode for CurrentMode<'_> {
-    fn get_category_by_importance(&self, item_node: &ItemNode) -> ModeCategory {
+impl<'a> IsInTheMode<'a> for CurrentMode<'a> {
+    fn get_category_by_importance(&self, item_node: &'a ItemNode<'a>) -> ModeCategory<'a> {
         self.mode.get_category_by_importance(item_node)
     }
 
@@ -59,7 +59,10 @@ impl<'s> CurrentMode<'s> {
         self.mode
     }
 
-    pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
+    pub(crate) fn get_category_by_importance<'a>(
+        &self,
+        item: &'a ItemNode<'a>,
+    ) -> ModeCategory<'a> {
         self.mode.get_category_by_importance(item)
     }
 }

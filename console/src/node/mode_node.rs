@@ -7,10 +7,19 @@ use crate::{
 
 use super::item_node::ItemNode;
 
+#[derive(Debug)]
 pub(crate) struct ModeNode<'s> {
     mode: &'s Mode<'s>,
     parent: Option<Box<ModeNode<'s>>>,
 }
+
+impl PartialEq for ModeNode<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_surreal_id() == other.get_surreal_id()
+    }
+}
+
+impl Eq for ModeNode<'_> {}
 
 impl<'s> ModeNode<'s> {
     pub(crate) fn new(mode: &'s Mode<'s>, all_modes: &'s [Mode<'s>]) -> Self {
@@ -45,11 +54,18 @@ impl<'s> ModeNode<'s> {
         self.mode.get_surreal()
     }
 
+    pub(crate) fn get_mode(&self) -> &Mode<'s> {
+        self.mode
+    }
+
     pub(crate) fn get_name(&self) -> &str {
         self.mode.get_name()
     }
 
-    pub(crate) fn get_category_by_importance<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory {
+    pub(crate) fn get_category_by_importance<'a>(
+        &self,
+        item: &'a ItemNode<'a>,
+    ) -> ModeCategory<'a> {
         self.mode.get_category_by_importance(item)
     }
 }
