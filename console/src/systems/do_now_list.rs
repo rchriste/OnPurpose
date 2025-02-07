@@ -113,22 +113,36 @@ impl DoNowList {
                 for item in items.into_iter() {
                     match item.get_urgency_now() {
                         Some(SurrealUrgency::CrisesUrgent(modes_in_scope)) => {
-                            bullet_lists_by_urgency.crises_urgency.push_if_new(item);
+                            push_to_urgency_bullet_list(
+                                item,
+                                current_mode,
+                                &mut bullet_lists_by_urgency.crises_urgency,
+                                all_items_status,
+                            );
                         }
                         Some(SurrealUrgency::Scheduled(modes_in_scope, _)) => {
-                            bullet_lists_by_urgency.scheduled.push_if_new(item);
+                            push_to_urgency_bullet_list(
+                                item,
+                                current_mode,
+                                &mut bullet_lists_by_urgency.scheduled,
+                                all_items_status,
+                            );
                         }
                         Some(SurrealUrgency::DefinitelyUrgent(modes_in_scope)) => {
-                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
-                                bullet_lists_by_urgency.definitely_urgent.push_if_new(item);
-                            }
+                            push_to_urgency_bullet_list(
+                                item,
+                                current_mode,
+                                &mut bullet_lists_by_urgency.definitely_urgent,
+                                all_items_status,
+                            );
                         }
                         Some(SurrealUrgency::MaybeUrgent(modes_in_scope)) => {
-                            if current_mode.is_urgency_in_the_mode(item.get_item_node()) {
-                                bullet_lists_by_urgency
-                                    .maybe_urgent_and_by_importance
-                                    .push_if_new(item);
-                            }
+                            push_to_urgency_bullet_list(
+                                item,
+                                current_mode,
+                                &mut bullet_lists_by_urgency.maybe_urgent_and_by_importance,
+                                all_items_status,
+                            );
                         }
                         None => {
                             //Do nothing
@@ -184,6 +198,38 @@ impl DoNowList {
 
     pub(crate) fn get_base_data(&self) -> &BaseData {
         self.borrow_calculated_data().get_base_data()
+    }
+}
+
+fn push_to_urgency_bullet_list<'a>(
+    item: WhyInScopeAndActionWithItemStatus<'a>,
+    current_mode: &'a Option<CurrentMode>,
+    urgency_list: &mut Vec<WhyInScopeAndActionWithItemStatus<'a>>,
+    all_items_status: &'a HashMap<&RecordId, ItemStatus<'a>>,
+) {
+    match current_mode.get_category_by_urgency(item.get_item_node()) {
+        ModeCategory::Core | ModeCategory::NonCore => {
+            urgency_list.push_if_new(item);
+        }
+        ModeCategory::OutOfScope => {
+            //Do nothing
+        }
+        ModeCategory::NotDeclared { item_to_specify } => {
+            let item_status = all_items_status
+                .get(item_to_specify)
+                .expect("Item must exist");
+            let mode_node = current_mode
+                .as_ref()
+                .expect("This path will only be selected if there is a current mode")
+                .get_mode();
+            let mut why_in_scope = HashSet::default();
+            why_in_scope.insert(WhyInScope::Urgency);
+
+            urgency_list.push_if_new(WhyInScopeAndActionWithItemStatus::new(
+                why_in_scope,
+                ActionWithItemStatus::StateIfInMode(item_status, mode_node),
+            ));
+        }
     }
 }
 

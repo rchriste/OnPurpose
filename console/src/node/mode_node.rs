@@ -68,4 +68,8 @@ impl<'s> ModeNode<'s> {
     ) -> ModeCategory<'a> {
         self.mode.get_category_by_importance(item)
     }
+
+    pub(crate) fn get_category_by_urgency<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory<'a> {
+        self.mode.get_category_by_urgency(item)
+    }
 }

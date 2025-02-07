@@ -91,25 +91,12 @@ impl<'s> Mode<'s> {
         }
     }
 
-    pub(crate) fn get_category_by_urgency<'a>(
-        &self,
-        item: &'a ItemStatus<'a>,
-        minimum_urgency: Option<SurrealUrgency>,
-        all_item_nodes: &'a HashMap<&RecordId, ItemNode>,
-    ) -> ModeCategory<'a> {
-        let matches = item.get_self_and_parents_flattened(Filter::Active).iter().filter_map(|x| {
-            let item_node = all_item_nodes.get(x.get_surreal_record_id()).expect("Item status must exist");
-            match item_node.get_urgency_now() {
-                None | Some(None) => None,
-                Some(Some(urgency)) => {
-                    let scope = urgency.get_scope();
-                    match scope {
-                        SurrealModeScope::AllModes => Some(ModeCategory::NonCore),
-                        SurrealModeScope::DefaultModesWithChanges { extra_modes_included } => todo!("Need to check default modes, and extra modes, and if extra_modes_included causes it to get pulled in"),
-                    }
-                }
-            }}).collect::<Vec<_>>();
-        matches.select_highest_mode_category()
+    pub(crate) fn get_category_by_urgency<'a>(&self, item: &'a ItemNode<'a>) -> ModeCategory<'a> {
+        if item.has_parents(Filter::Active) {
+            todo!("Handle the scenario of having parents")
+        } else {
+            todo!("Handle the scenario of no parents just this item")
+        }
     }
 }
 
