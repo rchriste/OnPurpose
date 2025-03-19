@@ -16,20 +16,20 @@ use crate::{
     menu::inquire::do_now_list_menu::{
         classify_item::present_item_needs_a_classification_menu,
         do_now_list_single_item::{
-            present_do_now_list_item_selected, present_is_person_or_group_around_menu,
-            urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime,
+            LogTime, present_do_now_list_item_selected, present_is_person_or_group_around_menu,
+            urgency_plan::present_set_ready_and_urgency_plan_menu,
         },
         parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu,
         pick_item_review_frequency::present_pick_item_review_frequency_menu,
         present_do_now_list_menu,
         review_item::present_review_item_menu,
     },
-    node::{action_with_item_status::ActionWithItemStatus, Filter},
+    node::{Filter, action_with_item_status::ActionWithItemStatus},
     systems::do_now_list::DoNowList,
 };
 
 use super::{
-    do_now_list_single_item::urgency_plan::prompt_for_triggers, WhyInScopeAndActionWithItemStatus,
+    WhyInScopeAndActionWithItemStatus, do_now_list_single_item::urgency_plan::prompt_for_triggers,
 };
 
 enum HighestOrLowest {
@@ -72,7 +72,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         })
         .collect::<Vec<_>>();
 
-    let starting_choice = rand::thread_rng().gen_range(0..display_choices.len());
+    let starting_choice = rand::rng().random_range(0..display_choices.len());
     let choice = Select::new("Pick a priority?", display_choices)
         .with_starting_cursor(starting_choice)
         .prompt();
@@ -84,7 +84,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 *do_now_list.get_now(),
                 send_to_data_storage_layer,
             ))
-            .await
+            .await;
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
@@ -108,7 +108,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 *do_now_list.get_now(),
                 send_to_data_storage_layer,
             ))
-            .await
+            .await;
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),

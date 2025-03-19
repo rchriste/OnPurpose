@@ -54,7 +54,12 @@ impl Scheduled for Vec<ScheduledItem<'_>> {
             if gap_penalty_raw < 1.0 {
                 //This is because log10 of something less than 1 is a negative number. It is possible that we would want a larger penalty or maybe this would be better to just be an assert as this scenario shouldn't really happen.
                 //gap_penalty_raw = 1.0;
-                panic!("This should never happen, it means that we have things that overlap, or we are not sorted properly, or we have a gap of less than a minute. gap_penalty_raw={}, self[i + 1].start={}, self[i].end={}", gap_penalty_raw, self[i + 1].start, self[i].end);
+                panic!(
+                    "This should never happen, it means that we have things that overlap, or we are not sorted properly, or we have a gap of less than a minute. gap_penalty_raw={}, self[i + 1].start={}, self[i].end={}",
+                    gap_penalty_raw,
+                    self[i + 1].start,
+                    self[i].end
+                );
             }
             gap_penalty_sum += gap_penalty_raw.log10();
         }

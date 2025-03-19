@@ -292,7 +292,10 @@ impl<'s> ApplyInTheMomentPriorities<'s> for Vec<WhyInScopeAndActionWithItemStatu
         }
 
         if self.len() > 1 {
-            assert!(!choices.is_empty(), "I am not expecting that it will ever be possible to remove all choices if so then this should be debugged");
+            assert!(
+                !choices.is_empty(),
+                "I am not expecting that it will ever be possible to remove all choices if so then this should be debugged"
+            );
         }
 
         if choices.is_empty() {
@@ -322,6 +325,7 @@ mod tests {
         base_data::BaseData,
         calculated_data,
         data_storage::surrealdb_layer::{
+            SurrealTrigger,
             surreal_in_the_moment_priority::{
                 SurrealAction, SurrealInTheMomentPriorityBuilder, SurrealPriorityKind,
             },
@@ -329,7 +333,6 @@ mod tests {
                 SurrealItemBuilder, SurrealItemType, SurrealMotivationKind, SurrealOrderedSubItem,
             },
             surreal_tables::SurrealTablesBuilder,
-            SurrealTrigger,
         },
         node::{
             action_with_item_status::{
@@ -345,8 +348,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_only_one_item_is_given_with_no_in_the_moment_priorities_then_that_one_item_is_returned(
-    ) {
+    fn apply_in_the_moment_priorities_when_only_one_item_is_given_with_no_in_the_moment_priorities_then_that_one_item_is_returned()
+     {
         let only_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("Only item")
@@ -456,8 +459,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_two_items_are_given_and_one_is_the_highest_in_the_moment_priority_that_one_is_returned(
-    ) {
+    fn apply_in_the_moment_priorities_when_two_items_are_given_and_one_is_the_highest_in_the_moment_priority_that_one_is_returned()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -528,8 +531,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_two_items_are_given_and_one_is_the_lowest_in_the_moment_priority_the_other_one_is_returned(
-    ) {
+    fn apply_in_the_moment_priorities_when_two_items_are_given_and_one_is_the_lowest_in_the_moment_priority_the_other_one_is_returned()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -600,8 +603,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_highest_in_the_moment_priority_over_one_other_item_then_the_other_two_are_returned_to_pick_between(
-    ) {
+    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_highest_in_the_moment_priority_over_one_other_item_then_the_other_two_are_returned_to_pick_between()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -705,8 +708,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_lowest_in_the_moment_priority_over_one_other_item_then_the_other_two_are_returned_to_pick_between(
-    ) {
+    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_lowest_in_the_moment_priority_over_one_other_item_then_the_other_two_are_returned_to_pick_between()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -797,19 +800,23 @@ mod tests {
                     vec.len(),
                     vec![second_item_action.clone(), third_item_action.clone(),].len()
                 );
-                assert!(vec![second_item_action.clone(), third_item_action.clone()]
-                    .iter()
-                    .any(|x| vec[0].get_action() == x.get_action()));
-                assert!(vec![second_item_action.clone(), third_item_action.clone()]
-                    .iter()
-                    .any(|x| vec[1].get_action() == x.get_action()));
+                assert!(
+                    vec![second_item_action.clone(), third_item_action.clone()]
+                        .iter()
+                        .any(|x| vec[0].get_action() == x.get_action())
+                );
+                assert!(
+                    vec![second_item_action.clone(), third_item_action.clone()]
+                        .iter()
+                        .any(|x| vec[1].get_action() == x.get_action())
+                );
             }
         }
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_highest_priority_over_one_other_and_the_third_is_the_lowest_priority_over_the_one_other_then_the_highest_priority_is_returned(
-    ) {
+    fn apply_in_the_moment_priorities_when_three_items_are_given_and_one_is_the_highest_priority_over_one_other_and_the_third_is_the_lowest_priority_over_the_one_other_then_the_highest_priority_is_returned()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -916,8 +923,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_lowest_priority_the_priority_should_not_apply(
-    ) {
+    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_lowest_priority_the_priority_should_not_apply()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")
@@ -1033,8 +1040,8 @@ mod tests {
     }
 
     #[test]
-    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_highest_priority_the_priority_should_not_apply(
-    ) {
+    fn apply_in_the_moment_priorities_when_the_priority_is_out_of_mode_and_highest_priority_the_priority_should_not_apply()
+     {
         let first_item = SurrealItemBuilder::default()
             .id(Some(("surreal_item", "1").into()))
             .summary("First item")

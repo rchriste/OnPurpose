@@ -4,7 +4,7 @@ use surrealdb::opt::RecordId;
 
 use crate::{
     base_data::item::Item,
-    display::{display_item_type::DisplayItemType, DisplayStyle},
+    display::{DisplayStyle, display_item_type::DisplayItemType},
 };
 
 /// DisplayItem was created to make it centralize all of the different ways of displaying or printing an Item without

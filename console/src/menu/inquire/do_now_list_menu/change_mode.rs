@@ -63,7 +63,7 @@ pub(crate) async fn present_change_mode_menu(
             choices
         }
         Err(InquireError::OperationCanceled) => {
-            return Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await
+            return Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await;
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
@@ -103,7 +103,7 @@ pub(crate) async fn present_change_mode_menu(
             choices
         }
         Err(InquireError::OperationCanceled) => {
-            return Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await
+            return Box::pin(present_normal_do_now_list_menu(send_to_data_storage_layer)).await;
         }
         Err(InquireError::OperationInterrupted) => return Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),

@@ -1,10 +1,10 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use surrealdb::{
-    engine::any::{connect, Any, IntoEndpoint},
+    Surreal,
+    engine::any::{Any, IntoEndpoint, connect},
     opt::{PatchOp, RecordId},
     sql::{Datetime, Thing},
-    Surreal,
 };
 use tokio::sync::{
     mpsc::{Receiver, Sender},
@@ -20,6 +20,7 @@ use crate::{
 };
 
 use super::{
+    SurrealTrigger,
     surreal_current_mode::{NewCurrentMode, SurrealCurrentMode},
     surreal_event::SurrealEvent,
     surreal_in_the_moment_priority::{
@@ -32,7 +33,6 @@ use super::{
     surreal_mode,
     surreal_tables::SurrealTables,
     surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0},
-    SurrealTrigger,
 };
 
 pub(crate) enum DataLayerCommands {

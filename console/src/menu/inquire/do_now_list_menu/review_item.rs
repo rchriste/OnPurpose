@@ -8,7 +8,7 @@ use surrealdb::{opt::RecordId, sql::Datetime};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{BaseData, item::Item},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
@@ -23,16 +23,16 @@ use crate::{
         do_now_list_menu::do_now_list_single_item::{
             give_this_item_a_parent::give_this_item_a_parent,
             state_a_smaller_action::state_a_smaller_action,
-            urgency_plan::{prompt_for_dependencies, prompt_for_urgency_plan, AddOrRemove},
+            urgency_plan::{AddOrRemove, prompt_for_dependencies, prompt_for_urgency_plan},
         },
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
     new_time_spent::NewTimeSpent,
     node::{
+        Filter,
         item_node::ItemNode,
         item_status::{DependencyWithItemNode, ItemStatus},
         why_in_scope_and_action_with_item_status::{ToSurreal, WhyInScope},
-        Filter,
     },
 };
 

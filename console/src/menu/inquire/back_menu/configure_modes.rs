@@ -8,10 +8,10 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{mode::Mode, BaseData},
+    base_data::{BaseData, mode::Mode},
     calculated_data::CalculatedData,
     display::display_mode_node::DisplayModeNode,
-    menu::inquire::back_menu::{present_back_menu, SurrealTables},
+    menu::inquire::back_menu::{SurrealTables, present_back_menu},
     new_mode::NewModeBuilder,
     node::mode_node::ModeNode,
 };

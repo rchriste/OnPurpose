@@ -273,70 +273,70 @@ impl Item<'_> {
             Some(SurrealFrequency::Range {
                 range_min,
                 range_max: _range_max,
-            }) => self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+            }) => self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                 let last_reviewed: DateTime<Utc> = x.clone().into();
                 let range_min: Duration = (*range_min).into();
                 last_reviewed + range_min < *self.now
             }),
             Some(SurrealFrequency::Hourly) => {
                 let one_hour = Duration::from_secs(60 * 60);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + one_hour < *self.now
                 })
             }
             Some(SurrealFrequency::Daily) => {
                 let one_day = Duration::from_secs(60 * 60 * 24);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + one_day < *self.now
                 })
             }
             Some(SurrealFrequency::EveryFewDays) => {
                 let three_days = Duration::from_secs(60 * 60 * 24 * 3);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + three_days < *self.now
                 })
             }
             Some(SurrealFrequency::Weekly) => {
                 let one_week = Duration::from_secs(60 * 60 * 24 * 7);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + one_week < *self.now
                 })
             }
             Some(SurrealFrequency::BiMonthly) => {
                 let two_months = Duration::from_secs(60 * 60 * 24 * 30 / 2);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + two_months < *self.now
                 })
             }
             Some(SurrealFrequency::Monthly) => {
                 let one_month = Duration::from_secs(60 * 60 * 24 * 30);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + one_month < *self.now
                 })
             }
             Some(SurrealFrequency::Quarterly) => {
                 let three_months = Duration::from_secs(60 * 60 * 24 * 30 * 3);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + three_months < *self.now
                 })
             }
             Some(SurrealFrequency::SemiAnnually) => {
                 let six_months = Duration::from_secs(60 * 60 * 24 * 30 * 6);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + six_months < *self.now
                 })
             }
             Some(SurrealFrequency::Yearly) => {
                 let one_year = Duration::from_secs(60 * 60 * 24 * 365);
-                self.surreal_item.last_reviewed.as_ref().map_or(true, |x| {
+                self.surreal_item.last_reviewed.as_ref().is_none_or(|x| {
                     let last_reviewed: DateTime<Utc> = x.clone().into();
                     last_reviewed + one_year < *self.now
                 })

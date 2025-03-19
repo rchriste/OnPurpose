@@ -6,14 +6,14 @@ use crate::{
     data_storage::surrealdb_layer::surreal_item::{SurrealScheduled, SurrealUrgency},
     display::display_duration_one_unit::DisplayDurationOneUnit,
     node::{
-        item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
         Filter,
+        item_status::{ItemsInScopeWithItemNode, TriggerWithItemNode, UrgencyPlanWithItemNode},
     },
 };
 
 use super::{
-    display_item_node::{DisplayFormat, DisplayItemNode},
     DisplayStyle,
+    display_item_node::{DisplayFormat, DisplayItemNode},
 };
 
 pub(crate) struct DisplayUrgencyPlan<'s> {

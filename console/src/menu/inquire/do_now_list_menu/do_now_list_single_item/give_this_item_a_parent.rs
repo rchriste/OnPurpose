@@ -5,7 +5,7 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{BaseData, item::Item},
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
@@ -14,7 +14,7 @@ use crate::{
         do_now_list_menu::do_now_list_single_item::ItemTypeSelection,
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
-    node::{item_node::ItemNode, Filter},
+    node::{Filter, item_node::ItemNode},
 };
 
 use super::DisplayFormat;

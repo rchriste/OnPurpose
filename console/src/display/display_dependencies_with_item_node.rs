@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use chrono::{DateTime, Local};
 
-use crate::node::{item_status::DependencyWithItemNode, Filter};
+use crate::node::{Filter, item_status::DependencyWithItemNode};
 
 use super::display_item_node::{DisplayFormat, DisplayItemNode};
 

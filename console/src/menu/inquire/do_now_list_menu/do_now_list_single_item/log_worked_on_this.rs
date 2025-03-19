@@ -16,7 +16,7 @@ use crate::{
         parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
     new_time_spent::NewTimeSpent,
-    node::{item_status::ItemStatus, why_in_scope_and_action_with_item_status::ToSurreal, Filter},
+    node::{Filter, item_status::ItemStatus, why_in_scope_and_action_with_item_status::ToSurreal},
 };
 
 use super::WhyInScope;

@@ -1,7 +1,7 @@
 [package]
 name = "onpurpose"
-version = "0.1.120"
-edition = "2021"
+version = "0.1.121"
+edition = "2024"
 
 [dependencies]
 inquire = { git = "https://github.com/rchriste/inquire", branch = "main", features = ["editor"] } #inquire is for building interactive prompts in terminals
@@ -11,7 +11,7 @@ futures = "0.3" #Recommended by the official Rust Async book for async programmi
 surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }
 serde = "1.0.208" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
-parse_datetime = "0.6.0" #So I can parse when to expect something to be available, fundu should replace this
+parse_datetime = "0.8.0" #So I can parse when to expect something to be available, fundu should replace this
 fundu = { version = "2.0.1", features = ["standard", "custom"] } #So I can parse when to expect something to be available
 dateparser = { git = "https://github.com/rchriste/dateparser", branch = "main" }
 lazy_static = "1.4.0" #So I can efficiently parse regular expressions
@@ -24,7 +24,7 @@ ouroboros = { git = "https://github.com/rchriste/ouroboros", branch = "main" }
 derive_builder = "0.20.0"
 better_term = "1.4.61" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
 crossterm = "0.28.1" #Added so I can use RATATUI
-rand = "0.8.5" #So I can pick a random priority
+rand = "0.9.0" #So I can pick a random priority
 ahash = "0.8.11" #Because it is 10x faster than Rust's built in hasher
 mimalloc = "0.1.43" #Because allocation performance shows up in performance measurements, this seems to give about a %15 perf improvement when running calculated data
 

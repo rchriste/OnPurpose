@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::{
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     display::display_why_in_scope_and_action_with_item_status::DisplayWhyInScopeAndActionWithItemStatus,
-    node::{urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus, Filter},
+    node::{Filter, urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus},
 };
 
 use super::display_item_node::DisplayFormat;

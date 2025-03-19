@@ -6,20 +6,20 @@ use itertools::chain;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{BaseData, item::Item},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
     display::display_item_node::DisplayItemNode,
     menu::inquire::select_higher_importance_than_this::select_higher_importance_than_this,
-    node::{item_node::ItemNode, item_status::ItemStatus, Filter},
+    node::{Filter, item_node::ItemNode, item_status::ItemStatus},
 };
 
 use super::{
-    new_item::NewDependency,
-    urgency_plan::{prompt_for_dependencies_and_urgency_plan, AddOrRemove},
     DisplayFormat, ItemTypeSelection,
+    new_item::NewDependency,
+    urgency_plan::{AddOrRemove, prompt_for_dependencies_and_urgency_plan},
 };
 
 pub(crate) enum SelectAnItemSortingOrder {

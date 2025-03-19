@@ -2,7 +2,7 @@ use crate::{
     data_storage::surrealdb_layer::surreal_current_mode::{
         SurrealCurrentMode, SurrealSelectedSingleMode,
     },
-    node::{item_node::ItemNode, Filter},
+    node::{Filter, item_node::ItemNode},
 };
 
 pub(crate) struct CurrentMode {

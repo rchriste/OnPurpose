@@ -5,14 +5,14 @@ use lazy_static::lazy_static;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{event::Event, BaseData},
+    base_data::{BaseData, event::Event},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
+        SurrealItemsInScope, SurrealTrigger,
         data_layer_commands::DataLayerCommands,
         surreal_in_the_moment_priority::SurrealAction,
         surreal_item::{SurrealDependency, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan},
         surreal_tables::SurrealTables,
-        SurrealItemsInScope, SurrealTrigger,
     },
     display::{
         display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
@@ -20,16 +20,16 @@ use crate::{
     },
     menu::inquire::{
         do_now_list_menu::do_now_list_single_item::state_a_smaller_action::{
-            select_an_item, SelectAnItemSortingOrder,
+            SelectAnItemSortingOrder, select_an_item,
         },
         parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
     new_event::{NewEvent, NewEventBuilder},
     new_time_spent::NewTimeSpent,
     node::{
+        Filter, Urgency,
         item_status::{DependencyWithItemNode, ItemStatus},
         why_in_scope_and_action_with_item_status::ToSurreal,
-        Filter, Urgency,
     },
 };
 use inquire::{InquireError, Select, Text};

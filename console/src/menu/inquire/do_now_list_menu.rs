@@ -14,7 +14,7 @@ use better_term::Style;
 use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
 use classify_item::present_item_needs_a_classification_menu;
-use do_now_list_single_item::{urgency_plan::present_set_ready_and_urgency_plan_menu, LogTime};
+use do_now_list_single_item::{LogTime, urgency_plan::present_set_ready_and_urgency_plan_menu};
 use inquire::{InquireError, Select};
 use itertools::chain;
 use parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu;
@@ -26,10 +26,11 @@ use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{event::Event, BaseData},
+    base_data::{BaseData, event::Event},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_item::SurrealUrgency,
+        data_layer_commands::DataLayerCommands,
+        surreal_item::{SurrealDependency, SurrealUrgency},
         surreal_tables::SurrealTables,
     },
     display::{
@@ -39,15 +40,15 @@ use crate::{
     },
     menu::inquire::back_menu::present_back_menu,
     node::{
+        Filter,
         action_with_item_status::ActionWithItemStatus,
         item_status::{DependencyWithItemNode, ItemStatus},
         urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
         why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
-        Filter,
     },
     systems::do_now_list::{
-        current_mode::{CurrentMode, SelectedSingleMode},
         DoNowList,
+        current_mode::{CurrentMode, SelectedSingleMode},
     },
 };
 
@@ -223,7 +224,10 @@ pub(crate) fn present_upcoming(do_now_list: &DoNowList) {
     } else if upcoming.has_conflicts() {
         let bold_text = Style::new().bold();
         let not_bold_text = Style::new();
-        println!("{}Scheduled items don't fit. At least one of the following items need to be adjusted:{}", bold_text, not_bold_text);
+        println!(
+            "{}Scheduled items don't fit. At least one of the following items need to be adjusted:{}",
+            bold_text, not_bold_text
+        );
         for conflict in upcoming.get_conflicts() {
             println!("{}", DisplayItem::new(conflict));
         }
@@ -247,7 +251,9 @@ impl Display for EventSelection<'_> {
 
 enum EventTrigger<'e> {
     ReturnToDoNowList,
-    TriggerEvent,
+    TriggerEvent {
+        all_items_waiting_on_event: Vec<&'e ItemStatus<'e>>,
+    },
     ItemDependentOnThisEvent(&'e ItemStatus<'e>),
 }
 
@@ -255,7 +261,7 @@ impl Display for EventTrigger<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EventTrigger::ReturnToDoNowList => write!(f, "🔙 Return to Do Now List"),
-            EventTrigger::TriggerEvent => {
+            EventTrigger::TriggerEvent { .. } => {
                 write!(f, "⚡ Trigger or record that this event has happened")
             }
             EventTrigger::ItemDependentOnThisEvent(item) => {
@@ -319,20 +325,28 @@ pub(crate) async fn present_do_now_list_menu(
             let selected = Select::new("Select the event that just happened|", list).prompt();
             match selected {
                 Ok(EventSelection::Event(event)) => {
-                    let list = chain!(
-                        once(EventTrigger::ReturnToDoNowList),
-                        once(EventTrigger::TriggerEvent),
-                        do_now_list
-                            .get_all_items_status()
-                            .iter()
-                            .map(|(_, item)| item)
-                            .filter(|x| x.get_dependencies(Filter::Active).any(|x| match x {
+                    let items_waiting_on_this_event = do_now_list
+                        .get_all_items_status()
+                        .iter()
+                        .map(|(_, item)| item)
+                        .filter(|x| {
+                            x.get_dependencies(Filter::Active).any(|x| match x {
                                 DependencyWithItemNode::AfterEvent(event_waiting_on) => {
                                     event_waiting_on.get_surreal_record_id()
                                         == event.get_surreal_record_id()
                                 }
                                 _ => false,
-                            }))
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    let list = chain!(
+                        once(EventTrigger::ReturnToDoNowList),
+                        once(EventTrigger::TriggerEvent {
+                            all_items_waiting_on_event: items_waiting_on_this_event.clone()
+                        }),
+                        items_waiting_on_this_event
+                            .iter()
+                            .copied()
                             .map(EventTrigger::ItemDependentOnThisEvent)
                     )
                     .collect::<Vec<_>>();
@@ -342,7 +356,21 @@ pub(crate) async fn present_do_now_list_menu(
                     )
                     .prompt();
                     match selected {
-                        Ok(EventTrigger::TriggerEvent) => {
+                        Ok(EventTrigger::TriggerEvent {
+                            all_items_waiting_on_event,
+                        }) => {
+                            //Clear the event before clearing the trigger in case it is cancelled part way through
+                            for item_waiting_on_event in all_items_waiting_on_event {
+                                send_to_data_storage_layer
+                                    .send(DataLayerCommands::RemoveItemDependency(
+                                        item_waiting_on_event.get_surreal_record_id().clone(),
+                                        SurrealDependency::AfterEvent(
+                                            event.get_surreal_record_id().clone(),
+                                        ),
+                                    ))
+                                    .await
+                                    .unwrap();
+                            }
                             send_to_data_storage_layer
                                 .send(DataLayerCommands::TriggerEvent {
                                     event: event.get_surreal_record_id().clone(),

@@ -65,7 +65,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = SystemTime::now();
     let three_months = Duration::from_secs(60 * 60 * 24 * 30 * 3);
     if now.duration_since(exe_modified).unwrap() > three_months {
-        println!("This version of On Purpose is more than 3 months old. You may want to check for a newer version at https://github.com/rchriste/OnPurpose/releases");
+        println!(
+            "This version of On Purpose is more than 3 months old. You may want to check for a newer version at https://github.com/rchriste/OnPurpose/releases"
+        );
     }
 
     loop {

@@ -8,13 +8,13 @@ use surrealdb::{
 };
 
 use crate::{
-    base_data::{event::Event, item::Item, time_spent::TimeSpent, Visited},
+    base_data::{Visited, event::Event, item::Item, time_spent::TimeSpent},
     data_storage::surrealdb_layer::{
+        SurrealItemsInScope, SurrealTrigger,
         surreal_item::{
             SurrealDependency, SurrealItem, SurrealItemType, SurrealReviewGuidance,
             SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,
         },
-        SurrealItemsInScope, SurrealTrigger,
     },
 };
 
@@ -866,12 +866,12 @@ mod tests {
             },
             surreal_tables::SurrealTablesBuilder,
         },
-        node::{item_node::ItemNode, Filter},
+        node::{Filter, item_node::ItemNode},
     };
 
     #[test]
-    fn when_smaller_items_causes_a_circular_reference_create_growing_node_detects_this_and_terminates(
-    ) {
+    fn when_smaller_items_causes_a_circular_reference_create_growing_node_detects_this_and_terminates()
+     {
         let surreal_items = vec![
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "1").into()))
@@ -932,8 +932,8 @@ mod tests {
     }
 
     #[test]
-    fn when_you_cover_yourself_causing_a_circular_reference_create_growing_node_detects_this_and_terminates(
-    ) {
+    fn when_you_cover_yourself_causing_a_circular_reference_create_growing_node_detects_this_and_terminates()
+     {
         let surreal_items = vec![
             SurrealItemBuilder::default()
                 .id(Some(("surreal_item", "1").into()))

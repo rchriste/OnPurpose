@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::node::{item_status::ItemStatus, Filter};
+use crate::node::{Filter, item_status::ItemStatus};
 
 use super::display_item_node::{DisplayFormat, DisplayItemNode};
 

@@ -187,7 +187,7 @@ mod tests {
     use crate::base_data::BaseData;
     use crate::calculated_data::CalculatedData;
     use crate::data_storage::surrealdb_layer::data_layer_commands::{
-        data_storage_start_and_run, DataLayerCommands,
+        DataLayerCommands, data_storage_start_and_run,
     };
     use crate::data_storage::surrealdb_layer::surreal_item::{
         SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan,

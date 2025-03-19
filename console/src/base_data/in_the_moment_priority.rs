@@ -7,10 +7,10 @@ use crate::{
         SurrealInTheMomentPriority, SurrealPriorityKind,
     },
     node::{
+        IsTriggered,
         action_with_item_status::ActionWithItemStatus,
         item_node::{ItemNode, TriggerWithItem},
         item_status::{ItemStatus, TriggerWithItemNode},
-        IsTriggered,
     },
 };
 

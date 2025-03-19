@@ -3,7 +3,7 @@ use inquire::{InquireError, Select};
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{BaseData, item::Item},
     data_storage::surrealdb_layer::data_layer_commands::DataLayerCommands,
     display::display_item::DisplayItem,
 };

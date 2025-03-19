@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     base_data::item::Item,
     data_storage::surrealdb_layer::surreal_item::SurrealItemType,
-    node::{item_node::ItemNode, Filter},
+    node::{Filter, item_node::ItemNode},
 };
 
 use super::display_item::DisplayItem;

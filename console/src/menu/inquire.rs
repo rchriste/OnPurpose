@@ -125,7 +125,9 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
                     } else if TomorrowRE.is_match(day_of_the_week) {
                         now.date_naive() + Duration::days(1)
                     } else {
-                        panic!("This should not be possible as the regex should only match if it is one of the days of the week")
+                        panic!(
+                            "This should not be possible as the regex should only match if it is one of the days of the week"
+                        )
                     };
                     let date = if captures.get(1).is_some() {
                         lazy_static! {

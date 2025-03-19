@@ -7,15 +7,15 @@ use surrealdb::opt::RecordId;
 pub(crate) mod current_mode;
 
 use crate::{
-    base_data::{event::Event, time_spent::TimeSpent, BaseData},
+    base_data::{BaseData, event::Event, time_spent::TimeSpent},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::surreal_item::SurrealUrgency,
     node::{
+        Filter,
         action_with_item_status::{ActionWithItemStatus, WhyInScopeActionListsByUrgency},
         item_status::ItemStatus,
         urgency_level_item_with_item_status::UrgencyLevelItemWithItemStatus,
         why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
-        Filter,
     },
     systems::upcoming::Upcoming,
 };

@@ -9,9 +9,9 @@ use crate::{
     },
     display::display_action_with_item_status::DisplayActionWithItemStatus,
     node::{
+        Filter,
         action_with_item_status::ActionWithItemStatus,
         why_in_scope_and_action_with_item_status::{WhyInScope, WhyInScopeAndActionWithItemStatus},
-        Filter,
     },
 };
 

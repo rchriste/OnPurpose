@@ -12,12 +12,12 @@ use crate::{
 };
 
 use super::{
+    Filter, IsActive, IsTriggered,
     action_with_item_status::ActionWithItemStatus,
     item_node::{
         ActionWithItem, DependencyWithItem, ItemNode, ItemsInScopeWithItem, TriggerWithItem,
         UrgencyPlanWithItem,
     },
-    Filter, IsActive, IsTriggered,
 };
 
 #[derive(Clone, Debug)]
@@ -168,13 +168,28 @@ pub(crate) enum ItemsInScopeWithItemNode<'e> {
 impl From<DependencyWithItemNode<'_>> for SurrealDependency {
     fn from(dependency_with_item_node: DependencyWithItemNode) -> Self {
         match dependency_with_item_node {
-            DependencyWithItemNode::AfterDateTime{ after, is_active: _is_active } => SurrealDependency::AfterDateTime(after.into()),
-            DependencyWithItemNode::UntilScheduled{..} => panic!("Programming error, UntilScheduled, is not represented in SurrealDependency, it is derived. Do not call into on this."),
-            DependencyWithItemNode::AfterItem(item_node) => SurrealDependency::AfterItem(item_node.get_surreal_record_id().clone()),
-            DependencyWithItemNode::AfterChildItem(..) => panic!("Programming error, AfterSmallerItem, is not represented in SurrealDependency, it is derived. Do not call into on this."),
-            DependencyWithItemNode::DuringItem(item_node) => SurrealDependency::DuringItem(item_node.get_surreal_record_id().clone()),
-            DependencyWithItemNode::WaitingToBeInterrupted => panic!("Programming error, WaitingToBeInterrupted, is not represented in SurrealDependency, it is derived. Do not call into on this."),
-            DependencyWithItemNode::AfterEvent(event) => SurrealDependency::AfterEvent(event.get_surreal_record_id().clone()),
+            DependencyWithItemNode::AfterDateTime {
+                after,
+                is_active: _is_active,
+            } => SurrealDependency::AfterDateTime(after.into()),
+            DependencyWithItemNode::UntilScheduled { .. } => panic!(
+                "Programming error, UntilScheduled, is not represented in SurrealDependency, it is derived. Do not call into on this."
+            ),
+            DependencyWithItemNode::AfterItem(item_node) => {
+                SurrealDependency::AfterItem(item_node.get_surreal_record_id().clone())
+            }
+            DependencyWithItemNode::AfterChildItem(..) => panic!(
+                "Programming error, AfterSmallerItem, is not represented in SurrealDependency, it is derived. Do not call into on this."
+            ),
+            DependencyWithItemNode::DuringItem(item_node) => {
+                SurrealDependency::DuringItem(item_node.get_surreal_record_id().clone())
+            }
+            DependencyWithItemNode::WaitingToBeInterrupted => panic!(
+                "Programming error, WaitingToBeInterrupted, is not represented in SurrealDependency, it is derived. Do not call into on this."
+            ),
+            DependencyWithItemNode::AfterEvent(event) => {
+                SurrealDependency::AfterEvent(event.get_surreal_record_id().clone())
+            }
         }
     }
 }
@@ -638,7 +653,7 @@ mod tests {
         base_data::BaseData,
         calculated_data::CalculatedData,
         data_storage::surrealdb_layer::{
-            data_layer_commands::{data_storage_start_and_run, DataLayerCommands},
+            data_layer_commands::{DataLayerCommands, data_storage_start_and_run},
             surreal_item::SurrealDependency,
             surreal_tables::SurrealTables,
         },

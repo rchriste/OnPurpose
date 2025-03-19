@@ -11,9 +11,9 @@ use crate::{
     display::{display_item_node::DisplayFormat, display_item_status::DisplayItemStatus},
     menu::inquire::do_now_list_menu::do_now_list_single_item::present_do_now_list_item_selected,
     node::{
+        Filter, IsTriggered,
         item_status::{ItemStatus, UrgencyPlanWithItemNode},
         why_in_scope_and_action_with_item_status::WhyInScope,
-        Filter, IsTriggered,
     },
     systems::do_now_list::DoNowList,
 };
@@ -78,7 +78,13 @@ impl Display for SearchMenuUrgencyItem<'_> {
                 not_ready,
                 coming_later,
             } => {
-                write!(f, "More urgent than anything including scheduled (ready: {}, not ready: {}, coming later: {})", ready.len(), not_ready.len(), coming_later.len())
+                write!(
+                    f,
+                    "More urgent than anything including scheduled (ready: {}, not ready: {}, coming later: {})",
+                    ready.len(),
+                    not_ready.len(),
+                    coming_later.len()
+                )
             }
             SearchMenuUrgencyItem::ScheduledAnyMode {
                 ready,

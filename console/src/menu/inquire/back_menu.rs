@@ -11,7 +11,7 @@ use surrealdb::opt::RecordId;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    base_data::{item::Item, time_spent::TimeSpent, BaseData},
+    base_data::{BaseData, item::Item, time_spent::TimeSpent},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
@@ -28,9 +28,9 @@ use crate::{
     },
     new_item::NewItem,
     node::{
+        Filter,
         item_node::{ItemNode, ShrinkingItemNode},
         item_status::ItemStatus,
-        Filter,
     },
 };
 
@@ -349,7 +349,7 @@ async fn present_reflection(
                 }
             },
             Err(InquireError::OperationCanceled) => {
-                return Box::pin(present_reflection(send_to_data_storage_layer)).await
+                return Box::pin(present_reflection(send_to_data_storage_layer)).await;
             }
             Err(InquireError::OperationInterrupted) => return Err(()),
             Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),

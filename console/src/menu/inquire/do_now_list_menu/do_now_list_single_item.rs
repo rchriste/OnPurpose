@@ -15,7 +15,7 @@ use tokio::sync::mpsc::Sender;
 use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
 use crate::{
-    base_data::{item::Item, BaseData},
+    base_data::{BaseData, item::Item},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
@@ -26,9 +26,9 @@ use crate::{
         surreal_tables::SurrealTables,
     },
     display::{
-        display_duration::DisplayDuration, display_item::DisplayItem,
+        DisplayStyle, display_duration::DisplayDuration, display_item::DisplayItem,
         display_item_node::DisplayItemNode, display_item_type::DisplayItemType,
-        display_urgency_plan::DisplayUrgency, DisplayStyle,
+        display_urgency_plan::DisplayUrgency,
     },
     menu::inquire::{
         back_menu::capture,
@@ -45,10 +45,10 @@ use crate::{
     },
     new_item,
     node::{
+        Filter,
         item_node::{DependencyWithItem, ItemNode},
         item_status::ItemStatus,
         why_in_scope_and_action_with_item_status::WhyInScope,
-        Filter,
     },
     systems::do_now_list::DoNowList,
 };
@@ -827,7 +827,9 @@ impl ItemTypeSelection {
             Style::default().bold(),
             Style::default()
         );
-        println!("A milestone or hopeful outcome that should be broken down to smaller steps to accomplish.");
+        println!(
+            "A milestone or hopeful outcome that should be broken down to smaller steps to accomplish."
+        );
         println!(
             "{}The emoji is a Milestone sign 🪧 or goal post.{}",
             Style::default().italic(),
@@ -839,14 +841,20 @@ impl ItemTypeSelection {
             Style::default().bold(),
             Style::default()
         );
-        println!("For stating that the item captured is a long standing value or reason for doing something.");
+        println!(
+            "For stating that the item captured is a long standing value or reason for doing something."
+        );
         println!(
             "{}Emoji is a target 🎯 that provides something to aim for.{}",
             Style::default().italic(),
             Style::default()
         );
-        println!("\t🏢Core🏢 is for your work that makes you productive. In your business life this is for work that is a core reason you were hired. When you consider or report on what was accomplished you are generally mentioning things in this category.");
-        println!("\t🧹Non-Core🧹 is for work that might still be essential to do but is considered more of a background thing. Maybe not doing these items is a problem but doing them is not enough to consider that you had a productive day.");
+        println!(
+            "\t🏢Core🏢 is for your work that makes you productive. In your business life this is for work that is a core reason you were hired. When you consider or report on what was accomplished you are generally mentioning things in this category."
+        );
+        println!(
+            "\t🧹Non-Core🧹 is for work that might still be essential to do but is considered more of a background thing. Maybe not doing these items is a problem but doing them is not enough to consider that you had a productive day."
+        );
         println!();
     }
 }
