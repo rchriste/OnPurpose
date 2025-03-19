@@ -16,7 +16,7 @@ use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
 use crate::{
     base_data::{item::Item, BaseData},
-    calculated_data::CalculatedData,
+    calculated_data::{self, CalculatedData},
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{Responsibility, SurrealItemType},
@@ -45,6 +45,7 @@ use crate::{
     node::{
         item_node::{DependencyWithItem, ItemNode},
         item_status::ItemStatus,
+        mode_node::ModeNode,
         why_in_scope_and_action_with_item_status::WhyInScope,
         Filter,
     },
@@ -291,13 +292,13 @@ pub(crate) async fn present_do_now_list_item_selected(
             Ok(())
         }
         Ok(DoNowListSingleItemSelection::UnableToDoThisRightNow) => {
-            let base_data = do_now_list.get_base_data();
+            let calculated_data = do_now_list.get_calculated_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
+                calculated_data,
                 send_to_data_storage_layer,
             )
             .await
@@ -307,26 +308,25 @@ pub(crate) async fn present_do_now_list_item_selected(
                 .await
         }
         Ok(DoNowListSingleItemSelection::ReviewItem) => {
-            let base_data = do_now_list.get_base_data();
             review_item::present_review_item_menu(
                 menu_for,
                 menu_for.get_urgency_now().unwrap_or(&None).clone(),
                 why_in_scope,
                 do_now_list.get_all_items_status(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
+                do_now_list.get_calculated_data(),
                 send_to_data_storage_layer,
             )
             .await
         }
         Ok(DoNowListSingleItemSelection::WorkedOnThis) => {
-            let base_data = do_now_list.get_base_data();
+            let calculated_data = do_now_list.get_calculated_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
+                calculated_data,
                 send_to_data_storage_layer,
             )
             .await?;
@@ -356,13 +356,13 @@ pub(crate) async fn present_do_now_list_item_selected(
             .await
         }
         Ok(DoNowListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
-            let base_data = do_now_list.get_base_data();
+            let calculated_data = do_now_list.get_calculated_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
                 why_in_scope,
                 menu_for.get_urgency_now().cloned().unwrap_or_default(),
                 LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
+                calculated_data,
                 send_to_data_storage_layer,
             )
             .await
@@ -683,10 +683,11 @@ async fn parent_to_item(
         .unwrap();
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(raw_data, now);
-    let items = base_data.get_items();
-    let active_items = base_data.get_active_items();
-    let events = base_data.get_events();
-    let time_spent_log = base_data.get_time_spent_log();
+    let calculated_data = CalculatedData::new_from_base_data(base_data);
+    let items = calculated_data.get_items();
+    let active_items = calculated_data.get_active_items();
+    let events = calculated_data.get_events();
+    let time_spent_log = calculated_data.get_time_spent_log();
     let item_nodes = active_items
         .iter()
         .map(|x| ItemNode::new(x, items, events, time_spent_log))
@@ -702,7 +703,7 @@ async fn parent_to_item(
                     .get_children(Filter::Active)
                     .map(|x| x.get_item())
                     .collect::<Vec<_>>();
-                select_higher_importance_than_this(&items, None)
+                select_higher_importance_than_this(&items, calculated_data.get_mode_nodes(), None)
             } else {
                 None
             };
@@ -717,7 +718,12 @@ async fn parent_to_item(
             Ok(())
         }
         Err(InquireError::InvalidConfiguration(_)) => {
-            parent_to_new_item(parent_this, send_to_data_storage_layer).await
+            parent_to_new_item(
+                parent_this,
+                calculated_data.get_mode_nodes(),
+                send_to_data_storage_layer,
+            )
+            .await
         }
         Err(InquireError::OperationCanceled) => Ok(()),
         Err(InquireError::OperationInterrupted) => Err(()),
@@ -828,6 +834,7 @@ impl ItemTypeSelection {
 
 pub(crate) async fn parent_to_new_item(
     parent_this: &Item<'_>,
+    all_modes: &[ModeNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let list = ItemTypeSelection::create_list();
@@ -836,7 +843,12 @@ pub(crate) async fn parent_to_new_item(
     match selection {
         Ok(ItemTypeSelection::NormalHelp) => {
             ItemTypeSelection::print_normal_help();
-            Box::pin(parent_to_new_item(parent_this, send_to_data_storage_layer)).await
+            Box::pin(parent_to_new_item(
+                parent_this,
+                all_modes,
+                send_to_data_storage_layer,
+            ))
+            .await
         }
         Ok(item_type_selection) => {
             let new_item = item_type_selection.create_new_item_prompt_user_for_summary();
@@ -847,7 +859,12 @@ pub(crate) async fn parent_to_new_item(
             .prompt()
             .unwrap();
             let child_mode_scope = match has_importance {
-                HasImportance::Yes => Some(prompt_for_mode_scope()),
+                HasImportance::Yes => {
+                    //The parent is a new item, this means that as of now it has *not* been declared what modes are in scope by default
+                    //so just declare no parents so all modes are prompted to the user
+                    let blank = Vec::default();
+                    Some(prompt_for_mode_scope(all_modes, &blank))
+                },
                 HasImportance::No => None,
             };
             send_to_data_storage_layer

@@ -6,6 +6,7 @@ use surrealdb::opt::RecordId;
 use crate::{
     base_data::item::Item, data_storage::surrealdb_layer::surreal_item::SurrealModeScope,
     display::display_item::DisplayItem, menu::inquire::prompt_for_mode_scope,
+    node::mode_node::ModeNode,
 };
 
 #[derive(Debug)]
@@ -47,6 +48,7 @@ impl<'e> HigherImportanceThan<'e> {
 #[must_use]
 pub(crate) fn select_higher_importance_than_this(
     items: &[&Item<'_>],
+    all_modes: &[ModeNode<'_>],
     starting_position: Option<usize>,
 ) -> Option<(SurrealModeScope, Option<RecordId>)> {
     let list = HigherImportanceThan::create_list(items);
@@ -63,6 +65,6 @@ pub(crate) fn select_higher_importance_than_this(
         }
         HigherImportanceThan::PutAtTheBottom => None,
     };
-    let mode_scope = prompt_for_mode_scope();
+    let mode_scope = prompt_for_mode_scope(all_modes, todo!());
     Some((mode_scope, higher_than_this))
 }

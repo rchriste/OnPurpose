@@ -112,6 +112,10 @@ impl<'e> WhyInScopeAndActionWithItemStatus<'e> {
         &self.action
     }
 
+    pub(crate) fn get_item_node(&self) -> &ItemNode {
+        self.action.get_item_node()
+    }
+
     pub(crate) fn extend_why_in_scope(&mut self, why_in_scope: &HashSet<WhyInScope>) {
         self.why_in_scope.extend(why_in_scope.clone());
     }

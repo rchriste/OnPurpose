@@ -1,7 +1,7 @@
 use surrealdb::sql::Thing;
 
 use crate::{
-    base_data::mode::{Mode, ModeCategory},
+    base_data::{item::Item, mode::{Mode, ModeCategory}},
     data_storage::surrealdb_layer::surreal_mode::SurrealMode,
 };
 
@@ -73,5 +73,9 @@ impl<'s> ModeNode<'s> {
         item: &'a WhyInScopeAndActionWithItemStatus<'a>,
     ) -> ModeCategory<'a> {
         self.mode.get_category_by_urgency(item)
+    }
+
+    pub(crate) fn is_in_scope_any(&self, items: &[&ItemNode<'_>]) -> bool {
+        self.mode.is_in_scope_any(items)
     }
 }

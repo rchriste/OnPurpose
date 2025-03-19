@@ -195,10 +195,6 @@ impl DoNowList {
     pub(crate) fn get_events(&self) -> &HashMap<&RecordId, Event> {
         self.borrow_calculated_data().get_events()
     }
-
-    pub(crate) fn get_base_data(&self) -> &BaseData {
-        self.borrow_calculated_data().get_base_data()
-    }
 }
 
 fn push_to_urgency_bullet_list<'a>(

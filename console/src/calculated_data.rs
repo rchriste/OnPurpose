@@ -1,6 +1,6 @@
 use crate::{
     base_data::{
-        event::Event, in_the_moment_priority::InTheMomentPriorityWithItemAction,
+        event::Event, in_the_moment_priority::InTheMomentPriorityWithItemAction, item::Item,
         time_spent::TimeSpent, BaseData,
     },
     node::{item_node::ItemNode, item_status::ItemStatus, mode_node::ModeNode},
@@ -97,6 +97,14 @@ impl CalculatedData {
             },
         }
         .build()
+    }
+
+    pub(crate) fn get_items(&self) -> &HashMap<&RecordId, Item> {
+        self.borrow_base_data().get_items()
+    }
+
+    pub(crate) fn get_active_items(&self) -> &[&Item] {
+        self.borrow_base_data().get_active_items()
     }
 
     pub(crate) fn get_items_status(&self) -> &HashMap<&RecordId, ItemStatus> {

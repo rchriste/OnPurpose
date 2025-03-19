@@ -410,14 +410,13 @@ pub(crate) async fn present_do_now_list_menu(
                         .await
                     }
                     ActionWithItemStatus::ReviewItem(item_status) => {
-                        let base_data = do_now_list.get_base_data();
                         present_review_item_menu(
                             item_status,
                             item_status.get_urgency_now().unwrap_or(&None).clone(),
                             why_in_scope,
                             do_now_list.get_all_items_status(),
                             LogTime::SeparateTaskLogTheTime,
-                            base_data,
+                            do_now_list.get_calculated_data(),
                             send_to_data_storage_layer,
                         )
                         .await
@@ -441,13 +440,13 @@ pub(crate) async fn present_do_now_list_menu(
                         }
                     }
                     ActionWithItemStatus::SetReadyAndUrgency(item_status) => {
-                        let base_data = do_now_list.get_base_data();
+                        let calculated_data = do_now_list.get_calculated_data();
                         present_set_ready_and_urgency_plan_menu(
                             item_status,
                             why_in_scope,
                             item_status.get_urgency_now().cloned().unwrap_or_default(),
                             LogTime::SeparateTaskLogTheTime,
-                            base_data,
+                            calculated_data,
                             send_to_data_storage_layer,
                         )
                         .await

@@ -1,13 +1,15 @@
 use std::fmt::Display;
 
 use fundu::{CustomDurationParser, CustomTimeUnit, SaturatingInto, TimeUnit};
-use inquire::{InquireError, Select};
+use inquire::{InquireError, MultiSelect, Select};
 use lazy_static::lazy_static;
 
 use chrono::{DateTime, Datelike, Duration, Local, NaiveTime, TimeZone};
 use regex::{Regex, RegexBuilder};
 
-use crate::data_storage::surrealdb_layer::surreal_item::SurrealModeScope;
+use crate::{
+    base_data::item::Item, data_storage::surrealdb_layer::surreal_item::SurrealModeScope, display::{display_item_node::DisplayFormat, display_mode_node::DisplayModeNode}, node::{item_node::ItemNode, mode_node::ModeNode}
+};
 
 pub(crate) mod back_menu;
 pub(crate) mod do_now_list_menu;
@@ -220,8 +222,9 @@ impl Display for ModeSelection {
     }
 }
 
+/// head_parent_items are all the way up the parent chain. It is a list of top parents 
 #[must_use]
-fn prompt_for_mode_scope() -> SurrealModeScope {
+fn prompt_for_mode_scope(all_modes: &[ModeNode<'_>], head_parent_items: &[&ItemNode<'_>]) -> SurrealModeScope {
     let list = vec![
         ModeSelection::Default,
         ModeSelection::AddAdditionalModes,
@@ -234,6 +237,9 @@ fn prompt_for_mode_scope() -> SurrealModeScope {
             extra_modes_included: Vec::default(),
         },
         Ok(ModeSelection::AddAdditionalModes) => {
+            let list = all_modes.iter().filter(|x| !x.is_in_scope_any(head_parent_items)).map(|x| DisplayModeNode::new(x, DisplayFormat::SingleLine)).collect::<Vec<_>>();
+            
+            let selection = MultiSelect::new("Select additional modes to include", list).prompt();
             todo!("prompt with all non-default modes that can be")
         }
         Err(InquireError::OperationCanceled) => todo!(),

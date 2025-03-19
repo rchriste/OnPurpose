@@ -114,6 +114,48 @@ impl<'s> Mode<'s> {
             None => todo!("none"),
         }
     }
+
+    /// The idea is that ItemNode assumes that the Action is to MakeProgress so this function should be called rather than
+    /// get_category_by_urgency if you want to assume that the action is to MakeProgress on the item.
+    pub(crate) fn get_category_by_urgency_for_item_node<'a>(
+        &self,
+        item: &'a ItemNode<'a>,
+    ) -> ModeCategory<'a> {
+        match item.get_urgency_now() {
+            Some(Some(urgency)) => {
+                match urgency {
+                    SurrealUrgency::CrisesUrgent(surreal_mode_scope) => todo!(),
+                    SurrealUrgency::Scheduled(surreal_mode_scope, surreal_scheduled) => todo!(),
+                    SurrealUrgency::DefinitelyUrgent(surreal_mode_scope) => {
+                        match surreal_mode_scope {
+                            SurrealModeScope::AllModes => ModeCategory::NonCore,
+                            SurrealModeScope::DefaultModesWithChanges { extra_modes_included } => todo!("Need to check default modes, and extra modes, and if extra_modes_included causes it to get pulled in"),
+                        }
+                    },
+                    SurrealUrgency::MaybeUrgent(surreal_mode_scope) => todo!(),
+                }
+            }
+            Some(None) => todo!("Some(None), probably the same as just None"),
+            None => todo!("none"),
+        }
+    }
+
+
+    pub(crate) fn is_in_scope_any(&self, items: &[&ItemNode<'_>]) -> bool {
+        items.iter().any(|x| 
+            match self.get_category_by_importance(x) {
+                ModeCategory::Core => true,
+                ModeCategory::NonCore => true,
+                ModeCategory::OutOfScope |
+                ModeCategory::NotDeclared { .. } => match self.get_category_by_urgency_for_item_node(x) {
+                    ModeCategory::Core => true,
+                    ModeCategory::NonCore => true,
+                    ModeCategory::OutOfScope |
+                    ModeCategory::NotDeclared { .. } => false,
+                }
+            }
+        )
+    }
 }
 
 trait SelectHighestModeCategory<'t> {

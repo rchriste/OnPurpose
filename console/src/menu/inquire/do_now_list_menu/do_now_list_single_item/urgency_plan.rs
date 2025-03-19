@@ -28,9 +28,7 @@ use crate::{
     new_event::{NewEvent, NewEventBuilder},
     new_time_spent::NewTimeSpent,
     node::{
-        item_status::{DependencyWithItemNode, ItemStatus},
-        why_in_scope_and_action_with_item_status::ToSurreal,
-        Filter, Urgency,
+        item_node::ItemNode, item_status::{DependencyWithItemNode, ItemStatus}, mode_node::ModeNode, why_in_scope_and_action_with_item_status::ToSurreal, Filter, Urgency
     },
 };
 use inquire::{InquireError, Select, Text};
@@ -84,13 +82,28 @@ impl Display for ReadySelection {
 
 pub(crate) async fn prompt_for_dependencies_and_urgency_plan(
     currently_selected: Option<&ItemStatus<'_>>,
-    base_data: &BaseData,
+    calculated_data: &CalculatedData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> (Vec<AddOrRemove>, SurrealUrgencyPlan) {
-    let ready =
-        prompt_for_dependencies(currently_selected, base_data, send_to_data_storage_layer).await;
+    let ready = prompt_for_dependencies(
+        currently_selected,
+        calculated_data.get_base_data(),
+        send_to_data_storage_layer,
+    )
+    .await;
     let now = Utc::now();
-    let urgency_plan = prompt_for_urgency_plan(&now, send_to_data_storage_layer).await;
+    let blank = Vec::default();
+    let head_parent_items = match currently_selected {
+        Some(currently_selected) => currently_selected.get_head_parent_items(),
+        None => blank,
+    };
+    let urgency_plan = prompt_for_urgency_plan(
+        &now,
+        calculated_data.get_mode_nodes(),
+        head_parent_items.as_slice(),
+        send_to_data_storage_layer,
+    )
+    .await;
     (ready.unwrap(), urgency_plan)
 }
 
@@ -315,10 +328,12 @@ pub(crate) async fn prompt_for_dependencies(
 
 pub(crate) async fn prompt_for_urgency_plan(
     now: &DateTime<Utc>,
+    all_modes: &[ModeNode<'_>],
+    head_parent_items: &[&ItemNode<'_>],
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> SurrealUrgencyPlan {
     println!("Initial Urgency");
-    let initial_urgency = prompt_for_urgency();
+    let initial_urgency = prompt_for_urgency(all_modes, head_parent_items);
 
     let urgency_plan = Select::new(
         "Does the urgency escalate?|",
@@ -336,7 +351,7 @@ pub(crate) async fn prompt_for_urgency_plan(
             let triggers = prompt_for_triggers(now, send_to_data_storage_layer).await;
 
             println!("Later Urgency");
-            let later_urgency = prompt_for_urgency();
+            let later_urgency = prompt_for_urgency(all_modes, head_parent_items);
 
             SurrealUrgencyPlan::WillEscalate {
                 initial: initial_urgency,
@@ -627,7 +642,7 @@ impl Display for Urgency {
     }
 }
 
-fn prompt_for_urgency() -> Option<SurrealUrgency> {
+fn prompt_for_urgency(all_modes: &[ModeNode<'_>], head_parent_items: &[&ItemNode<'_>]) -> Option<SurrealUrgency> {
     let urgency = Select::new(
         "Select immediate urgency|",
         vec![
@@ -641,7 +656,7 @@ fn prompt_for_urgency() -> Option<SurrealUrgency> {
     .with_starting_cursor(4)
     .prompt()
     .unwrap();
-    let mode = prompt_for_mode_scope();
+    let mode = prompt_for_mode_scope(all_modes, head_parent_items);
     match urgency {
         Urgency::Crises => Some(SurrealUrgency::CrisesUrgent(mode)),
         Urgency::Scheduled => Some(SurrealUrgency::Scheduled(
@@ -799,13 +814,13 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     why_in_scope: &HashSet<WhyInScope>,
     current_urgency: Option<SurrealUrgency>,
     log_time: LogTime,
-    base_data: &BaseData,
+    calculated_data: &CalculatedData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
     let start_present_set_ready_and_urgency_plan_menu = Utc::now();
     let (dependencies, urgency_plan) = prompt_for_dependencies_and_urgency_plan(
         Some(selected),
-        base_data,
+        calculated_data,
         send_to_data_storage_layer,
     )
     .await;

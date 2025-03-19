@@ -384,6 +384,10 @@ impl<'s> ItemStatus<'s> {
         }
     }
 
+    pub(crate) fn get_head_parent_items(&'s self) -> Vec<&'s ItemNode<'s>> {
+        todo!()
+    }
+
     pub(crate) fn get_self_and_parents_flattened(&'s self, filter: Filter) -> Vec<&'s Item<'s>> {
         //TODO This should be updated to return ItemNode from itself rather than calling into the next layer down
         self.item_node.get_self_and_parents(filter)
