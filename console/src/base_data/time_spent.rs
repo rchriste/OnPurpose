@@ -11,13 +11,14 @@ use crate::{
 
 use super::item::Item;
 
+#[derive(PartialEq, Eq)]
 pub(crate) struct TimeSpent<'s> {
     surreal_time_spent: &'s SurrealTimeSpent,
     why_in_scope: HashSet<WhyInScope>,
     when_started: DateTime<Utc>,
     when_stopped: DateTime<Utc>,
     duration: Duration,
-    worked_towards: Vec<RecordId>,
+    worked_towards: HashSet<RecordId>,
 }
 
 impl<'s> TimeSpent<'s> {
@@ -85,7 +86,7 @@ impl<'s> TimeSpent<'s> {
         })
     }
 
-    pub(crate) fn worked_towards(&self) -> &Vec<RecordId> {
+    pub(crate) fn worked_towards(&self) -> &HashSet<RecordId> {
         &self.worked_towards
     }
 

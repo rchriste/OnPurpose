@@ -374,7 +374,9 @@ async fn present_reflection(
     for log in logs_in_range.iter() {
         for worked_towards in log.worked_towards().iter() {
             let h = things_done.entry(worked_towards.clone()).or_default();
-            h.push(log);
+            if !h.contains(&log) {
+                h.push(log);
+            }
         }
     }
 

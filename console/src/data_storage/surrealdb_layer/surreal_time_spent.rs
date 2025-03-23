@@ -5,7 +5,7 @@ use crate::new_time_spent::NewTimeSpent;
 
 use super::{surreal_in_the_moment_priority::SurrealAction, surreal_item::SurrealUrgency};
 
-#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) struct SurrealTimeSpent {
     pub(crate) id: Option<Thing>,
     pub(crate) version: u32,
@@ -24,7 +24,7 @@ pub(crate) enum SurrealWhyInScope {
     MenuNavigation,
 }
 
-#[derive(PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum SurrealDedication {
     PrimaryTask,
     BackgroundTask,
