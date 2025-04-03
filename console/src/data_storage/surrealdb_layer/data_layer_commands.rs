@@ -36,7 +36,7 @@ use super::{
     },
     surreal_mode::{self, SurrealScope},
     surreal_tables::SurrealTables,
-    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0, SurrealTimeSpentVersionOnly}
+    surreal_time_spent::{SurrealTimeSpent, SurrealTimeSpentVersion0, SurrealTimeSpentVersionOnly},
 };
 
 pub(crate) enum DataLayerCommands {
