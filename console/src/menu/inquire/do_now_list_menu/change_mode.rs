@@ -14,7 +14,7 @@ use crate::{
         data_layer_commands::DataLayerCommands, surreal_current_mode::NewCurrentMode,
     },
     display::display_mode_node::DisplayModeNode,
-    new_mode::{NewMode, NewModeBuilder},
+    new_mode::NewModeBuilder,
     node::mode_node::ModeNode,
     systems::do_now_list::current_mode::CurrentMode,
 };

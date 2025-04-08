@@ -5,7 +5,7 @@ use itertools::Itertools;
 use surrealdb::opt::RecordId;
 
 use crate::{
-    base_data::{in_the_moment_priority::InTheMomentPriorityWithItemAction, mode::Mode},
+    base_data::in_the_moment_priority::InTheMomentPriorityWithItemAction,
     data_storage::surrealdb_layer::{
         surreal_in_the_moment_priority::{SurrealAction, SurrealPriorityKind},
         surreal_item::{SurrealModeScope, SurrealUrgency},

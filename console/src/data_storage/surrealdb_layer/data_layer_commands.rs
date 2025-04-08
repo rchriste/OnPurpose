@@ -13,8 +13,7 @@ use tokio::sync::{
 
 use crate::{
     data_storage::surrealdb_layer::{
-        surreal_item::SurrealItemTypeVersion3, surreal_mode::SurrealMode,
-        surreal_time_spent::SurrealTimeSpentVersion1,
+        surreal_mode::SurrealMode, surreal_time_spent::SurrealTimeSpentVersion1,
     },
     new_event::NewEvent,
     new_item::{NewDependency, NewItem},
@@ -31,8 +30,7 @@ use super::{
     },
     surreal_item::{
         Responsibility, SurrealDependency, SurrealFrequency, SurrealImportance, SurrealItem,
-        SurrealItemOldVersion, SurrealItemType, SurrealModeScope, SurrealReviewGuidance,
-        SurrealUrgencyPlan,
+        SurrealItemType, SurrealModeScope, SurrealReviewGuidance, SurrealUrgencyPlan,
     },
     surreal_mode::{self, SurrealScope},
     surreal_tables::SurrealTables,
