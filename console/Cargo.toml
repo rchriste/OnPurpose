@@ -1,6 +1,6 @@
 [package]
 name = "onpurpose"
-version = "0.1.123"
+version = "0.1.124"
 edition = "2024"
 
 [dependencies]
@@ -21,7 +21,7 @@ itertools = "0.14.0"
 ouroboros = { version = "0.18.5" }
 derive_builder = "0.20.0"
 better_term = "1.4.61" #Added so I can use bold and other styles, initially just in the help text but with goals to expand
-crossterm = "0.28.1" #Added so I can use RATATUI
+crossterm = "0.29.0" #Added so I can use RATATUI
 rand = "0.9.0" #So I can pick a random priority
 ahash = "0.8.11" #Because it is 10x faster than Rust's built in hasher
 mimalloc = "0.1.43" #Because allocation performance shows up in performance measurements, this seems to give about a %15 perf improvement when running calculated data

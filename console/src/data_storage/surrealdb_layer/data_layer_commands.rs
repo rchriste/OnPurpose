@@ -91,6 +91,7 @@ pub(crate) enum DataLayerCommands {
         not_chosen: Vec<SurrealAction>,
         in_effect_until: Vec<SurrealTrigger>,
     },
+    ClearInTheMomentPriority(RecordId),
     SetCurrentMode(NewCurrentMode),
     TriggerEvent {
         event: RecordId,
@@ -333,6 +334,14 @@ pub(crate) async fn data_storage_start_and_run(
                 let updated: SurrealInTheMomentPriority = updated.into_iter().next().unwrap();
                 priority.id = updated.id.clone();
                 assert_eq!(priority, updated);
+            }
+            Some(DataLayerCommands::ClearInTheMomentPriority(record_id)) => {
+                let updated: SurrealInTheMomentPriority = db
+                    .delete((SurrealInTheMomentPriority::TABLE_NAME, record_id.clone()))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(updated.id, Some(record_id));
             }
             Some(DataLayerCommands::SetCurrentMode(new_current_mode)) => {
                 let current_mode: SurrealCurrentMode = new_current_mode.into();

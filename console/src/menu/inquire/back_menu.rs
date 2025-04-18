@@ -41,7 +41,8 @@ use super::{
 enum TopMenuSelection {
     Reflection,
     ViewDoNowList,
-    ViewPriorities,
+    ViewImportancePriorities,
+    ClearInTheMomentPriorities,
     ConfigureModes,
     ConfigureSettings,
     DebugViewAllItems,
@@ -54,12 +55,17 @@ impl Display for TopMenuSelection {
             TopMenuSelection::ViewDoNowList => {
                 write!(f, "🔙  Return to Do Now List")
             }
-            TopMenuSelection::ViewPriorities => write!(f, "⚖️  View Priorities"),
+            TopMenuSelection::ViewImportancePriorities => {
+                write!(f, "⚖️  View Importance Priorities")
+            }
             TopMenuSelection::DebugViewAllItems => {
                 write!(f, "🔍  Debug View All Items")
             }
             TopMenuSelection::ConfigureSettings => write!(f, "⚙️  Configure Settings"),
             TopMenuSelection::ConfigureModes => write!(f, "😊  Configure Modes"),
+            TopMenuSelection::ClearInTheMomentPriorities => {
+                write!(f, "🗑️  Clear In The Moment Priorities")
+            }
         }
     }
 }
@@ -67,11 +73,12 @@ impl Display for TopMenuSelection {
 impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
-            Self::ViewPriorities,
+            Self::ViewImportancePriorities,
             Self::Reflection,
             Self::ConfigureModes,
             Self::ConfigureSettings,
             Self::ViewDoNowList,
+            Self::ClearInTheMomentPriorities,
             Self::DebugViewAllItems,
         ]
     }
@@ -89,7 +96,12 @@ pub(crate) async fn present_back_menu(
         Ok(TopMenuSelection::ViewDoNowList) => {
             present_normal_do_now_list_menu(send_to_data_storage_layer).await
         }
-        Ok(TopMenuSelection::ViewPriorities) => view_priorities(send_to_data_storage_layer).await,
+        Ok(TopMenuSelection::ViewImportancePriorities) => {
+            view_priorities(send_to_data_storage_layer).await
+        }
+        Ok(TopMenuSelection::ClearInTheMomentPriorities) => {
+            clear_in_the_moment_priorities(send_to_data_storage_layer).await
+        }
         Ok(TopMenuSelection::ConfigureSettings) => configure_settings().await,
         Ok(TopMenuSelection::ConfigureModes) => configure_modes(send_to_data_storage_layer).await,
         Ok(TopMenuSelection::DebugViewAllItems) => {
@@ -116,6 +128,61 @@ pub(crate) async fn capture(
             Ok(())
         }
         Err(InquireError::OperationCanceled) => Ok(()),
+        Err(InquireError::OperationInterrupted) => Err(()),
+        Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
+    }
+}
+
+enum ClearInTheMomentPrioritiesChoice {
+    ClearAll,
+    Back,
+}
+
+impl Display for ClearInTheMomentPrioritiesChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClearInTheMomentPrioritiesChoice::ClearAll => write!(f, "Clear All"),
+            ClearInTheMomentPrioritiesChoice::Back => write!(f, "Back"),
+        }
+    }
+}
+
+async fn clear_in_the_moment_priorities(
+    send_to_data_storage_layer: &Sender<DataLayerCommands>,
+) -> Result<(), ()> {
+    let menu_choices = vec![
+        ClearInTheMomentPrioritiesChoice::ClearAll,
+        ClearInTheMomentPrioritiesChoice::Back,
+    ];
+    let selection = Select::new("Select an action...", menu_choices).prompt();
+
+    match selection {
+        Ok(ClearInTheMomentPrioritiesChoice::ClearAll) => {
+            print!("Clearing all in the moment priorities");
+            print!("...");
+            let surreal_tables = SurrealTables::new(send_to_data_storage_layer)
+                .await
+                .unwrap();
+            for in_the_moment_priority in surreal_tables.get_surreal_in_the_moment_priorities() {
+                print!(".");
+                let in_the_moment_priority =
+                    in_the_moment_priority.id.as_ref().expect("In DB").clone();
+                send_to_data_storage_layer
+                    .send(DataLayerCommands::ClearInTheMomentPriority(
+                        in_the_moment_priority,
+                    ))
+                    .await
+                    .unwrap();
+            }
+            println!("Done");
+            Ok(())
+        }
+        Ok(ClearInTheMomentPrioritiesChoice::Back) => {
+            Box::pin(present_back_menu(send_to_data_storage_layer)).await
+        }
+        Err(InquireError::OperationCanceled) => {
+            Box::pin(present_back_menu(send_to_data_storage_layer)).await
+        }
         Err(InquireError::OperationInterrupted) => Err(()),
         Err(err) => panic!("Unexpected error, try restarting the terminal: {}", err),
     }
