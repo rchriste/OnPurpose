@@ -7,9 +7,12 @@ use surrealdb::{
     sql::{self, Datetime},
 };
 
-use crate::data_storage::surrealdb_layer::surreal_item::{
-    Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
-    SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+use crate::{
+    calculated_data::parent_lookup::ParentLookup,
+    data_storage::surrealdb_layer::surreal_item::{
+        Responsibility, SurrealDependency, SurrealFrequency, SurrealItem, SurrealItemType,
+        SurrealMotivationKind, SurrealOrderedSubItem, SurrealReviewGuidance, SurrealUrgencyPlan,
+    },
 };
 
 use super::Visited;
@@ -212,20 +215,43 @@ impl<'b> Item<'b> {
     }
 }
 
-impl Item<'_> {
+impl<'s> Item<'s> {
     pub(crate) fn find_parents<'a>(
         &self,
-        other_items: &'a HashMap<&'a RecordId, Item<'a>>,
+        parent_lookup: &'a ParentLookup<'a>,
         visited: &Visited<'a, '_>,
     ) -> Vec<&'a Item<'a>> {
-        other_items
-            .iter()
-            .filter(|(_, other_item)| {
-                other_item.is_this_a_smaller_item(self)
-                    && !visited.contains(other_item.get_surreal_record_id())
-            })
-            .map(|(_, x)| x)
-            .collect()
+        //The goal is to have a hash table with the key being an item and the value being the parents
+        match parent_lookup
+            .parent_lookup
+            .get(self.get_surreal_record_id())
+        {
+            Some(parents) => parents
+                .iter()
+                .filter_map(|x| {
+                    if !visited.contains(x.get_surreal_record_id()) {
+                        Some(*x)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            None => {
+                //If there are no parents, return an empty vector
+                Vec::new()
+            }
+        }
+    }
+
+    pub(crate) fn get_children(&'s self) -> Box<dyn Iterator<Item = &'s RecordId> + 's> {
+        Box::new(
+            self.surreal_item
+                .smaller_items_in_priority_order
+                .iter()
+                .map(|x| match x {
+                    SurrealOrderedSubItem::SubItem { surreal_item_id } => surreal_item_id,
+                }),
+        )
     }
 
     pub(crate) fn find_children<'a>(
@@ -233,30 +259,15 @@ impl Item<'_> {
         other_items: &'a HashMap<&'a RecordId, Item<'a>>,
         visited: &[&RecordId],
     ) -> Vec<&'a Item<'a>> {
-        self.surreal_item
-            .smaller_items_in_priority_order
-            .iter()
-            .filter_map(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    if !visited.contains(&surreal_item_id) {
-                        other_items.get(surreal_item_id)
-                    } else {
-                        None
-                    }
+        self.get_children()
+            .filter_map(|surreal_item_id| {
+                if !visited.contains(&surreal_item_id) {
+                    other_items.get(surreal_item_id)
+                } else {
+                    None
                 }
             })
             .collect()
-    }
-
-    pub(crate) fn is_this_a_smaller_item(&self, other_item: &Item) -> bool {
-        self.surreal_item
-            .smaller_items_in_priority_order
-            .iter()
-            .any(|x| match x {
-                SurrealOrderedSubItem::SubItem { surreal_item_id } => {
-                    other_item.id == surreal_item_id
-                }
-            })
     }
 
     pub(crate) fn has_review_frequency(&self) -> bool {
@@ -395,12 +406,13 @@ mod tests {
             .unwrap();
         let now = Utc::now();
         let items = surreal_tables.make_items(&now);
+        let parent_lookup = ParentLookup::new(&items);
 
         let smaller_item = items
             .get(smaller_item.id.as_ref().expect("Set above"))
             .expect("smaller item should be there");
         let visited = Visited::new(smaller_item.get_surreal_record_id(), None);
-        let find_results = smaller_item.find_parents(&items, &visited);
+        let find_results = smaller_item.find_parents(&parent_lookup, &visited);
 
         assert_eq!(find_results.len(), 1);
         assert_eq!(

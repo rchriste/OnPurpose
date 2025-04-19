@@ -6,6 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{BaseData, item::Item},
+    calculated_data::parent_lookup::ParentLookup,
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
@@ -46,13 +47,14 @@ pub(crate) async fn give_this_item_a_parent(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let all_items = base_data.get_items();
+    let parent_lookup = ParentLookup::new(all_items);
     let active_items = base_data.get_active_items();
     let all_events = base_data.get_events();
     let time_spent_log = base_data.get_time_spent_log();
     let mut nodes = active_items
         .iter()
         .filter(|x| x.get_surreal_record_id() != parent_this.get_surreal_record_id())
-        .map(|item| ItemNode::new(item, all_items, all_events, time_spent_log))
+        .map(|item| ItemNode::new(item, all_items, &parent_lookup, all_events, time_spent_log))
         //Collect the ItemNodes because they need a place to be so they don't go out of scope as DisplayItemNode
         //only takes a reference.
         .collect::<Vec<_>>();

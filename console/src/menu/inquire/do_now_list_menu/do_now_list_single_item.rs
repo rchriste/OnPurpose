@@ -16,7 +16,7 @@ use urgency_plan::present_set_ready_and_urgency_plan_menu;
 
 use crate::{
     base_data::{BaseData, item::Item},
-    calculated_data::CalculatedData,
+    calculated_data::{CalculatedData, parent_lookup::ParentLookup},
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
@@ -624,6 +624,7 @@ async fn finish_do_now_item(
             let now = Utc::now();
             let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
             let items = base_data.get_items();
+            let parents = ParentLookup::new(items);
             let events = base_data.get_events();
             let parent_surreal_record_id = parent.get_surreal_record_id();
             let time_spent_log = base_data.get_time_spent_log();
@@ -632,6 +633,7 @@ async fn finish_do_now_item(
                     .get(parent_surreal_record_id)
                     .expect("Should be there"),
                 items,
+                &parents,
                 events,
                 time_spent_log,
             );
@@ -689,16 +691,19 @@ async fn parent_to_item(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(raw_data, now);
     let items = base_data.get_items();
+    let parent_lookup = ParentLookup::new(items);
     let active_items = base_data.get_active_items();
     let events = base_data.get_events();
     let time_spent_log = base_data.get_time_spent_log();
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, items, events, time_spent_log))
+        .map(|x| ItemNode::new(x, items, &parent_lookup, events, time_spent_log))
         .collect::<Vec<_>>();
     let list = DisplayItemNode::make_list(&item_nodes, Filter::Active, DisplayFormat::SingleLine);
 
-    let selection = Select::new("Type to Search or Press Esc to enter a new one", list).prompt();
+    let selection = Select::new("Type to Search or Press Esc to enter a new one", list)
+        .with_page_size(3)
+        .prompt();
     match selection {
         Ok(display_item) => {
             let item_node: &ItemNode = display_item.get_item_node();

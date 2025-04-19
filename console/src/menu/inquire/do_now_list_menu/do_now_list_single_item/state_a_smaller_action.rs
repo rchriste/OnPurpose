@@ -94,6 +94,7 @@ pub(crate) async fn select_an_item<'a>(
         "Select an existing item from this list of all items or create a new item, type to search|",
         list,
     )
+    .with_page_size(2)
     .prompt();
     match selection {
         Ok(ChildItem::CreateNewItem) => Ok(None),

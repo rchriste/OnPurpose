@@ -9,6 +9,7 @@ use surrealdb::{
 
 use crate::{
     base_data::{Visited, event::Event, item::Item, time_spent::TimeSpent},
+    calculated_data::parent_lookup::ParentLookup,
     data_storage::surrealdb_layer::{
         SurrealItemsInScope, SurrealTrigger,
         surreal_item::{
@@ -258,12 +259,13 @@ impl<'s> ItemNode<'s> {
     pub(crate) fn new(
         item: &'s Item<'s>,
         all_items: &'s HashMap<&'s RecordId, Item<'s>>,
+        parent_lookup: &'s ParentLookup<'s>,
         all_events: &'s HashMap<&'s RecordId, Event<'s>>,
         time_spent_log: &[TimeSpent],
     ) -> Self {
         let visited = Visited::new(item.get_surreal_record_id(), None);
-        let parents = item.find_parents(all_items, &visited);
-        let parents = create_growing_nodes(parents, all_items, &visited);
+        let parents = item.find_parents(parent_lookup, &visited);
+        let parents = create_growing_nodes(parents, parent_lookup, &visited);
         let visited: Vec<&RecordId> = iter::once(item.get_surreal_record_id())
             .chain(parents.iter().flat_map(|x| {
                 x.get_self_and_parents(Vec::default())
@@ -559,7 +561,7 @@ impl ShouldChildrenHaveReviewFrequencySet for &GrowingItemNode<'_> {
 
 pub(crate) fn create_growing_nodes<'a>(
     items: Vec<&'a Item<'a>>,
-    possible_parents: &'a HashMap<&'a RecordId, Item<'a>>,
+    parent_lookup: &'a ParentLookup<'a>,
     visited: &Visited<'a, '_>,
 ) -> Vec<GrowingItemNode<'a>> {
     items
@@ -568,7 +570,7 @@ pub(crate) fn create_growing_nodes<'a>(
             if !visited.contains(x.get_surreal_record_id()) {
                 //TODO: Add a unit test for this circular reference in smaller and bigger
                 let visited = Visited::new(x.get_surreal_record_id(), Some(visited));
-                Some(create_growing_node(x, possible_parents, &visited))
+                Some(create_growing_node(x, parent_lookup, &visited))
             } else {
                 None
             }
@@ -578,11 +580,11 @@ pub(crate) fn create_growing_nodes<'a>(
 
 pub(crate) fn create_growing_node<'a>(
     item: &'a Item<'a>,
-    all_items: &'a HashMap<&'a RecordId, Item<'a>>,
+    parent_lookup: &'a ParentLookup<'a>,
     visited: &Visited<'a, '_>,
 ) -> GrowingItemNode<'a> {
-    let parents = item.find_parents(all_items, visited);
-    let larger = create_growing_nodes(parents, all_items, visited);
+    let parents = item.find_parents(parent_lookup, visited);
+    let larger = create_growing_nodes(parents, parent_lookup, visited);
     GrowingItemNode { item, larger }
 }
 
@@ -860,6 +862,7 @@ mod tests {
 
     use crate::{
         base_data::item::ItemVecExtensions,
+        calculated_data::parent_lookup::ParentLookup,
         data_storage::surrealdb_layer::{
             surreal_item::{
                 SurrealDependency, SurrealItemBuilder, SurrealItemType, SurrealOrderedSubItem,
@@ -908,6 +911,7 @@ mod tests {
         let all_time_spent = surreal_tables.make_time_spent_log().collect::<Vec<_>>();
         let now = Utc::now();
         let items = surreal_tables.make_items(&now);
+        let parent_lookup = ParentLookup::new(&items);
         let active_items = items.filter_active_items();
         let events = surreal_tables.make_events();
 
@@ -915,7 +919,7 @@ mod tests {
             .iter()
             .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &items, &events, &all_time_spent))
+            .map(|x| ItemNode::new(x, &items, &parent_lookup, &events, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 
@@ -970,6 +974,7 @@ mod tests {
         let all_time_spent = surreal_tables.make_time_spent_log().collect::<Vec<_>>();
         let now = Utc::now();
         let items = surreal_tables.make_items(&now);
+        let parent_lookup = ParentLookup::new(&items);
         let active_items = items.filter_active_items();
         let events = surreal_tables.make_events();
 
@@ -977,7 +982,7 @@ mod tests {
             .iter()
             .filter(|x| x.get_item_type() == &SurrealItemType::Action);
         let next_step_nodes = to_dos
-            .map(|x| ItemNode::new(x, &items, &events, &all_time_spent))
+            .map(|x| ItemNode::new(x, &items, &parent_lookup, &events, &all_time_spent))
             .filter(|x| !x.has_children(Filter::Active))
             .collect::<Vec<_>>();
 

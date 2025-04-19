@@ -1,3 +1,5 @@
+pub(crate) mod parent_lookup;
+
 use crate::{
     base_data::{
         BaseData, event::Event, in_the_moment_priority::InTheMomentPriorityWithItemAction,
@@ -11,11 +13,17 @@ use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use surrealdb::opt::RecordId;
 
+use parent_lookup::ParentLookup;
+
 #[self_referencing]
 pub(crate) struct CalculatedData {
     base_data: BaseData,
 
     #[borrows(base_data)]
+    #[covariant]
+    parent_lookup: ParentLookup<'this>,
+
+    #[borrows(base_data, parent_lookup)]
     #[covariant]
     items_nodes: HashMap<&'this RecordId, ItemNode<'this>>,
 
@@ -39,14 +47,17 @@ impl CalculatedData {
     pub(crate) fn new_from_base_data(base_data: BaseData) -> Self {
         CalculatedDataBuilder {
             base_data,
-            items_nodes_builder: |base_data| {
+            parent_lookup_builder: |base_data| {
+                ParentLookup::new(base_data.get_items())
+            },
+            items_nodes_builder: |base_data, parent_lookup| {
                 base_data
                     .get_items()
                     .iter()
                     .map(|(k, x)| {
                         (
                             *k,
-                            ItemNode::new(x, base_data.get_items(), base_data.get_events(), base_data.get_time_spent_log()),
+                            ItemNode::new(x, base_data.get_items(), parent_lookup, base_data.get_events(), base_data.get_time_spent_log()),
                         )
                     })
                     .collect::<HashMap<_, _>>()

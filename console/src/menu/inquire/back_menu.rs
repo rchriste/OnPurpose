@@ -12,7 +12,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::{
     base_data::{BaseData, item::Item, time_spent::TimeSpent},
-    calculated_data::CalculatedData,
+    calculated_data::{CalculatedData, parent_lookup::ParentLookup},
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
@@ -74,11 +74,11 @@ impl TopMenuSelection {
     fn make_list() -> Vec<TopMenuSelection> {
         vec![
             Self::ViewImportancePriorities,
+            Self::ClearInTheMomentPriorities,
             Self::Reflection,
             Self::ConfigureModes,
             Self::ConfigureSettings,
             Self::ViewDoNowList,
-            Self::ClearInTheMomentPriorities,
             Self::DebugViewAllItems,
         ]
     }
@@ -889,13 +889,14 @@ async fn debug_view_all_items(
     let now = Utc::now();
     let base_data = BaseData::new_from_surreal_tables(surreal_tables, now);
     let all_items = base_data.get_items();
+    let all_parents = ParentLookup::new(all_items);
     let active_items = base_data.get_active_items();
     let all_events = base_data.get_events();
     let time_spent_log = base_data.get_time_spent_log();
 
     let item_nodes = active_items
         .iter()
-        .map(|x| ItemNode::new(x, all_items, all_events, time_spent_log))
+        .map(|x| ItemNode::new(x, all_items, &all_parents, all_events, time_spent_log))
         .collect::<Vec<_>>();
 
     let item_nodes = item_nodes.iter().collect::<Vec<_>>();
