@@ -14,7 +14,6 @@ impl Display for DisplayItemStatus<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "|")?;
         if self.has_dependencies(self.filter) {
-            //write a red circle emoji
             write!(f, "⏳ ")?;
         }
 

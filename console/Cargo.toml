@@ -1,11 +1,11 @@
 [package]
 name = "onpurpose"
-version = "0.1.126"
+version = "0.1.127"
 edition = "2024"
 
 [dependencies]
 inquire = { git = "https://github.com/rchriste/inquire", branch = "main", features = ["editor"] } #inquire is for building interactive prompts in terminals
-tokio = { version = "1.39.3", features = ["full"] } #Added so I can use Surreal DB
+tokio = { version = "1.44.2", features = ["full"] } #Added so I can use Surreal DB
 futures = "0.3" #Recommended by the official Rust Async book for async programming
 #Added so I can store and persist data, kv-mem is an in memory database that is maybe not required in a not test build
 surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }

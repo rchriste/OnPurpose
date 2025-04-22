@@ -52,8 +52,18 @@ impl Display for DisplayItemNode<'_> {
             }
             DisplayFormat::SingleLine => {
                 let mut last_depth = 0;
+                let mut visited = Vec::new();
                 for (depth, item) in parents.iter() {
+                    if visited.contains(item) {
+                        // reload symbol
+                        write!(f, "↺")?;
+                        continue;
+                    } else {
+                        visited.push(item);
+                    }
+
                     let display_item = DisplayItem::new(item);
+
                     if last_depth < *depth {
                         write!(f, " ⬅ {}", display_item)?;
                     } else {
