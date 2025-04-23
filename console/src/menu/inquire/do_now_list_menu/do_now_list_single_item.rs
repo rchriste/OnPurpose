@@ -227,7 +227,7 @@ pub(crate) async fn present_do_now_list_item_selected(
     );
 
     let selection = Select::new("Select from the below list|", list)
-        .with_page_size(14)
+        .with_page_size(16)
         .prompt();
 
     match selection {
@@ -702,7 +702,7 @@ async fn parent_to_item(
     let list = DisplayItemNode::make_list(&item_nodes, Filter::Active, DisplayFormat::SingleLine);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list)
-        .with_page_size(3)
+        .with_page_size(4)
         .prompt();
     match selection {
         Ok(display_item) => {

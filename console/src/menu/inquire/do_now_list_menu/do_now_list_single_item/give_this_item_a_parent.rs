@@ -91,6 +91,7 @@ pub(crate) async fn give_this_item_a_parent(
         "Type to search, select an existing reason, or create a new item|",
         list,
     )
+    .with_page_size(4)
     .prompt();
     match selection {
         Ok(ParentItem::FinishItem) => {

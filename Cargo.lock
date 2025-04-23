@@ -2419,7 +2419,7 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "onpurpose"
-version = "0.1.127"
+version = "0.1.128"
 dependencies = [
  "ahash 0.8.11",
  "better_term",

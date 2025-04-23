@@ -736,7 +736,7 @@ pub(crate) async fn present_search_menu(
             } else if list.len() <= 1 {
                 list.into_iter()
                     .next()
-                    .expect("len() <= 1 so first() should be Some")
+                    .expect("len() <= 1 && !is_empty() so first() should be Some")
             } else {
                 Select::new("Select an item to view", list)
                     .prompt()

@@ -273,7 +273,9 @@ async fn view_priorities_of_item_status(
             DisplayItemStatus::new(item_status, Filter::Active, DisplayFormat::SingleLine)
         })
         .collect();
-    let selection = Select::new("Select a child to view...", list).prompt();
+    let selection = Select::new("Select a child to view...", list)
+        .with_page_size(4)
+        .prompt();
     match selection {
         Ok(display_priority) => {
             println!("{}", display_priority);
@@ -902,7 +904,9 @@ async fn debug_view_all_items(
     let item_nodes = item_nodes.iter().collect::<Vec<_>>();
     let list = DebugViewItem::make_list(&item_nodes);
 
-    let selection = Select::new("Select an item to show the debug view of...", list).prompt();
+    let selection = Select::new("Select an item to show the debug view of...", list)
+        .with_page_size(4)
+        .prompt();
     match selection {
         Ok(DebugViewItem::Item(item)) => {
             println!("{}", item);

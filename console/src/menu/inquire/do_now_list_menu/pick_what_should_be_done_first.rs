@@ -74,6 +74,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
 
     let starting_choice = rand::rng().random_range(0..display_choices.len());
     let choice = Select::new("Pick a priority?", display_choices)
+        .with_page_size(4)
         .with_starting_cursor(starting_choice)
         .prompt();
     let choice = match choice {
@@ -230,6 +231,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
         })
         .expect("Choice just selected will always be found");
     let other_items = MultiSelect::new("What other items should be affected?", other_items)
+        .with_page_size(4)
         .with_starting_cursor(starting_position)
         .prompt();
 
