@@ -63,7 +63,7 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
             Ok(exact_start) => Some(exact_start.into()),
             Err(_e) => {
                 lazy_static! {
-                    static ref RE: Regex = RegexBuilder::new(r"^\s*(last\s+|next\s+)?(Monday|Mon|Tuesday|Tue|Wed|Wednesday|Thu|Thursday|Fri|Friday|Sat|Saturday|Sun|Sunday|Tomorrow)\s*(([0-9]{1,2})(:[0-9]{2}(:[0-9]{2})?)?\s*(am|pm)?)?\s*$").case_insensitive(true).build().expect("Regex is valid");
+                    static ref RE: Regex = RegexBuilder::new(r"^\s*(last\s+|next\s+)?(Monday|Mon|Tuesday|Tue|Wed|Wednesday|Thu|Thur|Thurs|Thursday|Fri|Friday|Sat|Saturday|Sun|Sunday|Tomorrow)\s*(([0-9]{1,2})(:[0-9]{2}(:[0-9]{2})?)?\s*(am|pm)?)?\s*$").case_insensitive(true).build().expect("Regex is valid");
                 }
                 if RE.is_match(input) {
                     let captures = RE.captures(input).unwrap();
@@ -84,10 +84,11 @@ fn parse_exact_or_relative_datetime(input: &str) -> Option<DateTime<Local>> {
                             .case_insensitive(true)
                             .build()
                             .expect("Regex is valid");
-                        static ref ThursdayRE: Regex = RegexBuilder::new(r"^\s*(Thursday|Thu)")
-                            .case_insensitive(true)
-                            .build()
-                            .expect("Regex is valid");
+                        static ref ThursdayRE: Regex =
+                            RegexBuilder::new(r"^\s*(Thursday|Thu|Thur|Thurs)")
+                                .case_insensitive(true)
+                                .build()
+                                .expect("Regex is valid");
                         static ref FridayRE: Regex = RegexBuilder::new(r"^\s*(Friday|Fri)")
                             .case_insensitive(true)
                             .build()
