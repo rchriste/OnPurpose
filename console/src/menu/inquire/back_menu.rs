@@ -274,7 +274,7 @@ async fn view_priorities_of_item_status(
         })
         .collect();
     let selection = Select::new("Select a child to view...", list)
-        .with_page_size(4)
+        .with_page_size(8)
         .prompt();
     match selection {
         Ok(display_priority) => {
@@ -905,7 +905,7 @@ async fn debug_view_all_items(
     let list = DebugViewItem::make_list(&item_nodes);
 
     let selection = Select::new("Select an item to show the debug view of...", list)
-        .with_page_size(4)
+        .with_page_size(8)
         .prompt();
     match selection {
         Ok(DebugViewItem::Item(item)) => {

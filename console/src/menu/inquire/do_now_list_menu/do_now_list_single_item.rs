@@ -702,7 +702,7 @@ async fn parent_to_item(
     let list = DisplayItemNode::make_list(&item_nodes, Filter::Active, DisplayFormat::SingleLine);
 
     let selection = Select::new("Type to Search or Press Esc to enter a new one", list)
-        .with_page_size(4)
+        .with_page_size(8)
         .prompt();
     match selection {
         Ok(display_item) => {

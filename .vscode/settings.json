@@ -42,6 +42,7 @@
         "softprops",
         "struct",
         "surrealdb",
+        "taskonpurpose",
         "testcopy",
         "thiserror",
         "thon",
