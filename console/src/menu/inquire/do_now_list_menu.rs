@@ -194,7 +194,7 @@ pub(crate) async fn present_normal_do_now_list_menu(
     let do_now_list = DoNowList::new_do_now_list(calculated_data, &now);
     let finish_checkpoint = Utc::now();
     let elapsed = finish_checkpoint - now;
-    if elapsed > chrono::Duration::try_seconds(0).expect("valid") {
+    if elapsed > chrono::Duration::try_seconds(1).expect("valid") {
         println!("Slow to create do now list. Time taken: {}", elapsed);
         println!(
             "Base data took: {}, calculated data took: {}, do now list took: {}",

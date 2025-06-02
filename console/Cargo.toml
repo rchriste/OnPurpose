@@ -1,7 +1,11 @@
 [package]
 name = "taskonpurpose"
-version = "0.1.129"
+version = "0.1.130"
 edition = "2024"
+
+[profile.dev]
+# Options are full, "line-tables-only", and false. False is the best build times and full is the best debug information with line-tables-only being in between
+debug = false
 
 [dependencies]
 inquire = { git = "https://github.com/rchriste/inquire", branch = "main", features = ["editor"] } #inquire is for building interactive prompts in terminals
@@ -11,7 +15,7 @@ futures = "0.3" #Recommended by the official Rust Async book for async programmi
 surrealdb-alpha = { version = "2.0.9", features = ["kv-mem", "kv-rocksdb"] }
 serde = "1.0.208" #Implied to be required by surrealdb_extra's getting started documentation
 chrono = "0.4.38"
-parse_datetime = "0.9.0" #So I can parse when to expect something to be available, fundu should replace this
+parse_datetime = "0.10.0" #So I can parse when to expect something to be available, fundu should replace this
 fundu = { version = "2.0.1", features = ["standard", "custom"] } #So I can parse when to expect something to be available
 dateparser = { git = "https://github.com/rchriste/dateparser", branch = "main" }
 lazy_static = "1.4.0" #So I can efficiently parse regular expressions
