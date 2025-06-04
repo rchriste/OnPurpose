@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 use chrono::Utc;
 use inquire::Select;
 use itertools::Itertools;
@@ -11,8 +11,7 @@ use crate::{
     base_data::{BaseData, item::Item},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands, surreal_in_the_moment_priority::SurrealAction,
-        surreal_item::SurrealUrgency, surreal_tables::SurrealTables,
+        data_layer_commands::DataLayerCommands, surreal_tables::SurrealTables,
     },
     display::{
         display_dependencies_with_item_node::DisplayDependenciesWithItemNode,
@@ -27,16 +26,12 @@ use crate::{
         },
         select_higher_importance_than_this::select_higher_importance_than_this,
     },
-    new_time_spent::NewTimeSpent,
     node::{
         Filter,
         item_node::ItemNode,
         item_status::{DependencyWithItemNode, ItemStatus},
-        why_in_scope_and_action_with_item_status::{ToSurreal, WhyInScope},
     },
 };
-
-use super::do_now_list_single_item::LogTime;
 
 enum ReviewItemMenuChoices<'e> {
     DoneWithReview,
@@ -182,15 +177,10 @@ impl ReviewItemMenuChoices<'_> {
 
 pub(crate) async fn present_review_item_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
-    why_in_scope: &HashSet<WhyInScope>,
     all_items: &HashMap<&RecordId, ItemStatus<'_>>,
-    log_time: LogTime,
     base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let start_review_item_menu = Utc::now();
-
     present_review_item_menu_internal(
         item_status,
         item_status,
@@ -199,29 +189,6 @@ pub(crate) async fn present_review_item_menu(
         send_to_data_storage_layer,
     )
     .await?;
-
-    match log_time {
-        LogTime::SeparateTaskLogTheTime => {
-            let new_time_spent = NewTimeSpent {
-                why_in_scope: why_in_scope.to_surreal(),
-                working_on: vec![SurrealAction::ReviewItem(
-                    item_status.get_surreal_record_id().clone(),
-                )], //TODO: I should also add all the parent items that this is making progress towards the goal
-                when_started: start_review_item_menu,
-                when_stopped: Utc::now(),
-                dedication: None,
-                urgency: Some(current_urgency),
-            };
-
-            send_to_data_storage_layer
-                .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
-                .await
-                .unwrap();
-        }
-        LogTime::PartOfAnotherTaskDoNotLogTheTime => {
-            //Do nothing
-        }
-    }
 
     Ok(())
 }

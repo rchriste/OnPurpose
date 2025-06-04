@@ -21,7 +21,6 @@ use crate::{
         data_layer_commands::DataLayerCommands,
         surreal_item::{
             Responsibility, SurrealHowMuchIsInMyControl, SurrealItemType, SurrealMotivationKind,
-            SurrealUrgency,
         },
         surreal_tables::SurrealTables,
     },
@@ -54,11 +53,6 @@ use crate::{
 };
 
 use super::DisplayFormat;
-
-pub(crate) enum LogTime {
-    SeparateTaskLogTheTime,
-    PartOfAnotherTaskDoNotLogTheTime,
-}
 
 enum DoNowListSingleItemSelection<'e> {
     ChangeItemType { current: &'e SurrealItemType },
@@ -294,15 +288,8 @@ pub(crate) async fn present_do_now_list_item_selected(
         }
         Ok(DoNowListSingleItemSelection::UnableToDoThisRightNow) => {
             let base_data = do_now_list.get_base_data();
-            present_set_ready_and_urgency_plan_menu(
-                menu_for,
-                why_in_scope,
-                menu_for.get_urgency_now().cloned(),
-                LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
-                send_to_data_storage_layer,
-            )
-            .await
+            present_set_ready_and_urgency_plan_menu(menu_for, base_data, send_to_data_storage_layer)
+                .await
         }
         Ok(DoNowListSingleItemSelection::SomethingElseShouldBeDoneFirst) => {
             something_else_should_be_done_first(menu_for.get_item(), send_to_data_storage_layer)
@@ -312,13 +299,7 @@ pub(crate) async fn present_do_now_list_item_selected(
             let base_data = do_now_list.get_base_data();
             review_item::present_review_item_menu(
                 menu_for,
-                menu_for
-                    .get_urgency_now()
-                    .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                    .clone(),
-                why_in_scope,
                 do_now_list.get_all_items_status(),
-                LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
             )
@@ -328,9 +309,6 @@ pub(crate) async fn present_do_now_list_item_selected(
             let base_data = do_now_list.get_base_data();
             present_set_ready_and_urgency_plan_menu(
                 menu_for,
-                why_in_scope,
-                menu_for.get_urgency_now().cloned(),
-                LogTime::PartOfAnotherTaskDoNotLogTheTime,
                 base_data,
                 send_to_data_storage_layer,
             )
@@ -362,15 +340,8 @@ pub(crate) async fn present_do_now_list_item_selected(
         }
         Ok(DoNowListSingleItemSelection::ChangeReadyAndUrgencyPlan) => {
             let base_data = do_now_list.get_base_data();
-            present_set_ready_and_urgency_plan_menu(
-                menu_for,
-                why_in_scope,
-                menu_for.get_urgency_now().cloned(),
-                LogTime::PartOfAnotherTaskDoNotLogTheTime,
-                base_data,
-                send_to_data_storage_layer,
-            )
-            .await
+            present_set_ready_and_urgency_plan_menu(menu_for, base_data, send_to_data_storage_layer)
+                .await
         }
         Ok(DoNowListSingleItemSelection::UpdateSummary) => {
             update_item_summary(menu_for.get_item(), send_to_data_storage_layer).await?;

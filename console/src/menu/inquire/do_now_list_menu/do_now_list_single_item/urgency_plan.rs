@@ -1,4 +1,3 @@
-use ahash::HashSet;
 use chrono::{DateTime, Utc};
 use fundu::{CustomDurationParser, CustomTimeUnit, SaturatingInto, TimeUnit};
 use lazy_static::lazy_static;
@@ -10,7 +9,6 @@ use crate::{
     data_storage::surrealdb_layer::{
         SurrealItemsInScope, SurrealTrigger,
         data_layer_commands::DataLayerCommands,
-        surreal_in_the_moment_priority::SurrealAction,
         surreal_item::{SurrealDependency, SurrealScheduled, SurrealUrgency, SurrealUrgencyPlan},
         surreal_tables::SurrealTables,
     },
@@ -25,11 +23,9 @@ use crate::{
         parse_exact_or_relative_datetime, parse_exact_or_relative_datetime_help_string,
     },
     new_event::{NewEvent, NewEventBuilder},
-    new_time_spent::NewTimeSpent,
     node::{
         Filter, Urgency,
         item_status::{DependencyWithItemNode, ItemStatus},
-        why_in_scope_and_action_with_item_status::ToSurreal,
     },
 };
 use inquire::{InquireError, Select, Text};
@@ -38,8 +34,6 @@ use std::{
     fmt::{Display, Formatter},
     iter::once,
 };
-
-use super::{LogTime, WhyInScope};
 
 enum UrgencyPlanSelection {
     StaysTheSame,
@@ -807,13 +801,9 @@ fn prompt_to_schedule() -> Result<Option<SurrealScheduled>, ()> {
 
 pub(crate) async fn present_set_ready_and_urgency_plan_menu(
     selected: &ItemStatus<'_>,
-    why_in_scope: &HashSet<WhyInScope>,
-    current_urgency: Option<SurrealUrgency>,
-    log_time: LogTime,
     base_data: &BaseData,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let start_present_set_ready_and_urgency_plan_menu = Utc::now();
     let (dependencies, urgency_plan) = prompt_for_dependencies_and_urgency_plan(
         Some(selected),
         base_data,
@@ -860,29 +850,6 @@ pub(crate) async fn present_set_ready_and_urgency_plan_menu(
         ))
         .await
         .unwrap();
-
-    match log_time {
-        LogTime::SeparateTaskLogTheTime => {
-            let new_time_spent = NewTimeSpent {
-                why_in_scope: why_in_scope.to_surreal(),
-                working_on: vec![SurrealAction::SetReadyAndUrgency(
-                    selected.get_surreal_record_id().clone(),
-                )], //TODO: Should this also be logging onto all the parent items that this is making progress towards the goal?
-                when_started: start_present_set_ready_and_urgency_plan_menu,
-                when_stopped: Utc::now(),
-                dedication: None,
-                urgency: current_urgency,
-            };
-
-            send_to_data_storage_layer
-                .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
-                .await
-                .unwrap();
-        }
-        LogTime::PartOfAnotherTaskDoNotLogTheTime => {
-            //Do nothing
-        }
-    }
 
     Ok(())
 }

@@ -3,10 +3,6 @@ name = "taskonpurpose"
 version = "0.1.130"
 edition = "2024"
 
-[profile.dev]
-# Options are full, "line-tables-only", and false. False is the best build times and full is the best debug information with line-tables-only being in between
-debug = false
-
 [dependencies]
 inquire = { git = "https://github.com/rchriste/inquire", branch = "main", features = ["editor"] } #inquire is for building interactive prompts in terminals
 tokio = { version = "1.44.2", features = ["full"] } #Added so I can use Surreal DB

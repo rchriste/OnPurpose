@@ -14,7 +14,7 @@ use better_term::Style;
 use change_mode::present_change_mode_menu;
 use chrono::{DateTime, Local, Utc};
 use classify_item::present_item_needs_a_classification_menu;
-use do_now_list_single_item::{LogTime, urgency_plan::present_set_ready_and_urgency_plan_menu};
+use do_now_list_single_item::urgency_plan::present_set_ready_and_urgency_plan_menu;
 use inquire::{InquireError, Select};
 use itertools::chain;
 use parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu;
@@ -29,8 +29,7 @@ use crate::{
     base_data::{BaseData, event::Event},
     calculated_data::CalculatedData,
     data_storage::surrealdb_layer::{
-        data_layer_commands::DataLayerCommands,
-        surreal_item::{SurrealDependency, SurrealUrgency},
+        data_layer_commands::DataLayerCommands, surreal_item::SurrealDependency,
         surreal_tables::SurrealTables,
     },
     display::{
@@ -424,11 +423,6 @@ pub(crate) async fn present_do_now_list_menu(
                     ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                         present_pick_item_review_frequency_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
-                            why_in_scope,
                             send_to_data_storage_layer,
                         )
                         .await
@@ -436,11 +430,6 @@ pub(crate) async fn present_do_now_list_menu(
                     ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
                         present_item_needs_a_classification_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
-                            why_in_scope,
                             send_to_data_storage_layer,
                         )
                         .await
@@ -449,13 +438,7 @@ pub(crate) async fn present_do_now_list_menu(
                         let base_data = do_now_list.get_base_data();
                         present_review_item_menu(
                             item_status,
-                            item_status
-                                .get_urgency_now()
-                                .unwrap_or(&SurrealUrgency::InTheModeByImportance)
-                                .clone(),
-                            why_in_scope,
                             do_now_list.get_all_items_status(),
-                            LogTime::SeparateTaskLogTheTime,
                             base_data,
                             send_to_data_storage_layer,
                         )
@@ -483,9 +466,6 @@ pub(crate) async fn present_do_now_list_menu(
                         let base_data = do_now_list.get_base_data();
                         present_set_ready_and_urgency_plan_menu(
                             item_status,
-                            why_in_scope,
-                            item_status.get_urgency_now().cloned(),
-                            LogTime::SeparateTaskLogTheTime,
                             base_data,
                             send_to_data_storage_layer,
                         )

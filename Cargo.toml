@@ -7,3 +7,7 @@ members = [
 
 [profile.rust-analyzer]
 inherits = "dev"
+
+[profile.dev]
+# Options are full, "line-tables-only", and false. False is the best build times and full is the best debug information with line-tables-only being in between
+debug = false

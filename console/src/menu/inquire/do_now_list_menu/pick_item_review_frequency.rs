@@ -1,21 +1,14 @@
 use std::fmt::{self, Display, Formatter};
 
-use ahash::HashSet;
-use chrono::Utc;
 use inquire::Select;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
     data_storage::surrealdb_layer::{
         data_layer_commands::DataLayerCommands,
-        surreal_in_the_moment_priority::SurrealAction,
-        surreal_item::{SurrealFrequency, SurrealReviewGuidance, SurrealUrgency},
+        surreal_item::{SurrealFrequency, SurrealReviewGuidance},
     },
-    new_time_spent::NewTimeSpent,
-    node::{
-        item_status::ItemStatus,
-        why_in_scope_and_action_with_item_status::{ToSurreal, WhyInScope},
-    },
+    node::item_status::ItemStatus,
 };
 
 pub(crate) enum Frequency {
@@ -106,11 +99,8 @@ impl ReviewGuidance {
 
 pub(crate) async fn present_pick_item_review_frequency_menu(
     item_status: &ItemStatus<'_>,
-    current_urgency: SurrealUrgency,
-    why_in_scope: &HashSet<WhyInScope>,
     send_to_data_storage_layer: &Sender<DataLayerCommands>,
 ) -> Result<(), ()> {
-    let started_present_pick_item_review_frequency = Utc::now();
     let review_frequency = Select::new(
         "How often should you review this item?",
         Frequency::make_list(),
@@ -148,22 +138,6 @@ pub(crate) async fn present_pick_item_review_frequency_menu(
             surreal_review_frequency,
             review_guidance.into(),
         ))
-        .await
-        .unwrap();
-
-    let new_time_spent = NewTimeSpent {
-        why_in_scope: why_in_scope.to_surreal(),
-        working_on: vec![SurrealAction::ReviewItem(
-            item_status.get_surreal_record_id().clone(),
-        )], //TODO: Should I also add all the parent items that this is making progress towards the goal
-        when_started: started_present_pick_item_review_frequency,
-        when_stopped: Utc::now(),
-        dedication: None,
-        urgency: Some(current_urgency),
-    };
-
-    send_to_data_storage_layer
-        .send(DataLayerCommands::RecordTimeSpent(new_time_spent))
         .await
         .unwrap();
 

@@ -16,7 +16,7 @@ use crate::{
     menu::inquire::do_now_list_menu::{
         classify_item::present_item_needs_a_classification_menu,
         do_now_list_single_item::{
-            LogTime, present_do_now_list_item_selected, present_is_person_or_group_around_menu,
+            present_do_now_list_item_selected, present_is_person_or_group_around_menu,
             urgency_plan::present_set_ready_and_urgency_plan_menu,
         },
         parent_back_to_a_motivation::present_parent_back_to_a_motivation_menu,
@@ -137,8 +137,6 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 ActionWithItemStatus::PickItemReviewFrequency(item_status) => {
                     return present_pick_item_review_frequency_menu(
                         item_status,
-                        item_action.get_urgency_now(),
-                        why_in_scope,
                         send_to_data_storage_layer,
                     )
                     .await;
@@ -147,10 +145,7 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     let base_data = do_now_list.get_base_data();
                     return present_review_item_menu(
                         item_status,
-                        item_action.get_urgency_now(),
-                        why_in_scope,
                         do_now_list.get_all_items_status(),
-                        LogTime::SeparateTaskLogTheTime,
                         base_data,
                         send_to_data_storage_layer,
                     )
@@ -177,8 +172,6 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                 ActionWithItemStatus::ItemNeedsAClassification(item_status) => {
                     return present_item_needs_a_classification_menu(
                         item_status,
-                        item_action.get_urgency_now(),
-                        why_in_scope,
                         send_to_data_storage_layer,
                     )
                     .await;
@@ -187,9 +180,6 @@ pub(crate) async fn present_pick_what_should_be_done_first_menu<'a>(
                     let base_data = do_now_list.get_base_data();
                     return present_set_ready_and_urgency_plan_menu(
                         item_status,
-                        why_in_scope,
-                        Some(item_action.get_urgency_now()),
-                        LogTime::SeparateTaskLogTheTime,
                         base_data,
                         send_to_data_storage_layer,
                     )

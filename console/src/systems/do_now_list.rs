@@ -138,15 +138,10 @@ impl DoNowList {
                 }
 
                 let all_priorities = calculated_data.get_in_the_moment_priorities();
-                let ordered_bullet_list =
-                    bullet_lists_by_urgency.apply_in_the_moment_priorities(all_priorities);
 
-                ordered_bullet_list
+                bullet_lists_by_urgency.apply_in_the_moment_priorities(all_priorities)
             },
-            upcoming_builder: |calculated_data| {
-                let upcoming = Upcoming::new(calculated_data, current_time);
-                upcoming
-            },
+            upcoming_builder: |calculated_data| Upcoming::new(calculated_data, current_time),
         }
         .build()
     }
